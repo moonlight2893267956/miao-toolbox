@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>阿渺工具箱 — 管理后台仪表盘 Mock</title>
+<!--
+  Spine governance:
+  - DESIGN.md: admin-stat-card, colors (primary #5C4FD0, accent #D97020 as anomaly marker), rounded (md 10px)
+  - EXPERIENCE.md: IA (管理后台-仪表盘), Component Patterns (admin-stat-card), State Patterns (admin-no-data), Key Flow 2, Responsive (admin max-w-7xl, tables horizontal scroll on mobile)
+-->
+<style>
+  :root {
+    --primary: #5C4FD0;
+    --primary-foreground: #FFFFFF;
+    --primary-10: rgba(92, 79, 208, 0.1);
+    --accent: #D97020;
+    --bg: #F5F5F5;
+    --surface: #FFFFFF;
+    --text-primary: #1A1A2E;
+    --text-secondary: #6B7280;
+    --border: #E5E7EB;
+    --success: #36B37E;
+    --warning: #FFAB00;
+    --error: #FF5630;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --sidebar-width: 240px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* Reuse sidebar from tool-list mock */
+  .sidebar {
+    width: var(--sidebar-width);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 12px;
+    flex-shrink: 0;
+  }
+
+  .sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    margin-bottom: 24px;
+  }
+
+  .sidebar-brand-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--primary);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-foreground);
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .sidebar-brand-text {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .sidebar-section-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 8px 12px;
+    margin-top: 8px;
+  }
+
+  .sidebar-nav { list-style: none; }
+
+  .sidebar-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.15s;
+    margin-bottom: 2px;
+  }
+
+  .sidebar-nav-item:hover { background: var(--primary-10); }
+
+  .sidebar-nav-item.active {
+    background: var(--primary-10);
+    color: var(--primary);
+    font-weight: 500;
+  }
+
+  .sidebar-nav-item .icon {
+    width: 20px;
+    text-align: center;
+  }
+
+  .sidebar-spacer { flex: 1; }
+
+  .sidebar-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+  }
+
+  .sidebar-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  /* Admin main */
+  .main {
+    flex: 1;
+    padding: 32px 40px;
+    overflow-y: auto;
+    max-width: 1280px;
+  }
+
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+
+  .page-title {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+
+  .page-breadcrumb {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+  }
+
+  .refresh-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+
+  .refresh-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+
+  /* Stat cards */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 20px;
+  }
+
+  .stat-card-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+
+  .stat-card-value {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-card-trend {
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .stat-card-trend.up { color: var(--success); }
+  .stat-card-trend.warn { color: var(--accent); }
+  .stat-card-trend.error { color: var(--error); }
+
+  /* Chart placeholder */
+  .chart-section {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 20px;
+  }
+
+  .chart-card-title {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 16px;
+  }
+
+  .chart-placeholder {
+    height: 200px;
+    background: linear-gradient(180deg, var(--primary-10) 0%, transparent 100%);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .chart-bar {
+    width: 28px;
+    border-radius: 4px 4px 0 0;
+    margin: 0 6px;
+    transition: height 0.3s;
+  }
+
+  .chart-bar.normal { background: var(--primary); opacity: 0.6; }
+  .chart-bar.anomaly { background: var(--accent); opacity: 0.9; }
+
+  .chart-legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .chart-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .chart-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  /* Tool distribution */
+  .dist-list {
+    list-style: none;
+  }
+
+  .dist-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dist-item:last-child { border-bottom: none; }
+
+  .dist-item-name {
+    font-size: 14px;
+  }
+
+  .dist-item-bar-wrap {
+    flex: 1;
+    margin: 0 16px;
+    height: 6px;
+    background: var(--bg);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .dist-item-bar {
+    height: 100%;
+    background: var(--primary);
+    border-radius: 3px;
+    opacity: 0.6;
+  }
+
+  .dist-item-count {
+    font-size: 13px;
+    font-weight: 500;
+    min-width: 48px;
+    text-align: right;
+  }
+
+  /* Anomaly alert */
+  .anomaly-banner {
+    background: rgba(255, 140, 66, 0.08);
+    border: 1px solid rgba(255, 140, 66, 0.3);
+    border-radius: var(--radius-md);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    font-size: 14px;
+  }
+
+  .anomaly-banner-icon {
+    font-size: 18px;
+  }
+
+  .anomaly-banner-text {
+    flex: 1;
+  }
+
+  .anomaly-banner-action {
+    color: var(--primary);
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-icon">渺</div>
+    <div class="sidebar-brand-text">阿渺工具箱</div>
+  </div>
+
+  <div class="sidebar-section-label">工具</div>
+  <ul class="sidebar-nav">
+    <li class="sidebar-nav-item">
+      <span class="icon">🧰</span> 工具列表
+    </li>
+  </ul>
+
+  <div class="sidebar-section-label">管理</div>
+  <ul class="sidebar-nav">
+    <li class="sidebar-nav-item active">
+      <span class="icon">📊</span> 仪表盘
+    </li>
+    <li class="sidebar-nav-item">
+      <span class="icon">🔧</span> 工具管理
+    </li>
+    <li class="sidebar-nav-item">
+      <span class="icon">📋</span> 调用日志
+    </li>
+    <li class="sidebar-nav-item">
+      <span class="icon">👥</span> 用户管理
+    </li>
+  </ul>
+
+  <div class="sidebar-spacer"></div>
+
+  <div class="sidebar-user">
+    <div class="sidebar-avatar">渺</div>
+    <div>
+      <div style="font-size:14px;font-weight:500;">阿渺</div>
+      <div style="font-size:12px;color:var(--text-secondary);">管理员</div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="page-breadcrumb">管理 / 仪表盘</div>
+  <div class="page-header">
+    <div class="page-title">系统概览</div>
+    <button class="refresh-btn">🔄 刷新</button>
+  </div>
+
+  <!-- Anomaly alert -->
+  <div class="anomaly-banner">
+    <span class="anomaly-banner-icon">⚠️</span>
+    <span class="anomaly-banner-text">检测到今日调用量异常偏高，较昨日增长 <strong>210%</strong></span>
+    <span class="anomaly-banner-action">查看详情 →</span>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-card-label">今日总调用量</div>
+      <div class="stat-card-value">1,284</div>
+      <div class="stat-card-trend warn">↑ 210% 较昨日</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-label">活跃用户</div>
+      <div class="stat-card-value">5</div>
+      <div class="stat-card-trend up">↑ 1 较昨日</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-label">速率限制触发</div>
+      <div class="stat-card-value">12</div>
+      <div class="stat-card-trend error">↑ 8 较昨日</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-label">异常请求</div>
+      <div class="stat-card-value">3</div>
+      <div class="stat-card-trend warn">↑ 2 较昨日</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="chart-section">
+    <div class="chart-card">
+      <div class="chart-card-title">近 7 天调用趋势</div>
+      <div class="chart-placeholder">
+        <div class="chart-bar normal" style="height:40%"></div>
+        <div class="chart-bar normal" style="height:45%"></div>
+        <div class="chart-bar normal" style="height:50%"></div>
+        <div class="chart-bar normal" style="height:42%"></div>
+        <div class="chart-bar normal" style="height:38%"></div>
+        <div class="chart-bar normal" style="height:55%"></div>
+        <div class="chart-bar anomaly" style="height:95%"></div>
+      </div>
+      <div class="chart-legend">
+        <div class="chart-legend-item">
+          <div class="chart-legend-dot" style="background:var(--primary);opacity:0.6;"></div>
+          正常
+        </div>
+        <div class="chart-legend-item">
+          <div class="chart-legend-dot" style="background:var(--accent);"></div>
+          异常
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-title">工具调用分布</div>
+      <ul class="dist-list">
+        <li class="dist-item">
+          <span class="dist-item-name">文本翻译</span>
+          <div class="dist-item-bar-wrap">
+            <div class="dist-item-bar" style="width:65%"></div>
+          </div>
+          <span class="dist-item-count">834</span>
+        </li>
+        <li class="dist-item">
+          <span class="dist-item-name">文生图</span>
+          <div class="dist-item-bar-wrap">
+            <div class="dist-item-bar" style="width:25%"></div>
+          </div>
+          <span class="dist-item-count">321</span>
+        </li>
+        <li class="dist-item">
+          <span class="dist-item-name">文生语音</span>
+          <div class="dist-item-bar-wrap">
+            <div class="dist-item-bar" style="width:10%"></div>
+          </div>
+          <span class="dist-item-count">129</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
