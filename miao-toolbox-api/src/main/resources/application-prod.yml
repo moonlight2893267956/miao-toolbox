@@ -12,6 +12,7 @@ spring:
     redis:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
+      username: ${REDIS_USERNAME:default}
       password: ${REDIS_PASSWORD}
 
 management:

@@ -5,6 +5,7 @@ import com.miao.toolbox.gateway.filter.AntiReplayFilter;
 import com.miao.toolbox.gateway.filter.RateLimitFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -61,15 +62,17 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 );
 
-        // Register optional filters
+        // Register filters — all anchored to UsernamePasswordAuthenticationFilter
+        // to avoid "does not have a registered order" in Spring Boot 4.x
+        // Order (before UsernamePasswordAuthenticationFilter):
+        //   1. AntiReplayFilter  2. JwtAuthFilter  3. RateLimitFilter
         if (antiReplayFilter != null) {
-            http.addFilterBefore(antiReplayFilter, JwtAuthFilter.class);
+            http.addFilterBefore(antiReplayFilter, UsernamePasswordAuthenticationFilter.class);
         }
-        if (rateLimitFilter != null) {
-            http.addFilterAfter(rateLimitFilter, JwtAuthFilter.class);
-        }
-
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        if (rateLimitFilter != null) {
+            http.addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
+        }
 
         return http.build();
     }
@@ -94,5 +97,16 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", config);
         return source;
+    }
+
+    /**
+     * 禁用 JwtAuthFilter 的 Servlet 容器自动注册，
+     * 仅通过 SecurityFilterChain 注册（避免 "does not have a registered order" 错误）。
+     */
+    @Bean
+    public FilterRegistrationBean<JwtAuthFilter> jwtAuthFilterRegistration(JwtAuthFilter filter) {
+        FilterRegistrationBean<JwtAuthFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 }
