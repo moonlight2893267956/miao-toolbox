@@ -195,7 +195,7 @@ public class AuthService {
         userRepository.save(user);
     }
 
-    private void storeRefreshToken(Long userId, String rawToken) {
+    public void storeRefreshToken(Long userId, String rawToken) {
         // Enforce max concurrent sessions
         List<RefreshToken> existingTokens = refreshTokenRepository.findByUserIdOrderByCreatedAtAsc(userId);
         while (existingTokens.size() >= MAX_CONCURRENT_SESSIONS) {
@@ -236,7 +236,7 @@ public class AuthService {
         return hasLetter && hasDigit;
     }
 
-    private void addRefreshTokenCookie(HttpServletResponse response, String token) {
+    public void addRefreshTokenCookie(HttpServletResponse response, String token) {
         Cookie cookie = new Cookie(REFRESH_TOKEN_COOKIE_NAME, token);
         cookie.setHttpOnly(true);
         cookie.setPath("/api/auth");
@@ -246,7 +246,7 @@ public class AuthService {
         response.addCookie(cookie);
     }
 
-    private void clearRefreshTokenCookie(HttpServletResponse response) {
+    public void clearRefreshTokenCookie(HttpServletResponse response) {
         Cookie cookie = new Cookie(REFRESH_TOKEN_COOKIE_NAME, "");
         cookie.setHttpOnly(true);
         cookie.setPath("/api/auth");

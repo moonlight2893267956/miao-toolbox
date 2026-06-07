@@ -45,3 +45,10 @@ miao:
     nonce-ttl-seconds: 300
   cors:
     allowed-origins: http://localhost:5173
+  oauth:
+    github:
+      client-id: test-github-client-id
+      client-secret: test-github-client-secret
+      redirect-uri: http://localhost:8080/api/auth/oauth/github/callback
+      frontend-callback-url: http://localhost:5173/oauth/callback
+      scope: read:user user:email

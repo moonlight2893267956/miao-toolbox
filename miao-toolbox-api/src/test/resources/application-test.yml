@@ -1,0 +1,40 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+miao:
+  jwt:
+    secret: test-secret-key-that-is-at-least-256-bits-long-for-testing-purposes
+    access-token-expiry-minutes: 15
+    refresh-token-expiry-days: 7
+  rate-limit:
+    authenticated:
+      max-requests: 60
+      window-seconds: 60
+    public:
+      max-requests: 10
+      window-seconds: 60
+  anti-replay:
+    timestamp-tolerance-minutes: 5
+    nonce-ttl-seconds: 300
+  cors:
+    allowed-origins: http://localhost:5173
