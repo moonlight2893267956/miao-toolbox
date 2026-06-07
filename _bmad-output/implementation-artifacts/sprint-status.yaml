@@ -43,15 +43,15 @@ story_location: _bmad-output/implementation-artifacts
 
 development_status:
   # === Epic 1: 项目基础与安全骨架 ===
-  epic-1: backlog
-  1-1-project-init-and-dev-env: backlog
-  1-2-database-schema-and-unified-response: backlog
-  1-3-jwt-auth-and-password-login: backlog
-  1-4-token-refresh-and-logout: backlog
-  1-5-github-oauth-login: backlog
-  1-6-rate-limiting-and-anti-replay: backlog
-  1-7-cors-error-masking-and-global-exception-handler: backlog
-  1-8-frontend-brand-theme-and-layout: backlog
+  epic-1: in-progress
+  1-1-project-init-and-dev-env: done
+  1-2-database-schema-and-unified-response: done
+  1-3-jwt-auth-and-password-login: done
+  1-4-token-refresh-and-logout: done
+  1-5-github-oauth-login: done
+  1-6-rate-limiting-and-anti-replay: done
+  1-7-cors-error-masking-and-global-exception-handler: done
+  1-8-frontend-brand-theme-and-layout: done
   1-9-frontend-auth-flow-and-login-page: backlog
   1-10-personal-settings-and-user-menu: backlog
   epic-1-retrospective: optional
