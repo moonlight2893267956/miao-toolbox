@@ -11,6 +11,7 @@ public class LoginResponse {
 
     private String accessToken;
     private String signingKey;
+    private Boolean mustChangePassword;
     private UserInfo user;
 
     @Data

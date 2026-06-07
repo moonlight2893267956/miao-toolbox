@@ -34,16 +34,22 @@ public class User {
     private Role role;
 
     @Column(name = "is_enabled", nullable = false)
-    private Boolean isEnabled;
+    private Boolean isEnabled = true;
+
+    @Column(name = "must_change_password", nullable = false)
+    private Boolean mustChangePassword = false;
 
     @Column(name = "github_id", unique = true)
     private String githubId;
+
+    @Column(name = "github_username")
+    private String githubUsername;
 
     @Column(name = "signing_key")
     private String signingKey;
 
     @Column(name = "login_fail_count", nullable = false)
-    private Integer loginFailCount;
+    private Integer loginFailCount = 0;
 
     @Column(name = "locked_until")
     private LocalDateTime lockedUntil;

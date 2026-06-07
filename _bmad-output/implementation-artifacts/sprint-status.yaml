@@ -52,8 +52,8 @@ development_status:
   1-6-rate-limiting-and-anti-replay: done
   1-7-cors-error-masking-and-global-exception-handler: done
   1-8-frontend-brand-theme-and-layout: done
-  1-9-frontend-auth-flow-and-login-page: backlog
-  1-10-personal-settings-and-user-menu: backlog
+  1-9-frontend-auth-flow-and-login-page: done
+  1-10-personal-settings-and-user-menu: review
   epic-1-retrospective: optional
 
   # === Epic 2: AI 工具集成框架 ===

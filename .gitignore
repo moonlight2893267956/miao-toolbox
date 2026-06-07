@@ -36,5 +36,9 @@ docker-compose.override.yml
 *.log
 logs/
 
+# === Claude / Agent 运行时文件 ===
+.agents/
+.claude/launch.json
+
 # === BMAD ===
 _bmad/custom/*.user.toml

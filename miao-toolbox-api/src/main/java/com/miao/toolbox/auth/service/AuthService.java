@@ -8,12 +8,17 @@ import com.miao.toolbox.auth.entity.User;
 import com.miao.toolbox.auth.repository.RefreshTokenRepository;
 import com.miao.toolbox.auth.repository.UserRepository;
 import com.miao.toolbox.common.constant.ErrorCode;
+import com.miao.toolbox.common.constant.RedisKey;
 import com.miao.toolbox.common.exception.AuthException;
 import com.miao.toolbox.common.exception.BusinessException;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,23 +27,38 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.HexFormat;
 import java.util.List;
 
+@Slf4j
 @Service
-@RequiredArgsConstructor
 public class AuthService {
 
     private static final int MAX_LOGIN_FAIL_COUNT = 5;
     private static final int LOCK_DURATION_MINUTES = 15;
     private static final int MAX_CONCURRENT_SESSIONS = 5;
     private static final String REFRESH_TOKEN_COOKIE_NAME = "refreshToken";
+    private static final int SIGNING_KEY_TRANSITION_SECONDS = 30;
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
+    @Autowired(required = false)
+    private RedisTemplate<String, Object> redisTemplate;
+
+    @Value("${miao.security.cookie-secure:false}")
+    private boolean cookieSecure;
+
+    public AuthService(UserRepository userRepository, RefreshTokenRepository refreshTokenRepository, JwtService jwtService) {
+        this.userRepository = userRepository;
+        this.refreshTokenRepository = refreshTokenRepository;
+        this.jwtService = jwtService;
+    }
 
     @Transactional
     public void register(RegisterRequest request) {
@@ -55,9 +75,10 @@ public class AuthService {
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .role(User.Role.USER)
                 .isEnabled(true)
+                .mustChangePassword(false)
                 .loginFailCount(0)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now(ZoneOffset.UTC))
+                .updatedAt(LocalDateTime.now(ZoneOffset.UTC))
                 .build();
 
         userRepository.save(user);
@@ -69,13 +90,13 @@ public class AuthService {
                 .orElseThrow(AuthException::loginFailed);
 
         // Check if account is locked
-        if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(LocalDateTime.now())) {
-            throw AuthException.userLocked();
+        if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(LocalDateTime.now(ZoneOffset.UTC))) {
+            throw AuthException.loginFailed(); // #8: 统一返回登录失败，避免用户枚举
         }
 
         // Check if account is disabled
         if (!user.getIsEnabled()) {
-            throw AuthException.userDisabled();
+            throw AuthException.loginFailed(); // #8: 统一返回登录失败，避免用户枚举
         }
 
         // Verify password
@@ -106,6 +127,7 @@ public class AuthService {
         return LoginResponse.builder()
                 .accessToken(accessToken)
                 .signingKey(signingKey)
+                .mustChangePassword(Boolean.TRUE.equals(user.getMustChangePassword()))
                 .user(LoginResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
@@ -120,7 +142,7 @@ public class AuthService {
             throw AuthException.tokenExpired();
         }
 
-        Claims claims = jwtService.validateToken(refreshTokenValue);
+        Claims claims = jwtService.validateRefreshToken(refreshTokenValue);
         if (claims == null) {
             throw AuthException.tokenExpired();
         }
@@ -129,7 +151,7 @@ public class AuthService {
         RefreshToken storedToken = refreshTokenRepository.findByTokenHash(tokenHash)
                 .orElseThrow(AuthException::tokenExpired);
 
-        if (storedToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (storedToken.getExpiresAt().isBefore(LocalDateTime.now(ZoneOffset.UTC))) {
             refreshTokenRepository.delete(storedToken);
             throw AuthException.tokenExpired();
         }
@@ -139,7 +161,7 @@ public class AuthService {
                 .orElseThrow(AuthException::tokenExpired);
 
         if (!user.getIsEnabled()) {
-            throw AuthException.userDisabled();
+            throw AuthException.tokenExpired();
         }
 
         // Rotate: delete old token
@@ -149,11 +171,23 @@ public class AuthService {
         String newAccessToken = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getRole().name());
         String newRefreshToken = jwtService.generateRefreshToken(user.getId());
 
-        // Generate new signing key
+        // #19: Generate new signing key with transition period
         String oldSigningKey = user.getSigningKey();
         String newSigningKey = jwtService.generateSigningKey();
         user.setSigningKey(newSigningKey);
         userRepository.save(user);
+
+        // Store old signing key in Redis for 30-second transition
+        // Forward mapping: oldKey -> newKey (for finding which key replaced the old one)
+        // Reverse mapping: newKey -> oldKey (for AntiReplayFilter to verify requests using old key)
+        if (oldSigningKey != null && redisTemplate != null) {
+            String forwardKey = RedisKey.SIGNING_KEY_TRANSITION_PREFIX + oldSigningKey;
+            String reverseKey = RedisKey.SIGNING_KEY_TRANSITION_PREFIX + newSigningKey;
+            redisTemplate.opsForValue().set(forwardKey, newSigningKey, Duration.ofSeconds(SIGNING_KEY_TRANSITION_SECONDS));
+            redisTemplate.opsForValue().set(reverseKey, oldSigningKey, Duration.ofSeconds(SIGNING_KEY_TRANSITION_SECONDS));
+        } else if (oldSigningKey != null) {
+            log.warn("Redis unavailable, skipping signing key transition storage. In-flight requests may fail during transition window.");
+        }
 
         // Store new refresh token
         storeRefreshToken(user.getId(), newRefreshToken);
@@ -164,6 +198,7 @@ public class AuthService {
         return LoginResponse.builder()
                 .accessToken(newAccessToken)
                 .signingKey(newSigningKey)
+                .mustChangePassword(Boolean.TRUE.equals(user.getMustChangePassword()))
                 .user(LoginResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
@@ -188,28 +223,29 @@ public class AuthService {
     }
 
     private void handleLoginFailure(User user) {
-        user.setLoginFailCount(user.getLoginFailCount() + 1);
-        if (user.getLoginFailCount() >= MAX_LOGIN_FAIL_COUNT) {
-            user.setLockedUntil(LocalDateTime.now().plusMinutes(LOCK_DURATION_MINUTES));
+        int currentCount = user.getLoginFailCount() != null ? user.getLoginFailCount() : 0;
+        user.setLoginFailCount(currentCount + 1);
+        if (currentCount + 1 >= MAX_LOGIN_FAIL_COUNT) {
+            user.setLockedUntil(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(LOCK_DURATION_MINUTES));
         }
         userRepository.save(user);
     }
 
     public void storeRefreshToken(Long userId, String rawToken) {
-        // Enforce max concurrent sessions
+        // #5: Enforce max concurrent sessions with pessimistic approach
         List<RefreshToken> existingTokens = refreshTokenRepository.findByUserIdOrderByCreatedAtAsc(userId);
         while (existingTokens.size() >= MAX_CONCURRENT_SESSIONS) {
             refreshTokenRepository.delete(existingTokens.removeFirst());
         }
 
         String tokenHash = hashToken(rawToken);
-        LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(jwtService.getRefreshTokenExpiryMs() / 1000);
+        LocalDateTime expiresAt = LocalDateTime.now(ZoneOffset.UTC).plusSeconds(jwtService.getRefreshTokenExpiryMs() / 1000);
 
         RefreshToken refreshToken = RefreshToken.builder()
                 .tokenHash(tokenHash)
                 .userId(userId)
                 .expiresAt(expiresAt)
-                .createdAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 .build();
 
         refreshTokenRepository.save(refreshToken);
@@ -223,6 +259,31 @@ public class AuthService {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("SHA-256 algorithm not available", e);
         }
+    }
+
+    public void changePassword(Long userId, String newPassword) {
+        if (!isValidPassword(newPassword)) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "密码须包含字母和数字，且不少于8位", 400);
+        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在", 404));
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setMustChangePassword(false);
+        userRepository.save(user);
+    }
+
+    public void changePasswordWithVerification(Long userId, String oldPassword, String newPassword) {
+        if (!isValidPassword(newPassword)) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "密码须包含字母和数字，且不少于8位", 400);
+        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在", 404));
+        if (user.getPasswordHash() == null || !passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
+            throw new BusinessException(ErrorCode.AUTH_LOGIN_FAILED, "旧密码不正确", 400);
+        }
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setMustChangePassword(false);
+        userRepository.save(user);
     }
 
     private boolean isValidPassword(String password) {
@@ -241,8 +302,13 @@ public class AuthService {
         cookie.setHttpOnly(true);
         cookie.setPath("/api/auth");
         cookie.setMaxAge((int) (jwtService.getRefreshTokenExpiryMs() / 1000));
-        // SameSite=Lax for dev; production should use SameSite=None + Secure
-        cookie.setAttribute("SameSite", "Lax");
+        // #25: 生产环境设置 Secure + SameSite=None
+        if (cookieSecure) {
+            cookie.setSecure(true);
+            cookie.setAttribute("SameSite", "None");
+        } else {
+            cookie.setAttribute("SameSite", "Lax");
+        }
         response.addCookie(cookie);
     }
 
@@ -251,6 +317,12 @@ public class AuthService {
         cookie.setHttpOnly(true);
         cookie.setPath("/api/auth");
         cookie.setMaxAge(0);
+        if (cookieSecure) {
+            cookie.setSecure(true);
+            cookie.setAttribute("SameSite", "None");
+        } else {
+            cookie.setAttribute("SameSite", "Lax");
+        }
         response.addCookie(cookie);
     }
 

@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN github_username VARCHAR(100) AFTER github_id;

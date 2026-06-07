@@ -2,34 +2,15 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { Layout } from 'antd';
 import Sidebar from './Sidebar';
-import AppHeader from './Header';
 
 const { Content } = Layout;
 
-interface AppLayoutProps {
-  isAuthenticated?: boolean;
-  username?: string;
-  onLogout?: () => void;
-  onSettings?: () => void;
-}
-
-const AppLayout: React.FC<AppLayoutProps> = ({
-  isAuthenticated,
-  username,
-  onLogout,
-  onSettings,
-}) => {
+const AppLayout: React.FC = () => {
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="miao-shell">
       <Sidebar />
-      <Layout>
-        <AppHeader
-          isAuthenticated={isAuthenticated}
-          username={username}
-          onLogout={onLogout}
-          onSettings={onSettings}
-        />
-        <Content style={{ margin: 24, minHeight: 280 }}>
+      <Layout style={{ background: 'transparent' }}>
+        <Content className="miao-content">
           <Outlet />
         </Content>
       </Layout>

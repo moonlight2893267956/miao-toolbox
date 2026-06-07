@@ -15,13 +15,14 @@ spring:
       file: ../docker-compose.dev.yml
       lifecycle-management: start-only
 
+miao:
+  oauth:
+    github:
+      client-id: ${GITHUB_CLIENT_ID:}
+      client-secret: ${GITHUB_CLIENT_SECRET:}
+
 management:
   endpoints:
     web:
       exposure:
         include: health,info,beans,env
-
-logging:
-  level:
-    com.miao.toolbox: DEBUG
-    org.springframework.security: DEBUG

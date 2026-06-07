@@ -29,9 +29,12 @@ management:
 
 miao:
   jwt:
-    secret: ${JWT_SECRET:change-me-in-production-to-a-long-random-string-at-least-256-bits}
+    secret: change-me-in-production-to-a-long-random-string-at-least-256-bits
+    refresh-secret: change-me-in-production-to-a-different-long-random-string
     access-token-expiry-minutes: ${JWT_ACCESS_EXPIRY_MINUTES:15}
     refresh-token-expiry-days: ${JWT_REFRESH_EXPIRY_DAYS:7}
+  security:
+    cookie-secure: ${COOKIE_SECURE:false}
   rate-limit:
     authenticated:
       max-requests: 60

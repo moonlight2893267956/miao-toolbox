@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-本文档为 Claude Code (claude.ai/code) 在此仓库中工作时提供指导。
+本文档为 Claude Code 在此仓库中工作时提供指导。
 
 **语言要求：所有 AI 对话及文档产出必须使用中文。**
 
@@ -49,27 +49,6 @@ miao-toolbox/
         └── components/       # 共享 UI 组件
 ```
 
-## 架构要点
-
-- **安全优先设计**：所有 AI API Key 仅存在于服务端。除登录/注册/刷新外，每个 API 请求依次经过 JWT 认证 → 限流 → 防重放 → 参数校验，才到达业务逻辑。
-- **工具执行管道（责任链模式）**：每个工具通过 YAML 配置注册。所有工具调用流经同一管道：认证 → 限流 → 参数校验 → AI 代理 → 审计日志。
-- **JWT 刷新轮换**：Access token（15 分钟）通过 `Authorization: Bearer` 头传递。Refresh token（7 天）存储在 httpOnly cookie 中。每次刷新轮换 token，最多 5 个并发会话。
-- **用户状态缓存**：管理员禁用用户时，状态写入 Redis。认证过滤器优先查 Redis，回退到数据库。无需等待 JWT 过期。
-- **请求防重放**：每个请求携带 HMAC-SHA256 签名（使用会话级 signingKey），以及时间戳和 nonce（Redis 中存储，TTL 5 分钟）。
-
-## 核心 API 路由
-
-| 路由 | 认证 | 描述 |
-|---|---|---|
-| `POST /api/auth/register` | 无需 | 用户注册 |
-| `POST /api/auth/login` | 无需 | 账密登录 |
-| `GET /api/auth/oauth/github` | 无需 | GitHub OAuth 入口 |
-| `POST /api/auth/refresh` | 无需 | Token 刷新 |
-| `POST /api/auth/logout` | 需要 | 注销 |
-| `POST /api/tools/{toolId}/execute` | 需要 | 执行 AI 工具 |
-| `GET /api/tools` | 需要 | 获取可用工具列表 |
-| `GET /api/admin/**` | 管理员 | 仪表盘、用户管理、工具管理 |
-
 ## 开发命令
 
 ```bash
@@ -91,23 +70,103 @@ npm run typecheck                         # TypeScript 类型检查
 docker compose up -d                      # 启动 mysql + redis + api + web
 ```
 
-## 实现顺序（来自架构文档）
+## 开发流程
 
-1. 项目初始化（Spring Initializr + Vite 脚手架）
-2. Docker Compose 开发环境（MySQL + Redis）
-3. Flyway 初始迁移（用户表、工具表、审计日志表）
-4. Spring Security + JWT 认证过滤器链
-5. 统一错误处理器 + CORS 配置
-6. 限流 + 防重放过滤器
-7. AI 代理层 + 工具注册/执行管道
-8. 前端认证流程（登录页 + token 管理）
-9. 前端功能模块（工具列表、工具操作、管理后台）
-10. Nginx 反向代理 + TLS 配置
+每个 Story 必须严格按以下三步顺序执行，**不得跳过任何步骤**：
 
-## 关键设计决策
+### 1. `/bmad-create-story` — 创建 Story 文件
 
-- **API 无版本前缀**（`/api/...` 而非 `/api/v1/...`）— v1 是唯一版本，后续有需要再引入
-- **Access token 放请求头，Refresh token 放 httpOnly cookie** — 缩小 XSS 窗口，同时避免 CSRF 复杂度
-- **登录响应返回 signingKey** — 前端存 sessionStorage（关闭标签页自动清除），与 JWT 生命周期解耦
-- **仪表盘直接查库** — v1 用户量 < 10，无需数据仓库或查询缓存
-- **工具通过 YAML 注册** — v1 不提供 UI 动态注册
+- 从 Epic 文件中选择下一个待开发的 Story
+- 运行 `/bmad-create-story` 生成详细的 Story 实现文档
+- Story 文件存放在 `_bmad-output/implementation-artifacts/` 目录
+- 生成后 Story 状态自动从 `backlog` 变为 `ready-for-dev`
+- **未创建 Story 文件前，不得开始编码**
+
+### 2. `/bmad-dev-story` — 开发实现
+
+- 基于 Story 文件中的验收标准和实现指导进行编码
+- 开发过程中 Story 状态变为 `in-progress`
+- 后端代码必须同步编写单元测试（见下方"后端自测要求"）
+- 实现完成后运行相关测试确保通过
+- **开发完成后，不得直接标记为 done，必须进入 Code Review**
+
+### 3. `/code-review` — 代码审查
+
+- 开发完成后运行 `/code-review` 审查变更
+- 审查范围：正确性 Bug、代码复用、简化优化、效率问题
+- 发现的问题必须修复后重新审查
+- 审查通过后 Story 状态变更为 `done`
+- **未经 Code Review 通过的 Story 不得标记为 done**
+
+### 流程状态流转
+
+```
+backlog → ready-for-dev → in-progress → review → done
+   ↑           ↑              ↑            ↑        ↑
+   │      create-story    dev-story    code-review  │
+   │                                                │
+   └──────────── 全部完成 ──────────────────────────┘
+```
+
+## 开发约束
+
+### 后端自测要求
+
+- **新增或修改后端 Java 代码时，必须编写对应的单元测试**
+- 测试放在 `src/test/java` 下，包路径与源码一致
+- Service 层：使用 `@ExtendWith(MockitoExtension.class)` mock 依赖，覆盖正常路径和异常路径
+- Controller 层：使用 `@WebMvcTest` + `@MockBean` 测试请求路由和响应格式
+- 安全相关代码（认证、签名、限流）：必须覆盖边界条件（过期、无效、越权）
+- 运行 `./mvnw test` 全部通过后才能标记任务完成
+
+### 代码规范
+
+- 后端遵循 Spring Boot 惯例：Controller 不写业务逻辑，Service 不依赖 HTTP 对象
+- 统一响应格式：`{"code": "ERROR_CODE", "message": "中文描述", "requestId": "uuid"}`
+- Flyway 迁移脚本命名：`V{N}__{描述}.sql`，只追加不修改已有脚本
+- 前端组件遵循 Ant Design 6 默认样式，仅品牌层覆盖主色和强调色
+- 前端状态管理使用 React Context + useReducer，不引入额外状态库
+
+## Git 提交规范
+
+### 分支策略
+- 主分支 `main` 只接受经过 Code Review 的合并
+- 每个 Story 开独立分支：`story/{story-key}`（如 `story/1-9-frontend-auth-flow`）
+
+### 提交信息格式
+
+```
+<type>: <简短描述>
+
+<详细说明（可选）>
+```
+
+**type 取值：**
+
+| Type | 适用场景 |
+|---|---|
+| `feat` | 新功能 |
+| `fix` | 修复 Bug |
+| `refactor` | 重构（不改变外部行为） |
+| `test` | 增删改测试 |
+| `docs` | 文档变更 |
+| `style` | 仅格式调整（空格、分号等） |
+| `chore` | 构建、CI、依赖等杂项 |
+| `perf` | 性能优化 |
+
+### 示例
+
+```
+feat: 实现 JWT token 刷新与注销
+
+- 新增 /api/auth/refresh 端点，支持 refresh token 轮换
+- 新增 /api/auth/logout 端点，使当前 session 立即失效
+- 单用户最多 5 个有效 refresh token，超出最旧的失效
+```
+
+### 敏感信息红线
+
+- ❌ **禁止**提交任何密码、token、API Key、client-secret 等敏感信息
+- ✅ 配置中的敏感值必须使用 `${ENV_VAR:default}` 方式引用环境变量
+- ✅ 示例/模板文件使用占位符（如 `your-github-client-secret`）
+- ✅ `.env` 文件已在 `.gitignore` 中排除，提交前确认无遗漏

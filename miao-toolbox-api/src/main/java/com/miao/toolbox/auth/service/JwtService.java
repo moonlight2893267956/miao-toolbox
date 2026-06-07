@@ -16,19 +16,26 @@ import java.util.UUID;
 @Service
 public class JwtService {
 
-    private final SecretKey secretKey;
+    private final SecretKey accessSecretKey;
+    private final SecretKey refreshSecretKey;
     private final long accessTokenExpiryMs;
     private final long refreshTokenExpiryMs;
 
     public JwtService(
             @Value("${miao.jwt.secret}") String secret,
+            @Value("${miao.jwt.refresh-secret:${miao.jwt.secret}-refresh}") String refreshSecret,
             @Value("${miao.jwt.access-token-expiry-minutes}") int accessExpiryMinutes,
             @Value("${miao.jwt.refresh-token-expiry-days}") int refreshExpiryDays) {
-        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
-        if (keyBytes.length < 32) {
-            throw new IllegalArgumentException("JWT secret must be at least 256 bits (32 bytes)");
+        byte[] accessKeyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        byte[] refreshKeyBytes = refreshSecret.getBytes(StandardCharsets.UTF_8);
+        if (accessKeyBytes.length < 32) {
+            throw new IllegalArgumentException("JWT access secret must be at least 256 bits (32 bytes)");
         }
-        this.secretKey = Keys.hmacShaKeyFor(keyBytes);
+        if (refreshKeyBytes.length < 32) {
+            throw new IllegalArgumentException("JWT refresh secret must be at least 256 bits (32 bytes)");
+        }
+        this.accessSecretKey = Keys.hmacShaKeyFor(accessKeyBytes);
+        this.refreshSecretKey = Keys.hmacShaKeyFor(refreshKeyBytes);
         this.accessTokenExpiryMs = accessExpiryMinutes * 60 * 1000L;
         this.refreshTokenExpiryMs = refreshExpiryDays * 24 * 60 * 60 * 1000L;
     }
@@ -39,9 +46,10 @@ public class JwtService {
                 .subject(String.valueOf(userId))
                 .claim("username", username)
                 .claim("role", role)
+                .claim("type", "access")
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusMillis(accessTokenExpiryMs)))
-                .signWith(secretKey)
+                .signWith(accessSecretKey)
                 .compact();
     }
 
@@ -50,9 +58,10 @@ public class JwtService {
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .id(UUID.randomUUID().toString())
+                .claim("type", "refresh")
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusMillis(refreshTokenExpiryMs)))
-                .signWith(secretKey)
+                .signWith(refreshSecretKey)
                 .compact();
     }
 
@@ -60,10 +69,18 @@ public class JwtService {
         return UUID.randomUUID().toString().replace("-", "");
     }
 
-    public Claims validateToken(String token) {
+    public Claims validateAccessToken(String token) {
+        return validateTokenWithKey(token, accessSecretKey);
+    }
+
+    public Claims validateRefreshToken(String token) {
+        return validateTokenWithKey(token, refreshSecretKey);
+    }
+
+    private Claims validateTokenWithKey(String token, SecretKey key) {
         try {
             return Jwts.parser()
-                    .verifyWith(secretKey)
+                    .verifyWith(key)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();

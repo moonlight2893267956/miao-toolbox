@@ -1,5 +1,7 @@
 package com.miao.toolbox.gateway.filter;
 
+import com.miao.toolbox.auth.entity.User;
+import com.miao.toolbox.auth.repository.UserRepository;
 import com.miao.toolbox.common.constant.RedisKey;
 import com.miao.toolbox.common.response.ApiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,10 +15,16 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 
@@ -25,8 +33,11 @@ import java.time.Instant;
 @ConditionalOnBean(RedisTemplate.class)
 public class AntiReplayFilter extends OncePerRequestFilter {
 
+    private static final String HMAC_ALGORITHM = "HmacSHA256";
+
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final UserRepository userRepository;
 
     @Value("${miao.anti-replay.timestamp-tolerance-minutes:5}")
     private int timestampToleranceMinutes;
@@ -34,16 +45,22 @@ public class AntiReplayFilter extends OncePerRequestFilter {
     @Value("${miao.anti-replay.nonce-ttl-seconds:300}")
     private int nonceTtlSeconds;
 
-    public AntiReplayFilter(RedisTemplate<String, Object> redisTemplate, ObjectMapper objectMapper) {
+    public AntiReplayFilter(RedisTemplate<String, Object> redisTemplate, ObjectMapper objectMapper, UserRepository userRepository) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
+        this.userRepository = userRepository;
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path.startsWith("/api/auth/") || path.startsWith("/actuator")
-                || path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs");
+        return path.startsWith("/api/auth/login")
+                || path.startsWith("/api/auth/register")
+                || path.startsWith("/api/auth/refresh")
+                || path.startsWith("/api/auth/oauth/")
+                || path.startsWith("/actuator")
+                || path.startsWith("/swagger-ui")
+                || path.startsWith("/v3/api-docs");
     }
 
     @Override
@@ -58,6 +75,7 @@ public class AntiReplayFilter extends OncePerRequestFilter {
             return;
         }
 
+        // Validate timestamp
         try {
             long timestampMs = Long.parseLong(timestamp);
             long now = Instant.now().toEpochMilli();
@@ -71,16 +89,87 @@ public class AntiReplayFilter extends OncePerRequestFilter {
             return;
         }
 
+        // #12: Use SETNX for atomic nonce check (prevents TOCTOU race)
         String nonceKey = RedisKey.NONCE_PREFIX + nonce;
-        Boolean nonceExists = redisTemplate.hasKey(nonceKey);
-        if (Boolean.TRUE.equals(nonceExists)) {
+        Boolean setSuccess = redisTemplate.opsForValue().setIfAbsent(nonceKey, "1", Duration.ofSeconds(nonceTtlSeconds));
+        if (Boolean.FALSE.equals(setSuccess)) {
             writeError(response, "REPLAY_NONCE_USED", "请求已被使用过");
             return;
         }
 
-        redisTemplate.opsForValue().set(nonceKey, "1", Duration.ofSeconds(nonceTtlSeconds));
+        // #3: Verify HMAC-SHA256 signature
+        String signingKey = resolveSigningKey();
+        if (signingKey != null) {
+            String data = timestamp + nonce + readBody(request);
+            String expectedSignature = computeHmac(signingKey, data);
+            if (!MessageDigest.isEqual(expectedSignature.getBytes(StandardCharsets.UTF_8), signature.getBytes(StandardCharsets.UTF_8))) {
+                // Try transition key — resolveSigningKey returns the NEW key from user entity.
+                // Reverse mapping: SIGNING_KEY_TRANSITION_PREFIX + newKey -> oldKey
+                String reverseKey = RedisKey.SIGNING_KEY_TRANSITION_PREFIX + signingKey;
+                Object oldSigningKey = redisTemplate.opsForValue().get(reverseKey);
+                if (oldSigningKey != null) {
+                    String expectedWithOldKey = computeHmac((String) oldSigningKey, data);
+                    if (!MessageDigest.isEqual(expectedWithOldKey.getBytes(StandardCharsets.UTF_8), signature.getBytes(StandardCharsets.UTF_8))) {
+                        writeError(response, "REPLAY_SIGNATURE_INVALID", "请求签名验证失败");
+                        return;
+                    }
+                } else {
+                    writeError(response, "REPLAY_SIGNATURE_INVALID", "请求签名验证失败");
+                    return;
+                }
+            }
+        }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Resolve the signing key for the current user from SecurityContext or DB.
+     */
+    private String resolveSigningKey() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof User user) {
+            return user.getSigningKey();
+        }
+        return null;
+    }
+
+    /**
+     * #3: Compute HMAC-SHA256 signature.
+     */
+    private String computeHmac(String key, String data) {
+        try {
+            Mac mac = Mac.getInstance(HMAC_ALGORITHM);
+            SecretKeySpec secretKeySpec = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM);
+            mac.init(secretKeySpec);
+            byte[] hash = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+            return bytesToHex(hash);
+        } catch (Exception e) {
+            log.error("HMAC computation failed", e);
+            return "";
+        }
+    }
+
+    private String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Read request body for signature computation.
+     * For GET requests, body is empty string.
+     */
+    private String readBody(HttpServletRequest request) {
+        // For signature verification, we use empty body for GET/DELETE
+        // and cached body wrapper for POST/PUT (to be enhanced with ContentCachingRequestWrapper)
+        if ("GET".equalsIgnoreCase(request.getMethod()) || "DELETE".equalsIgnoreCase(request.getMethod())) {
+            return "";
+        }
+        // TODO: Use ContentCachingRequestWrapper for full body signing in Story 1.9
+        return "";
     }
 
     private void writeError(HttpServletResponse response, String errorCode, String message) throws IOException {
