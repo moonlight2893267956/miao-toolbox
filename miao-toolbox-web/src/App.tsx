@@ -10,9 +10,9 @@ import OAuthCallback from './modules/auth/OAuthCallback';
 import ChangePasswordPage from './modules/auth/ChangePasswordPage';
 import SettingsPage from './modules/settings/SettingsPage';
 import ToolsPage from './modules/tools/ToolsPage';
-
-// 占位页面
-const AdminPage = () => <div>管理后台</div>;
+import LogPage from './modules/admin/LogPage';
+import DashboardPage from './modules/admin/DashboardPage';
+import UserManagePage from './modules/admin/UserManagePage';
 
 function AppRoutes() {
   return (
@@ -22,6 +22,14 @@ function AppRoutes() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/oauth/callback" element={<OAuthCallback />} />
+        <Route
+          path="/change-password"
+          element={
+            <RequireAuth>
+              <ChangePasswordPage />
+            </RequireAuth>
+          }
+        />
 
         {/* 受保护路由 */}
         <Route
@@ -34,9 +42,11 @@ function AppRoutes() {
         >
           <Route index element={<Navigate to="/tools" replace />} />
           <Route path="tools" element={<ToolsPage />} />
-          <Route path="admin" element={<AdminPage />} />
+          <Route path="admin" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="admin/dashboard" element={<DashboardPage />} />
+          <Route path="admin/logs" element={<LogPage />} />
+          <Route path="admin/users" element={<UserManagePage />} />
           <Route path="settings" element={<SettingsPage />} />
-          <Route path="change-password" element={<ChangePasswordPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

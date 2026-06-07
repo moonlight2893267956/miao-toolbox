@@ -6,6 +6,9 @@ import {
   SettingOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  FileTextOutlined,
+  DashboardOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
 import UserDropdown from './UserDropdown';
@@ -17,13 +20,24 @@ interface MenuItem {
   key: string;
   icon: React.ReactNode;
   label: string;
-  path: string;
+  path?: string;
   adminOnly?: boolean;
+  children?: MenuItem[];
 }
 
 const menuItems: MenuItem[] = [
   { key: 'tools', icon: <ToolOutlined />, label: '工具列表', path: '/tools' },
-  { key: 'admin', icon: <SettingOutlined />, label: '管理后台', path: '/admin', adminOnly: true },
+  {
+    key: 'admin',
+    icon: <SettingOutlined />,
+    label: '管理后台',
+    adminOnly: true,
+    children: [
+      { key: 'admin-dashboard', icon: <DashboardOutlined />, label: '仪表盘', path: '/admin/dashboard' },
+      { key: 'admin-logs', icon: <FileTextOutlined />, label: '调用日志', path: '/admin/logs' },
+      { key: 'admin-users', icon: <TeamOutlined />, label: '用户管理', path: '/admin/users' },
+    ],
+  },
 ];
 
 // #22: 管理菜单仅对 ADMIN 角色显示
@@ -34,7 +48,14 @@ const Sidebar: React.FC = () => {
   const { state } = useAuth();
 
   const visibleItems = menuItems.filter(item => !item.adminOnly || state.userInfo?.role === 'ADMIN');
-  const selectedKey = visibleItems.find(item => location.pathname.startsWith(item.path))?.key || 'tools';
+
+  // 找到当前路径匹配的菜单项 key
+  const allLeafItems = visibleItems.flatMap(item => item.children || [item]);
+  const selectedKey = allLeafItems.find(item => item.path && location.pathname.startsWith(item.path))?.key || 'tools';
+  // 如果当前路径是 /admin 子路径，展开 admin 子菜单
+  const defaultOpenKeys = location.pathname.startsWith('/admin') ? ['admin'] : [];
+
+  const [openKeys, setOpenKeys] = useState<string[]>(defaultOpenKeys);
 
   return (
     <Sider
@@ -67,12 +88,29 @@ const Sidebar: React.FC = () => {
         theme="dark"
         mode="inline"
         selectedKeys={[selectedKey]}
-        items={visibleItems.map(item => ({
-          key: item.key,
-          icon: item.icon,
-          label: item.label,
-          onClick: () => navigate(item.path),
-        }))}
+        openKeys={collapsed ? [] : openKeys}
+        onOpenChange={setOpenKeys}
+        items={visibleItems.map(item => {
+          if (item.children) {
+            return {
+              key: item.key,
+              icon: item.icon,
+              label: item.label,
+              children: item.children.map(child => ({
+                key: child.key,
+                icon: child.icon,
+                label: child.label,
+                onClick: () => child.path && navigate(child.path),
+              })),
+            };
+          }
+          return {
+            key: item.key,
+            icon: item.icon,
+            label: item.label,
+            onClick: () => item.path && navigate(item.path),
+          };
+        })}
       />
       <div className="miao-sidebar-footer">
         <UserDropdown collapsed={collapsed} />
