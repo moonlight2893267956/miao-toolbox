@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -27,9 +28,10 @@ import java.util.List;
 
 @Slf4j
 @Component
-@ConditionalOnBean(RedisTemplate.class)
+@ConditionalOnBean(StringRedisTemplate.class)
 public class RateLimitFilter extends OncePerRequestFilter {
 
+    private final StringRedisTemplate stringRedisTemplate;
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
 
@@ -64,7 +66,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private final DefaultRedisScript<Long> rateLimitScript;
 
-    public RateLimitFilter(RedisTemplate<String, Object> redisTemplate, ObjectMapper objectMapper) {
+    public RateLimitFilter(StringRedisTemplate stringRedisTemplate, RedisTemplate<String, Object> redisTemplate, ObjectMapper objectMapper) {
+        this.stringRedisTemplate = stringRedisTemplate;
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.rateLimitScript = new DefaultRedisScript<>(RATE_LIMIT_LUA_SCRIPT, Long.class);
@@ -85,9 +88,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
         int windowSeconds;
 
         if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof User user) {
-            key = RedisKey.RATE_LIMIT_USER_PREFIX + user.getId();
-            maxRequests = authenticatedMaxRequests;
-            windowSeconds = authenticatedWindowSeconds;
+            // 检查用户自定义限流配置
+            String customKey = RedisKey.RATE_LIMIT_CUSTOM_PREFIX + user.getId();
+            Object customLimit = redisTemplate.opsForValue().get(customKey);
+            if (customLimit != null) {
+                maxRequests = Integer.parseInt(customLimit.toString());
+                key = RedisKey.RATE_LIMIT_USER_PREFIX + user.getId();
+                windowSeconds = 60; // 自定义限流固定为每分钟窗口
+            } else {
+                key = RedisKey.RATE_LIMIT_USER_PREFIX + user.getId();
+                maxRequests = authenticatedMaxRequests;
+                windowSeconds = authenticatedWindowSeconds;
+            }
         } else {
             String forwardedFor = request.getHeader("X-Forwarded-For");
             String ip = (forwardedFor != null && !forwardedFor.isBlank())
@@ -119,7 +131,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         long windowStartMs = nowMs - (windowSeconds * 1000L);
         long ttlSeconds = windowSeconds * 2L;
 
-        Long result = redisTemplate.execute(
+        Long result = stringRedisTemplate.execute(
                 rateLimitScript,
                 List.of(key),
                 String.valueOf(nowMs),

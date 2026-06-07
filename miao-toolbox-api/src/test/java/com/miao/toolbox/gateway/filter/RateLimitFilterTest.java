@@ -12,6 +12,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -30,13 +32,16 @@ import static org.mockito.Mockito.*;
 @DisplayName("RateLimitFilter 单元测试")
 class RateLimitFilterTest {
 
+    @Mock private StringRedisTemplate stringRedisTemplate;
     @Mock private RedisTemplate<String, Object> redisTemplate;
+    @Mock private ValueOperations<String, Object> valueOperations;
     private ObjectMapper objectMapper = new ObjectMapper();
     private RateLimitFilter filter;
 
     @BeforeEach
     void setUp() {
-        filter = new RateLimitFilter(redisTemplate, objectMapper);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        filter = new RateLimitFilter(stringRedisTemplate, redisTemplate, objectMapper);
     }
 
     @Nested
@@ -46,7 +51,7 @@ class RateLimitFilterTest {
         @Test
         @DisplayName("未超限 → 正常通过")
         void withinLimit() throws Exception {
-            when(redisTemplate.execute(any(DefaultRedisScript.class), anyList(), anyString(), anyString(), anyString(), anyString()))
+            when(stringRedisTemplate.execute(any(DefaultRedisScript.class), anyList(), anyString(), anyString(), anyString(), anyString()))
                     .thenReturn(1L);
 
             MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/tools");
@@ -60,7 +65,7 @@ class RateLimitFilterTest {
         @Test
         @DisplayName("超限 → 429 + Retry-After 头")
         void exceededLimit() throws Exception {
-            when(redisTemplate.execute(any(DefaultRedisScript.class), anyList(), anyString(), anyString(), anyString(), anyString()))
+            when(stringRedisTemplate.execute(any(DefaultRedisScript.class), anyList(), anyString(), anyString(), anyString(), anyString()))
                     .thenReturn(0L);
 
             MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/tools");
@@ -87,7 +92,7 @@ class RateLimitFilterTest {
                     user, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
             SecurityContextHolder.getContext().setAuthentication(auth);
 
-            when(redisTemplate.execute(any(DefaultRedisScript.class), anyList(), anyString(), anyString(), anyString(), anyString()))
+            when(stringRedisTemplate.execute(any(DefaultRedisScript.class), anyList(), anyString(), anyString(), anyString(), anyString()))
                     .thenReturn(1L);
 
             MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/tools");
@@ -96,7 +101,7 @@ class RateLimitFilterTest {
             filter.doFilterInternal(request, response, (req, res) -> {});
 
             // 验证 redisTemplate.execute 被调用（key 包含用户 ID）
-            verify(redisTemplate).execute(any(DefaultRedisScript.class), anyList(), anyString(), anyString(), anyString(), anyString());
+            verify(stringRedisTemplate).execute(any(DefaultRedisScript.class), anyList(), anyString(), anyString(), anyString(), anyString());
 
             SecurityContextHolder.clearContext();
         }
@@ -104,7 +109,7 @@ class RateLimitFilterTest {
         @Test
         @DisplayName("未认证用户 → 使用 IP 作为限流 key")
         void unauthenticatedUser_ipDimension() throws Exception {
-            when(redisTemplate.execute(any(DefaultRedisScript.class), anyList(), anyString(), anyString(), anyString(), anyString()))
+            when(stringRedisTemplate.execute(any(DefaultRedisScript.class), anyList(), anyString(), anyString(), anyString(), anyString()))
                     .thenReturn(1L);
 
             MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/tools");
@@ -112,7 +117,7 @@ class RateLimitFilterTest {
 
             filter.doFilterInternal(request, response, (req, res) -> {});
 
-            verify(redisTemplate).execute(any(DefaultRedisScript.class), anyList(), anyString(), anyString(), anyString(), anyString());
+            verify(stringRedisTemplate).execute(any(DefaultRedisScript.class), anyList(), anyString(), anyString(), anyString(), anyString());
         }
     }
 
