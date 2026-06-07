@@ -38,7 +38,9 @@ logs/
 
 # === Claude / Agent 运行时文件 ===
 .agents/
-.claude/launch.json
+.claude/
+AGENTS.md
 
-# === BMAD ===
-_bmad/custom/*.user.toml
+# === BMAD 配置与输出 ===
+_bmad-output/
+_bmad/
