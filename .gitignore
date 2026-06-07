@@ -39,7 +39,9 @@ logs/
 # === Claude / Agent 运行时文件 ===
 .agents/
 .claude/
+.qoder/
 AGENTS.md
+CLAUDE.md
 
 # === BMAD 配置与输出 ===
 _bmad-output/
