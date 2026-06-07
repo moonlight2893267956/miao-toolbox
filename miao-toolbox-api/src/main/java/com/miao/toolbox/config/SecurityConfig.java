@@ -1,7 +1,9 @@
 package com.miao.toolbox.config;
 
 import com.miao.toolbox.auth.filter.JwtAuthFilter;
-import lombok.RequiredArgsConstructor;
+import com.miao.toolbox.gateway.filter.AntiReplayFilter;
+import com.miao.toolbox.gateway.filter.RateLimitFilter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,13 +24,22 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
 
+    @Autowired(required = false)
+    private AntiReplayFilter antiReplayFilter;
+
+    @Autowired(required = false)
+    private RateLimitFilter rateLimitFilter;
+
     @Value("${miao.cors.allowed-origins}")
     private String allowedOrigins;
+
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+        this.jwtAuthFilter = jwtAuthFilter;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -48,8 +59,17 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
-                )
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                );
+
+        // Register optional filters
+        if (antiReplayFilter != null) {
+            http.addFilterBefore(antiReplayFilter, JwtAuthFilter.class);
+        }
+        if (rateLimitFilter != null) {
+            http.addFilterAfter(rateLimitFilter, JwtAuthFilter.class);
+        }
+
+        http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
