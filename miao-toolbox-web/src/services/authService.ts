@@ -45,4 +45,8 @@ export const authService = {
   getOAuthUrl(): string {
     return '/api/auth/oauth/github';
   },
+
+  getGoogleOAuthUrl(): string {
+    return '/api/auth/oauth/google';
+  },
 };

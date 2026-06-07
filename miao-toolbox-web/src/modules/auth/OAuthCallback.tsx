@@ -12,14 +12,14 @@ const OAuthCallback: React.FC = () => {
     // 防止 React StrictMode 双重执行
     if (processedRef.current) return;
     processedRef.current = true;
-    // 检查是否是 GitHub 授权失败（error 参数或缺少 token）
+    // 检查是否是 OAuth 授权失败（error 参数或缺少 token）
     const hash = window.location.hash.substring(1);
     const params = new URLSearchParams(hash);
 
-    // 处理 GitHub OAuth 错误回调
+    // 处理 OAuth 错误回调
     const errorParam = params.get('error');
     if (errorParam) {
-      message.error('GitHub 授权失败，请重试');
+      message.error('授权失败，请重试');
       navigate('/login', { replace: true });
       return;
     }
@@ -55,11 +55,11 @@ const OAuthCallback: React.FC = () => {
         // 检查是否是从设置页发起的绑定操作（通过 sessionStorage 标记）
         const isBindMode = sessionStorage.getItem('oauth_bind_mode') === 'true';
         sessionStorage.removeItem('oauth_bind_mode');
-        message.success(isBindMode ? 'GitHub 账号绑定成功' : `欢迎回来，${decodeURIComponent(username)}`);
+        message.success(isBindMode ? '账号绑定成功' : `欢迎回来，${decodeURIComponent(username)}`);
         navigate(isBindMode ? '/settings' : '/tools', { replace: true });
       }
     } else {
-      message.error('GitHub 授权失败，请重试');
+      message.error('授权失败，请重试');
       navigate('/login', { replace: true });
     }
   }, [navigate, login]);

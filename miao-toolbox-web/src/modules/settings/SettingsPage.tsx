@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, Tabs } from 'antd';
 import ChangePasswordForm from './ChangePasswordForm';
 import GitHubBindSection from './GitHubBindSection';
+import GoogleBindSection from './GoogleBindSection';
 
 const SettingsPage: React.FC = () => {
   const items = [
@@ -12,8 +13,13 @@ const SettingsPage: React.FC = () => {
     },
     {
       key: 'github',
-      label: '账号绑定',
+      label: 'GitHub 绑定',
       children: <GitHubBindSection />,
+    },
+    {
+      key: 'google',
+      label: 'Google 绑定',
+      children: <GoogleBindSection />,
     },
   ];
 
@@ -24,7 +30,7 @@ const SettingsPage: React.FC = () => {
           <div className="miao-page-eyebrow">个人设置</div>
           <h1 className="miao-page-title">账户与偏好</h1>
           <p className="miao-page-description">
-            管理密码、GitHub 绑定和账户访问状态。
+            管理密码、账号绑定和账户访问状态。
           </p>
         </div>
       </header>

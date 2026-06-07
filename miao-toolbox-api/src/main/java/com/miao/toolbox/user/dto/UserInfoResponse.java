@@ -11,5 +11,7 @@ public class UserInfoResponse {
     private String role;
     private String githubId;
     private String githubUsername;
+    private String googleId;
+    private String googleUsername;
     private boolean mustChangePassword;
 }

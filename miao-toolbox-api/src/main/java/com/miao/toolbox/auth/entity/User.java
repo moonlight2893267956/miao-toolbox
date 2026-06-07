@@ -45,6 +45,12 @@ public class User {
     @Column(name = "github_username")
     private String githubUsername;
 
+    @Column(name = "google_id", unique = true)
+    private String googleId;
+
+    @Column(name = "google_username")
+    private String googleUsername;
+
     @Column(name = "signing_key")
     private String signingKey;
 

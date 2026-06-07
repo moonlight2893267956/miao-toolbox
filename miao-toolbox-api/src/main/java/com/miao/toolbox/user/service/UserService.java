@@ -2,6 +2,7 @@ package com.miao.toolbox.user.service;
 
 import com.miao.toolbox.auth.entity.User;
 import com.miao.toolbox.auth.oauth.GitHubOAuthService;
+import com.miao.toolbox.auth.oauth.GoogleOAuthService;
 import com.miao.toolbox.auth.repository.UserRepository;
 import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.exception.BusinessException;
@@ -18,6 +19,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final GitHubOAuthService gitHubOAuthService;
+    private final GoogleOAuthService googleOAuthService;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public UserInfoResponse getCurrentUser(Long userId) {
@@ -29,6 +31,8 @@ public class UserService {
                 .role(user.getRole().name())
                 .githubId(user.getGithubId())
                 .githubUsername(user.getGithubUsername())
+                .googleId(user.getGoogleId())
+                .googleUsername(user.getGoogleUsername())
                 .mustChangePassword(Boolean.TRUE.equals(user.getMustChangePassword()))
                 .build();
     }
@@ -39,8 +43,16 @@ public class UserService {
         if (user.getGithubId() != null) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "已绑定 GitHub 账号", 400);
         }
-        // 返回完整的 GitHub OAuth URL（含 state + userId 编码），前端直接跳转此 URL
         return gitHubOAuthService.buildBindAuthorizationUrl(userId);
+    }
+
+    public String getBindGoogleUrl(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在", 404));
+        if (user.getGoogleId() != null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "已绑定 Google 账号", 400);
+        }
+        return googleOAuthService.buildBindAuthorizationUrl(userId);
     }
 
     @Transactional
@@ -52,6 +64,18 @@ public class UserService {
         }
         user.setGithubId(null);
         user.setGithubUsername(null);
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void unbindGoogle(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在", 404));
+        if (user.getGoogleId() == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "未绑定 Google 账号", 400);
+        }
+        user.setGoogleId(null);
+        user.setGoogleUsername(null);
         userRepository.save(user);
     }
 

@@ -61,4 +61,25 @@ public class UserController {
         userService.unbindGithub(user.getId());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
+
+    @PostMapping("/me/bind-google")
+    public ResponseEntity<ApiResponse<String>> bindGoogle(
+            @AuthenticationPrincipal Object principal) {
+        if (!(principal instanceof User user)) {
+            return ResponseEntity.status(401)
+                    .body(ApiResponse.error("AUTH_UNAUTHORIZED", "未认证", null));
+        }
+        return ResponseEntity.ok(ApiResponse.success(userService.getBindGoogleUrl(user.getId())));
+    }
+
+    @DeleteMapping("/me/bind-google")
+    public ResponseEntity<ApiResponse<Void>> unbindGoogle(
+            @AuthenticationPrincipal Object principal) {
+        if (!(principal instanceof User user)) {
+            return ResponseEntity.status(401)
+                    .body(ApiResponse.error("AUTH_UNAUTHORIZED", "未认证", null));
+        }
+        userService.unbindGoogle(user.getId());
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Form, Input, Button, Divider, Typography, message } from 'antd';
-import { GithubOutlined, UserOutlined, LockOutlined } from '@ant-design/icons';
+import { GithubOutlined, GoogleOutlined, UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { authService } from '../../services/authService';
@@ -83,10 +83,19 @@ const LoginPage: React.FC = () => {
         <a
           href="/api/auth/oauth/github"
           className="miao-auth-social-link"
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 12 }}
         >
           <GithubOutlined />
           使用 GitHub 登录
+        </a>
+
+        <a
+          href="/api/auth/oauth/google"
+          className="miao-auth-social-link"
+          style={{ marginBottom: 16 }}
+        >
+          <GoogleOutlined />
+          使用 Google 登录
         </a>
 
         <div style={{ textAlign: 'center' }}>
