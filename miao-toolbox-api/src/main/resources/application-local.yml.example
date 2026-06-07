@@ -1,0 +1,16 @@
+# ============================================================
+# 本地开发密钥模板 — 复制为 application-local.yml 并填入真实值
+# cp application-local.yml.example application-local.yml
+# ============================================================
+
+miao:
+  jwt:
+    secret: your-jwt-secret-key-at-least-256-bits-long
+    refresh-secret: your-jwt-refresh-secret-key-at-least-256-bits-long
+  oauth:
+    github:
+      client-id: your-github-client-id
+      client-secret: your-github-client-secret
+    google:
+      client-id: your-google-client-id
+      client-secret: your-google-client-secret

@@ -1,0 +1,43 @@
+# ============================================================
+# 生产环境配置 — 所有敏感值必须通过环境变量提供，无默认值
+# ============================================================
+
+spring:
+  datasource:
+    url: ${MYSQL_URL}
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+miao:
+  jwt:
+    secret: ${JWT_SECRET}
+    refresh-secret: ${JWT_REFRESH_SECRET}
+  security:
+    cookie-secure: true
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
+  oauth:
+    github:
+      client-id: ${GITHUB_CLIENT_ID}
+      client-secret: ${GITHUB_CLIENT_SECRET}
+      redirect-uri: ${GITHUB_REDIRECT_URI}
+      frontend-callback-url: ${GITHUB_FRONTEND_CALLBACK_URL}
+      scope: read:user user:email
+    google:
+      client-id: ${GOOGLE_CLIENT_ID}
+      client-secret: ${GOOGLE_CLIENT_SECRET}
+      redirect-uri: ${GOOGLE_REDIRECT_URI}
+      frontend-callback-url: ${GOOGLE_FRONTEND_CALLBACK_URL}
+      scope: openid email profile

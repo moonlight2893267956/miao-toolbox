@@ -24,6 +24,7 @@ dist-ssr/
 .env
 .env.local
 .env.*.local
+application-local.yml
 
 # === OS ===
 .DS_Store
@@ -36,8 +37,9 @@ docker-compose.override.yml
 *.log
 logs/
 
-# === Claude / Agent 运行时文件 ===
+# === AI / Agent 运行时文件 ===
 .agents/
+.atomcode/
 .claude/
 .qoder/
 AGENTS.md
