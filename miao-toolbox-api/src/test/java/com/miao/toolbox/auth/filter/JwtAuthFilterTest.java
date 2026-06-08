@@ -67,7 +67,7 @@ class JwtAuthFilterTest {
         }
 
         @Test
-        @DisplayName("无效 token → 继续过滤器链")
+        @DisplayName("无效 token → 401 + AUTH_TOKEN_EXPIRED")
         void invalidToken() throws Exception {
             when(jwtService.validateAccessToken("bad-token")).thenReturn(null);
 
@@ -77,7 +77,8 @@ class JwtAuthFilterTest {
 
             filter.doFilterInternal(request, response, (req, res) -> {});
 
-            assertThat(response.getStatus()).isEqualTo(200);
+            assertThat(response.getStatus()).isEqualTo(401);
+            assertThat(response.getContentAsString()).contains("AUTH_TOKEN_EXPIRED");
         }
     }
 
@@ -97,7 +98,7 @@ class JwtAuthFilterTest {
         }
 
         @Test
-        @DisplayName("用户不存在 → 继续过滤器链")
+        @DisplayName("用户不存在 → 401 + AUTH_TOKEN_INVALID")
         void userNotFound() throws Exception {
             when(userRepository.findById(1L)).thenReturn(Optional.empty());
 
@@ -107,7 +108,8 @@ class JwtAuthFilterTest {
 
             filter.doFilterInternal(request, response, (req, res) -> {});
 
-            assertThat(response.getStatus()).isEqualTo(200);
+            assertThat(response.getStatus()).isEqualTo(401);
+            assertThat(response.getContentAsString()).contains("AUTH_TOKEN_INVALID");
         }
 
         @Test

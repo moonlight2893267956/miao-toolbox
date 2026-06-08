@@ -1,18 +1,25 @@
 package com.miao.toolbox.config;
 
 import com.miao.toolbox.auth.filter.JwtAuthFilter;
+import com.miao.toolbox.common.constant.ErrorCode;
+import com.miao.toolbox.common.response.ApiResponse;
 import com.miao.toolbox.gateway.filter.AntiReplayFilter;
 import com.miao.toolbox.gateway.filter.RateLimitFilter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -28,6 +35,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final ObjectMapper objectMapper;
 
     @Autowired(required = false)
     private AntiReplayFilter antiReplayFilter;
@@ -38,8 +46,9 @@ public class SecurityConfig {
     @Value("${miao.cors.allowed-origins}")
     private String allowedOrigins;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter, ObjectMapper objectMapper) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.objectMapper = objectMapper;
     }
 
     @Bean
@@ -48,6 +57,10 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex
+                        // 未认证请求返回 401（而不是默认的 403），前端才能正确触发 token 刷新
+                        .authenticationEntryPoint(jwtAuthEntryPoint())
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/register",
@@ -108,5 +121,21 @@ public class SecurityConfig {
         FilterRegistrationBean<JwtAuthFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
+    }
+
+    /**
+     * 自定义 AuthenticationEntryPoint：未认证请求返回 401 + JSON body，
+     * 而不是 Spring Security 默认的 403。
+     * 前端 axios 拦截器依赖 401 状态码触发 token 刷新。
+     */
+    @Bean
+    public AuthenticationEntryPoint jwtAuthEntryPoint() {
+        return (request, response, authException) -> {
+            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            ApiResponse<Void> apiResponse = ApiResponse.error(
+                    ErrorCode.AUTH_TOKEN_EXPIRED, "登录已过期，请重新登录", null);
+            response.getWriter().write(objectMapper.writeValueAsString(apiResponse));
+        };
     }
 }

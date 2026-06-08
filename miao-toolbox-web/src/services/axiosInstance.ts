@@ -3,6 +3,23 @@ import type { InternalAxiosRequestConfig } from 'axios';
 import { message as antdMessage } from 'antd';
 import { getAccessToken, getSigningKey, setTokens, clearTokens } from '../contexts/AuthContext';
 
+// 错误去重：同一消息 2 秒内只展示一次
+const errorThrottle = new Map<string, number>();
+function showErrorOnce(msg: string, type: 'error' | 'warning' = 'error') {
+  const now = Date.now();
+  const last = errorThrottle.get(msg) ?? 0;
+  if (now - last < 2000) return;
+  errorThrottle.set(msg, now);
+  if (type === 'warning') {
+    antdMessage.warning(msg);
+  } else {
+    antdMessage.error(msg);
+  }
+}
+
+// Auth 刷新失败标记：页面即将跳转登录，下游拦截器需静默吞掉
+const AUTH_REDIRECT = Symbol('AUTH_REDIRECT');
+
 // HMAC-SHA256 签名工具
 async function hmacSha256(key: string, data: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -72,10 +89,7 @@ axiosInstance.interceptors.response.use(
 
     // 429 限流提示
     if (error.response?.status === 429) {
-      const retryAfter = error.response.headers['retry-after'];
-      const msg = retryAfter
-        ? `请求过于频繁，请${retryAfter}秒后重试`
-        : '请求过于频繁，请稍后再试';
+      const msg = (error.response?.data as { message?: string })?.message || '请求过于频繁，请稍后再试';
       antdMessage.warning(msg);
       return Promise.reject(error);
     }
@@ -88,6 +102,10 @@ axiosInstance.interceptors.response.use(
         }).then(token => {
           if (token) {
             originalRequest.headers.Authorization = `Bearer ${token}`;
+            // 清除旧签名头，让请求拦截器用新 signingKey 重新签名
+            delete originalRequest.headers['X-Request-Timestamp'];
+            delete originalRequest.headers['X-Request-Nonce'];
+            delete originalRequest.headers['X-Request-Signature'];
             return axiosInstance(originalRequest);
           }
           return Promise.reject(error);
@@ -106,11 +124,18 @@ axiosInstance.interceptors.response.use(
         processQueue(null, accessToken);
 
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        // 清除旧签名头，让请求拦截器用新 signingKey 重新签名
+        delete originalRequest.headers['X-Request-Timestamp'];
+        delete originalRequest.headers['X-Request-Nonce'];
+        delete originalRequest.headers['X-Request-Signature'];
         return axiosInstance(originalRequest);
       } catch (refreshError) {
         clearTokens();
         localStorage.removeItem('user');
         localStorage.removeItem('mustChangePassword');
+
+        // 标记 auth 错误，下游拦截器将静默吞掉，避免排队请求同时弹 toast
+        Object.assign(refreshError as object, { [AUTH_REDIRECT]: true });
         processQueue(refreshError, null);
 
         // 跳转登录页，携带来源路径
@@ -124,6 +149,27 @@ axiosInstance.interceptors.response.use(
       }
     }
 
+    return Promise.reject(error);
+  }
+);
+
+// 全局错误统一处理：去重 + auth 错误静默 + 统一引导刷新
+axiosInstance.interceptors.response.use(
+  response => response,
+  (error: AxiosError) => {
+    // Auth 刷新失败导致页面即将跳转登录，静默吞掉所有相关错误
+    if ((error as Record<symbol, boolean>)[AUTH_REDIRECT]) {
+      return new Promise(() => {});
+    }
+
+    const status = error.response?.status;
+
+    // 401 / 429 已被上游拦截器处理，不再额外弹 toast
+    if (status === 401 || status === 429) {
+      return Promise.reject(error);
+    }
+
+    showErrorOnce('加载失败，请刷新页面重试');
     return Promise.reject(error);
   }
 );

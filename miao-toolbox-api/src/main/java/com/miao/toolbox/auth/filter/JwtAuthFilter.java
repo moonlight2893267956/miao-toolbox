@@ -57,7 +57,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7);
         Claims claims = jwtService.validateAccessToken(token);
         if (claims == null) {
-            filterChain.doFilter(request, response);
+            // Token 过期或无效：直接返回 401，而不是放行让 Spring Security 返回 403
+            // 前端只对 401 做 token 刷新，403 会被当作权限不足处理
+            writeError(response, ErrorCode.AUTH_TOKEN_EXPIRED, "登录已过期，请重新登录", HttpStatus.UNAUTHORIZED);
             return;
         }
 
@@ -68,7 +70,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         // Check user status from DB — use generic AUTH_LOGIN_FAILED to prevent user enumeration
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) {
-            filterChain.doFilter(request, response);
+            writeError(response, ErrorCode.AUTH_TOKEN_INVALID, "无效的认证令牌", HttpStatus.UNAUTHORIZED);
             return;
         }
 
