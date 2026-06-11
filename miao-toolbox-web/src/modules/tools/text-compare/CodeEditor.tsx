@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { EditorView, keymap, placeholder } from '@codemirror/view';
+import { EditorView, keymap, placeholder, lineNumbers, highlightSpecialChars, drawSelection, highlightActiveLine } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
-import { lineNumbers, foldGutter, indentOnInput, indentUnit } from '@codemirror/language';
+import { foldGutter, indentOnInput, indentUnit, foldKeymap } from '@codemirror/language';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { json } from '@codemirror/lang-json';
 import { java } from '@codemirror/lang-java';
@@ -13,9 +13,7 @@ import { xml } from '@codemirror/lang-xml';
 import { sql } from '@codemirror/lang-sql';
 import { markdown } from '@codemirror/lang-markdown';
 import { yaml } from '@codemirror/lang-yaml';
-import { highlightSpecialChars, drawSelection, highlightActiveLine } from '@codemirror/view';
 import { closeBrackets, autocompletion, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
-import { foldKeymap } from '@codemirror/language';
 import type { Extension } from '@codemirror/state';
 
 interface CodeEditorProps {

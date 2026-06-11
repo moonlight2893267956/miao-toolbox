@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Row, Col } from 'antd';
-import { DiffProvider, useDiffContext } from './DiffProvider';
+import { DiffProvider } from './DiffProvider';
+import { useDiffContext } from './useDiffContext';
 import Toolbar from './Toolbar';
 import DiffPanel from './DiffPanel';
 import StatCard from './StatCard';
