@@ -2,7 +2,7 @@ import React from 'react';
 import { Button, Card, Input, Space, Upload, message } from 'antd';
 import { UploadOutlined, FileTextOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
-import { useDiffContext } from './DiffProvider';
+import { useDiffContext } from './useDiffContext';
 
 interface DiffPanelProps {
   side: 'left' | 'right';

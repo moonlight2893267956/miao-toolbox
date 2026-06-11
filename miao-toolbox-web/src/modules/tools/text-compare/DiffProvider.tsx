@@ -1,5 +1,5 @@
-import React, { useContext, useReducer, useCallback } from 'react';
-import type { DiffAction, DiffState, Granularity } from './types';
+import React, { useReducer, useCallback } from 'react';
+import type { DiffAction, DiffState, Granularity, LayoutMode } from './types';
 import { DiffContext } from './diffContext';
 import type { DiffContextValue } from './diffContext';
 
@@ -12,6 +12,7 @@ const initialState: DiffState = {
   leftLabel: '原文(A)',
   rightLabel: '对比(B)',
   granularity: 'char',
+  layout: 'split',
   ignoreWhitespace: false,
   showLineNumbers: true,
   language: null,
@@ -28,6 +29,8 @@ function diffReducer(state: DiffState, action: DiffAction): DiffState {
       return { ...state, rightText: action.payload, error: null };
     case 'SET_GRANULARITY':
       return { ...state, granularity: action.payload };
+    case 'SET_LAYOUT':
+      return { ...state, layout: action.payload };
     case 'SET_IGNORE_WHITESPACE':
       return { ...state, ignoreWhitespace: action.payload };
     case 'SET_SHOW_LINE_NUMBERS':
@@ -65,20 +68,13 @@ export const DiffProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setLeft = useCallback((text: string) => dispatch({ type: 'SET_LEFT', payload: text }), []);
   const setRight = useCallback((text: string) => dispatch({ type: 'SET_RIGHT', payload: text }), []);
   const setGranularity = useCallback((g: Granularity) => dispatch({ type: 'SET_GRANULARITY', payload: g }), []);
+  const setLayout = useCallback((mode: LayoutMode) => dispatch({ type: 'SET_LAYOUT', payload: mode }), []);
   const setIgnoreWhitespace = useCallback((v: boolean) => dispatch({ type: 'SET_IGNORE_WHITESPACE', payload: v }), []);
   const setShowLineNumbers = useCallback((v: boolean) => dispatch({ type: 'SET_SHOW_LINE_NUMBERS', payload: v }), []);
 
   const value: DiffContextValue = {
-    state, dispatch, setLeft, setRight, setGranularity, setIgnoreWhitespace, setShowLineNumbers,
+    state, dispatch, setLeft, setRight, setGranularity, setLayout, setIgnoreWhitespace, setShowLineNumbers,
   };
 
   return <DiffContext.Provider value={value}>{children}</DiffContext.Provider>;
-};
-
-export const useDiffContext = (): DiffContextValue => {
-  const ctx = useContext(DiffContext);
-  if (!ctx) {
-    throw new Error('useDiffContext must be used within DiffProvider');
-  }
-  return ctx;
 };

@@ -4,17 +4,20 @@ import { DiffProvider, useDiffContext } from './DiffProvider';
 import Toolbar from './Toolbar';
 import DiffPanel from './DiffPanel';
 import StatCard from './StatCard';
+import DiffViewer from './DiffViewer';
+import DiffNavigator from './DiffNavigator';
 import { useDiffApi } from './useDiffApi';
 
 /**
  * 文本对照工具 — 内部内容组件（在 DiffProvider 作用域内）
- * 监听两侧文本变化，500ms 防抖后自动触发对比
  */
 const DiffContent: React.FC = () => {
   const { state, dispatch } = useDiffContext();
   const { compare } = useDiffApi();
   const debounceRef = useRef<number | null>(null);
+  const hunkRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  // 500ms 防抖自动对比
   useEffect(() => {
     const hasContent = state.leftText || state.rightText;
     if (!hasContent) {
@@ -49,18 +52,37 @@ const DiffContent: React.FC = () => {
     };
   }, [state.leftText, state.rightText, state.granularity, state.ignoreWhitespace, compare, dispatch]);
 
+  const isSplitLayout = state.layout === 'split';
+
   return (
     <>
       <Toolbar />
-      <StatCard />
-      <Row gutter={12}>
-        <Col xs={24} md={12}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
+        <div style={{ flex: 1 }}>
+          <StatCard />
+        </div>
+        <DiffNavigator hunkRefs={hunkRefs} />
+      </div>
+
+      {isSplitLayout ? (
+        <Row gutter={12}>
+          <Col xs={24} md={12}>
+            <DiffPanel side="left" />
+          </Col>
+          <Col xs={24} md={12}>
+            <DiffPanel side="right" />
+          </Col>
+        </Row>
+      ) : (
+        <>
           <DiffPanel side="left" />
-        </Col>
-        <Col xs={24} md={12}>
-          <DiffPanel side="right" />
-        </Col>
-      </Row>
+          <div style={{ marginTop: 12 }}>
+            <DiffPanel side="right" />
+          </div>
+        </>
+      )}
+
+      <DiffViewer hunkRefs={hunkRefs} />
     </>
   );
 };

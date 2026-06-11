@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, Space, Statistic, Empty, Spin } from 'antd';
 import { PlusOutlined, MinusOutlined, EditOutlined } from '@ant-design/icons';
-import { useDiffContext } from './DiffProvider';
+import { useDiffContext } from './useDiffContext';
 
 const StatCard: React.FC = () => {
   const { state } = useDiffContext();

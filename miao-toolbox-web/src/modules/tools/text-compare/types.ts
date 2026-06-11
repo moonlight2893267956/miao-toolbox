@@ -2,6 +2,9 @@
  * 文本对照工具 — 类型定义（与后端 DTO 对齐）
  */
 
+/** 布局模式 */
+export type LayoutMode = 'split' | 'unified' | 'stacked';
+
 export type Granularity = 'char' | 'word' | 'line';
 
 export type HunkType = 'added' | 'removed' | 'modified' | 'unchanged';
@@ -58,6 +61,7 @@ export interface DiffState {
   leftLabel: string;
   rightLabel: string;
   granularity: Granularity;
+  layout: LayoutMode;
   ignoreWhitespace: boolean;
   showLineNumbers: boolean;
   language: string | null;
@@ -70,6 +74,7 @@ export type DiffAction =
   | { type: 'SET_LEFT'; payload: string }
   | { type: 'SET_RIGHT'; payload: string }
   | { type: 'SET_GRANULARITY'; payload: Granularity }
+  | { type: 'SET_LAYOUT'; payload: LayoutMode }
   | { type: 'SET_IGNORE_WHITESPACE'; payload: boolean }
   | { type: 'SET_SHOW_LINE_NUMBERS'; payload: boolean }
   | { type: 'SET_LANGUAGE'; payload: string | null }
