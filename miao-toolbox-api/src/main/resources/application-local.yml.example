@@ -14,3 +14,7 @@ miao:
     google:
       client-id: your-google-client-id
       client-secret: your-google-client-secret
+  cos:
+    secret-id: your-cos-secret-id
+    secret-key: your-cos-secret-key
+    bucket: your-cos-bucket-name

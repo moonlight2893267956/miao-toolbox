@@ -1,5 +1,6 @@
 package com.miao.toolbox.tool.diff;
 
+import com.miao.toolbox.common.exception.BusinessException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -138,7 +139,7 @@ class DiffServiceTest {
             request.setRight("def");
             request.setGranularity("invalid");
 
-            assertThrows(IllegalArgumentException.class, () -> diffService.compare(request));
+            assertThrows(BusinessException.class, () -> diffService.compare(request));
         }
     }
 

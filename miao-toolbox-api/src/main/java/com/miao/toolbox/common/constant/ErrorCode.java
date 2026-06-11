@@ -31,4 +31,5 @@ public final class ErrorCode {
     public static final String DIFF_COS_ERROR = "DIFF_COS_ERROR";
     public static final String DIFF_EMPTY_CONTENT = "DIFF_EMPTY_CONTENT";
     public static final String DIFF_FILE_NOT_FOUND = "DIFF_FILE_NOT_FOUND";
+    public static final String DIFF_INVALID_REQUEST = "DIFF_INVALID_REQUEST";
 }

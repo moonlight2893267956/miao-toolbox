@@ -4,7 +4,6 @@ import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.tool.diff.config.CosProperties;
 import com.qcloud.cos.COSClient;
 import com.qcloud.cos.model.ObjectMetadata;
-import com.qcloud.cos.model.PutObjectResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -60,8 +59,6 @@ public class DiffCosService {
                     .fileName(fileName)
                     .size(content.length)
                     .build();
-        } catch (BusinessException e) {
-            throw e;
         } catch (Exception e) {
             log.error("COS upload failed: {}", e.getMessage(), e);
             throw new BusinessException("DIFF_COS_ERROR", "文件上传失败", 500);
@@ -78,16 +75,29 @@ public class DiffCosService {
 
         try {
             com.qcloud.cos.model.COSObject object = cosClient.getObject(cosProperties.getBucket(), fileKey);
-            return new String(object.getObjectContent().readAllBytes(), StandardCharsets.UTF_8);
+            long contentLength = object.getObjectMetadata().getContentLength();
+            if (contentLength > cosProperties.getMaxDownloadSize()) {
+                throw new BusinessException("DIFF_FILE_TOO_LARGE", "文件大小超过下载限制", 400);
+            }
+            try (var inputStream = object.getObjectContent()) {
+                return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+            }
+        } catch (com.qcloud.cos.exception.CosServiceException e) {
+            if (e.getStatusCode() == 404) {
+                throw new BusinessException("DIFF_FILE_NOT_FOUND", "文件不存在", 404);
+            }
+            log.error("COS download failed: key={}, statusCode={}, error={}", fileKey, e.getStatusCode(), e.getMessage(), e);
+            throw new BusinessException("DIFF_COS_ERROR", "文件下载失败", 500);
         } catch (Exception e) {
             log.error("COS download failed: key={}, error={}", fileKey, e.getMessage(), e);
-            throw new BusinessException("DIFF_FILE_NOT_FOUND", "文件不存在", 404);
+            throw new BusinessException("DIFF_COS_ERROR", "文件下载失败", 500);
         }
     }
 
     private String buildFileKey(String fileName) {
+        String safeName = fileName.replace("/", "_").replace("\\", "_").replace("..", "_");
         String date = LocalDate.now().toString();
         String uuid = UUID.randomUUID().toString().substring(0, 8);
-        return cosProperties.getBasePath() + "/" + date + "/" + uuid + "-" + fileName;
+        return cosProperties.getBasePath() + "/" + date + "/" + uuid + "-" + safeName;
     }
 }

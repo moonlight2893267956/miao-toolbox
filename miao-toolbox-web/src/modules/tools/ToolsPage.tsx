@@ -1,7 +1,9 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Input, Space, Tag, Typography, message } from 'antd';
 import {
   AudioOutlined,
+  DiffOutlined,
   PictureOutlined,
   RightOutlined,
   SearchOutlined,
@@ -18,6 +20,16 @@ const tools = [
     icon: <TranslationOutlined />,
     status: '可用',
     tags: ['文本', '多语言'],
+    path: null,
+  },
+  {
+    key: 'text-compare',
+    title: '文本对照',
+    description: '粘贴或上传两段文本，支持字符/词/行级粒度对比，自动识别语言类型。',
+    icon: <DiffOutlined />,
+    status: '可用',
+    tags: ['对比', '代码'],
+    path: '/tools/text-compare',
   },
   {
     key: 'image',
@@ -26,6 +38,7 @@ const tools = [
     icon: <PictureOutlined />,
     status: '即将接入',
     tags: ['图像', '创作'],
+    path: null,
   },
   {
     key: 'voice',
@@ -34,12 +47,19 @@ const tools = [
     icon: <AudioOutlined />,
     status: '即将接入',
     tags: ['语音', '内容'],
+    path: null,
   },
 ];
 
 const ToolsPage: React.FC = () => {
-  const handleToolClick = (title: string) => {
-    message.info(`${title} 正在接入中`);
+  const navigate = useNavigate();
+
+  const handleToolClick = (path: string | null, title: string) => {
+    if (path) {
+      navigate(path);
+    } else {
+      message.info(`${title} 正在接入中`);
+    }
   };
 
   return (
@@ -94,7 +114,7 @@ const ToolsPage: React.FC = () => {
             key={tool.key}
             type="button"
             className="miao-tool-card"
-            onClick={() => handleToolClick(tool.title)}
+            onClick={() => handleToolClick(tool.path, tool.title)}
           >
             <span className="miao-tool-card-top">
               <span className="miao-tool-icon">{tool.icon}</span>

@@ -4,6 +4,7 @@ import com.github.difflib.DiffUtils;
 import com.github.difflib.patch.AbstractDelta;
 import com.github.difflib.patch.DeltaType;
 import com.github.difflib.patch.Patch;
+import com.miao.toolbox.common.exception.BusinessException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -61,7 +62,7 @@ public class DiffService {
                 hunks = compareLineLevel(left, right);
                 break;
             default:
-                throw new IllegalArgumentException("不支持的对比粒度: " + granularity);
+                throw new BusinessException("DIFF_INVALID_GRANULARITY", "不支持的对比粒度: " + granularity, 400);
         }
 
         // 计算统计
@@ -127,43 +128,50 @@ public class DiffService {
 
     /**
      * AC4: 大文件分 chunk 对比
+     * 按换行符对齐切割，避免在行/词中间截断导致错误 diff
      */
     private DiffResult compareInChunks(String left, String right, String granularity) {
-        List<DiffHunk> allHunks = new ArrayList<>();
-        int offset = 0;
+        List<String> leftLines = new ArrayList<>(Arrays.asList(left.split("\n", -1)));
+        List<String> rightLines = new ArrayList<>(Arrays.asList(right.split("\n", -1)));
+        if (leftLines.size() > 1 && leftLines.getLast().isEmpty()) leftLines.removeLast();
+        if (rightLines.size() > 1 && rightLines.getLast().isEmpty()) rightLines.removeLast();
 
-        while (offset < Math.max(left.length(), right.length())) {
-            String leftChunk = safeSubstring(left, offset, offset + CHUNK_SIZE);
-            String rightChunk = safeSubstring(right, offset, offset + CHUNK_SIZE);
+        int linesPerChunk = CHUNK_SIZE / 80; // 估算：每行约 80 字符
+        List<DiffHunk> allHunks = new ArrayList<>();
+        int lineOffset = 0;
+
+        while (lineOffset < Math.max(leftLines.size(), rightLines.size())) {
+            List<String> leftChunk = leftLines.subList(lineOffset, Math.min(lineOffset + linesPerChunk, leftLines.size()));
+            List<String> rightChunk = rightLines.subList(lineOffset, Math.min(lineOffset + linesPerChunk, rightLines.size()));
 
             List<DiffHunk> chunkHunks;
-            switch (granularity) {
-                case "char":
-                    chunkHunks = compareCharLevel(leftChunk, rightChunk);
-                    break;
-                case "word":
-                    chunkHunks = compareWordLevel(leftChunk, rightChunk);
-                    break;
-                case "line":
-                    chunkHunks = compareLineLevel(leftChunk, rightChunk);
-                    break;
-                default:
-                    chunkHunks = compareLineLevel(leftChunk, rightChunk);
+            if ("line".equals(granularity)) {
+                Patch<String> patch = DiffUtils.diff(leftChunk, rightChunk);
+                chunkHunks = buildHunksFromPatch(patch, leftChunk, rightChunk);
+            } else {
+                // char/word 级对 chunk 内的行拼接文本再对比
+                String leftText = String.join("\n", leftChunk);
+                String rightText = String.join("\n", rightChunk);
+                chunkHunks = switch (granularity) {
+                    case "char" -> compareCharLevel(leftText, rightText);
+                    case "word" -> compareWordLevel(leftText, rightText);
+                    default -> compareLineLevel(leftText, rightText);
+                };
             }
 
-            // 调整行号偏移
+            // 调整行号偏移（lineOffset 是行偏移量）
             for (DiffHunk hunk : chunkHunks) {
                 allHunks.add(DiffHunk.builder()
                         .type(hunk.getType())
-                        .oldStart(hunk.getOldStart() + offset)
+                        .oldStart(hunk.getOldStart() + lineOffset)
                         .oldLines(hunk.getOldLines())
-                        .newStart(hunk.getNewStart() + offset)
+                        .newStart(hunk.getNewStart() + lineOffset)
                         .newLines(hunk.getNewLines())
                         .changes(hunk.getChanges())
                         .build());
             }
 
-            offset += CHUNK_SIZE;
+            lineOffset += linesPerChunk;
         }
 
         DiffStatistics statistics = calculateStatistics(allHunks);
@@ -293,12 +301,9 @@ public class DiffService {
     }
 
     private String normalizeWhitespace(String text) {
-        return text.replaceAll("[ \\t]+", " ").replaceAll("\\n\\s+\\n", "\n\n").trim();
-    }
-
-    private String safeSubstring(String s, int start, int end) {
-        if (s == null || start >= s.length()) return "";
-        end = Math.min(end, s.length());
-        return s.substring(start, end);
+        return text.replaceAll("\\r\\n", "\n")
+                .replaceAll("[ \\t]+", " ")
+                .replaceAll("\\n\\s+\\n", "\n\n")
+                .trim();
     }
 }

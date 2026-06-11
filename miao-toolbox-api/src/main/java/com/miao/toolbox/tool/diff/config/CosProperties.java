@@ -15,4 +15,5 @@ public class CosProperties {
     private String region = "ap-guangzhou";
     private String basePath = "text-compare";
     private long maxFileSize = 100 * 1024 * 1024L; // 100MB
+    private long maxDownloadSize = 100 * 1024 * 1024L; // 100MB
 }
