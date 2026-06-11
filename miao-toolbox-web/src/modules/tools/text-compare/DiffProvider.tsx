@@ -14,6 +14,7 @@ const initialState: DiffState = {
   granularity: 'char',
   layout: 'split',
   ignoreWhitespace: false,
+  structuredDiff: false,
   showLineNumbers: true,
   language: null,
   diffResult: null,
@@ -33,6 +34,8 @@ function diffReducer(state: DiffState, action: DiffAction): DiffState {
       return { ...state, layout: action.payload };
     case 'SET_IGNORE_WHITESPACE':
       return { ...state, ignoreWhitespace: action.payload };
+    case 'SET_STRUCTURED_DIFF':
+      return { ...state, structuredDiff: action.payload };
     case 'SET_SHOW_LINE_NUMBERS':
       return { ...state, showLineNumbers: action.payload };
     case 'SET_LANGUAGE':
@@ -70,10 +73,12 @@ export const DiffProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setGranularity = useCallback((g: Granularity) => dispatch({ type: 'SET_GRANULARITY', payload: g }), []);
   const setLayout = useCallback((mode: LayoutMode) => dispatch({ type: 'SET_LAYOUT', payload: mode }), []);
   const setIgnoreWhitespace = useCallback((v: boolean) => dispatch({ type: 'SET_IGNORE_WHITESPACE', payload: v }), []);
+  const setStructuredDiff = useCallback((v: boolean) => dispatch({ type: 'SET_STRUCTURED_DIFF', payload: v }), []);
   const setShowLineNumbers = useCallback((v: boolean) => dispatch({ type: 'SET_SHOW_LINE_NUMBERS', payload: v }), []);
 
   const value: DiffContextValue = {
-    state, dispatch, setLeft, setRight, setGranularity, setLayout, setIgnoreWhitespace, setShowLineNumbers,
+    state, dispatch, setLeft, setRight, setGranularity, setLayout,
+    setIgnoreWhitespace, setStructuredDiff, setShowLineNumbers,
   };
 
   return <DiffContext.Provider value={value}>{children}</DiffContext.Provider>;

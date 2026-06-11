@@ -37,6 +37,7 @@ const DiffContent: React.FC = () => {
           right: state.rightText,
           granularity: state.granularity,
           ignoreWhitespace: state.ignoreWhitespace,
+          structuredDiff: state.structuredDiff,
         });
         dispatch({ type: 'SET_DIFF_RESULT', payload: result });
       } catch (e: unknown) {
@@ -50,7 +51,7 @@ const DiffContent: React.FC = () => {
         window.clearTimeout(debounceRef.current);
       }
     };
-  }, [state.leftText, state.rightText, state.granularity, state.ignoreWhitespace, compare, dispatch]);
+  }, [state.leftText, state.rightText, state.granularity, state.ignoreWhitespace, state.structuredDiff, compare, dispatch]);
 
   const isSplitLayout = state.layout === 'split';
 

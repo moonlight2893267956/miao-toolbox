@@ -1,15 +1,16 @@
 import React from 'react';
-import { Button, Card, Input, Space, Upload, message } from 'antd';
+import { Button, Card, Space, Upload, message } from 'antd';
 import { UploadOutlined, FileTextOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import { useDiffContext } from './useDiffContext';
+import CodeEditor from './CodeEditor';
 
 interface DiffPanelProps {
   side: 'left' | 'right';
 }
 
 /**
- * 左右分栏编辑器面板 — 只做文本输入和文件上传，对比逻辑由父组件统一处理
+ * 左右分栏编辑器面板 — CodeMirror 6 编辑器 + 文件上传
  */
 const DiffPanel: React.FC<DiffPanelProps> = ({ side }) => {
   const { state, setLeft, setRight, dispatch } = useDiffContext();
@@ -18,10 +19,6 @@ const DiffPanel: React.FC<DiffPanelProps> = ({ side }) => {
   const label = side === 'left' ? state.leftLabel : state.rightLabel;
   const setText = side === 'left' ? setLeft : setRight;
   const fileAction = side === 'left' ? 'SET_LEFT_FILE' as const : 'SET_RIGHT_FILE' as const;
-
-  const handleTextChange = (val: string) => {
-    setText(val);
-  };
 
   const uploadProps: UploadProps = {
     showUploadList: false,
@@ -37,7 +34,7 @@ const DiffPanel: React.FC<DiffPanelProps> = ({ side }) => {
         const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
         const languageMap: Record<string, string> = {
           json: 'json', yaml: 'yaml', yml: 'yaml', java: 'java', py: 'python',
-          js: 'javascript', jsx: 'javascript', ts: 'typescript', tsx: 'typescript',
+          js: 'javascript', jsx: 'jsx', ts: 'typescript', tsx: 'tsx',
           css: 'css', html: 'html', xml: 'xml', md: 'markdown', sql: 'sql', sh: 'bash',
         };
         dispatch({ type: 'SET_LANGUAGE', payload: languageMap[ext] ?? null });
@@ -46,6 +43,10 @@ const DiffPanel: React.FC<DiffPanelProps> = ({ side }) => {
       return false;
     },
   };
+
+  const placeholderLabel = side === 'left'
+    ? '在此粘贴或输入原文...'
+    : '在此粘贴或输入对比文本...';
 
   return (
     <Card
@@ -63,18 +64,14 @@ const DiffPanel: React.FC<DiffPanelProps> = ({ side }) => {
       }
       styles={{ body: { padding: 0 } }}
     >
-      <Input.TextArea
+      <CodeEditor
         value={text}
-        onChange={(e) => handleTextChange(e.target.value)}
-        placeholder={side === 'left' ? '在此粘贴或输入原文...' : '在此粘贴或输入对比文本...'}
-        autoSize={{ minRows: 18, maxRows: 30 }}
-        bordered={false}
-        style={{
-          fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-          fontSize: 13,
-          lineHeight: 1.6,
-          padding: '12px 16px',
-        }}
+        onChange={setText}
+        language={state.language}
+        showLineNumbers={state.showLineNumbers}
+        placeholder={placeholderLabel}
+        minRows={12}
+        maxRows={30}
       />
     </Card>
   );

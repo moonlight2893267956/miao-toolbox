@@ -4,6 +4,9 @@ import com.github.difflib.DiffUtils;
 import com.github.difflib.patch.AbstractDelta;
 import com.github.difflib.patch.DeltaType;
 import com.github.difflib.patch.Patch;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miao.toolbox.common.exception.BusinessException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -47,6 +50,21 @@ public class DiffService {
         // AC4: 大文件分 chunk 处理
         if (left.length() > CHUNK_SIZE || right.length() > CHUNK_SIZE) {
             return compareInChunks(left, right, granularity);
+        }
+
+        // 结构化对比（JSON/YAML key-level diff）
+        if (request.isStructuredDiff()) {
+            String detectedLang = detectLanguageFromContent(left, right);
+            if (detectedLang != null) {
+                List<DiffHunk> hunks = compareStructured(left, right, detectedLang);
+                DiffStatistics statistics = calculateStatistics(hunks);
+                return DiffResult.builder()
+                        .granularity(granularity)
+                        .statistics(statistics)
+                        .hunks(hunks)
+                        .language(detectedLang)
+                        .build();
+            }
         }
 
         // 按粒度对比
@@ -183,8 +201,83 @@ public class DiffService {
                 .build();
     }
 
+    // ========== 结构化对比（JSON/YAML key-level diff） ==========
+
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
+
     /**
-     * AC7: 根据文件扩展名识别语言类型
+     * 从内容检测结构化语言类型
+     */
+    private String detectLanguageFromContent(String left, String right) {
+        if (isJson(left) || isJson(right)) return "json";
+        return null;
+    }
+
+    private boolean isJson(String text) {
+        if (text == null || text.isBlank()) return false;
+        try {
+            JSON_MAPPER.readTree(text.trim());
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * 执行结构化对比（JSON key-level diff）
+     */
+    private List<DiffHunk> compareStructured(String left, String right, String lang) {
+        try {
+            JsonNode leftNode = JSON_MAPPER.readTree(left.trim());
+            JsonNode rightNode = JSON_MAPPER.readTree(right.trim());
+
+            List<String> leftPaths = new ArrayList<>();
+            List<String> rightPaths = new ArrayList<>();
+            flattenJson("$", leftNode, leftPaths);
+            flattenJson("$", rightNode, rightPaths);
+
+            // 将路径列表转为 diff 行
+            Patch<String> patch = DiffUtils.diff(leftPaths, rightPaths);
+            return buildHunksFromPatch(patch, leftPaths, rightPaths);
+        } catch (Exception e) {
+            log.warn("Structured diff failed, falling back: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * 将 JSON 节点展平为路径列表（每个路径对应一个 key）
+     */
+    private void flattenJson(String prefix, JsonNode node, List<String> paths) {
+        if (node.isObject()) {
+            Iterator<String> fieldNames = node.fieldNames();
+            while (fieldNames.hasNext()) {
+                String field = fieldNames.next();
+                String path = prefix + "." + field;
+                JsonNode child = node.get(field);
+                if (child.isObject() || child.isArray()) {
+                    paths.add("[object] " + path);
+                    flattenJson(path, child, paths);
+                } else {
+                    paths.add(path + " = " + child.asText());
+                }
+            }
+        } else if (node.isArray()) {
+            for (int i = 0; i < node.size(); i++) {
+                String path = prefix + "[" + i + "]";
+                JsonNode child = node.get(i);
+                if (child.isObject() || child.isArray()) {
+                    paths.add("[object] " + path);
+                    flattenJson(path, child, paths);
+                } else {
+                    paths.add(path + " = " + child.asText());
+                }
+            }
+        }
+    }
+
+    /**
+     * 根据文件扩展名识别语言类型
      */
     public String detectLanguage(String fileName) {
         if (fileName == null) return null;

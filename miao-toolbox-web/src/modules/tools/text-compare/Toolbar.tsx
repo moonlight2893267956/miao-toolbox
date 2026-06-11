@@ -20,8 +20,10 @@ const LAYOUT_OPTIONS: { value: LayoutMode; label: string; icon: React.ReactNode 
 
 const Toolbar: React.FC = () => {
   const {
-    state, setGranularity, setLayout, setIgnoreWhitespace, setShowLineNumbers,
+    state, setGranularity, setLayout, setIgnoreWhitespace, setStructuredDiff, setShowLineNumbers,
   } = useDiffContext();
+
+  const isJsonYaml = state.language === 'json' || state.language === 'yaml' || state.language === 'yml';
 
   return (
     <div
@@ -85,6 +87,14 @@ const Toolbar: React.FC = () => {
         <Text type="secondary">忽略空白符：</Text>
         <Switch checked={state.ignoreWhitespace} onChange={setIgnoreWhitespace} />
       </Space>
+
+      {/* 结构化对比开关（仅 JSON/YAML 时显示） */}
+      {isJsonYaml && (
+        <Space>
+          <Text type="secondary">结构化对比：</Text>
+          <Switch checked={state.structuredDiff} onChange={setStructuredDiff} />
+        </Space>
+      )}
 
       <div style={{ flex: 1 }} />
 

@@ -9,6 +9,7 @@ export interface DiffContextValue {
   setGranularity: (g: Granularity) => void;
   setLayout: (mode: LayoutMode) => void;
   setIgnoreWhitespace: (v: boolean) => void;
+  setStructuredDiff: (v: boolean) => void;
   setShowLineNumbers: (v: boolean) => void;
 }
 

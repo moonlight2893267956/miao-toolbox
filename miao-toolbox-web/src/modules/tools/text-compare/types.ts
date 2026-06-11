@@ -45,6 +45,7 @@ export interface DiffRequestBody {
   right: string;
   granularity: Granularity;
   ignoreWhitespace?: boolean;
+  structuredDiff?: boolean;
   leftLabel?: string;
   rightLabel?: string;
 }
@@ -63,6 +64,7 @@ export interface DiffState {
   granularity: Granularity;
   layout: LayoutMode;
   ignoreWhitespace: boolean;
+  structuredDiff: boolean;
   showLineNumbers: boolean;
   language: string | null;
   diffResult: DiffResult | null;
@@ -76,6 +78,7 @@ export type DiffAction =
   | { type: 'SET_GRANULARITY'; payload: Granularity }
   | { type: 'SET_LAYOUT'; payload: LayoutMode }
   | { type: 'SET_IGNORE_WHITESPACE'; payload: boolean }
+  | { type: 'SET_STRUCTURED_DIFF'; payload: boolean }
   | { type: 'SET_SHOW_LINE_NUMBERS'; payload: boolean }
   | { type: 'SET_LANGUAGE'; payload: string | null }
   | { type: 'SET_LOADING'; payload: boolean }
