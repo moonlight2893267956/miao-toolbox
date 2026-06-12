@@ -445,6 +445,7 @@
   padding: 14px 0 14px 8px;
   background: transparent;
   color: var(--dt-text);
+  caret-color: var(--dt-text) !important;
 }
 
 .dt-panel .cm-editor .cm-gutters {

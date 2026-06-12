@@ -130,7 +130,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     });
 
     viewRef.current = view;
-  }, [language, showLineNumbers, placeholderText, value]);
+  }, [language, showLineNumbers, placeholderText]);
 
   useEffect(() => {
     createEditor();
