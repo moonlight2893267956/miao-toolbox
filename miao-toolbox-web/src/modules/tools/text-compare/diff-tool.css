@@ -445,7 +445,12 @@
   padding: 14px 0 14px 8px;
   background: transparent;
   color: var(--dt-text);
-  caret-color: var(--dt-text) !important;
+}
+
+/* 光标: CodeMirror 6 用 border-left-color 渲染，不是 caret-color */
+.dt-panel .cm-editor.cm-focused .cm-cursorLayer .cm-cursor {
+  border-left-color: var(--dt-text) !important;
+  border-left-width: 2px !important;
 }
 
 .dt-panel .cm-editor .cm-gutters {
