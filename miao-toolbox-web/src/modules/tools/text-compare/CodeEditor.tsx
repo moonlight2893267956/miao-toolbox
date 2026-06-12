@@ -58,6 +58,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
+  const initialValueRef = useRef(value);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -120,7 +121,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     }
 
     const state = EditorState.create({
-      doc: value,
+      doc: initialValueRef.current,
       extensions,
     });
 
