@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文本对照工具 — 设计示意</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface-hover: #1c2128;
+  --border: #30363d;
+  --border-light: #21262d;
+  --text: #f0f6fc;
+  --text-secondary: #8b949e;
+  --text-tertiary: #484f58;
+
+  --accent-amber: #d29922;
+  --accent-amber-bg: rgba(210,153,34,0.12);
+  --accent-coral: #f85149;
+  --accent-coral-bg: rgba(248,81,73,0.12);
+  --accent-blue: #58a6ff;
+  --accent-blue-bg: rgba(88,166,255,0.12);
+  --accent-purple: #bc8cff;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 30px rgba(0,0,0,0.5);
+}
+
+body {
+  font-family: 'Noto Sans SC', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 40px;
+  line-height: 1.6;
+}
+
+/* 样式说明侧边 */
+.page-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 40px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.design-legend {
+  position: sticky;
+  top: 40px;
+  align-self: start;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+}
+
+.design-legend h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+
+.legend-swatch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  color: var(--text-secondary);
+}
+
+.legend-swatch .swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.legend-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-light);
+}
+
+/* ========== 设计预览区域 ========== */
+
+/* 页面头部 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+}
+
+.page-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.page-header .eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-purple);
+  margin-bottom: 6px;
+}
+
+.page-header .desc {
+  color: var(--text-secondary);
+  font-size: 14px;
+  max-width: 500px;
+  margin-top: 8px;
+}
+
+/* 工具栏 */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 16px;
+  backdrop-filter: blur(12px);
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border-right: 1px solid var(--border-light);
+}
+
+.toolbar-group:last-child {
+  border-right: none;
+  margin-left: auto;
+}
+
+.toolbar-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.toolbar-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.toolbar-pill:hover {
+  border-color: var(--text-tertiary);
+}
+
+.toolbar-pill.active {
+  border-color: var(--accent-purple);
+  color: var(--accent-purple);
+}
+
+.toolbar-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(188,140,255,0.12);
+  color: var(--accent-purple);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* 中间区域：Stat + Navigator */
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* 统计卡片 */
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 12px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  flex: 1;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.stat-item .num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.stat-item .label {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.stat-item .num.added { color: var(--accent-amber); }
+.stat-item .num.removed { color: var(--accent-coral); }
+.stat-item .num.modified { color: var(--accent-blue); }
+
+/* 导航气泡 */
+.nav-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(22,27,34,0.85);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.nav-bubble .btn {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 120ms ease;
+}
+
+.nav-bubble .btn:hover {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+/* 编辑器面板 */
+.editor-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.editor-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.editor-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: var(--surface-hover);
+  border-bottom: 1px solid var(--border);
+}
+
+.editor-panel-header .panel-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.editor-panel-header .panel-label .side-tag {
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.side-tag.left { background: rgba(210,153,34,0.15); color: var(--accent-amber); }
+.side-tag.right { background: rgba(88,166,255,0.15); color: var(--accent-blue); }
+
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.upload-btn:hover {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+.editor-area {
+  padding: 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  min-height: 160px;
+  color: var(--text);
+}
+
+.editor-area .cm-placeholder {
+  color: var(--text-tertiary);
+}
+
+.editor-area .cm-line {
+  position: relative;
+}
+
+.editor-area .line-num {
+  display: inline-block;
+  width: 2ch;
+  text-align: right;
+  margin-right: 16px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  user-select: none;
+}
+
+/* 差异结果 */
+.diff-viewer {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.diff-viewer-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--surface-hover);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.diff-block {
+  border-bottom: 1px solid var(--border-light);
+}
+
+.diff-block:last-child {
+  border-bottom: none;
+}
+
+.diff-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid var(--border-light);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.diff-block-header .apply-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.diff-block-header .apply-btn {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 10px;
+  transition: all 120ms ease;
+}
+
+.diff-block-header .apply-btn:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+/* 差异行 */
+.diff-line {
+  display: flex;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  padding: 0 16px;
+  transition: background 100ms ease;
+}
+
+.diff-line .line-num {
+  width: 3ch;
+  text-align: right;
+  padding-right: 12px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  user-select: none;
+}
+
+.diff-line .marker {
+  width: 18px;
+  flex-shrink: 0;
+  user-select: none;
+  font-size: 11px;
+}
+
+.diff-line .content {
+  flex: 1;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 新增行 */
+.diff-line.added {
+  background: var(--accent-amber-bg);
+}
+.diff-line.added .marker { color: var(--accent-amber); }
+.diff-line.added { border-left: 2px solid var(--accent-amber); }
+
+/* 删除行 */
+.diff-line.removed {
+  background: var(--accent-coral-bg);
+}
+.diff-line.removed .marker { color: var(--accent-coral); }
+.diff-line.removed { border-left: 2px solid var(--accent-coral); }
+
+/* 修改行 */
+.diff-line.modified {
+  background: var(--accent-blue-bg);
+}
+.diff-line.modified .marker { color: var(--accent-blue); }
+.diff-line.modified { border-left: 2px solid var(--accent-blue); }
+
+/* 未变行 */
+.diff-line.equal {
+  border-left: 2px solid transparent;
+}
+
+/* Scroll sync indicator */
+.panel-match {
+  display: flex;
+  align-items: center;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--border-light);
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.panel-match-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent-amber);
+}
+</style>
+</head>
+<body>
+<div class="page-wrapper">
+<div class="main-preview">
+
+  <!-- 页面头部 -->
+  <div class="page-header">
+    <div>
+      <div class="eyebrow">工具 · 文本对照</div>
+      <h1>文本对照</h1>
+      <p class="desc">粘贴或上传两段文本，支持字符级、词级、行级粒度对比，自动识别语言类型。</p>
+    </div>
+  </div>
+
+  <!-- 工具栏（玻璃拟态） -->
+  <div class="toolbar">
+    <div class="toolbar-group">
+      <span class="toolbar-label">粒度</span>
+      <span class="toolbar-pill">字符级</span>
+      <span class="toolbar-pill active">词级</span>
+      <span class="toolbar-pill">行级</span>
+    </div>
+    <div class="toolbar-group">
+      <span class="toolbar-label">布局</span>
+      <span class="toolbar-pill active">◫ 分栏</span>
+      <span class="toolbar-pill">☰ 统一</span>
+      <span class="toolbar-pill">⊞ 堆叠</span>
+    </div>
+    <div class="toolbar-group">
+      <span class="toolbar-label">行号</span>
+      <span style="width:28px;height:14px;background:var(--accent-purple);border-radius:999px;position:relative;cursor:pointer;">
+        <span style="position:absolute;right:2px;top:2px;width:10px;height:10px;border-radius:999px;background:#fff;"></span>
+      </span>
+    </div>
+    <div class="toolbar-group">
+      <span class="toolbar-label">忽略空白</span>
+      <span style="width:28px;height:14px;background:var(--border);border-radius:999px;position:relative;cursor:pointer;">
+        <span style="position:absolute;left:2px;top:2px;width:10px;height:10px;border-radius:999px;background:var(--text-tertiary);"></span>
+      </span>
+    </div>
+    <div class="toolbar-group">
+      <span class="toolbar-tag">⟨ ⟩ JSON</span>
+    </div>
+  </div>
+
+  <!-- 统计 + 导航 -->
+  <div class="meta-row">
+    <div class="stat-card">
+      <div class="stat-item">
+        <span class="num added">+3</span>
+        <span class="label">新增</span>
+      </div>
+      <div class="stat-item">
+        <span class="num removed">-1</span>
+        <span class="label">删除</span>
+      </div>
+      <div class="stat-item">
+        <span class="num modified">~2</span>
+        <span class="label">修改</span>
+      </div>
+    </div>
+    <div class="nav-bubble">
+      <span class="btn">↑</span>
+      <span>2/5</span>
+      <span class="btn">↓</span>
+    </div>
+  </div>
+
+  <!-- 左右编辑器面板 -->
+  <div class="editor-panels">
+    <!-- 左侧面板 -->
+    <div class="editor-panel">
+      <div class="editor-panel-header">
+        <div class="panel-label">
+          <span class="side-tag left">A</span>
+          原文
+        </div>
+        <button class="upload-btn">📎 上传文件</button>
+      </div>
+      <div class="editor-area">
+        <div class="cm-line"><span class="line-num">1</span>services:</div>
+        <div class="cm-line"><span class="line-num">2</span>  api:</div>
+        <div class="cm-line"><span class="line-num">3</span>    image: nginx:latest</div>
+        <div class="cm-line"><span class="line-num">4</span>    ports:</div>
+        <div class="cm-line"><span class="line-num">5</span>      - 8080:80</div>
+        <div class="cm-line"><span class="line-num">6</span>    env:</div>
+        <div class="cm-line"><span class="line-num">7</span>      - NGINX_HOST=localhost</div>
+      </div>
+    </div>
+
+    <!-- 右侧面板 -->
+    <div class="editor-panel">
+      <div class="editor-panel-header">
+        <div class="panel-label">
+          <span class="side-tag right">B</span>
+          修改后
+        </div>
+        <button class="upload-btn">📎 上传文件</button>
+      </div>
+      <div class="editor-area">
+        <div class="cm-line"><span class="line-num">1</span>services:</div>
+        <div class="cm-line"><span class="line-num">2</span>  api:</div>
+        <div class="cm-line"><span class="line-num">3</span>    image: nginx:1.25</div>
+        <div class="cm-line"><span class="line-num">4</span>    ports:</div>
+        <div class="cm-line"><span class="line-num">5</span>      - 8080:80</div>
+        <div class="cm-line"><span class="line-num">6</span>    env:</div>
+        <div class="cm-line"><span class="line-num">7</span>      - NGINX_HOST=api.example.com</div>
+        <div class="cm-line"><span class="line-num">8</span>    restart: always</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 差异结果 -->
+  <div class="diff-viewer">
+    <div class="diff-viewer-title">
+      <span>差异结果 · 共 3 处</span>
+    </div>
+
+    <!-- 差异块 1: 修改 -->
+    <div class="diff-block">
+      <div class="diff-block-header">
+        <span>第3行↔第3行</span>
+        <span style="display:flex;align-items:center;gap:4px;">
+          <span style="color:var(--accent-blue);font-weight:600;">修改</span>
+          <span class="apply-btns">
+            <span class="apply-btn">←</span>
+            <span class="apply-btn">→</span>
+          </span>
+        </span>
+      </div>
+      <div class="diff-line equal">
+        <span class="line-num">3</span><span class="line-num">3</span>
+        <span class="marker"> </span>
+        <span class="content">    image: </span>
+      </div>
+      <div class="diff-line modified">
+        <span class="line-num">3</span><span class="line-num">3</span>
+        <span class="marker">~</span>
+        <span class="content"><span style="background:rgba(88,166,255,0.25);padding:0 2px;border-radius:2px;">nginx:1.25</span></span>
+      </div>
+    </div>
+
+    <!-- 差异块 2: 修改 -->
+    <div class="diff-block">
+      <div class="diff-block-header">
+        <span>第7行↔第7行</span>
+        <span style="display:flex;align-items:center;gap:4px;">
+          <span style="color:var(--accent-blue);font-weight:600;">修改</span>
+          <span class="apply-btns">
+            <span class="apply-btn">←</span>
+            <span class="apply-btn">→</span>
+          </span>
+        </span>
+      </div>
+      <div class="diff-line equal">
+        <span class="line-num">7</span><span class="line-num">7</span>
+        <span class="marker"> </span>
+        <span class="content">      - NGINX_HOST=</span>
+      </div>
+      <div class="diff-line modified">
+        <span class="line-num">7</span><span class="line-num">7</span>
+        <span class="marker">~</span>
+        <span class="content"><span style="background:rgba(88,166,255,0.25);padding:0 2px;border-radius:2px;">api.example.com</span></span>
+      </div>
+    </div>
+
+    <!-- 差异块 3: 新增 -->
+    <div class="diff-block">
+      <div class="diff-block-header">
+        <span>—↔第8行</span>
+        <span style="display:flex;align-items:center;gap:4px;">
+          <span style="color:var(--accent-amber);font-weight:600;">新增</span>
+          <span class="apply-btns">
+            <span class="apply-btn">←</span>
+          </span>
+        </span>
+      </div>
+      <div class="diff-line added">
+        <span class="line-num"> </span><span class="line-num">8</span>
+        <span class="marker">+</span>
+        <span class="content">    restart: always</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 设计说明 -->
+<div class="design-legend">
+  <h3>🎨 设计说明</h3>
+
+  <div class="legend-section">
+    <p style="color:var(--text-secondary);margin-bottom:12px;line-height:1.7;font-size:13px;">
+    <strong style="color:var(--text);">方向：</strong>Dark Developer's Studio<br>
+    暗色调 · 暖色高亮 · 编辑品质感
+    </p>
+  </div>
+
+  <div class="legend-section">
+    <div class="legend-swatch">
+      <div class="swatch" style="background:var(--accent-amber)"></div>
+      <span>新增/增加 — 琥珀金 #d29922</span>
+    </div>
+    <div class="legend-swatch">
+      <div class="swatch" style="background:var(--accent-coral)"></div>
+      <span>删除/移除 — 珊瑚红 #f85149</span>
+    </div>
+    <div class="legend-swatch">
+      <div class="swatch" style="background:var(--accent-blue)"></div>
+      <span>修改/变更 — 暖蓝 #58a6ff</span>
+    </div>
+    <div class="legend-swatch">
+      <div class="swatch" style="background:var(--accent-purple)"></div>
+      <span>品牌强调色 #bc8cff</span>
+    </div>
+  </div>
+
+  <div class="legend-section">
+    <h4 style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">改进要点</h4>
+    <ul style="list-style:none;color:var(--text-secondary);font-size:12px;line-height:1.8;">
+      <li>✓ 玻璃拟态工具栏</li>
+      <li>✓ 差异行 2px 左边框色条</li>
+      <li>✓ 半透明差异背景（低视觉压力）</li>
+      <li>✓ JetBrains Mono 等宽字体</li>
+      <li>✓ 统计卡片+导航气泡组合</li>
+      <li>✓ 差异块圆角+层级分隔</li>
+      <li>✓ 行号更淡更小，聚焦代码</li>
+      <li>✓ 应用按钮精致化</li>
+      <li>✓ 编辑器双栏统一风格</li>
+      <li>✓ 差异高亮带浅色背景框</li>
+    </ul>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

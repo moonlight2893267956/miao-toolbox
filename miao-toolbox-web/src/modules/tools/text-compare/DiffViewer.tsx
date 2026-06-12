@@ -1,77 +1,18 @@
 import React, { useCallback } from 'react';
-import { Button, Space, Typography, Tooltip } from 'antd';
-import {
-  ArrowLeftOutlined,
-  ArrowRightOutlined,
-} from '@ant-design/icons';
+import { ArrowLeftOutlined, ArrowRightOutlined } from '@ant-design/icons';
+import { Tooltip } from 'antd';
 import { useDiffContext } from './useDiffContext';
 import type { DiffHunk as DiffHunkType } from './types';
-
-const { Text } = Typography;
 
 interface DiffViewerProps {
   hunkRefs: React.MutableRefObject<(HTMLDivElement | null)[]>;
 }
 
-/**
- * 差异结果渲染 — 逐 hunks 展示变更，含 ← / → 应用按钮
- */
 const DiffViewer: React.FC<DiffViewerProps> = ({ hunkRefs }) => {
   const { state, dispatch } = useDiffContext();
 
-  // 差异块颜色映射（定义在组件内避免 react-refresh lint 警告）
-  const hunkColors: Record<string, { leftBg: string; rightBg: string; leftText: string; rightText: string; tag: string }> = {
-    added: {
-      leftBg: 'transparent', rightBg: '#e6ffed',
-      leftText: 'rgba(0,0,0,0.35)', rightText: '#1a7f37', tag: '新增',
-    },
-    removed: {
-      leftBg: '#ffeef0', rightBg: 'transparent',
-      leftText: '#cf222e', rightText: 'rgba(0,0,0,0.35)', tag: '删除',
-    },
-    modified: {
-      leftBg: '#fff8c5', rightBg: '#fff8c5',
-      leftText: '#7a6e00', rightText: '#7a6e00', tag: '修改',
-    },
-    unchanged: {
-      leftBg: 'transparent', rightBg: 'transparent',
-      leftText: 'inherit', rightText: 'inherit', tag: '',
-    },
-  };
-
   const hunks = state.diffResult?.hunks ?? [];
   const diffHunks = hunks.filter(h => h.type !== 'unchanged');
-
-  const applyHunk = useCallback(
-    (hunk: DiffHunkType, direction: 'to-left' | 'to-right') => {
-      if (!state.diffResult) return;
-      if (direction === 'to-left' && hunk.type !== 'removed') {
-        const leftLines = state.leftText.split('\n');
-        for (let i = 0; i < hunk.changes.length; i++) {
-          const change = hunk.changes[i];
-          const leftIdx = hunk.oldStart - 1 + i;
-          if (leftIdx < leftLines.length && change.type !== 'equal' && change.value) {
-            leftLines[leftIdx] = change.value;
-          }
-        }
-        dispatch({ type: 'SET_LEFT', payload: leftLines.join('\n') });
-      } else if (direction === 'to-right' && hunk.type !== 'added') {
-        const rightLines = state.rightText.split('\n');
-        for (let i = 0; i < hunk.changes.length; i++) {
-          const change = hunk.changes[i];
-          const rightIdx = hunk.newStart - 1 + i;
-          if (rightIdx < rightLines.length && change.type !== 'equal' &&
-            change.oldValue !== undefined && change.oldValue !== null) {
-            rightLines[rightIdx] = change.oldValue;
-          }
-        }
-        dispatch({ type: 'SET_RIGHT', payload: rightLines.join('\n') });
-      }
-    },
-    [state.diffResult, state.leftText, state.rightText, dispatch],
-  );
-
-  if (!state.diffResult || diffHunks.length === 0) return null;
 
   const lineNumWidth = Math.max(
     String(state.leftText.split('\n').length).length,
@@ -79,103 +20,90 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ hunkRefs }) => {
     2,
   );
 
-  return (
-    <div className="miao-diff-viewer" style={{ marginTop: 12 }}>
-      <Text strong style={{ display: 'block', marginBottom: 8 }}>
-        差异结果（共 {diffHunks.length} 处）
-      </Text>
+  const applyHunk = useCallback(
+    (hunk: DiffHunkType, direction: 'to-left' | 'to-right') => {
+      if (!state.diffResult) return;
+      if (direction === 'to-left' && hunk.type !== 'removed') {
+        const lines = state.leftText.split('\n');
+        for (let i = 0; i < hunk.changes.length; i++) {
+          const c = hunk.changes[i];
+          const idx = hunk.oldStart - 1 + i;
+          if (idx < lines.length && c.type !== 'equal' && c.value) lines[idx] = c.value;
+        }
+        dispatch({ type: 'SET_LEFT', payload: lines.join('\n') });
+      } else if (direction === 'to-right' && hunk.type !== 'added') {
+        const lines = state.rightText.split('\n');
+        for (let i = 0; i < hunk.changes.length; i++) {
+          const c = hunk.changes[i];
+          const idx = hunk.newStart - 1 + i;
+          if (idx < lines.length && c.type !== 'equal' && c.oldValue !== undefined && c.oldValue !== null) {
+            lines[idx] = c.oldValue;
+          }
+        }
+        dispatch({ type: 'SET_RIGHT', payload: lines.join('\n') });
+      }
+    },
+    [state.diffResult, state.leftText, state.rightText, dispatch],
+  );
 
-      {diffHunks.map((hunk, idx) => {
-        const colors = hunkColors[hunk.type] ?? hunkColors.unchanged;
-        return (
-          <div
-            key={idx}
-            ref={(el) => { hunkRefs.current[idx] = el; }}
-            style={{
-              marginBottom: 12,
-              border: '1px solid var(--miao-border, #e6e3f0)',
-              borderRadius: 6,
-              overflow: 'hidden',
-            }}
-          >
-            {/* 差异块头部：行号 + 应用按钮 */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '4px 12px',
-                background: '#f6f8fa',
-                borderBottom: '1px solid var(--miao-border, #e6e3f0)',
-                fontSize: 12,
-              }}
-            >
-              <Space size={12}>
-                <span>第 {hunk.oldStart}-{hunk.oldStart + hunk.oldLines - 1} 行 ↔ 第 {hunk.newStart}-{hunk.newStart + hunk.newLines - 1} 行</span>
-                {colors.tag && (
-                  <span style={{
-                    display: 'inline-block', padding: '0 6px', borderRadius: 4,
-                    background: '#f0f0f0', fontSize: 11, fontWeight: 600, color: colors.leftText,
-                  }}>
-                    {colors.tag}
-                  </span>
-                )}
-              </Space>
-              <Space size={4}>
+  if (!state.diffResult || diffHunks.length === 0) return null;
+
+  const typeLabel: Record<string, string> = { added: '新增', removed: '删除', modified: '修改' };
+
+  return (
+    <div className="dt-diff-viewer">
+      <div className="dt-diff-title">
+        <span>差异结果 · 共 {diffHunks.length} 处</span>
+      </div>
+
+      {diffHunks.map((hunk, idx) => (
+        <div key={idx} className="dt-diff-block" ref={(el) => { hunkRefs.current[idx] = el; }}>
+          <div className="dt-diff-block-header">
+            <span>
+              {hunk.type === 'added' ? '—' : `第${hunk.oldStart}行`}
+              ↔
+              {hunk.type === 'removed' ? '—' : `第${hunk.newStart}行`}
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span className={`dt-diff-type-badge ${hunk.type}`}>{typeLabel[hunk.type] ?? hunk.type}</span>
+              <span style={{ display: 'inline-flex', gap: 2 }}>
                 {hunk.type !== 'added' && (
-                  <Tooltip title="将左侧内容应用到右侧">
-                    <Button type="text" size="small" icon={<ArrowRightOutlined />}
-                      onClick={() => applyHunk(hunk, 'to-right')} aria-label="应用到右侧" />
+                  <Tooltip title="应用到右侧">
+                    <button className="dt-apply-btn" onClick={() => applyHunk(hunk, 'to-right')}>
+                      <ArrowRightOutlined />
+                    </button>
                   </Tooltip>
                 )}
                 {hunk.type !== 'removed' && (
-                  <Tooltip title="将右侧内容应用到左侧">
-                    <Button type="text" size="small" icon={<ArrowLeftOutlined />}
-                      onClick={() => applyHunk(hunk, 'to-left')} aria-label="应用到左侧" />
+                  <Tooltip title="应用到左侧">
+                    <button className="dt-apply-btn" onClick={() => applyHunk(hunk, 'to-left')}>
+                      <ArrowLeftOutlined />
+                    </button>
                   </Tooltip>
                 )}
-              </Space>
-            </div>
-
-            {/* 差异行 */}
-            <div style={{ fontFamily: 'ui-monospace, SFMono-Regular, monospace', fontSize: 12, lineHeight: 1.6 }}>
-              {hunk.changes.map((change, ci) => {
-                const isRemoved = change.type === 'removed';
-                const isAdded = change.type === 'added';
-                const isModified = change.type === 'modified';
-                const isChanged = isAdded || isModified;
-                return (
-                  <div key={ci} style={{
-                    display: 'flex',
-                    background: isRemoved ? colors.leftBg : isChanged ? colors.rightBg : 'transparent',
-                    color: isRemoved ? colors.leftText : isChanged ? colors.rightText : 'inherit',
-                    padding: '0 12px',
-                  }}>
-                    <span style={{
-                      width: lineNumWidth + 'ch', textAlign: 'right', paddingRight: 8,
-                      color: 'rgba(0,0,0,0.35)', userSelect: 'none', minWidth: 24,
-                    }}>
-                      {!isAdded ? hunk.oldStart + ci : ''}
-                    </span>
-                    <span style={{
-                      width: lineNumWidth + 'ch', textAlign: 'right', paddingRight: 8,
-                      color: 'rgba(0,0,0,0.35)', userSelect: 'none', minWidth: 24,
-                    }}>
-                      {!isRemoved ? hunk.newStart + ci : ''}
-                    </span>
-                    <span style={{ width: 16, userSelect: 'none', flexShrink: 0 }}>
-                      {isRemoved ? '-' : isAdded ? '+' : isModified ? '~' : ' '}
-                    </span>
-                    <span style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                      {change.value}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+              </span>
+            </span>
           </div>
-        );
-      })}
+
+          {hunk.changes.map((change, ci) => {
+            const cls = change.type === 'removed' ? 'removed' : change.type === 'added' ? 'added' : change.type === 'modified' ? 'modified' : 'equal';
+            return (
+              <div key={ci} className={`dt-diff-line ${cls}`}>
+                <span className="ln" style={{ width: `${lineNumWidth}ch` }}>
+                  {cls !== 'added' ? hunk.oldStart + ci : ''}
+                </span>
+                <span className="ln" style={{ width: `${lineNumWidth}ch` }}>
+                  {cls !== 'removed' ? hunk.newStart + ci : ''}
+                </span>
+                <span className="mk">
+                  {cls === 'added' ? '+' : cls === 'removed' ? '-' : cls === 'modified' ? '~' : ''}
+                </span>
+                <span className="ct">{change.value}</span>
+              </div>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 };

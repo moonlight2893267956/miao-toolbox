@@ -1,16 +1,19 @@
 #!/bin/bash
 # 文本对照工具 Epic 1 全量验收脚本（Story tc-1-1 ~ tc-1-4）
-# 用法: ./scripts/ys.sh
+# 用法: ADMIN_PASSWORD='your-pass' ./scripts/ys.sh
 # 前置：后端已启动（http://localhost:8080），前端已启动（http://localhost:5173）
 set -e
 
 BASE_URL="http://localhost:8080"
 
+ADMIN_PASS="${ADMIN_PASSWORD:-}"
+
 # --- 1. 登录 ---
 echo ">>> 登录获取 token..."
+if [ -z "$ADMIN_PASS" ]; then echo "请设置 ADMIN_PASSWORD 环境变量"; exit 1; fi
 LOGIN=$(curl -s -X POST "$BASE_URL/api/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"WXY2357956wxy"}')
+  -d "{\"username\":\"admin\",\"password\":\"$ADMIN_PASS\"}")
 TOKEN=$(echo "$LOGIN" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['accessToken'])")
 SIGNING_KEY=$(echo "$LOGIN" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['signingKey'])")
 echo "登录成功"

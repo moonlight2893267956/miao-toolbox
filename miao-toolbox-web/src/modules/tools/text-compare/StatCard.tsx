@@ -1,6 +1,5 @@
 import React from 'react';
-import { Card, Space, Statistic, Empty, Spin } from 'antd';
-import { PlusOutlined, MinusOutlined, EditOutlined } from '@ant-design/icons';
+import { Spin } from 'antd';
 import { useDiffContext } from './useDiffContext';
 
 const StatCard: React.FC = () => {
@@ -8,26 +7,24 @@ const StatCard: React.FC = () => {
 
   if (state.loading) {
     return (
-      <Card size="small" style={{ marginBottom: 12 }}>
-        <Space><Spin size="small" /> 正在对比...</Space>
-      </Card>
+      <div className="dt-stat-card" style={{ justifyContent: 'center' }}>
+        <span className="dt-loading"><Spin size="small" /> 正在对比...</span>
+      </div>
     );
   }
 
   if (state.error) {
-    return (
-      <Card size="small" style={{ marginBottom: 12, borderColor: '#ff7875' }}>
-        <span style={{ color: '#cf1322' }}>{state.error}</span>
-      </Card>
-    );
+    return <div className="dt-error">{state.error}</div>;
   }
 
+  const hasText = state.leftText || state.rightText;
+
   if (!state.diffResult || !state.diffResult.hunks || state.diffResult.hunks.length === 0) {
-    if (state.leftText || state.rightText) {
+    if (hasText) {
       return (
-        <Card size="small" style={{ marginBottom: 12 }}>
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="无差异" />
-        </Card>
+        <div className="dt-stat-card" style={{ justifyContent: 'center' }}>
+          <span className="dt-stat-empty">无差异</span>
+        </div>
       );
     }
     return null;
@@ -36,32 +33,20 @@ const StatCard: React.FC = () => {
   const stats = state.diffResult.statistics;
 
   return (
-    <Card
-      size="small"
-      style={{ marginBottom: 12 }}
-      title="差异统计"
-    >
-      <Space size="large" wrap>
-        <Statistic
-          title="新增"
-          value={stats.additions}
-          prefix={<PlusOutlined style={{ color: '#52c41a' }} />}
-          valueStyle={{ color: '#52c41a', fontSize: 20 }}
-        />
-        <Statistic
-          title="删除"
-          value={stats.deletions}
-          prefix={<MinusOutlined style={{ color: '#ff4d4f' }} />}
-          valueStyle={{ color: '#ff4d4f', fontSize: 20 }}
-        />
-        <Statistic
-          title="修改块"
-          value={stats.modifications}
-          prefix={<EditOutlined style={{ color: '#faad14' }} />}
-          valueStyle={{ color: '#faad14', fontSize: 20 }}
-        />
-      </Space>
-    </Card>
+    <div className="dt-stat-card">
+      <div className="dt-stat-item">
+        <span className="dt-stat-num added">+{stats.additions}</span>
+        <span className="dt-stat-label">新增</span>
+      </div>
+      <div className="dt-stat-item">
+        <span className="dt-stat-num removed">-{stats.deletions}</span>
+        <span className="dt-stat-label">删除</span>
+      </div>
+      <div className="dt-stat-item">
+        <span className="dt-stat-num modified">~{stats.modifications}</span>
+        <span className="dt-stat-label">修改</span>
+      </div>
+    </div>
   );
 };
 

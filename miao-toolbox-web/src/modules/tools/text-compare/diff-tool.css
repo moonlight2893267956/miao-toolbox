@@ -1,0 +1,479 @@
+/* ============================================================
+   文本对照工具 — 设计样式 "Dark Developer's Studio"
+   ============================================================ */
+
+/* --- 变量 --- */
+:root {
+  --dt-bg-page: transparent;
+  --dt-surface: #ffffff;
+  --dt-surface-hover: #f6f8fa;
+  --dt-border: #e6e3f0;
+  --dt-border-light: #efecf5;
+  --dt-text: #201c2d;
+  --dt-text-secondary: rgba(32,28,45,0.62);
+  --dt-text-tertiary: rgba(32,28,45,0.38);
+
+  --dt-added: #b8860b;
+  --dt-added-bg: rgba(184,134,11,0.08);
+  --dt-added-border: rgba(184,134,11,0.35);
+  --dt-removed: #cf222e;
+  --dt-removed-bg: rgba(207,34,46,0.06);
+  --dt-removed-border: rgba(207,34,46,0.3);
+  --dt-modified: #0969da;
+  --dt-modified-bg: rgba(9,105,218,0.06);
+  --dt-modified-border: rgba(9,105,218,0.3);
+  --dt-accent: #5C4FD0;
+  --dt-accent-soft: rgba(92,79,208,0.08);
+
+  --dt-radius: 10px;
+  --dt-radius-sm: 6px;
+  --dt-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+:root[data-theme='dark'] {
+  --dt-surface: #1c1b2b;
+  --dt-surface-hover: #242239;
+  --dt-border: #34304d;
+  --dt-border-light: #2a2740;
+  --dt-text: rgba(255,255,255,0.88);
+  --dt-text-secondary: rgba(255,255,255,0.55);
+  --dt-text-tertiary: rgba(255,255,255,0.32);
+
+  --dt-added: #d29922;
+  --dt-added-bg: rgba(210,153,34,0.10);
+  --dt-added-border: rgba(210,153,34,0.35);
+  --dt-removed: #f85149;
+  --dt-removed-bg: rgba(248,81,73,0.08);
+  --dt-removed-border: rgba(248,81,73,0.3);
+  --dt-modified: #58a6ff;
+  --dt-modified-bg: rgba(88,166,255,0.08);
+  --dt-modified-border: rgba(88,166,255,0.3);
+  --dt-accent: #a29bfe;
+  --dt-accent-soft: rgba(162,155,254,0.10);
+}
+
+/* ========== Toolbar ========== */
+.dt-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 8px 14px;
+  background: var(--dt-surface);
+  border: 1px solid var(--dt-border);
+  border-radius: var(--dt-radius);
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.dt-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+}
+
+.dt-toolbar-group + .dt-toolbar-group {
+  border-left: 1px solid var(--dt-border-light);
+}
+
+.dt-toolbar-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--dt-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.dt-toolbar .ant-segmented {
+  background: var(--dt-surface-hover);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.dt-toolbar .ant-segmented-item {
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 0 8px;
+}
+
+.dt-toolbar .ant-segmented-thumb {
+  border-radius: 5px;
+}
+
+.dt-toolbar .ant-switch {
+  background: var(--dt-border);
+}
+
+.dt-toolbar .ant-switch.ant-switch-checked {
+  background: var(--dt-accent);
+}
+
+.dt-toolbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dt-lang-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--dt-accent-soft);
+  color: var(--dt-accent);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* ========== Meta Row (Stat + Nav) ========== */
+.dt-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+/* ========== Stat Card ========== */
+.dt-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 10px 20px;
+  background: var(--dt-surface);
+  border: 1px solid var(--dt-border);
+  border-radius: var(--dt-radius);
+  flex: 1;
+  min-height: 48px;
+}
+
+.dt-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dt-stat-num {
+  font-family: var(--dt-font-mono);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.dt-stat-num.added { color: var(--dt-added); }
+.dt-stat-num.removed { color: var(--dt-removed); }
+.dt-stat-num.modified { color: var(--dt-modified); }
+
+.dt-stat-label {
+  color: var(--dt-text-secondary);
+  font-size: 12px;
+}
+
+.dt-stat-empty {
+  color: var(--dt-text-tertiary);
+  font-size: 13px;
+}
+
+/* ========== Navigator Bubble ========== */
+.dt-nav-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--dt-surface);
+  border: 1px solid var(--dt-border);
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.dt-nav-btn {
+  width: 24px; height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--dt-border-light);
+  background: transparent;
+  color: var(--dt-text-secondary);
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 120ms ease;
+  padding: 0;
+  line-height: 1;
+}
+
+.dt-nav-btn:hover:not(:disabled) {
+  border-color: var(--dt-text);
+  color: var(--dt-text);
+  background: var(--dt-surface-hover);
+}
+
+.dt-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.dt-nav-label {
+  font-family: var(--dt-font-mono);
+  font-size: 12px;
+  color: var(--dt-text-secondary);
+  min-width: 36px;
+  text-align: center;
+}
+
+/* ========== Editor Panels ========== */
+.dt-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dt-panel {
+  border: 1px solid var(--dt-border);
+  border-radius: var(--dt-radius);
+  overflow: hidden;
+  background: var(--dt-surface);
+}
+
+.dt-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 14px;
+  background: var(--dt-surface-hover);
+  border-bottom: 1px solid var(--dt-border);
+}
+
+.dt-panel-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dt-side-tag {
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+}
+
+.dt-side-tag.left {
+  background: rgba(184,134,11,0.13);
+  color: var(--dt-added);
+}
+
+.dt-side-tag.right {
+  background: rgba(9,105,218,0.1);
+  color: var(--dt-modified);
+}
+
+:root[data-theme='dark'] .dt-side-tag.left {
+  background: rgba(210,153,34,0.15);
+}
+
+:root[data-theme='dark'] .dt-side-tag.right {
+  background: rgba(88,166,255,0.12);
+}
+
+.dt-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--dt-radius-sm);
+  border: 1px solid var(--dt-border);
+  background: transparent;
+  color: var(--dt-text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.dt-upload-btn:hover {
+  border-color: var(--dt-text-secondary);
+  color: var(--dt-text);
+  background: var(--dt-surface);
+}
+
+/* ========== Diff Viewer ========== */
+.dt-diff-viewer {
+  border: 1px solid var(--dt-border);
+  border-radius: var(--dt-radius);
+  overflow: hidden;
+  background: var(--dt-surface);
+  margin-top: 14px;
+}
+
+.dt-diff-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 16px;
+  background: var(--dt-surface-hover);
+  border-bottom: 1px solid var(--dt-border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dt-text-secondary);
+}
+
+.dt-diff-block {
+  border-bottom: 1px solid var(--dt-border-light);
+}
+
+.dt-diff-block:last-child {
+  border-bottom: none;
+}
+
+.dt-diff-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 16px;
+  background: rgba(0,0,0,0.015);
+  border-bottom: 1px solid var(--dt-border-light);
+  font-size: 11px;
+  color: var(--dt-text-tertiary);
+  font-family: var(--dt-font-mono);
+}
+
+:root[data-theme='dark'] .dt-diff-block-header {
+  background: rgba(255,255,255,0.015);
+}
+
+.dt-diff-type-badge {
+  display: inline-block;
+  padding: 0 7px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.dt-diff-type-badge.added {
+  color: var(--dt-added);
+  background: var(--dt-added-bg);
+}
+
+.dt-diff-type-badge.removed {
+  color: var(--dt-removed);
+  background: var(--dt-removed-bg);
+}
+
+.dt-diff-type-badge.modified {
+  color: var(--dt-modified);
+  background: var(--dt-modified-bg);
+}
+
+.dt-apply-btn {
+  width: 22px; height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid var(--dt-border);
+  background: transparent;
+  color: var(--dt-text-tertiary);
+  cursor: pointer;
+  font-size: 10px;
+  transition: all 120ms ease;
+  padding: 0;
+}
+
+.dt-apply-btn:hover {
+  border-color: var(--dt-accent);
+  color: var(--dt-accent);
+  background: var(--dt-accent-soft);
+}
+
+/* 差异行 */
+.dt-diff-line {
+  display: flex;
+  font-family: var(--dt-font-mono);
+  font-size: 12px;
+  line-height: 1.7;
+  padding: 0 16px;
+  border-left: 3px solid transparent;
+  transition: background 100ms ease;
+}
+
+.dt-diff-line .ln {
+  width: 3ch;
+  text-align: right;
+  padding-right: 10px;
+  color: var(--dt-text-tertiary);
+  font-size: 11px;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.dt-diff-line .mk {
+  width: 16px;
+  flex-shrink: 0;
+  user-select: none;
+  font-size: 11px;
+}
+
+.dt-diff-line .ct {
+  flex: 1;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.dt-diff-line.added {
+  background: var(--dt-added-bg);
+  border-left-color: var(--dt-added-border);
+}
+.dt-diff-line.added .mk { color: var(--dt-added); }
+
+.dt-diff-line.removed {
+  background: var(--dt-removed-bg);
+  border-left-color: var(--dt-removed-border);
+}
+.dt-diff-line.removed .mk { color: var(--dt-removed); }
+
+.dt-diff-line.modified {
+  background: var(--dt-modified-bg);
+  border-left-color: var(--dt-modified-border);
+}
+.dt-diff-line.modified .mk { color: var(--dt-modified); }
+
+.dt-diff-line.equal .mk { color: transparent; }
+
+.dt-diff-line .hl {
+  background: rgba(88,166,255,0.2);
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+:root[data-theme='dark'] .dt-diff-line .hl {
+  background: rgba(88,166,255,0.25);
+}
+
+/* ========== Loading / Error ========== */
+.dt-loading {
+  padding: 10px 20px;
+  color: var(--dt-text-secondary);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dt-error {
+  padding: 10px 20px;
+  color: var(--dt-removed);
+  font-size: 13px;
+  border: 1px solid var(--dt-removed-border);
+  border-radius: var(--dt-radius);
+  background: var(--dt-removed-bg);
+  margin-bottom: 14px;
+}

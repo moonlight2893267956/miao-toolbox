@@ -1,20 +1,14 @@
 import React from 'react';
-import { Button, Card, Space, Upload, message } from 'antd';
-import { UploadOutlined, FileTextOutlined } from '@ant-design/icons';
+import { Upload, message } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import { useDiffContext } from './useDiffContext';
 import CodeEditor from './CodeEditor';
 
-interface DiffPanelProps {
-  side: 'left' | 'right';
-}
+interface DiffPanelProps { side: 'left' | 'right'; }
 
-/**
- * 左右分栏编辑器面板 — CodeMirror 6 编辑器 + 文件上传
- */
 const DiffPanel: React.FC<DiffPanelProps> = ({ side }) => {
   const { state, setLeft, setRight, dispatch } = useDiffContext();
-
   const text = side === 'left' ? state.leftText : state.rightText;
   const label = side === 'left' ? state.leftLabel : state.rightLabel;
   const setText = side === 'left' ? setLeft : setRight;
@@ -44,36 +38,29 @@ const DiffPanel: React.FC<DiffPanelProps> = ({ side }) => {
     },
   };
 
-  const placeholderLabel = side === 'left'
-    ? '在此粘贴或输入原文...'
-    : '在此粘贴或输入对比文本...';
-
   return (
-    <Card
-      className="miao-diff-panel"
-      title={
-        <Space>
-          <FileTextOutlined />
-          <span>{label}</span>
-        </Space>
-      }
-      extra={
+    <div className="dt-panel">
+      <div className="dt-panel-header">
+        <div className="dt-panel-label">
+          <span className={`dt-side-tag ${side}`}>{side === 'left' ? 'A' : 'B'}</span>
+          {label}
+        </div>
         <Upload {...uploadProps}>
-          <Button icon={<UploadOutlined />} size="small">上传文件</Button>
+          <button className="dt-upload-btn">
+            <UploadOutlined style={{ fontSize: 11 }} /> 上传文件
+          </button>
         </Upload>
-      }
-      styles={{ body: { padding: 0 } }}
-    >
+      </div>
       <CodeEditor
         value={text}
         onChange={setText}
         language={state.language}
         showLineNumbers={state.showLineNumbers}
-        placeholder={placeholderLabel}
+        placeholder={side === 'left' ? '在此粘贴或输入原文...' : '在此粘贴或输入对比文本...'}
         minRows={12}
         maxRows={30}
       />
-    </Card>
+    </div>
   );
 };
 

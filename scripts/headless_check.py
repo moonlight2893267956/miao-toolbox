@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""
-文本对照工具 无头浏览器验收脚本 (tc-1-2 ~ tc-1-4)
+"""文本对照工具 无头浏览器验收脚本 (tc-1-2 ~ tc-1-4)
+用法: ADMIN_PASSWORD='your-pass' python3 scripts/headless_check.py
 前置：后端 :8080、前端 :5173 均已运行
 """
 import json, os, sys, time, subprocess
 from playwright.sync_api import sync_playwright
+
+API = "http://localhost:8080"
+UI = "http://localhost:5173"
+ADMIN_PASS = os.environ.get("ADMIN_PASSWORD", "")
 
 API = "http://localhost:8080"
 UI = "http://localhost:5173"
@@ -23,7 +27,8 @@ def shot(pg, name):
 # ——— 登录 ———
 r = subprocess.run(["curl", "-s", "-X", "POST", f"{API}/api/auth/login",
     "-H", "Content-Type: application/json",
-    "-d", '{"username":"admin","password":"WXY2357956wxy"}'], capture_output=True, text=True)
+    "-d", '{"username":"admin","password":"' + ADMIN_PASS + '"}'], capture_output=True, text=True)
+if ADMIN_PASS == "": print("ERROR: 请设置 ADMIN_PASSWORD 环境变量"); sys.exit(1)
 TOKEN = json.loads(r.stdout)["data"]["accessToken"]
 print(">>> 登录成功")
 
@@ -79,22 +84,18 @@ with sync_playwright() as p:
     nav("/tools/text-compare")
     editors = page.query_selector_all(".cm-editor")
     if len(editors) >= 2:
-        editors[0].click()
-        for l in ["line1\n","line2\n","line3\n","line4\n"]:
-            page.keyboard.insert_text(l); time.sleep(0.03)
-        editors[1].click()
-        for l in ["line1\n","LINE2-MOD\n","line3\n","line4\n","line5-ADD\n"]:
-            page.keyboard.insert_text(l); time.sleep(0.03)
-        page.wait_for_timeout(2500)
-        html = page.content()
-        page.wait_for_timeout(5000)
+        editors[0].click(); time.sleep(0.2)
+        page.keyboard.insert_text("line1\nline2\nline3\nline4")
+        editors[1].click(); time.sleep(0.2)
+        page.keyboard.insert_text("line1\nLINE2-MOD\nline3\nline4\nline5-ADD")
+        page.wait_for_timeout(6000)
         html = page.content()
         ok("AC1-差异统计面板", "新增" in html or "差异统计" in html)
         ok("AC2-DiffViewer 渲染差异块", "diff-viewer" in html or "差异结果" in html or "修改" in html)
         shot(page, "tc1-3-01-diff")
 
     # AC3: 粒度切换
-    ok("AC3-粒度选择器", page.query_selector(".ant-select-selector") is not None)
+    ok("AC3-粒度选择器", page.query_selector("text=字符级") is not None or page.query_selector("text=词级") is not None or page.query_selector("text=行级") is not None)
 
     # AC4: 布局切换
     ok("AC4-布局切换(上下分层)", page.query_selector("text=上下分层") is not None)
