@@ -447,11 +447,13 @@
   color: var(--dt-text);
 }
 
-/* 光标: CodeMirror 6 用 border-left-color 渲染，不是 caret-color */
+/* 块状光标（暗色下更醒目，覆盖整个字符宽度） */
 .dt-panel .cm-editor.cm-focused .cm-cursorLayer .cm-cursor {
-  border-left-color: var(--dt-text) !important;
-  border-left-width: 2px !important;
-  animation-duration: 0.6s !important;
+  border-left: none !important;
+  background: var(--dt-text) !important;
+  opacity: 0.3 !important;
+  width: 0.7em !important;
+  animation-duration: 0.8s !important;
 }
 
 /* 文本高亮选区在暗色下可见 */
