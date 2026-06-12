@@ -53,19 +53,20 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ hunkRefs }) => {
   return (
     <div className="dt-diff-viewer">
       <div className="dt-diff-title">
-        <span>差异结果 · 共 {diffHunks.length} 处</span>
+        <span>差异结果</span>
+        <span>{diffHunks.length} 处</span>
       </div>
 
       {diffHunks.map((hunk, idx) => (
         <div key={idx} className="dt-diff-block" ref={(el) => { hunkRefs.current[idx] = el; }}>
           <div className="dt-diff-block-header">
             <span>
-              {hunk.type === 'added' ? '—' : `第${hunk.oldStart}行`}
-              ↔
-              {hunk.type === 'removed' ? '—' : `第${hunk.newStart}行`}
+              {hunk.type === 'added' ? '-' : '#' + hunk.oldStart}
+              {' '}
+              {hunk.type === 'removed' ? '-' : '#' + hunk.newStart}
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span className={`dt-diff-type-badge ${hunk.type}`}>{typeLabel[hunk.type] ?? hunk.type}</span>
+              <span className={'dt-diff-type-badge ' + hunk.type}>{typeLabel[hunk.type] ?? hunk.type}</span>
               <span style={{ display: 'inline-flex', gap: 2 }}>
                 {hunk.type !== 'added' && (
                   <Tooltip title="应用到右侧">
@@ -88,11 +89,11 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ hunkRefs }) => {
           {hunk.changes.map((change, ci) => {
             const cls = change.type === 'removed' ? 'removed' : change.type === 'added' ? 'added' : change.type === 'modified' ? 'modified' : 'equal';
             return (
-              <div key={ci} className={`dt-diff-line ${cls}`}>
-                <span className="ln" style={{ width: `${lineNumWidth}ch` }}>
+              <div key={ci} className={'dt-diff-line ' + cls}>
+                <span className="ln" style={{ width: lineNumWidth + 'ch' }}>
                   {cls !== 'added' ? hunk.oldStart + ci : ''}
                 </span>
-                <span className="ln" style={{ width: `${lineNumWidth}ch` }}>
+                <span className="ln" style={{ width: lineNumWidth + 'ch' }}>
                   {cls !== 'removed' ? hunk.newStart + ci : ''}
                 </span>
                 <span className="mk">
