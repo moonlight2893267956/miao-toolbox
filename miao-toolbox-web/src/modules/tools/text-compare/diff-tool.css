@@ -153,37 +153,46 @@
 }
 
 .dt-toolbar .ant-segmented {
-  padding: 0;
-  background: transparent;
+  padding: 2px;
+  background: var(--dt-bg);
+  border-radius: 999px;
 }
 
 .dt-toolbar .ant-segmented-group {
-  gap: 6px;
+  gap: 0;
 }
 
 .dt-toolbar .ant-segmented-thumb {
-  display: none;
+  border-radius: 999px;
+  background: var(--dt-purple-bg);
+  border: 1px solid var(--dt-purple);
 }
 
 .dt-toolbar .ant-segmented-item {
   min-height: 28px;
-  border: 1px solid var(--dt-border);
+  border: 1px solid transparent;
   border-radius: 999px;
   color: var(--dt-text-secondary);
-  background: var(--dt-surface-hover);
+  background: transparent;
   font-size: 12px;
-  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+  transition: all 120ms ease;
 }
 
 .dt-toolbar .ant-segmented-item:hover {
   color: var(--dt-text);
   border-color: var(--dt-text-tertiary);
+  background: var(--dt-surface);
 }
 
-.dt-toolbar .ant-segmented-item-selected {
+.dt-toolbar .ant-segmented-item.ant-segmented-item-selected {
   color: var(--dt-purple);
   border-color: var(--dt-purple);
   background: var(--dt-purple-bg);
+  font-weight: 600;
+}
+
+.dt-toolbar .ant-segmented-item:not(.ant-segmented-item-selected):hover {
+  background: var(--dt-surface);
 }
 
 .dt-toolbar .ant-segmented-item-label {
@@ -447,13 +456,13 @@
   color: var(--dt-text);
 }
 
-/* 块状光标（高可见度） */
+/* 可见光标（使用强调色，线状） */
 .dt-panel .cm-editor.cm-focused .cm-cursorLayer .cm-cursor {
-  border-left: none !important;
-  background: var(--dt-text) !important;
-  opacity: 0.55 !important;
-  width: 0.6em !important;
-  animation-duration: 1.0s !important;
+  border-left: 2px solid var(--dt-purple) !important;
+  animation-duration: 0.8s !important;
+  background: transparent !important;
+  opacity: 1 !important;
+  width: auto !important;
 }
 
 /* 文本高亮选区在暗色下可见 */
