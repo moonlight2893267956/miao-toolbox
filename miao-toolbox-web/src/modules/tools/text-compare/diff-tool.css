@@ -348,16 +348,6 @@
   margin-bottom: 20px;
 }
 
-/* 统一视图: 单列（右面板实际用于 unified diff 渲染） */
-.dt-panels-unified {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-/* 堆叠视图: 单列带间距 */
-.dt-panels-stacked {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .dt-panel {
   min-width: 0;
   overflow: hidden;

@@ -42,7 +42,7 @@ const DiffContent: React.FC = () => {
   }, [state.leftText, state.rightText, state.granularity, state.ignoreWhitespace, state.structuredDiff, compare, dispatch]);
 
   const isSplit = state.layout === 'split';
-  const stackedClass = state.layout === 'stacked' ? 'dt-panels-stacked' : 'dt-panels-unified';
+  const isStacked = state.layout === 'stacked';
 
   return (
     <>
@@ -53,10 +53,19 @@ const DiffContent: React.FC = () => {
         <DiffNavigator hunkRefs={hunkRefs} />
       </div>
 
-      <div className={isSplit ? 'dt-panels' : `dt-panels ${stackedClass}`}>
-        <DiffPanel side="left" />
-        <DiffPanel side="right" />
-      </div>
+      {isSplit ? (
+        <div className="dt-panels">
+          <DiffPanel side="left" />
+          <DiffPanel side="right" />
+        </div>
+      ) : isStacked ? (
+        <div style={{ marginBottom: 20 }}>
+          <DiffPanel side="left" />
+          <div style={{ marginTop: 12 }}>
+            <DiffPanel side="right" />
+          </div>
+        </div>
+      ) : null}
 
       <DiffViewer hunkRefs={hunkRefs} />
     </>
