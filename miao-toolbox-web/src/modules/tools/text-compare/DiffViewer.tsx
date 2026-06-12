@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { ArrowLeftOutlined, ArrowRightOutlined } from '@ant-design/icons';
-import { Tooltip } from 'antd';
+import { Empty, Tooltip } from 'antd';
 import { useDiffContext } from './useDiffContext';
 import type { DiffHunk as DiffHunkType } from './types';
 
@@ -13,6 +13,7 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ hunkRefs }) => {
 
   const hunks = state.diffResult?.hunks ?? [];
   const diffHunks = hunks.filter(h => h.type !== 'unchanged');
+  const hasText = Boolean(state.leftText || state.rightText);
 
   const lineNumWidth = Math.max(
     String(state.leftText.split('\n').length).length,
@@ -46,28 +47,40 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ hunkRefs }) => {
     [state.diffResult, state.leftText, state.rightText, dispatch],
   );
 
-  if (!state.diffResult || diffHunks.length === 0) return null;
+  if (!state.diffResult || diffHunks.length === 0) {
+    return (
+      <div className="dt-diff-viewer dt-diff-viewer-empty">
+        <div className="dt-diff-title">
+          <span>{hasText ? '差异结果 · 共 0 处' : '差异结果'}</span>
+          <span>{hasText ? '0 处' : '等待输入'}</span>
+        </div>
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={hasText ? '两侧内容暂无可展示差异' : '在左右编辑区粘贴文本后自动开始对比'}
+        />
+      </div>
+    );
+  }
 
   const typeLabel: Record<string, string> = { added: '新增', removed: '删除', modified: '修改' };
 
   return (
     <div className="dt-diff-viewer">
       <div className="dt-diff-title">
-        <span>差异结果</span>
-        <span>{diffHunks.length} 处</span>
+        <span>差异结果 · 共 {diffHunks.length} 处</span>
       </div>
 
       {diffHunks.map((hunk, idx) => (
         <div key={idx} className="dt-diff-block" ref={(el) => { hunkRefs.current[idx] = el; }}>
           <div className="dt-diff-block-header">
-            <span>
-              {hunk.type === 'added' ? '-' : '#' + hunk.oldStart}
-              {' '}
-              {hunk.type === 'removed' ? '-' : '#' + hunk.newStart}
+            <span className="dt-diff-range">
+              {hunk.type === 'added' ? '—' : `第${hunk.oldStart}行`}
+              ↔
+              {hunk.type === 'removed' ? '—' : `第${hunk.newStart}行`}
             </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span className="dt-diff-actions">
               <span className={'dt-diff-type-badge ' + hunk.type}>{typeLabel[hunk.type] ?? hunk.type}</span>
-              <span style={{ display: 'inline-flex', gap: 2 }}>
+              <span className="dt-apply-group">
                 {hunk.type !== 'added' && (
                   <Tooltip title="应用到右侧">
                     <button className="dt-apply-btn" onClick={() => applyHunk(hunk, 'to-right')}>

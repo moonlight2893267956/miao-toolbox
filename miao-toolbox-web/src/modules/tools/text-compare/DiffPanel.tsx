@@ -1,6 +1,6 @@
 import React from 'react';
 import { Upload, message } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import { CloudUploadOutlined, FileTextOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import { useDiffContext } from './useDiffContext';
 import CodeEditor from './CodeEditor';
@@ -43,11 +43,12 @@ const DiffPanel: React.FC<DiffPanelProps> = ({ side }) => {
       <div className="dt-panel-header">
         <div className="dt-panel-label">
           <span className={`dt-side-tag ${side}`}>{side === 'left' ? 'A' : 'B'}</span>
-          {label}
+          <span className="dt-panel-title">{label}</span>
+          {text && <span className="dt-panel-meta"><FileTextOutlined /> {text.split('\n').length} 行</span>}
         </div>
         <Upload {...uploadProps}>
           <button className="dt-upload-btn">
-            <UploadOutlined style={{ fontSize: 11 }} /> 上传文件
+            <CloudUploadOutlined /> 上传
           </button>
         </Upload>
       </div>
@@ -56,9 +57,9 @@ const DiffPanel: React.FC<DiffPanelProps> = ({ side }) => {
         onChange={setText}
         language={state.language}
         showLineNumbers={state.showLineNumbers}
-        placeholder={side === 'left' ? '在此粘贴或输入原文...' : '在此粘贴或输入对比文本...'}
-        minRows={12}
-        maxRows={30}
+        placeholder={side === 'left' ? '在此粘贴原文或旧版本代码...' : '在此粘贴对比文本或新版本代码...'}
+        minRows={16}
+        maxRows={36}
       />
     </div>
   );

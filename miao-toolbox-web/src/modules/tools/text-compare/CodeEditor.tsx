@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import { EditorView, keymap, placeholder, lineNumbers, highlightSpecialChars, drawSelection, highlightActiveLine } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { foldGutter, indentOnInput, indentUnit, foldKeymap } from '@codemirror/language';
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import { defaultKeymap, history } from '@codemirror/commands';
 import { json } from '@codemirror/lang-json';
 import { java } from '@codemirror/lang-java';
 import { python } from '@codemirror/lang-python';
@@ -58,7 +58,10 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   const createEditor = useCallback(() => {
     if (!editorRef.current) return;
@@ -85,25 +88,25 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       EditorView.theme({
         '&': { height: '100%', fontSize: '13px', backgroundColor: 'transparent' },
         '.cm-scroller': { fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace' },
-        '.cm-content': { padding: '14px 0 14px 8px' },
         '.cm-gutters': {
           borderRight: 'none',
           backgroundColor: 'transparent',
         },
         '.cm-lineNumbers .cm-gutterElement': {
-          color: 'var(--dt-text-tertiary, #8c959f)',
+          color: 'var(--dt-editor-muted, var(--ant-color-text-tertiary))',
           fontSize: '11px',
           fontWeight: '500',
           paddingLeft: '12px',
         },
         '.cm-content': {
-          caretColor: 'var(--dt-text, #1f2328)',
+          padding: '16px 0 16px 8px',
+          caretColor: 'var(--dt-text, var(--ant-color-text))',
           backgroundColor: 'transparent',
         },
         '.cm-activeLine': { backgroundColor: 'transparent' },
         '.cm-activeLineGutter': { backgroundColor: 'transparent' },
         '.cm-foldGutter': { cursor: 'pointer' },
-        '.cm-foldPlaceholder': { color: 'var(--dt-text-tertiary, #8c959f)' },
+        '.cm-foldPlaceholder': { color: 'var(--dt-editor-muted, var(--ant-color-text-tertiary))' },
       }),
       EditorView.lineWrapping,
     ];

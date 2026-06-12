@@ -1,5 +1,6 @@
 import React from 'react';
-import { Spin } from 'antd';
+import { Alert, Spin } from 'antd';
+import { CheckCircleOutlined } from '@ant-design/icons';
 import { useDiffContext } from './useDiffContext';
 
 const StatCard: React.FC = () => {
@@ -7,14 +8,14 @@ const StatCard: React.FC = () => {
 
   if (state.loading) {
     return (
-      <div className="dt-stat-card" style={{ justifyContent: 'center' }}>
+      <div className="dt-stat-card dt-stat-card-muted">
         <span className="dt-loading"><Spin size="small" /> 正在对比...</span>
       </div>
     );
   }
 
   if (state.error) {
-    return <div className="dt-error">{state.error}</div>;
+    return <Alert className="dt-error" type="error" message={state.error} showIcon />;
   }
 
   const hasText = state.leftText || state.rightText;
@@ -22,8 +23,8 @@ const StatCard: React.FC = () => {
   if (!state.diffResult || !state.diffResult.hunks || state.diffResult.hunks.length === 0) {
     if (hasText) {
       return (
-        <div className="dt-stat-card" style={{ justifyContent: 'center' }}>
-          <span className="dt-stat-empty">无差异</span>
+        <div className="dt-stat-card dt-stat-card-muted">
+          <span className="dt-stat-empty"><CheckCircleOutlined /> 无差异</span>
         </div>
       );
     }

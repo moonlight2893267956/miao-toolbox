@@ -1,5 +1,5 @@
 import React from 'react';
-import { Segmented, Switch, Space } from 'antd';
+import { Segmented, Switch } from 'antd';
 import { CodeOutlined } from '@ant-design/icons';
 import { useDiffContext } from './useDiffContext';
 import type { Granularity, LayoutMode } from './types';
@@ -23,9 +23,9 @@ const Toolbar: React.FC = () => {
           onChange={setGranularity}
           size="small"
           options={[
-            { value: 'char', label: '字符' },
-            { value: 'word', label: '词' },
-            { value: 'line', label: '行' },
+            { value: 'char', label: '字符级' },
+            { value: 'word', label: '词级' },
+            { value: 'line', label: '行级' },
           ]}
         />
       </div>
@@ -44,24 +44,24 @@ const Toolbar: React.FC = () => {
         />
       </div>
 
-      <div className="dt-toolbar-group">
+      <label className="dt-toolbar-group dt-switch-group">
         <span className="dt-toolbar-label">行号</span>
         <Switch checked={state.showLineNumbers} onChange={setShowLineNumbers} size="small" />
-      </div>
+      </label>
 
-      <div className="dt-toolbar-group">
+      <label className="dt-toolbar-group dt-switch-group">
         <span className="dt-toolbar-label">忽略空白</span>
         <Switch checked={state.ignoreWhitespace} onChange={setIgnoreWhitespace} size="small" />
-      </div>
+      </label>
 
       {isJsonYaml && (
-        <div className="dt-toolbar-group">
+        <label className="dt-toolbar-group dt-switch-group">
           <span className="dt-toolbar-label">结构化</span>
           <Switch checked={state.structuredDiff} onChange={setStructuredDiff} size="small" />
-        </div>
+        </label>
       )}
 
-      <div className="dt-toolbar-right">
+      <div className="dt-toolbar-group dt-toolbar-tail">
         {state.language && (
           <span className="dt-lang-tag">
             <CodeOutlined /> {LANGUAGE_LABEL[state.language] ?? state.language.toUpperCase()}

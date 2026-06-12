@@ -158,7 +158,7 @@ axiosInstance.interceptors.response.use(
   response => response,
   (error: AxiosError) => {
     // Auth 刷新失败导致页面即将跳转登录，静默吞掉所有相关错误
-    if ((error as Record<symbol, boolean>)[AUTH_REDIRECT]) {
+    if ((error as unknown as Record<symbol, boolean>)[AUTH_REDIRECT]) {
       return new Promise(() => {});
     }
 

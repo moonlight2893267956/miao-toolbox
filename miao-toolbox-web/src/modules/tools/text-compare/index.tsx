@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { CodeOutlined } from '@ant-design/icons';
 import { DiffProvider } from './DiffProvider';
 import { useDiffContext } from './useDiffContext';
 import Toolbar from './Toolbar';
@@ -41,27 +42,21 @@ const DiffContent: React.FC = () => {
   }, [state.leftText, state.rightText, state.granularity, state.ignoreWhitespace, state.structuredDiff, compare, dispatch]);
 
   const isSplit = state.layout === 'split';
-  const isStacked = state.layout === 'stacked';
+  const stackedClass = state.layout === 'stacked' ? 'dt-panels-stacked' : 'dt-panels-unified';
 
   return (
     <>
       <Toolbar />
+
       <div className="dt-meta-row">
         <StatCard />
         <DiffNavigator hunkRefs={hunkRefs} />
       </div>
 
-      {isSplit ? (
-        <div className="dt-panels">
-          <DiffPanel side="left" />
-          <DiffPanel side="right" />
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: isStacked ? 12 : 0, marginBottom: 16 }}>
-          <DiffPanel side="left" />
-          {isStacked && <DiffPanel side="right" />}
-        </div>
-      )}
+      <div className={isSplit ? 'dt-panels' : `dt-panels ${stackedClass}`}>
+        <DiffPanel side="left" />
+        <DiffPanel side="right" />
+      </div>
 
       <DiffViewer hunkRefs={hunkRefs} />
     </>
@@ -71,15 +66,16 @@ const DiffContent: React.FC = () => {
 const TextComparePage: React.FC = () => {
   return (
     <DiffProvider>
-      <div className="miao-page">
-        <header className="miao-page-header">
+      <div className="miao-page dt-page">
+        <header className="dt-page-header">
           <div>
-            <div className="miao-page-eyebrow">工具 · 文本对照</div>
-            <h1 className="miao-page-title">文本对照</h1>
-            <p className="miao-page-description">
+            <div className="dt-page-eyebrow">工具 · 文本对照</div>
+            <h1 className="dt-page-title">文本对照</h1>
+            <p className="dt-page-description">
               粘贴或上传两段文本，支持字符级、词级、行级粒度对比，自动识别语言类型。
             </p>
           </div>
+          <span className="dt-page-badge"><CodeOutlined /> Dark Developer's Studio</span>
         </header>
         <DiffContent />
       </div>
