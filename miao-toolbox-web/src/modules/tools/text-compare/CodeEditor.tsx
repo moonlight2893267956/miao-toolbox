@@ -83,12 +83,27 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
         }
       }),
       EditorView.theme({
-        '&': { height: '100%', fontSize: '13px' },
+        '&': { height: '100%', fontSize: '13px', backgroundColor: 'transparent' },
         '.cm-scroller': { fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace' },
-        '.cm-gutters': { borderRight: '1px solid var(--miao-border, #e6e3f0)' },
-        '.cm-foldGutter': { cursor: 'pointer' },
+        '.cm-content': { padding: '14px 0 14px 8px' },
+        '.cm-gutters': {
+          borderRight: 'none',
+          backgroundColor: 'transparent',
+        },
+        '.cm-lineNumbers .cm-gutterElement': {
+          color: 'var(--dt-text-tertiary, #8c959f)',
+          fontSize: '11px',
+          fontWeight: '500',
+          paddingLeft: '12px',
+        },
+        '.cm-content': {
+          caretColor: 'var(--dt-text, #1f2328)',
+          backgroundColor: 'transparent',
+        },
         '.cm-activeLine': { backgroundColor: 'transparent' },
         '.cm-activeLineGutter': { backgroundColor: 'transparent' },
+        '.cm-foldGutter': { cursor: 'pointer' },
+        '.cm-foldPlaceholder': { color: 'var(--dt-text-tertiary, #8c959f)' },
       }),
       EditorView.lineWrapping,
     ];

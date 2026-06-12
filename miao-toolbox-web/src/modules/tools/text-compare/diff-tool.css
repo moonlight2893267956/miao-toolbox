@@ -428,6 +428,51 @@
 
 .dt-diff-line.equal .mk { color: transparent; }
 
+/* ========== CodeMirror 编辑器覆盖 ========== */
+.dt-panel .cm-editor {
+  background: var(--dt-surface);
+}
+
+.dt-panel .cm-editor .cm-scroller {
+  background: transparent;
+}
+
+.dt-panel .cm-editor .cm-content {
+  padding: 14px 0 14px 8px;
+  background: transparent;
+  color: var(--dt-text);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.dt-panel .cm-editor .cm-gutters {
+  background: transparent;
+  border-right: 1px solid var(--dt-border-light);
+}
+
+.dt-panel .cm-editor .cm-lineNumbers .cm-gutterElement {
+  color: var(--dt-text-tertiary) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  padding-left: 12px !important;
+}
+
+.dt-panel .cm-editor .cm-activeLineGutter {
+  background: transparent !important;
+}
+
+.dt-panel .cm-editor .cm-selectionBackground {
+  background: rgba(188,140,255,0.15) !important;
+}
+
+:root[data-theme='light'] .dt-panel .cm-editor .cm-selectionBackground {
+  background: rgba(92,79,208,0.1) !important;
+}
+
+.dt-panel .cm-editor.cm-focused {
+  outline: none;
+}
+
 /* ========== Loading / Error ========== */
 .dt-loading {
   display: flex;
