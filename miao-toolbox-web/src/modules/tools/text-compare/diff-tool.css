@@ -447,13 +447,13 @@
   color: var(--dt-text);
 }
 
-/* 块状光标（暗色下更醒目，覆盖整个字符宽度） */
+/* 块状光标（高可见度） */
 .dt-panel .cm-editor.cm-focused .cm-cursorLayer .cm-cursor {
   border-left: none !important;
   background: var(--dt-text) !important;
-  opacity: 0.3 !important;
-  width: 0.7em !important;
-  animation-duration: 0.8s !important;
+  opacity: 0.55 !important;
+  width: 0.6em !important;
+  animation-duration: 1.0s !important;
 }
 
 /* 文本高亮选区在暗色下可见 */
