@@ -20,6 +20,7 @@ const initialState: DiffState = {
   diffResult: null,
   loading: false,
   error: null,
+  reviewedHunkIds: [],
 };
 
 function diffReducer(state: DiffState, action: DiffAction): DiffState {
@@ -45,7 +46,17 @@ function diffReducer(state: DiffState, action: DiffAction): DiffState {
     case 'SET_ERROR':
       return { ...state, error: action.payload, loading: false };
     case 'SET_DIFF_RESULT':
-      return { ...state, diffResult: action.payload, loading: false, error: null };
+      return { ...state, diffResult: action.payload, loading: false, error: null, reviewedHunkIds: [] };
+    case 'TOGGLE_HUNK_REVIEWED': {
+      const id = action.payload;
+      const exists = state.reviewedHunkIds.includes(id);
+      return {
+        ...state,
+        reviewedHunkIds: exists
+          ? state.reviewedHunkIds.filter((x: number) => x !== id)
+          : [...state.reviewedHunkIds, id],
+      };
+    }
     case 'SET_LEFT_FILE':
       return {
         ...state,
@@ -75,10 +86,15 @@ export const DiffProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setIgnoreWhitespace = useCallback((v: boolean) => dispatch({ type: 'SET_IGNORE_WHITESPACE', payload: v }), []);
   const setStructuredDiff = useCallback((v: boolean) => dispatch({ type: 'SET_STRUCTURED_DIFF', payload: v }), []);
   const setShowLineNumbers = useCallback((v: boolean) => dispatch({ type: 'SET_SHOW_LINE_NUMBERS', payload: v }), []);
+  const toggleHunkReviewed = useCallback(
+    (hunkIndex: number) => dispatch({ type: 'TOGGLE_HUNK_REVIEWED', payload: hunkIndex }),
+    [],
+  );
 
   const value: DiffContextValue = {
     state, dispatch, setLeft, setRight, setGranularity, setLayout,
     setIgnoreWhitespace, setStructuredDiff, setShowLineNumbers,
+    toggleHunkReviewed,
   };
 
   return <DiffContext.Provider value={value}>{children}</DiffContext.Provider>;

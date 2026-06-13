@@ -27,3 +27,6 @@ export const addedLineDeco = Decoration.line({ class: 'dt-diff-line-added' });
 export const removedLineDeco = Decoration.line({ class: 'dt-diff-line-removed' });
 export const modifiedLineDeco = Decoration.line({ class: 'dt-diff-line-modified' });
 export const wordChangedDeco = Decoration.mark({ class: 'dt-diff-word-changed' });
+
+/** 行级 reviewed 遮罩（暗色 50% 黑色 / 亮色 30% 白色）。与原 line deco 并存。 */
+export const reviewedLineDeco = Decoration.line({ class: 'dt-diff-line-reviewed' });

@@ -10,9 +10,17 @@ interface DiffPanelProps {
   side: 'left' | 'right';
   editorRef?: React.MutableRefObject<{ view: EditorView | null } | null>;
   onViewReady?: (view: EditorView, container: HTMLDivElement) => void;
+  reviewedHunkIds?: number[];
+  onToggleHunkReviewed?: (hunkIndex: number) => void;
 }
 
-const DiffPanel: React.FC<DiffPanelProps> = ({ side, editorRef, onViewReady }) => {
+const DiffPanel: React.FC<DiffPanelProps> = ({
+  side,
+  editorRef,
+  onViewReady,
+  reviewedHunkIds,
+  onToggleHunkReviewed,
+}) => {
   const { state, setLeft, setRight, dispatch } = useDiffContext();
   const text = side === 'left' ? state.leftText : state.rightText;
   const label = side === 'left' ? state.leftLabel : state.rightLabel;
@@ -68,6 +76,8 @@ const DiffPanel: React.FC<DiffPanelProps> = ({ side, editorRef, onViewReady }) =
         maxRows={36}
         diffHunks={state.diffResult?.hunks}
         diffSide={side}
+        reviewedHunkIds={reviewedHunkIds}
+        onToggleHunkReviewed={onToggleHunkReviewed}
         onViewReady={onViewReady as (view: EditorView, container: HTMLDivElement) => void}
       />
     </div>

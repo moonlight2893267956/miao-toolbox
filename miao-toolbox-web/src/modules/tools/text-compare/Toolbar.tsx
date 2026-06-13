@@ -1,6 +1,5 @@
 import React from 'react';
-import { Switch } from 'antd';
-import { CodeOutlined } from '@ant-design/icons';
+import { CodeOutlined, ColumnHeightOutlined, EyeOutlined, AlignLeftOutlined, ApartmentOutlined } from '@ant-design/icons';
 import { useDiffContext } from './useDiffContext';
 import type { LayoutMode } from './types';
 
@@ -10,12 +9,41 @@ const LANGUAGE_LABEL: Record<string, string> = {
   html: 'HTML', xml: 'XML', markdown: 'Markdown', sql: 'SQL', bash: 'Bash',
 };
 
-const Toolbar: React.FC = () => {
-  const { state, setLayout, setIgnoreWhitespace, setStructuredDiff, setShowLineNumbers } = useDiffContext();
+interface ChipProps {
+  icon: React.ReactNode;
+  label: string;
+  active?: boolean;
+  onClick: () => void;
+  ariaLabel: string;
+}
+
+/** IDEA 风格 chip：非激活态图标 + 文字，激活态高亮 */
+const Chip: React.FC<ChipProps> = ({ icon, label, active, onClick, ariaLabel }) => (
+  <button
+    type="button"
+    className={`dt-pill${active ? ' is-active' : ''}`}
+    onClick={onClick}
+    role="switch"
+    aria-checked={active ?? undefined}
+    aria-label={ariaLabel}
+  >
+    {icon}
+    <span className="dt-pill-label">{label}</span>
+  </button>
+);
+
+interface ToolbarProps {
+  rightSlot?: React.ReactNode;
+}
+
+const Toolbar: React.FC<ToolbarProps> = ({ rightSlot }) => {
+  const {
+    state, setLayout, setIgnoreWhitespace, setStructuredDiff, setShowLineNumbers,
+  } = useDiffContext();
   const isJsonYaml = state.language === 'json' || state.language === 'yaml' || state.language === 'yml';
-  const layoutOptions: Array<{ value: LayoutMode; label: string }> = [
-    { value: 'split', label: '◫ 分栏' },
-    { value: 'stacked', label: '⊞ 堆叠' },
+  const layoutOptions: Array<{ value: LayoutMode; label: string; icon: React.ReactNode }> = [
+    { value: 'split', label: '分栏', icon: <ColumnHeightOutlined /> },
+    { value: 'stacked', label: '堆叠', icon: <ApartmentOutlined /> },
   ];
 
   return (
@@ -23,36 +51,47 @@ const Toolbar: React.FC = () => {
       <div className="dt-toolbar-group">
         <span className="dt-toolbar-label">布局</span>
         <div className="dt-pill-group" role="radiogroup" aria-label="展示布局">
-          {layoutOptions.map(option => (
+          {layoutOptions.map((opt) => (
             <button
-              key={option.value}
+              key={opt.value}
               type="button"
-              className={`dt-pill${state.layout === option.value ? ' is-active' : ''}`}
-              onClick={() => setLayout(option.value)}
+              className={`dt-pill${state.layout === opt.value ? ' is-active' : ' is-icon-only'}`}
+              onClick={() => setLayout(opt.value)}
               role="radio"
-              aria-checked={state.layout === option.value}
+              aria-checked={state.layout === opt.value}
+              aria-label={opt.label}
             >
-              {option.label}
+              {opt.icon}
+              <span className="dt-pill-label">{opt.label}</span>
             </button>
           ))}
         </div>
       </div>
 
-      <label className="dt-toolbar-group dt-switch-group">
-        <span className="dt-toolbar-label">行号</span>
-        <Switch checked={state.showLineNumbers} onChange={setShowLineNumbers} size="small" />
-      </label>
+      <Chip
+        icon={<EyeOutlined />}
+        label="行号"
+        active={state.showLineNumbers}
+        onClick={() => setShowLineNumbers(!state.showLineNumbers)}
+        ariaLabel="切换行号显示"
+      />
 
-      <label className="dt-toolbar-group dt-switch-group">
-        <span className="dt-toolbar-label">忽略空白</span>
-        <Switch checked={state.ignoreWhitespace} onChange={setIgnoreWhitespace} size="small" />
-      </label>
+      <Chip
+        icon={<AlignLeftOutlined />}
+        label="忽略空白"
+        active={state.ignoreWhitespace}
+        onClick={() => setIgnoreWhitespace(!state.ignoreWhitespace)}
+        ariaLabel="切换忽略空白"
+      />
 
       {isJsonYaml && (
-        <label className="dt-toolbar-group dt-switch-group">
-          <span className="dt-toolbar-label">结构化</span>
-          <Switch checked={state.structuredDiff} onChange={setStructuredDiff} size="small" />
-        </label>
+        <Chip
+          icon={<CodeOutlined />}
+          label="结构化"
+          active={state.structuredDiff}
+          onClick={() => setStructuredDiff(!state.structuredDiff)}
+          ariaLabel="切换结构化对比"
+        />
       )}
 
       <div className="dt-toolbar-group dt-toolbar-tail">
@@ -61,6 +100,7 @@ const Toolbar: React.FC = () => {
             <CodeOutlined /> {LANGUAGE_LABEL[state.language] ?? state.language.toUpperCase()}
           </span>
         )}
+        {rightSlot}
       </div>
     </div>
   );
