@@ -34,11 +34,11 @@
   --dt-text-secondary: #656d76;
   --dt-text-tertiary: #8c959f;
   --dt-amber: #b8860b;
-  --dt-amber-bg: rgba(184, 134, 11, 0.07);
+  --dt-amber-bg: rgba(184, 134, 11, 0.14);
   --dt-coral: #cf222e;
-  --dt-coral-bg: rgba(207, 34, 46, 0.05);
+  --dt-coral-bg: rgba(207, 34, 46, 0.10);
   --dt-blue: #0969da;
-  --dt-blue-bg: rgba(9, 105, 218, 0.05);
+  --dt-blue-bg: rgba(9, 105, 218, 0.10);
   --dt-purple: #5c4fd0;
   --dt-purple-bg: rgba(92, 79, 208, 0.07);
 }
@@ -488,166 +488,59 @@
   background: rgba(92, 79, 208, 0.1) !important;
 }
 
-/* ========== Diff Viewer ========== */
-.dt-diff-viewer {
+/* ========== CM6 Diff Decorations ========== */
+
+/* Line-level backgrounds (applied via Decoration.line) */
+.dt-panel .cm-editor .cm-line.dt-diff-line-added {
+  background: var(--dt-amber-bg) !important;
+}
+
+.dt-panel .cm-editor .cm-line.dt-diff-line-removed {
+  background: var(--dt-coral-bg) !important;
+}
+
+.dt-panel .cm-editor .cm-line.dt-diff-line-modified {
+  background: var(--dt-blue-bg) !important;
+}
+
+/* Word-level inline highlights (applied via Decoration.mark) */
+.dt-panel .cm-editor .dt-diff-word-changed {
+  background: rgba(188, 140, 255, 0.25);
+  border-radius: 2px;
+}
+
+:root[data-theme='light'] .dt-panel .cm-editor .dt-diff-word-changed {
+  background: rgba(92, 79, 208, 0.15);
+}
+
+/* ========== Status feedback overlays ========== */
+
+.dt-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
   border: 1px solid var(--dt-border);
-  border-radius: var(--dt-radius-lg);
-  overflow: hidden;
+  border-radius: var(--dt-radius-md);
   background: var(--dt-surface);
-  margin-top: 16px;
-}
-
-.dt-diff-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 9px 20px;
-  border-bottom: 1px solid var(--dt-border);
-  background: var(--dt-surface-hover);
-  font-size: 13px;
-  font-weight: 600;
   color: var(--dt-text-secondary);
+  font-size: 13px;
 }
 
-.dt-diff-block {
-  border-bottom: 1px solid var(--dt-border-light);
-}
-
-.dt-diff-block:last-child {
-  border-bottom: none;
-}
-
-.dt-diff-block-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 5px 20px;
-  border-bottom: 1px solid var(--dt-border-light);
-  color: var(--dt-text-tertiary);
-  background: rgba(255, 255, 255, 0.015);
-  font-family: var(--dt-font-mono);
-  font-size: 11px;
-}
-
-:root[data-theme='light'] .dt-diff-block-header {
-  background: rgba(0, 0, 0, 0.01);
-}
-
-.dt-diff-range {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.dt-diff-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.dt-diff-type-badge {
-  display: inline-block;
-  padding: 0 8px;
-  border-radius: 3px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-}
-
-.dt-diff-type-badge.added {
-  color: var(--dt-amber);
-  background: var(--dt-amber-bg);
-}
-
-.dt-diff-type-badge.removed {
-  color: var(--dt-coral);
-  background: var(--dt-coral-bg);
-}
-
-.dt-diff-type-badge.modified {
-  color: var(--dt-blue);
-  background: var(--dt-blue-bg);
-}
-
-.dt-apply-group {
-  display: inline-flex;
-  gap: 2px;
-}
-
-.dt-apply-btn {
-  width: 22px;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--dt-border);
-  border-radius: 4px;
-  color: var(--dt-text-tertiary);
-  background: transparent;
-  cursor: pointer;
-  font-size: 10px;
-  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
-}
-
-.dt-apply-btn:hover {
-  color: var(--dt-purple);
+.dt-status-banner.is-loading {
   border-color: var(--dt-purple);
   background: var(--dt-purple-bg);
+  color: var(--dt-text);
 }
 
-/* 差异行 */
-.dt-diff-line {
-  display: flex;
-  font-family: var(--dt-font-mono);
-  font-size: 14px;
-  line-height: 1.9;
-  padding: 0 20px;
-  border-left: 3px solid transparent;
-  transition: background 80ms ease;
-}
-
-.dt-diff-line .ln {
-  width: 3.5ch;
-  min-width: 28px;
-  padding-right: 12px;
-  color: var(--dt-text-tertiary);
-  font-size: 12px;
-  font-weight: 500;
-  text-align: right;
-  user-select: none;
-  flex-shrink: 0;
-}
-
-.dt-diff-line .mk {
-  width: 20px;
-  flex-shrink: 0;
-  user-select: none;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.dt-diff-line .ct {
-  flex: 1;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.dt-diff-line.added {
-  background: var(--dt-amber-bg);
-  border-left-color: var(--dt-amber);
-}
-.dt-diff-line.added .mk { color: var(--dt-amber); }
-
-.dt-diff-line.removed {
+.dt-status-banner.is-error {
+  border-color: var(--dt-coral);
   background: var(--dt-coral-bg);
-  border-left-color: var(--dt-coral);
+  color: var(--dt-text);
 }
-.dt-diff-line.removed .mk { color: var(--dt-coral); }
 
-.dt-diff-line.modified {
-  background: var(--dt-blue-bg);
-  border-left-color: var(--dt-blue);
+.dt-status-banner.is-empty {
+  color: var(--dt-text-secondary);
+  font-style: italic;
 }
-.dt-diff-line.modified .mk { color: var(--dt-blue); }
-
-.dt-diff-line.equal .mk { color: transparent; }

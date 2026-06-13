@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useCallback } from 'react';
-import { EditorView, keymap, placeholder, lineNumbers, highlightSpecialChars, drawSelection, highlightActiveLine } from '@codemirror/view';
+import React, { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { EditorView, keymap, placeholder, lineNumbers, highlightSpecialChars, drawSelection, highlightActiveLine, Decoration } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { foldGutter, indentOnInput, indentUnit, foldKeymap } from '@codemirror/language';
 import { defaultKeymap, history } from '@codemirror/commands';
@@ -15,6 +15,10 @@ import { markdown } from '@codemirror/lang-markdown';
 import { yaml } from '@codemirror/lang-yaml';
 import { closeBrackets, autocompletion, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
 import type { Extension } from '@codemirror/state';
+import type { DecorationSet } from '@codemirror/view';
+import { setDecorations, decorationsField, addedLineDeco, removedLineDeco, modifiedLineDeco, wordChangedDeco } from './diffDecorations';
+import type { DiffHunk } from './types';
+import { computeInlineDiff } from './wordDiff';
 
 interface CodeEditorProps {
   value: string;
@@ -24,6 +28,9 @@ interface CodeEditorProps {
   placeholder?: string;
   minRows?: number;
   maxRows?: number;
+  diffHunks?: DiffHunk[];
+  diffSide?: 'left' | 'right';
+  onViewReady?: (view: EditorView, container: HTMLDivElement) => void;
 }
 
 const LANGUAGE_EXTENSIONS: Record<string, Extension> = {
@@ -43,10 +50,7 @@ const LANGUAGE_EXTENSIONS: Record<string, Extension> = {
   yml: yaml(),
 };
 
-/**
- * CodeMirror 6 代码编辑器组件 — 带语法高亮、代码折叠、缩进指引线
- */
-const CodeEditor: React.FC<CodeEditorProps> = ({
+const CodeEditor = forwardRef<{ view: EditorView | null }, CodeEditorProps>(({
   value,
   onChange,
   language,
@@ -54,15 +58,26 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   placeholder: placeholderText,
   minRows = 6,
   maxRows = 30,
-}) => {
+  diffHunks,
+  diffSide,
+  onViewReady,
+}, ref) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   const initialValueRef = useRef(value);
 
+  useImperativeHandle(ref, () => ({ get view() { return viewRef.current; } }), []);
+
+  const onViewReadyRef = useRef(onViewReady);
+
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  useEffect(() => {
+    onViewReadyRef.current = onViewReady;
+  }, [onViewReady]);
 
   const createEditor = useCallback(() => {
     if (!editorRef.current) return;
@@ -80,6 +95,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       highlightActiveLine(),
       langExt ?? [],
       indentUnit.of('  '),
+      decorationsField,
       EditorView.updateListener.of(update => {
         if (update.docChanged) {
           const val = update.state.doc.toString();
@@ -131,6 +147,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     });
 
     viewRef.current = view;
+    onViewReadyRef.current?.(view, editorRef.current);
   }, [language, showLineNumbers, placeholderText]);
 
   useEffect(() => {
@@ -141,7 +158,6 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     };
   }, [createEditor]);
 
-  // 仅当外部 value 变化且与编辑器内容不同时更新
   useEffect(() => {
     const view = viewRef.current;
     if (view) {
@@ -154,6 +170,78 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     }
   }, [value, language, showLineNumbers]);
 
+  // Incrementally update diff decorations via StateEffect (no editor rebuild).
+  // Also re-dispatches after editor rebuild (createEditor dependency) to restore decorations.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+
+    let decos: DecorationSet;
+    if (diffHunks && diffHunks.length > 0 && diffSide !== undefined) {
+      const doc = view.state.doc;
+      const lineCount = doc.lines;
+      const ranges: { from: number; to?: number }[] = [];
+
+      for (const hunk of diffHunks) {
+        const type = hunk.type;
+        if (type === 'unchanged') continue;
+
+        const shouldDecorateLine =
+          (type === 'added' && diffSide === 'right') ||
+          (type === 'removed' && diffSide === 'left') ||
+          type === 'modified';
+
+        if (shouldDecorateLine) {
+          const startLine = diffSide === 'left' ? hunk.oldStart : hunk.newStart;
+          const numLines = diffSide === 'left' ? hunk.oldLines : hunk.newLines;
+          const lineDeco: Record<string, typeof addedLineDeco> = {
+            added: addedLineDeco,
+            removed: removedLineDeco,
+            modified: modifiedLineDeco,
+          }[type];
+
+          if (lineDeco) {
+            for (let i = 0; i < numLines; i++) {
+              const lineNum = startLine + i;
+              if (lineNum >= 1 && lineNum <= lineCount) {
+                ranges.push(lineDeco.range(doc.line(lineNum).from));
+              }
+            }
+          }
+        }
+
+        // Word-level mark decorations for modified hunks
+        if (type === 'modified') {
+          const startLine = diffSide === 'left' ? hunk.oldStart : hunk.newStart;
+          for (let i = 0; i < hunk.changes.length; i++) {
+            const change = hunk.changes[i];
+            if (change.type !== 'modified' || change.oldValue == null) continue;
+
+            const lineNum = startLine + i;
+            if (lineNum < 1 || lineNum > lineCount) continue;
+
+            const lineFrom = doc.line(lineNum).from;
+            const inlineDiff = computeInlineDiff(change.oldValue, change.value);
+            const segments =
+              diffSide === 'left' ? inlineDiff.oldSegments : inlineDiff.newSegments;
+
+            for (const seg of segments) {
+              if (seg.changed) {
+                ranges.push(wordChangedDeco.range(lineFrom + seg.start, lineFrom + seg.end));
+              }
+            }
+          }
+        }
+      }
+
+      decos = Decoration.set(ranges, true);
+    } else {
+      decos = Decoration.none;
+    }
+
+    view.dispatch({ effects: setDecorations.of(decos) });
+  }, [diffHunks, diffSide, createEditor]);
+
   return (
     <div
       ref={editorRef}
@@ -165,6 +253,6 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       }}
     />
   );
-};
+});
 
 export default CodeEditor;

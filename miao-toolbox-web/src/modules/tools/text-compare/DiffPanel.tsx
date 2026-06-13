@@ -4,10 +4,15 @@ import { CloudUploadOutlined, FileTextOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import { useDiffContext } from './useDiffContext';
 import CodeEditor from './CodeEditor';
+import type { EditorView } from '@codemirror/view';
 
-interface DiffPanelProps { side: 'left' | 'right'; }
+interface DiffPanelProps {
+  side: 'left' | 'right';
+  editorRef?: React.MutableRefObject<{ view: EditorView | null } | null>;
+  onViewReady?: (view: EditorView, container: HTMLDivElement) => void;
+}
 
-const DiffPanel: React.FC<DiffPanelProps> = ({ side }) => {
+const DiffPanel: React.FC<DiffPanelProps> = ({ side, editorRef, onViewReady }) => {
   const { state, setLeft, setRight, dispatch } = useDiffContext();
   const text = side === 'left' ? state.leftText : state.rightText;
   const label = side === 'left' ? state.leftLabel : state.rightLabel;
@@ -53,6 +58,7 @@ const DiffPanel: React.FC<DiffPanelProps> = ({ side }) => {
         </Upload>
       </div>
       <CodeEditor
+        ref={editorRef as React.Ref<{ view: EditorView | null }>}
         value={text}
         onChange={setText}
         language={state.language}
@@ -60,6 +66,9 @@ const DiffPanel: React.FC<DiffPanelProps> = ({ side }) => {
         placeholder={side === 'left' ? '在此粘贴原文或旧版本代码...' : '在此粘贴对比文本或新版本代码...'}
         minRows={16}
         maxRows={36}
+        diffHunks={state.diffResult?.hunks}
+        diffSide={side}
+        onViewReady={onViewReady as (view: EditorView, container: HTMLDivElement) => void}
       />
     </div>
   );

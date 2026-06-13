@@ -11,7 +11,7 @@ const initialState: DiffState = {
   rightText: '',
   leftLabel: '原文(A)',
   rightLabel: '对比(B)',
-  granularity: 'char',
+  granularity: 'line',
   layout: 'split',
   ignoreWhitespace: false,
   structuredDiff: false,

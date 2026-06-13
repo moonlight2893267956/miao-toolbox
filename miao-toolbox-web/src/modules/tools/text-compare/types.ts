@@ -3,7 +3,7 @@
  */
 
 /** 布局模式 */
-export type LayoutMode = 'split' | 'unified' | 'stacked';
+export type LayoutMode = 'split' | 'stacked';
 
 export type Granularity = 'char' | 'word' | 'line';
 

@@ -2,7 +2,7 @@ import React from 'react';
 import { Switch } from 'antd';
 import { CodeOutlined } from '@ant-design/icons';
 import { useDiffContext } from './useDiffContext';
-import type { Granularity, LayoutMode } from './types';
+import type { LayoutMode } from './types';
 
 const LANGUAGE_LABEL: Record<string, string> = {
   json: 'JSON', yaml: 'YAML', java: 'Java', python: 'Python',
@@ -11,39 +11,15 @@ const LANGUAGE_LABEL: Record<string, string> = {
 };
 
 const Toolbar: React.FC = () => {
-  const { state, setGranularity, setLayout, setIgnoreWhitespace, setStructuredDiff, setShowLineNumbers } = useDiffContext();
+  const { state, setLayout, setIgnoreWhitespace, setStructuredDiff, setShowLineNumbers } = useDiffContext();
   const isJsonYaml = state.language === 'json' || state.language === 'yaml' || state.language === 'yml';
-  const granularityOptions: Array<{ value: Granularity; label: string }> = [
-    { value: 'char', label: '字符级' },
-    { value: 'word', label: '词级' },
-    { value: 'line', label: '行级' },
-  ];
   const layoutOptions: Array<{ value: LayoutMode; label: string }> = [
     { value: 'split', label: '◫ 分栏' },
-    { value: 'unified', label: '☰ 统一' },
     { value: 'stacked', label: '⊞ 堆叠' },
   ];
 
   return (
     <div className="dt-toolbar">
-      <div className="dt-toolbar-group">
-        <span className="dt-toolbar-label">粒度</span>
-        <div className="dt-pill-group" role="radiogroup" aria-label="对比粒度">
-          {granularityOptions.map(option => (
-            <button
-              key={option.value}
-              type="button"
-              className={`dt-pill${state.granularity === option.value ? ' is-active' : ''}`}
-              onClick={() => setGranularity(option.value)}
-              role="radio"
-              aria-checked={state.granularity === option.value}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       <div className="dt-toolbar-group">
         <span className="dt-toolbar-label">布局</span>
         <div className="dt-pill-group" role="radiogroup" aria-label="展示布局">
