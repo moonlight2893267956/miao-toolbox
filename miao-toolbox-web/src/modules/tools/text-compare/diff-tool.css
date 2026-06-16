@@ -9,24 +9,23 @@
   --dt-text: #f0f6fc;
   --dt-text-secondary: #8b949e;
   --dt-text-tertiary: #484f58;
-  --dt-added: #66a06a;
-  --dt-added-bg: rgba(63, 127, 82, 0.34);
   --dt-amber: #d29922;
   --dt-amber-bg: rgba(210, 153, 34, 0.12);
   --dt-coral: #f85149;
   --dt-coral-bg: rgba(248, 81, 73, 0.12);
   --dt-blue: #58a6ff;
   --dt-blue-bg: rgba(88, 166, 255, 0.12);
-  --dt-idea-line-height: 22px;
   --dt-purple: #bc8cff;
   --dt-purple-bg: rgba(188, 140, 255, 0.12);
   --dt-radius-sm: 6px;
   --dt-radius-md: 10px;
   --dt-radius-lg: 14px;
   --dt-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --dt-scrollbar-thumb: #3d444d;
+  --dt-scrollbar-thumb-hover: #565d65;
+  --dt-scrollbar-track: transparent;
 }
 
-/* Light mode override */
 :root[data-theme='light'] {
   --dt-bg: transparent;
   --dt-surface: #ffffff;
@@ -36,8 +35,6 @@
   --dt-text: #1f2328;
   --dt-text-secondary: #656d76;
   --dt-text-tertiary: #8c959f;
-  --dt-added: #1a7f37;
-  --dt-added-bg: rgba(26, 127, 55, 0.16);
   --dt-amber: #b8860b;
   --dt-amber-bg: rgba(184, 134, 11, 0.14);
   --dt-coral: #cf222e;
@@ -46,6 +43,9 @@
   --dt-blue-bg: rgba(9, 105, 218, 0.10);
   --dt-purple: #5c4fd0;
   --dt-purple-bg: rgba(92, 79, 208, 0.07);
+  --dt-scrollbar-thumb: #c2c8d0;
+  --dt-scrollbar-thumb-hover: #9ba3ad;
+  --dt-scrollbar-track: transparent;
 }
 
 .miao-content:has(.dt-page) {
@@ -147,10 +147,6 @@
   border-right: none;
 }
 
-.dt-switch-group {
-  cursor: default;
-}
-
 .dt-toolbar-label {
   color: var(--dt-text-tertiary);
   font-size: 11px;
@@ -192,7 +188,6 @@
   font-size: 12px;
 }
 
-/** 非激活态仅图标（布局组用） */
 .dt-pill.is-icon-only {
   padding: 0 6px;
   min-width: 28px;
@@ -203,7 +198,6 @@
   display: none;
 }
 
-/** 当 is-icon-only 处于 active 态时，显示文字 */
 .dt-pill.is-icon-only.is-active {
   padding: 0 10px;
   min-width: 54px;
@@ -229,25 +223,6 @@
 .dt-pill:focus-visible {
   outline: 2px solid rgba(188, 140, 255, 0.55);
   outline-offset: 2px;
-}
-
-.dt-toolbar .ant-switch {
-  min-width: 28px;
-  height: 16px;
-  background: var(--dt-border);
-}
-
-.dt-toolbar .ant-switch .ant-switch-handle {
-  width: 12px;
-  height: 12px;
-}
-
-.dt-toolbar .ant-switch.ant-switch-checked {
-  background: var(--dt-purple);
-}
-
-.dt-toolbar .ant-switch.ant-switch-checked .ant-switch-handle {
-  inset-inline-start: calc(100% - 14px);
 }
 
 .dt-lang-tag {
@@ -320,27 +295,9 @@
   font-size: 13px;
 }
 
-.dt-error {
-  flex: 1;
-  border-color: rgba(248, 81, 73, 0.36);
-  border-radius: var(--dt-radius-md);
-  background: var(--dt-coral-bg);
-}
-
-.dt-nav-bubble {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border: 1px solid var(--dt-border);
-  border-radius: 999px;
-  color: var(--dt-text-secondary);
-  background: rgba(22, 27, 34, 0.85);
-  backdrop-filter: blur(10px);
-}
-
-:root[data-theme='light'] .dt-nav-bubble {
-  background: var(--dt-surface);
+.dt-error-text {
+  color: var(--dt-coral);
+  font-size: 13px;
 }
 
 .dt-nav-btn {
@@ -369,279 +326,16 @@
   cursor: not-allowed;
 }
 
-.dt-nav-label {
-  min-width: 38px;
-  color: var(--dt-text-secondary);
-  font-family: var(--dt-font-mono);
-  font-size: 12px;
-  text-align: center;
-}
-
-/* ========== IDEA-style side-by-side diff shell ========== */
-.dt-diff-shell {
-  --dt-line-height: var(--dt-idea-line-height);
-  overflow: hidden;
-  border: 1px solid var(--dt-border);
-  border-radius: 8px;
-  background: var(--dt-surface);
-}
-
-.dt-idea-top,
-.dt-idea-editor-row,
-.dt-idea-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 92px minmax(0, 1fr);
-}
-
-.dt-idea-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-width: 0;
-  min-height: 42px;
-  gap: 12px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--dt-border);
-  background: var(--dt-surface-hover);
-}
-
-.dt-idea-header:first-child {
-  border-right: 1px solid var(--dt-border);
-}
-
-.dt-idea-header:last-child {
-  border-left: 1px solid var(--dt-border);
-}
-
-.dt-idea-gutter-head,
-.dt-idea-editor-divider {
-  border-bottom: 1px solid var(--dt-border);
-  background: color-mix(in srgb, var(--dt-surface-hover) 70%, var(--dt-surface));
-}
-
-.dt-idea-editor-row {
-  border-bottom: 1px solid var(--dt-border);
-}
-
-.dt-idea-input {
-  width: 100%;
-  height: 132px;
-  min-width: 0;
-  padding: 12px 14px;
-  border: 0;
-  outline: none;
-  resize: vertical;
-  color: var(--dt-text);
-  background: transparent;
-  font: 12px/1.55 var(--dt-font-mono);
-  tab-size: 2;
-  white-space: pre;
-  overflow: auto;
-}
-
-.dt-idea-input:focus {
-  box-shadow: inset 0 0 0 1px rgba(188, 140, 255, 0.35);
-}
-
-.dt-idea-editor-divider {
-  border-left: 1px solid var(--dt-border);
-  border-right: 1px solid var(--dt-border);
-}
-
-.dt-idea-scroll {
-  position: relative;
-  max-height: 650px;
-  overflow: auto;
-  background: #1b1d22;
-}
-
-:root[data-theme='light'] .dt-idea-scroll {
-  background: #ffffff;
-}
-
-.dt-idea-grid {
-  min-width: 1120px;
-}
-
-.dt-idea-side {
-  min-width: 0;
-}
-
-.dt-idea-side[data-side='left'] {
-  border-right: 1px solid var(--dt-border);
-}
-
-.dt-idea-side[data-side='right'] {
-  border-left: 1px solid var(--dt-border);
-}
-
-.dt-idea-line {
-  display: grid;
-  grid-template-columns: 54px minmax(max-content, 1fr);
-  min-height: var(--dt-line-height);
-  line-height: var(--dt-line-height);
-  color: var(--dt-text);
-  font-family: var(--dt-font-mono);
-  font-size: 13px;
-  white-space: pre;
-}
-
-.dt-idea-line-no {
-  display: block;
-  padding: 0 10px 0 0;
-  color: var(--dt-text-tertiary);
-  text-align: right;
-  user-select: none;
-  border-right: 1px solid var(--dt-border-light);
-}
-
-.dt-idea-code {
-  display: block;
-  min-width: max-content;
-  padding: 0 12px;
-  font: inherit;
-  white-space: pre;
-}
-
-.dt-idea-line.is-added {
-  background: var(--dt-added-bg);
-}
-
-.dt-idea-line.is-removed {
-  background: var(--dt-coral-bg);
-}
-
-.dt-idea-line.is-modified {
-  background: var(--dt-blue-bg);
-}
-
-.dt-idea-line.is-placeholder {
-  color: transparent;
-  background: rgba(88, 166, 255, 0.11);
-}
-
-.dt-idea-line.is-reviewed {
-  box-shadow: inset 0 0 0 1px rgba(188, 140, 255, 0.42);
-}
-
-.dt-center-gutter {
-  position: relative;
-  background: #20252b;
-}
-
-:root[data-theme='light'] .dt-center-gutter {
-  background: #f6f8fa;
-}
-
-.dt-center-gutter-row {
-  position: relative;
-  min-height: var(--dt-line-height);
-  border-left: 1px solid var(--dt-border);
-  border-right: 1px solid var(--dt-border);
-}
-
-.dt-hunk-connector {
-  position: absolute;
-  inset: 0;
-  background: rgba(88, 166, 255, 0.18);
-  border-left: 1px solid rgba(88, 166, 255, 0.32);
-  border-right: 1px solid rgba(88, 166, 255, 0.32);
-}
-
-.dt-center-gutter-row.is-added .dt-hunk-connector {
-  background: rgba(63, 127, 82, 0.24);
-  border-color: rgba(63, 127, 82, 0.34);
-}
-
-.dt-center-gutter-row.is-removed .dt-hunk-connector {
-  background: rgba(248, 81, 73, 0.18);
-  border-color: rgba(248, 81, 73, 0.32);
-}
-
-.dt-center-gutter-row.is-first .dt-hunk-connector {
-  border-top: 1px solid rgba(88, 166, 255, 0.35);
-}
-
-.dt-center-gutter-row.is-last .dt-hunk-connector {
-  border-bottom: 1px solid rgba(88, 166, 255, 0.35);
-}
-
-.dt-gutter-actions {
-  position: sticky;
-  left: 0;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: 18px 22px 22px;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  min-height: var(--dt-line-height);
-}
-
-.dt-gutter-checkbox,
-.dt-gutter-apply {
-  position: relative;
-  z-index: 3;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--dt-text-tertiary);
-  color: var(--dt-text-secondary);
-  background: color-mix(in srgb, var(--dt-surface) 86%, transparent);
-  cursor: pointer;
-}
-
-.dt-gutter-checkbox {
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
-}
-
-.dt-gutter-checkbox.is-checked {
-  border-color: var(--dt-purple);
-  background: var(--dt-purple);
-}
-
-.dt-gutter-checkbox.is-checked::after {
-  content: '';
-  width: 4px;
-  height: 8px;
-  border: solid #ffffff;
-  border-width: 0 1.5px 1.5px 0;
-  transform: rotate(45deg) translateY(-1px);
-}
-
-.dt-gutter-apply {
-  width: 22px;
-  height: 18px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.dt-gutter-apply:hover,
-.dt-gutter-checkbox:hover {
-  border-color: var(--dt-purple);
-  color: var(--dt-purple);
-}
-
-.dt-idea-empty {
-  position: sticky;
-  bottom: 0;
-  padding: 8px 12px;
-  border-top: 1px solid var(--dt-border);
-  color: var(--dt-text-secondary);
-  background: color-mix(in srgb, var(--dt-surface) 88%, transparent);
-  font-size: 12px;
-  text-align: center;
-}
-
 /* ========== Editor Panels ========== */
 .dt-panels {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 24px;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dt-panels-stacked {
+  margin-bottom: 16px;
 }
 
 .dt-panel {
@@ -731,22 +425,30 @@
   background: var(--dt-surface);
 }
 
-/* ========== CodeMirror 编辑器覆盖 ========== */
+/* ========== CodeMirror ========== */
 .dt-panel .cm-editor {
   background: transparent;
+  min-width: 0;
+  width: 100%;
 }
 
 .dt-panel .cm-editor .cm-scroller {
   background: transparent;
+  overflow: auto;
+  min-width: 0;
 }
 
 .dt-panel .cm-editor .cm-content {
   padding: 14px 0 14px 8px;
   background: transparent;
   color: var(--dt-text);
+  min-width: max-content;
 }
 
-/* 可见光标（使用强调色，线状） */
+.dt-panel .cm-editor .cm-line {
+  min-height: 18px;
+}
+
 .dt-panel .cm-editor.cm-focused .cm-cursorLayer .cm-cursor {
   border-left: 2px solid var(--dt-purple) !important;
   animation-duration: 0.8s !important;
@@ -755,14 +457,21 @@
   width: auto !important;
 }
 
-/* 文本高亮选区在暗色下可见 */
 .dt-panel .cm-editor .cm-selectionBackground {
-  background: rgba(188, 140, 255, 0.2) !important;
+  background: rgba(188, 140, 255, 0.15) !important;
 }
 
 .dt-panel .cm-editor .cm-gutters {
-  background: transparent;
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--dt-surface) !important;
   border-right: 1px solid var(--dt-border-light);
+}
+
+.dt-panel .cm-editor .cm-gutter,
+.dt-panel .cm-editor .cm-gutterElement {
+  background: var(--dt-surface) !important;
 }
 
 .dt-panel .cm-editor .cm-lineNumbers .cm-gutterElement {
@@ -776,187 +485,334 @@
   background: transparent !important;
 }
 
-.dt-panel .cm-editor .cm-selectionBackground {
-  background: rgba(188, 140, 255, 0.15) !important;
-}
-
 :root[data-theme='light'] .dt-panel .cm-editor .cm-selectionBackground {
   background: rgba(92, 79, 208, 0.1) !important;
 }
 
-/* ========== CM6 Diff Decorations ========== */
-
-/* Line-level backgrounds (applied via Decoration.line) */
-.dt-panel .cm-editor .cm-line.dt-diff-line-added {
-  background: var(--dt-added-bg) !important;
+/* ========== Diff Viewer ========== */
+.dt-diff-viewer {
+  border: 1px solid var(--dt-border);
+  border-radius: var(--dt-radius-lg);
+  overflow: hidden;
+  background: var(--dt-surface);
 }
 
-.dt-panel .cm-editor .cm-line.dt-diff-line-removed {
-  background: var(--dt-coral-bg) !important;
-}
-
-.dt-panel .cm-editor .cm-line.dt-diff-line-modified {
-  background: var(--dt-blue-bg) !important;
-}
-
-/* Word-level inline highlights (applied via Decoration.mark) */
-.dt-panel .cm-editor .dt-diff-word-changed {
-  background: rgba(188, 140, 255, 0.25);
-  border-radius: 2px;
-}
-
-:root[data-theme='light'] .dt-panel .cm-editor .dt-diff-word-changed {
-  background: rgba(92, 79, 208, 0.15);
-}
-
-/* ========== Status feedback overlays ========== */
-
-.dt-status-banner {
+.dt-diff-viewer-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
   padding: 10px 16px;
-  margin-bottom: 12px;
-  border: 1px solid var(--dt-border);
-  border-radius: var(--dt-radius-md);
-  background: var(--dt-surface);
+  border-bottom: 1px solid var(--dt-border);
+  background: var(--dt-surface-hover);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dt-text-secondary);
+}
+
+.dt-diff-viewer-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
   color: var(--dt-text-secondary);
   font-size: 13px;
 }
 
-.dt-status-banner.is-loading {
-  border-color: var(--dt-purple);
-  background: var(--dt-purple-bg);
-  color: var(--dt-text);
-}
-
-.dt-status-banner.is-error {
-  border-color: var(--dt-coral);
-  background: var(--dt-coral-bg);
-  color: var(--dt-text);
-}
-
-.dt-status-banner.is-empty {
-  color: var(--dt-text-secondary);
-  font-style: italic;
-}
-
-/* ========== Status Bar (Story 1.5: IDEA 风格嵌入工具栏) ========== */
-
-.dt-status-bar {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: 0;
-  padding: 4px 12px;
-  border-radius: 999px;
-  font-family: var(--dt-font-mono);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.dt-status-bar__count {
-  color: var(--dt-text);
-  font-weight: 600;
-}
-
-.dt-status-bar__sep {
-  color: var(--dt-text-tertiary);
-}
-
-.dt-status-bar__included {
-  color: var(--dt-text-tertiary);
-}
-
-.dt-status-bar__included.has-included {
-  color: var(--dt-purple);
-  font-weight: 600;
-}
-
-.dt-status-bar.is-loading {
-  background: var(--dt-purple-bg);
-  color: var(--dt-text);
-}
-
-.dt-status-bar.is-error {
-  background: var(--dt-coral-bg);
-  color: var(--dt-text);
-  border: 1px solid rgba(248, 81, 73, 0.36);
-}
-
-.dt-status-bar__loading,
-.dt-status-bar__error {
+.dt-diff-nav {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid var(--dt-border);
+  border-radius: 999px;
+  color: var(--dt-text-secondary);
+  background: rgba(22, 27, 34, 0.85);
+  backdrop-filter: blur(10px);
+  font-family: var(--dt-font-mono);
+  font-size: 12px;
 }
 
-/* ========== Hunk Checkbox (行号列内 reviewed 标记) ========== */
+:root[data-theme='light'] .dt-diff-nav {
+  background: var(--dt-surface);
+}
 
-.dt-hunk-checkbox {
-  display: inline-flex;
+.dt-diff-nav-label {
+  min-width: 38px;
+  text-align: center;
+}
+
+.dt-diff-viewer-body {
+  max-height: 600px;
+  overflow: auto;
+}
+
+/* ========== Diff Block ========== */
+.dt-diff-block {
+  border-bottom: 1px solid var(--dt-border-light);
+}
+
+.dt-diff-block:last-child {
+  border-bottom: none;
+}
+
+.dt-diff-block.is-active {
+  box-shadow: inset 3px 0 0 var(--dt-blue);
+}
+
+.dt-diff-block-header {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  margin-left: 2px;
-  cursor: pointer;
-  position: relative;
-  vertical-align: middle;
+  justify-content: space-between;
+  padding: 6px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--dt-border-light);
+  font-size: 11px;
+  color: var(--dt-text-tertiary);
+  font-family: var(--dt-font-mono);
 }
 
-.dt-hunk-checkbox input[type='checkbox'] {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-  pointer-events: none;
+.dt-diff-block-ref {
+  font-size: 11px;
 }
 
-.dt-hunk-checkbox__visual {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border: 1.5px solid var(--dt-text-tertiary);
-  border-radius: 3px;
+.dt-diff-block-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dt-diff-type-tag {
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.dt-diff-type-tag.added { color: var(--dt-amber); }
+.dt-diff-type-tag.removed { color: var(--dt-coral); }
+.dt-diff-type-tag.modified { color: var(--dt-blue); }
+
+/* ========== Diff Line ========== */
+.dt-diff-block-body {
+}
+
+.dt-diff-line {
+  display: flex;
+  min-width: max-content;
+  font-family: var(--dt-font-mono);
+  font-size: 12px;
+  line-height: 1.7;
+  padding: 0 16px;
+  transition: background 100ms ease;
+}
+
+.dt-diff-line-num {
+  width: 3ch;
+  text-align: right;
+  padding-right: 8px;
+  color: var(--dt-text-tertiary);
+  font-size: 11px;
+  user-select: none;
+}
+
+.dt-diff-line-num.right {
+  margin-right: 4px;
+}
+
+.dt-diff-marker {
+  width: 18px;
+  flex-shrink: 0;
+  user-select: none;
+  font-size: 11px;
+}
+
+.dt-diff-content {
+  flex: 1;
+  white-space: pre;
+}
+
+.dt-diff-line.added {
+  background: var(--dt-amber-bg);
+  border-left: 2px solid var(--dt-amber);
+}
+
+.dt-diff-line.added .dt-diff-marker { color: var(--dt-amber); }
+
+.dt-diff-line.removed {
+  background: var(--dt-coral-bg);
+  border-left: 2px solid var(--dt-coral);
+}
+
+.dt-diff-line.removed .dt-diff-marker { color: var(--dt-coral); }
+
+.dt-diff-line.modified {
+  background: var(--dt-blue-bg);
+  border-left: 2px solid var(--dt-blue);
+}
+
+.dt-diff-line.modified .dt-diff-marker { color: var(--dt-blue); }
+
+.dt-diff-inline-highlight {
+  background: rgba(88, 166, 255, 0.25);
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+:root[data-theme='light'] .dt-diff-inline-highlight {
+  background: rgba(9, 105, 218, 0.18);
+}
+
+/* ========== 滚动条美化 (Webkit + Firefox) ========== */
+
+/* CodeMirror 编辑器滚动条 */
+.dt-panel .cm-editor .cm-scroller::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.dt-panel .cm-editor .cm-scroller::-webkit-scrollbar-track {
+  background: var(--dt-scrollbar-track);
+}
+
+.dt-panel .cm-editor .cm-scroller::-webkit-scrollbar-thumb {
+  background: var(--dt-scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background 120ms ease;
+}
+
+.dt-panel .cm-editor .cm-scroller::-webkit-scrollbar-thumb:hover {
+  background: var(--dt-scrollbar-thumb-hover);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+.dt-panel .cm-editor .cm-scroller {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dt-scrollbar-thumb) var(--dt-scrollbar-track);
+}
+
+/* CodeMirror 水平滚动条顶部留白 */
+.dt-panel .cm-editor .cm-scroller::-webkit-scrollbar-corner {
+  background: var(--dt-scrollbar-track);
+}
+
+/* DiffViewer 滚动条 */
+.dt-diff-viewer-body::-webkit-scrollbar {
+  width: 10px;
+}
+
+.dt-diff-viewer-body::-webkit-scrollbar-track {
+  background: var(--dt-scrollbar-track);
+}
+
+.dt-diff-viewer-body::-webkit-scrollbar-thumb {
+  background: var(--dt-scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background 120ms ease;
+}
+
+.dt-diff-viewer-body::-webkit-scrollbar-thumb:hover {
+  background: var(--dt-scrollbar-thumb-hover);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+.dt-diff-viewer-body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dt-scrollbar-thumb) var(--dt-scrollbar-track);
+}
+
+/* 工具栏横向滚动条 */
+.dt-toolbar::-webkit-scrollbar {
+  height: 6px;
+}
+
+.dt-toolbar::-webkit-scrollbar-track {
   background: transparent;
+}
+
+.dt-toolbar::-webkit-scrollbar-thumb {
+  background: var(--dt-scrollbar-thumb);
+  border-radius: 999px;
+}
+
+.dt-toolbar::-webkit-scrollbar-thumb:hover {
+  background: var(--dt-scrollbar-thumb-hover);
+}
+
+.dt-toolbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dt-scrollbar-thumb) transparent;
+}
+
+/* ========== 编辑器布局 ========== */
+.dt-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.dt-editor-wrap {
   position: relative;
-  transition: border-color 100ms ease, background 100ms ease;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.dt-hunk-checkbox:hover .dt-hunk-checkbox__visual {
-  border-color: var(--dt-purple);
+.dt-editor-cm {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.dt-hunk-checkbox__visual.is-checked {
-  background: var(--dt-purple);
-  border-color: var(--dt-purple);
+.dt-editor-cm .cm-scroller {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
 }
 
-.dt-hunk-checkbox__visual.is-checked::after {
-  content: '';
-  position: absolute;
-  left: 3px;
-  top: 0;
-  width: 4px;
-  height: 8px;
-  border: solid var(--dt-bg, #0d1117);
-  border-width: 0 1.5px 1.5px 0;
-  transform: rotate(45deg);
+.dt-editor-cm .cm-scroller::-webkit-scrollbar:horizontal {
+  height: 10px !important;
 }
 
-:root[data-theme='light'] .dt-hunk-checkbox__visual.is-checked::after {
-  border-color: #ffffff;
+.dt-editor-cm .cm-scroller::-webkit-scrollbar-track:horizontal {
+  background: transparent !important;
 }
 
-/* ========== Reviewed 行底色遮罩 ========== */
-
-.dt-panel .cm-editor .cm-line.dt-diff-line-reviewed {
-  background: rgba(0, 0, 0, 0.5) !important;
-  box-shadow: inset 0 0 0 1px rgba(188, 140, 255, 0.45);
+/* 整体页面滚动条 (滚动整个工具箱时) */
+.dt-page::-webkit-scrollbar,
+.dt-page *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
 
-:root[data-theme='light'] .dt-panel .cm-editor .cm-line.dt-diff-line-reviewed {
-  background: rgba(255, 255, 255, 0.3) !important;
-  box-shadow: inset 0 0 0 1px rgba(92, 79, 208, 0.45);
+.dt-page::-webkit-scrollbar-track,
+.dt-page *::-webkit-scrollbar-track {
+  background: var(--dt-scrollbar-track);
+}
+
+.dt-page::-webkit-scrollbar-thumb,
+.dt-page *::-webkit-scrollbar-thumb {
+  background: var(--dt-scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background 120ms ease;
+}
+
+.dt-page::-webkit-scrollbar-thumb:hover,
+.dt-page *::-webkit-scrollbar-thumb:hover {
+  background: var(--dt-scrollbar-thumb-hover);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+.dt-page,
+.dt-page * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dt-scrollbar-thumb) var(--dt-scrollbar-track);
 }

@@ -1,7 +1,10 @@
 import React from 'react';
-import { CodeOutlined, ColumnHeightOutlined, EyeOutlined, AlignLeftOutlined, ApartmentOutlined } from '@ant-design/icons';
+import {
+  CodeOutlined, ColumnHeightOutlined, EyeOutlined, AlignLeftOutlined,
+  ApartmentOutlined, MenuOutlined,
+} from '@ant-design/icons';
 import { useDiffContext } from './useDiffContext';
-import type { LayoutMode } from './types';
+import type { LayoutMode, Granularity } from './types';
 
 const LANGUAGE_LABEL: Record<string, string> = {
   json: 'JSON', yaml: 'YAML', java: 'Java', python: 'Python',
@@ -10,14 +13,13 @@ const LANGUAGE_LABEL: Record<string, string> = {
 };
 
 interface ChipProps {
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   label: string;
   active?: boolean;
   onClick: () => void;
   ariaLabel: string;
 }
 
-/** IDEA 风格 chip：非激活态图标 + 文字，激活态高亮 */
 const Chip: React.FC<ChipProps> = ({ icon, label, active, onClick, ariaLabel }) => (
   <button
     type="button"
@@ -32,22 +34,43 @@ const Chip: React.FC<ChipProps> = ({ icon, label, active, onClick, ariaLabel }) 
   </button>
 );
 
-interface ToolbarProps {
-  rightSlot?: React.ReactNode;
-}
-
-const Toolbar: React.FC<ToolbarProps> = ({ rightSlot }) => {
-  const {
-    state, setLayout, setIgnoreWhitespace, setStructuredDiff, setShowLineNumbers,
-  } = useDiffContext();
+const Toolbar: React.FC = () => {
+  const { state, setGranularity, setLayout, setIgnoreWhitespace, setStructuredDiff, setShowLineNumbers } = useDiffContext();
   const isJsonYaml = state.language === 'json' || state.language === 'yaml' || state.language === 'yml';
+
+  const granularityOptions: Array<{ value: Granularity; label: string }> = [
+    { value: 'char', label: '字符级' },
+    { value: 'word', label: '词级' },
+    { value: 'line', label: '行级' },
+  ];
+
   const layoutOptions: Array<{ value: LayoutMode; label: string; icon: React.ReactNode }> = [
     { value: 'split', label: '分栏', icon: <ColumnHeightOutlined /> },
+    { value: 'unified', label: '统一', icon: <MenuOutlined /> },
     { value: 'stacked', label: '堆叠', icon: <ApartmentOutlined /> },
   ];
 
   return (
     <div className="dt-toolbar">
+      <div className="dt-toolbar-group">
+        <span className="dt-toolbar-label">粒度</span>
+        <div className="dt-pill-group" role="radiogroup" aria-label="对比粒度">
+          {granularityOptions.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className={`dt-pill${state.granularity === opt.value ? ' is-active' : ''}`}
+              onClick={() => setGranularity(opt.value)}
+              role="radio"
+              aria-checked={state.granularity === opt.value}
+              aria-label={opt.label}
+            >
+              <span className="dt-pill-label">{opt.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="dt-toolbar-group">
         <span className="dt-toolbar-label">布局</span>
         <div className="dt-pill-group" role="radiogroup" aria-label="展示布局">
@@ -100,7 +123,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ rightSlot }) => {
             <CodeOutlined /> {LANGUAGE_LABEL[state.language] ?? state.language.toUpperCase()}
           </span>
         )}
-        {rightSlot}
       </div>
     </div>
   );

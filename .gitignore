@@ -37,6 +37,9 @@ docker-compose.override.yml
 *.log
 logs/
 
+# === Screenshots ===
+screenshots/
+
 # === AI / Agent 运行时文件 ===
 .agents/
 .atomcode/

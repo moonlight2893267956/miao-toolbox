@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Spin } from 'antd';
+import { Spin } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
 import { useDiffContext } from './useDiffContext';
 
@@ -15,7 +15,7 @@ const StatCard: React.FC = () => {
   }
 
   if (state.error) {
-    return <Alert className="dt-error" type="error" message={state.error} showIcon />;
+    return <div className="dt-stat-card dt-stat-card-muted dt-error-text">{state.error}</div>;
   }
 
   const hasText = state.leftText || state.rightText;

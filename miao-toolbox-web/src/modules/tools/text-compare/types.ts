@@ -1,9 +1,4 @@
-/**
- * 文本对照工具 — 类型定义（与后端 DTO 对齐）
- */
-
-/** 布局模式 */
-export type LayoutMode = 'split' | 'stacked';
+export type LayoutMode = 'split' | 'unified' | 'stacked';
 
 export type Granularity = 'char' | 'word' | 'line';
 
@@ -70,7 +65,8 @@ export interface DiffState {
   diffResult: DiffResult | null;
   loading: boolean;
   error: string | null;
-  reviewedHunkIds: number[];
+  currentHunkIndex: number;
+  goToHunk: number | null;
 }
 
 export type DiffAction =
@@ -85,6 +81,7 @@ export type DiffAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_DIFF_RESULT'; payload: DiffResult | null }
-  | { type: 'TOGGLE_HUNK_REVIEWED'; payload: number }
   | { type: 'SET_LEFT_FILE'; payload: { name: string; content: string } }
-  | { type: 'SET_RIGHT_FILE'; payload: { name: string; content: string } };
+  | { type: 'SET_RIGHT_FILE'; payload: { name: string; content: string } }
+  | { type: 'SET_CURRENT_HUNK_INDEX'; payload: number }
+  | { type: 'GO_TO_HUNK'; payload: number | null };

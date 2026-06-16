@@ -3,9 +3,6 @@ import type { DiffAction, DiffState, Granularity, LayoutMode } from './types';
 import { DiffContext } from './diffContext';
 import type { DiffContextValue } from './diffContext';
 
-/**
- * 文本对照工具 — 全局状态（左侧/右侧文本、配置、对比结果）
- */
 const initialState: DiffState = {
   leftText: '',
   rightText: '',
@@ -20,7 +17,8 @@ const initialState: DiffState = {
   diffResult: null,
   loading: false,
   error: null,
-  reviewedHunkIds: [],
+  currentHunkIndex: -1,
+  goToHunk: null,
 };
 
 function diffReducer(state: DiffState, action: DiffAction): DiffState {
@@ -46,31 +44,15 @@ function diffReducer(state: DiffState, action: DiffAction): DiffState {
     case 'SET_ERROR':
       return { ...state, error: action.payload, loading: false };
     case 'SET_DIFF_RESULT':
-      return { ...state, diffResult: action.payload, loading: false, error: null, reviewedHunkIds: [] };
-    case 'TOGGLE_HUNK_REVIEWED': {
-      const id = action.payload;
-      const exists = state.reviewedHunkIds.includes(id);
-      return {
-        ...state,
-        reviewedHunkIds: exists
-          ? state.reviewedHunkIds.filter((x: number) => x !== id)
-          : [...state.reviewedHunkIds, id],
-      };
-    }
+      return { ...state, diffResult: action.payload, loading: false, error: null, currentHunkIndex: -1 };
     case 'SET_LEFT_FILE':
-      return {
-        ...state,
-        leftText: action.payload.content,
-        leftLabel: action.payload.name,
-        error: null,
-      };
+      return { ...state, leftText: action.payload.content, leftLabel: action.payload.name, error: null };
     case 'SET_RIGHT_FILE':
-      return {
-        ...state,
-        rightText: action.payload.content,
-        rightLabel: action.payload.name,
-        error: null,
-      };
+      return { ...state, rightText: action.payload.content, rightLabel: action.payload.name, error: null };
+    case 'SET_CURRENT_HUNK_INDEX':
+      return { ...state, currentHunkIndex: action.payload };
+    case 'GO_TO_HUNK':
+      return { ...state, goToHunk: action.payload };
     default:
       return state;
   }
@@ -86,15 +68,10 @@ export const DiffProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setIgnoreWhitespace = useCallback((v: boolean) => dispatch({ type: 'SET_IGNORE_WHITESPACE', payload: v }), []);
   const setStructuredDiff = useCallback((v: boolean) => dispatch({ type: 'SET_STRUCTURED_DIFF', payload: v }), []);
   const setShowLineNumbers = useCallback((v: boolean) => dispatch({ type: 'SET_SHOW_LINE_NUMBERS', payload: v }), []);
-  const toggleHunkReviewed = useCallback(
-    (hunkIndex: number) => dispatch({ type: 'TOGGLE_HUNK_REVIEWED', payload: hunkIndex }),
-    [],
-  );
 
   const value: DiffContextValue = {
     state, dispatch, setLeft, setRight, setGranularity, setLayout,
     setIgnoreWhitespace, setStructuredDiff, setShowLineNumbers,
-    toggleHunkReviewed,
   };
 
   return <DiffContext.Provider value={value}>{children}</DiffContext.Provider>;

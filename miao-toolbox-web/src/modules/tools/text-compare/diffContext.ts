@@ -11,7 +11,6 @@ export interface DiffContextValue {
   setIgnoreWhitespace: (v: boolean) => void;
   setStructuredDiff: (v: boolean) => void;
   setShowLineNumbers: (v: boolean) => void;
-  toggleHunkReviewed: (hunkIndex: number) => void;
 }
 
 export const DiffContext = createContext<DiffContextValue | undefined>(undefined);
