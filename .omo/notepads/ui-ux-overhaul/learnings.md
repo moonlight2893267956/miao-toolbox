@@ -302,3 +302,109 @@
 ### 阻塞解除
 - Task 9（模态框/Drawer 动画）— 现在可以开工
 - 整站动效 token（`duration: 0.22` / `ease: easeOutExpo`）已收敛，后续任务可直接复用
+
+---
+
+## Task 10 — ToolsPage 工具卡片视觉精修
+
+**日期**: 2026-06-18
+**状态**: done
+**提交**: `style(web): ToolsPage 工具卡片视觉精修`
+
+### 改造内容
+- `.miao-tool-grid` gap 从 16px 调整为 18px（卡片间距微增，呼吸感更强）。
+- `.miao-tool-card` transition 从 `160ms ease` 改为 `200ms cubic-bezier(0.16, 1, 0.3, 1)`（easeOutExpo 变体），与全站动效语言统一。
+- `.miao-tool-card:hover` box-shadow 从 `0 8px 24px rgba(92,79,208,0.25)` 强化为 `0 12px 32px rgba(92,79,208,0.18)`（更扩散、更低不透明度，悬浮感更强但不刺眼）。
+- �色模式 hover shadow 同步调整为 `0 12px 32px rgba(111,102,232,0.20)`。
+- `.miao-tool-icon` 尺寸从 42px 微缩为 40px（与 14px radius 协调）。
+- 新增 `.miao-tool-status--available`（绿色 chip：`rgba(82,196,120,0.85)`）和 `.miao-tool-status--coming-soon`（灰色 chip：`rgba(255,255,255,0.18)` + 低对比文字）变体样式。
+- `ToolsPage.tsx` 为 `<span className="miao-tool-status">` 增加条件 className：`tool.available ? 'miao-tool-status--available' : 'miao-tool-status--coming-soon'`。
+
+### 设计决策
+- **阴影策略**：增大扩散半径（8→12px / 24→32px）同时降低不透明度（0.25→0.18），让阴影更柔和弥散而非浓重硬边。暗色模式同理（0.28→0.20）。
+- **缓动曲线**：`cubic-bezier(0.16, 1, 0.3, 1)` 是 easeOutExpo 变体，与 Task 5/8 中 framer-motion 动画一致。CSS transition 和 framer-motion 共享同一缓动 token，避免视觉割裂。
+- **状态 chip 可见性**：available 绿色 chip 使用 `rgba(82,196,120,0.85)` 而非纯色，与卡片紫色背景融合自然；coming-soon 使用极低对比灰白色（0.18/0.6），视觉上「退后一步」，与 available 形成明确层级差。
+- **className 迁移**：需在 `ToolsPage.tsx` 的 `renderToolCard` 中为 status span 增加条件 className，这是本次唯一非纯 CSS 修改。不改 HTML 结构，仅加 BEM 修饰符。
+- **不改 CSS 变量定义**：所有新值直接内联在规则中，未新增/修改 `:root` 变量。
+
+### 验证结果
+- `npx tsc -b --force`：✅ 通过
+- `npm run build`：✅ 通过（chunk size 与改造前一致）
+- CSS 无语法错误
+
+### 给后续任务的建议
+- Task 11（侧边栏 CSS 精修）可参考同一缓动曲线 `cubic-bezier(0.16, 1, 0.3, 1)` 保持全站一致。
+- 工具状态 chip 的颜色未来可抽到 CSS 变量（如 `--miao-status-available` / `--miao-status-coming-soon`），便于主题化。
+- 本次修改的 `ToolsPage.tsx` 变更极小（1 行 className 条件），不影响 Task 6 已完成的骨架逻辑。
+
+---
+
+## Task 11 — Sidebar 视觉精修（CSS）
+
+**日期**: 2026-06-18
+**状态**: done
+**提交**: `style(web): Sidebar 视觉精修`
+
+### 改造内容
+- 折叠态菜单项：`display: flex; justify-content: center; width: 40px` 实现图标居中。
+- 悬停态：展开态 `rgba(255,255,255,0.12)`，折叠态增强至 `rgba(255,255,255,0.16)`。
+- 选中态：背景从 `rgba(92,79,208,0.72)` 改为柔化 `rgba(92,79,208,0.18)`，文字色从 `#fff` 改为 `var(--miao-primary)`。暗色模式同步调整。
+- 品牌区：展开态 margin `14px 12px 12px` → `10px 10px 16px`，padding `12px` → `10px 12px`；折叠态 min-height `56px` → `52px`，margin 缩减。
+- 菜单项高度：`42px` → `44px`。
+- Sidebar 容器 transition：`width 280ms cubic-bezier(0.16, 1, 0.3, 1)`（与整站动效 token 一致）。
+- 菜单项 transition：`background 180ms ease, color 180ms ease`。
+- 品牌区 hover：新增 `background: rgba(255,255,255,0.12)` + `transition: background 180ms ease`。
+
+### 设计决策
+- **选中态柔化**：从 72% 不透明度降至 18%，主色文字在深色背景上仍有足够对比度（WCAG AA），视觉上不再"实色块"。
+- **折叠态图标居中**：用 `width: 40px` + `margin: 4px auto` 限制菜单项宽度，`justify-content: center` 居中图标。避免 antd collapsed 模式下图标偏移问题。
+- **transition 缓动统一**：Sidebar 容器宽度过渡使用 `cubic-bezier(0.16, 1, 0.3, 1)`（easeOutExpo），与 Task 5/8 的动效 token 一致。菜单项 hover 用更轻量的 `ease`。
+- **不修改 `--miao-sidebar` 变量值**：遵循任务约束，仅覆盖选择器样式。
+
+### 验证结果
+- `npx tsc -b --force`：✅ 通过
+- `npm run build`：✅ 通过（dist 体积无变化）
+- CSS 无语法错误
+
+### 给后续任务的建议
+- 折叠态 `width: 40px` 是硬编码值，若 antd `<Sider>` 的 `collapsedWidth` 变化需同步调整。
+- 选中态背景 `rgba(92,79,208,0.18)` 中的 RGB 值 `92,79,208` 与 `--miao-primary: #5c4fd0` 对应，若主色变更需同步更新两处。
+- 暗色模式选中态用 `rgba(162,155,254,0.18)`，对应暗色主色 `#a29bfe`。
+
+### 阻塞解除
+- F1-F4（前端页面视觉精修）— 现在可以开工
+
+---
+
+## Task 9 — AppLayout AnimatePresence 路由切换动画
+
+**日期**: 2026-06-18
+**状态**: done
+**提交**: `feat(web): AppLayout 路由切换动画`
+
+### 改造内容
+- 引入 `useLocation` from `react-router-dom`，获取当前路由 pathname 作为 `motion.div` 的 `key`。
+- 引入 `AnimatePresence, motion` from `framer-motion`。
+- 引入 `useReducedMotion` hook（Task 3 创建）。
+- 用 `<AnimatePresence mode="wait">` 包裹 `<Outlet />`，外层 `motion.div` 以 `key={location.pathname}` 驱动 exit/enter 过渡。
+- 动画参数：`initial={{ opacity: 0, y: 6 }}` / `animate={{ opacity: 1, y: 0 }}` / `exit={{ opacity: 0, y: -6 }}`。
+- `transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}` — 与 Task 5/8 保持统一动效语言。
+- `useReducedMotion()` 返回 true 时，y 偏移降为 0、duration 降为 0，完全尊重用户动效偏好。
+- 保留 Layout / Sidebar / Content 原有结构不变。
+
+### 技术要点
+- `AnimatePresence mode="wait"` 确保旧路由 exit 完成后新路由才 enter，避免两个页面同时渲染导致的 layout shift。
+- `motion.div` 的 `key` 绑定 `location.pathname` 是 framer-motion 路由过渡的标准模式：pathname 变化 → React 卸载旧 key 挂载新 key → AnimatePresence 捕获 exit/enter。
+- y 偏移用 6px（而非 Task 8 的 8px），因为页面内容区域通常比 AuthShell 大，过大的位移会产生明显的"弹跳"感。
+- exit 动画的 y 方向为负值（`y: -6`），形成"向上淡出"的视觉效果，与 enter 的"从下淡入"对称。
+- `useReducedMotion` 动态派生 `yShift` 和 `duration` 常量，JSX 保持简洁——与 Task 8 AuthShell 完全一致的模式。
+
+### 验证结果
+- `npx tsc -b`：✅ 通过
+- `npm run build`：✅ 通过
+- `npx eslint src/components/layout/AppLayout.tsx`：✅ 0 错误
+
+### 给后续任务的建议
+- 全站路由过渡已就位，所有受保护路由（通过 AppLayout 渲染的页面）自动获得 exit/enter 动画。
+- 若后续新增的页面组件自身也有 `motion.div` 包装，注意不要与 AnimatePresence 产生嵌套冲突——页面级动画由 AppLayout 统一处理，组件级动画用 `motion.div` 即可（不需要再套 AnimatePresence）。
+- 动效 token 收敛：`duration: 0.22` / `ease: [0.16, 1, 0.3, 1]` / `y: 6-8px`，后续任何新动画都应沿用。

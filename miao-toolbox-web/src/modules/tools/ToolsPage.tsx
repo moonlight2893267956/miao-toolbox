@@ -43,7 +43,7 @@ const ToolsPage: React.FC = () => {
       >
         <span className="miao-tool-card-top">
           <span className="miao-tool-icon"><Icon /></span>
-          <span className="miao-tool-status">{tool.status}</span>
+          <span className={`miao-tool-status ${tool.available ? 'miao-tool-status--available' : 'miao-tool-status--coming-soon'}`}>{tool.status}</span>
         </span>
         <span>
           <h3>{tool.title}</h3>
