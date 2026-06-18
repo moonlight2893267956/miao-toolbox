@@ -1,0 +1,6 @@
+getToolByKey(non-existent) = undefined
+getToolByKey("") = undefined
+getToolsByCategory(unknown).length = 0
+getToolsByCategory("").length = 0
+getToolsByCategory(AVAILABLE).length = 0
+total tools = 4
