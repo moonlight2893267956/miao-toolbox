@@ -8,14 +8,20 @@ const StatCard: React.FC = () => {
 
   if (state.loading) {
     return (
-      <div className="dt-stat-card dt-stat-card-muted">
-        <span className="dt-loading"><Spin size="small" /> 正在对比...</span>
+      <div className="tc-stat-card">
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--tc-text-secondary)' }}>
+          <Spin size="small" /> 正在对比...
+        </span>
       </div>
     );
   }
 
   if (state.error) {
-    return <div className="dt-stat-card dt-stat-card-muted dt-error-text">{state.error}</div>;
+    return (
+      <div className="tc-stat-card" style={{ color: 'var(--tc-accent-removed)' }}>
+        {state.error}
+      </div>
+    );
   }
 
   const hasText = state.leftText || state.rightText;
@@ -23,8 +29,10 @@ const StatCard: React.FC = () => {
   if (!state.diffResult || !state.diffResult.hunks || state.diffResult.hunks.length === 0) {
     if (hasText) {
       return (
-        <div className="dt-stat-card dt-stat-card-muted">
-          <span className="dt-stat-empty"><CheckCircleOutlined /> 无差异</span>
+        <div className="tc-stat-card">
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--tc-cool-primary)' }}>
+            <CheckCircleOutlined /> 无差异
+          </span>
         </div>
       );
     }
@@ -34,18 +42,18 @@ const StatCard: React.FC = () => {
   const stats = state.diffResult.statistics;
 
   return (
-    <div className="dt-stat-card">
-      <div className="dt-stat-item">
-        <span className="dt-stat-num added">+{stats.additions}</span>
-        <span className="dt-stat-label">新增</span>
+    <div className="tc-stat-card">
+      <div className="tc-stat-item">
+        <span className="tc-stat-num added">+{stats.additions}</span>
+        <span className="tc-stat-label">新增</span>
       </div>
-      <div className="dt-stat-item">
-        <span className="dt-stat-num removed">-{stats.deletions}</span>
-        <span className="dt-stat-label">删除</span>
+      <div className="tc-stat-item">
+        <span className="tc-stat-num removed">-{stats.deletions}</span>
+        <span className="tc-stat-label">删除</span>
       </div>
-      <div className="dt-stat-item">
-        <span className="dt-stat-num modified">~{stats.modifications}</span>
-        <span className="dt-stat-label">修改</span>
+      <div className="tc-stat-item">
+        <span className="tc-stat-num modified">~{stats.modifications}</span>
+        <span className="tc-stat-label">修改</span>
       </div>
     </div>
   );

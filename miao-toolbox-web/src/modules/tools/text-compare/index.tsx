@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { CodeOutlined } from '@ant-design/icons';
+import { motion } from 'framer-motion';
+import { SplitViewIcon } from './icons';
 import { DiffProvider } from './DiffProvider';
 import { useDiffContext } from './useDiffContext';
 import Toolbar from './Toolbar';
@@ -46,30 +47,62 @@ const DiffContent: React.FC = () => {
 
   return (
     <>
-      <Toolbar />
+      <motion.div 
+        className="tc-toolbar-float"
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        <Toolbar />
+      </motion.div>
 
-      <div className="dt-meta-row">
+      <motion.div 
+        className="tc-stats-float"
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.3 }}
+      >
         <StatCard />
-      </div>
+      </motion.div>
 
-      {isSplit ? (
-        <div className="dt-panels">
-          <DiffPanel side="left" />
-          <DiffPanel side="right" />
-        </div>
-      ) : isStacked ? (
-        <div className="dt-panels-stacked">
-          <DiffPanel side="left" />
-          <div style={{ marginTop: 12 }}>
-            <DiffPanel side="right" />
-          </div>
-        </div>
-      ) : (
-        <div className="dt-panels">
-          <DiffPanel side="left" />
-          <DiffPanel side="right" />
-        </div>
-      )}
+      <div className={`tc-panels-container ${isStacked ? 'tc-stacked' : ''}`}>
+        {isSplit ? (
+          <>
+            <div className="tc-panel-zone tc-panel-left">
+              <DiffPanel side="left" />
+            </div>
+            <div className="tc-divider">
+              <div className="tc-divider-glow" />
+              <div className="tc-divider-line" />
+            </div>
+            <div className="tc-panel-zone tc-panel-right">
+              <DiffPanel side="right" />
+            </div>
+          </>
+        ) : isStacked ? (
+          <>
+            <div className="tc-panel-zone tc-panel-left tc-full-width">
+              <DiffPanel side="left" />
+            </div>
+            <div className="tc-panel-zone tc-panel-right tc-full-width">
+              <DiffPanel side="right" />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="tc-panel-zone tc-panel-left">
+              <DiffPanel side="left" />
+            </div>
+            <div className="tc-divider">
+              <div className="tc-divider-glow" />
+              <div className="tc-divider-line" />
+            </div>
+            <div className="tc-panel-zone tc-panel-right">
+              <DiffPanel side="right" />
+            </div>
+          </>
+        )}
+      </div>
 
       <DiffViewer />
     </>
@@ -79,18 +112,50 @@ const DiffContent: React.FC = () => {
 const TextComparePage: React.FC = () => {
   return (
     <DiffProvider>
-      <div className="miao-page dt-page">
-        <header className="dt-page-header">
-          <div>
-            <div className="dt-page-eyebrow">工具 · 文本对照</div>
-            <h1 className="dt-page-title">文本对照</h1>
-            <p className="dt-page-description">
-              粘贴或上传两段文本，支持字符级、词级、行级粒度对比，自动识别语言类型。
+      <div className="tc-page">
+        {/* Background Effects */}
+        <div className="tc-bg-effects" aria-hidden="true">
+          <div className="tc-bg-gradient-left" />
+          <div className="tc-bg-gradient-right" />
+          <div className="tc-bg-noise" />
+        </div>
+
+        {/* Header */}
+        <motion.header 
+          className="tc-header"
+          initial={{ opacity: 0, y: -30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <div className="tc-header-content">
+            <div className="tc-header-badge">
+              <SplitViewIcon />
+              <span>DIFF TOOL</span>
+            </div>
+            <h1 className="tc-header-title">
+              <span className="tc-title-warm">文本</span>
+              <span className="tc-title-divider" />
+              <span className="tc-title-cool">对照</span>
+            </h1>
+            <p className="tc-header-desc">
+              字符级 · 词级 · 行级 粒度对比
+              <br />
+              自动识别代码语言，精准定位每一处差异
             </p>
           </div>
-          <span className="dt-page-badge"><CodeOutlined /> Dark Developer&apos;s Studio</span>
-        </header>
-        <DiffContent />
+          
+          <div className="tc-header-visual">
+            <div className="tc-visual-blocks">
+              <div className="tc-block tc-block-amber" />
+              <div className="tc-block tc-block-cyan" />
+            </div>
+          </div>
+        </motion.header>
+
+        {/* Main Content */}
+        <main className="tc-main">
+          <DiffContent />
+        </main>
       </div>
     </DiffProvider>
   );

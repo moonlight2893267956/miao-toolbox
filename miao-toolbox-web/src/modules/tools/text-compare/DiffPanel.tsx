@@ -37,29 +37,35 @@ const DiffPanel: React.FC<{ side: 'left' | 'right' }> = ({ side }) => {
   };
 
   return (
-    <div className="dt-panel">
-      <div className="dt-panel-header">
-        <div className="dt-panel-label">
-          <span className={`dt-side-tag ${side}`}>{side === 'left' ? 'A' : 'B'}</span>
-          <span className="dt-panel-title">{label}</span>
-          {text && <span className="dt-panel-meta"><FileTextOutlined /> {text.split('\n').length} 行</span>}
+    <div className={`tc-panel tc-panel-${side}`}>
+      <div className="tc-panel-header">
+        <div className="tc-panel-label">
+          <span className="tc-panel-tag">{side === 'left' ? 'A' : 'B'}</span>
+          <span className="tc-panel-title">{label}</span>
+          {text && (
+            <span className="tc-panel-meta">
+              <FileTextOutlined /> {text.split('\n').length} 行
+            </span>
+          )}
         </div>
         <Upload {...uploadProps}>
-          <button className="dt-upload-btn">
-            <CloudUploadOutlined /> 上传文件
+          <button className="tc-btn">
+            <CloudUploadOutlined /> 上传
           </button>
         </Upload>
       </div>
-      <CodeEditor
-        value={text}
-        onChange={setText}
-        language={state.language}
-        showLineNumbers={state.showLineNumbers}
-        placeholder={side === 'left' ? '在此粘贴原文或旧版本代码...' : '在此粘贴对比文本或新版本代码...'}
-        minRows={16}
-        maxRows={36}
-        lineWrapping={state.layout !== 'split'}
-      />
+      <div className="tc-editor-area">
+        <CodeEditor
+          value={text}
+          onChange={setText}
+          language={state.language}
+          showLineNumbers={state.showLineNumbers}
+          placeholder={side === 'left' ? '粘贴原文或旧版本...' : '粘贴对比文本或新版本...'}
+          minRows={16}
+          maxRows={52}
+          lineWrapping={state.layout !== 'split'}
+        />
+      </div>
     </div>
   );
 };

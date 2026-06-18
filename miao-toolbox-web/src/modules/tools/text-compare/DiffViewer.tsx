@@ -40,7 +40,7 @@ function renderChangeContent(change: DiffChange): React.ReactNode {
       const oldW = oldWords[i] ?? '';
       const newW = newWords[i] ?? '';
       if (oldW !== newW) {
-        spans.push(<span key={keyIdx++} className="dt-diff-inline-highlight">{newW}</span>);
+        spans.push(<span key={keyIdx++} className="tc-diff-highlight">{newW}</span>);
       } else {
         spans.push(<span key={keyIdx++}>{newW}</span>);
       }
@@ -58,24 +58,22 @@ const DiffBlock: React.FC<{ hunk: DiffHunk; index: number; isActive: boolean }> 
   let rightOffset = 0;
 
   return (
-    <div className={`dt-diff-block${isActive ? ' is-active' : ''}`} data-hunk-index={index}>
-      <div className="dt-diff-block-header">
-        <span className="dt-diff-block-ref">{formatLineRef(hunk)}</span>
-        <span className="dt-diff-block-badge">
-          <span className={`dt-diff-type-tag ${TYPE_CLASS[hunk.type]}`}>{TYPE_LABEL[hunk.type]}</span>
-        </span>
+    <div className={`tc-diff-block${isActive ? ' is-active' : ''}`} data-hunk-index={index}>
+      <div className="tc-diff-block-header">
+        <span>{formatLineRef(hunk)}</span>
+        <span className={`tc-diff-type ${TYPE_CLASS[hunk.type]}`}>{TYPE_LABEL[hunk.type]}</span>
       </div>
-      <div className="dt-diff-block-body">
+      <div>
         {changes.map((change, i) => {
           const leftNum = change.type === 'added' ? '' : String(hunk.oldStart + leftOffset++);
           const rightNum = change.type === 'removed' ? '' : String(hunk.newStart + rightOffset++);
           const changeType = change.type === 'modified' ? 'modified' : change.type;
           return (
-            <div key={i} className={`dt-diff-line ${TYPE_CLASS[changeType as HunkType] ?? ''}`}>
-              <span className="dt-diff-line-num left">{leftNum}</span>
-              <span className="dt-diff-line-num right">{rightNum}</span>
-              <span className="dt-diff-marker">{MARKER[change.type]}</span>
-              <span className="dt-diff-content">{renderChangeContent(change)}</span>
+            <div key={i} className={`tc-diff-line ${TYPE_CLASS[changeType as HunkType] ?? ''}`}>
+              <span className="tc-diff-line-num">{leftNum}</span>
+              <span className="tc-diff-line-num right">{rightNum}</span>
+              <span className="tc-diff-marker">{MARKER[change.type]}</span>
+              <span className="tc-diff-content">{renderChangeContent(change)}</span>
             </div>
           );
         })}
@@ -117,16 +115,18 @@ const DiffViewer: React.FC = () => {
 
   if (state.loading) {
     return (
-      <div className="dt-diff-viewer">
-        <div className="dt-diff-viewer-title">对比中...</div>
+      <div className="tc-diff-viewer">
+        <div className="tc-diff-header">对比中...</div>
       </div>
     );
   }
 
   if (state.error) {
     return (
-      <div className="dt-diff-viewer">
-        <div className="dt-diff-viewer-title">对比失败：{state.error}</div>
+      <div className="tc-diff-viewer">
+        <div className="tc-diff-header" style={{ color: 'var(--tc-accent-removed)' }}>
+          对比失败：{state.error}
+        </div>
       </div>
     );
   }
@@ -137,8 +137,10 @@ const DiffViewer: React.FC = () => {
     const hasInput = state.leftText || state.rightText;
     if (hasInput) {
       return (
-        <div className="dt-diff-viewer">
-          <div className="dt-diff-viewer-empty">无差异</div>
+        <div className="tc-diff-viewer">
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--tc-text-secondary)' }}>
+            无差异
+          </div>
         </div>
       );
     }
@@ -147,28 +149,28 @@ const DiffViewer: React.FC = () => {
 
   let visibleIndex = 0;
   return (
-    <div className="dt-diff-viewer" ref={viewerRef}>
-      <div className="dt-diff-viewer-title">
+    <div className="tc-diff-viewer" ref={viewerRef}>
+      <div className="tc-diff-header">
         <span>差异结果 · 共 {totalCount} 处</span>
-        <div className="dt-diff-nav">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
             type="button"
-            className="dt-nav-btn"
+            className="tc-btn"
             onClick={handlePrevHunk}
             aria-label="上一处差异"
           >↑</button>
-          <span className="dt-diff-nav-label">
+          <span style={{ fontFamily: 'var(--tc-font-mono)', fontSize: 13 }}>
             {state.currentHunkIndex >= 0 ? `${state.currentHunkIndex + 1}/${totalCount}` : `${totalCount}`}
           </span>
           <button
             type="button"
-            className="dt-nav-btn"
+            className="tc-btn"
             onClick={handleNextHunk}
             aria-label="下一处差异"
           >↓</button>
         </div>
       </div>
-      <div className="dt-diff-viewer-body">
+      <div className="tc-diff-body">
         {hunks.map((hunk, i) => {
           if (hunk.type === 'unchanged') return null;
           const idx = visibleIndex++;

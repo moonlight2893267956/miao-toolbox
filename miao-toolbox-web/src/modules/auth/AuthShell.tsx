@@ -1,7 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import logoImg from '../../assets/logo.png';
-import useReducedMotion from '../../hooks/useReducedMotion';
 
 interface AuthShellProps {
   title: string;
@@ -24,17 +22,8 @@ const AuthShell: React.FC<AuthShellProps> = ({
   footnote = 'miao-toolbox',
   panelClassName,
 }) => {
-  const reducedMotion = useReducedMotion();
-  const initialY = reducedMotion ? 0 : 8;
-  const duration = reducedMotion ? 0 : 0.22;
-
   return (
-    <motion.main
-      className="miao-auth-page"
-      initial={{ opacity: 0, y: initialY }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration, ease: [0.16, 1, 0.3, 1] }}
-    >
+    <main className="miao-auth-page">
       <section className="miao-auth-brand" aria-hidden="true">
         <div>
           <img src={logoImg} alt="阿渺工具箱" className="miao-brand-mark-img" />
@@ -64,7 +53,7 @@ const AuthShell: React.FC<AuthShellProps> = ({
           {children}
         </div>
       </section>
-    </motion.main>
+    </main>
   );
 };
 

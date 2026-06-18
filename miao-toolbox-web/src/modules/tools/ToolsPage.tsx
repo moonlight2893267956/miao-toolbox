@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Input, Space, Tag, Typography, message } from 'antd';
-import { RightOutlined, SearchOutlined } from '@ant-design/icons';
+import { Input, message } from 'antd';
+import { SearchOutlined, ArrowRightOutlined } from '@ant-design/icons';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toolsRegistry, getToolsByCategory } from './registry';
 import type { ToolMeta } from './registry';
-
-const { Text } = Typography;
 
 const ToolsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -32,105 +31,227 @@ const ToolsPage: React.FC = () => {
     }
   };
 
-  const renderToolCard = (tool: ToolMeta) => {
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08,
+        delayChildren: 0.1,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 30, scale: 0.95 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: 0.5,
+        ease: [0.16, 1, 0.3, 1],
+      },
+    },
+  };
+
+  const ToolCard: React.FC<{ tool: ToolMeta; featured?: boolean }> = ({ tool, featured = false }) => {
+    const cardRef = useRef<HTMLButtonElement>(null);
+    const [transform, setTransform] = useState('perspective(1000px) rotateX(0deg) rotateY(0deg)');
     const Icon = tool.icon;
+
+    const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
+      if (!cardRef.current) return;
+      const rect = cardRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const rotateX = (y - centerY) / 20;
+      const rotateY = (centerX - x) / 20;
+      setTransform(`perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`);
+    };
+
+    const handleMouseLeave = () => {
+      setTransform('perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)');
+    };
+
     return (
-      <button
-        key={tool.key}
+      <motion.button
+        ref={cardRef}
         type="button"
-        className="miao-tool-card"
+        className={`miao-bento-card ${featured ? 'miao-bento-card--featured' : ''} ${tool.available ? '' : 'miao-bento-card--soon'}`}
+        style={{ transform, transition: 'transform 0.15s ease-out' }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
         onClick={() => handleToolClick(tool.path, tool.title)}
+        variants={itemVariants}
+        whileTap={{ scale: 0.98 }}
       >
-        <span className="miao-tool-card-top">
-          <span className="miao-tool-icon"><Icon /></span>
-          <span className={`miao-tool-status ${tool.available ? 'miao-tool-status--available' : 'miao-tool-status--coming-soon'}`}>{tool.status}</span>
-        </span>
-        <span>
-          <h3>{tool.title}</h3>
-          <p>{tool.description}</p>
-          <span className="miao-tool-meta">
-            {tool.tags.map((tag) => (
-              <span key={tag} className="miao-tool-pill">{tag}</span>
-            ))}
-          </span>
-        </span>
-        <span className="miao-tool-card-footer">
-          <Tag color="default" style={{ marginInlineEnd: 0 }}>AI Tool</Tag>
-          <span
-            className="miao-tool-open"
-            aria-label={`打开${tool.title}`}
-          >
-            <RightOutlined />
-          </span>
-        </span>
-      </button>
+        <div className="miao-bento-card-glow" style={{ '--glow-color': tool.accentColor } as React.CSSProperties} />
+        <div className="miao-bento-card-content">
+          <div className="miao-bento-card-header">
+            <span className="miao-bento-icon" style={{ background: tool.iconBg }}>
+              <Icon />
+            </span>
+            <span className={`miao-bento-status ${tool.available ? 'miao-bento-status--live' : 'miao-bento-status--soon'}`}>
+              {tool.available ? 'LIVE' : 'SOON'}
+            </span>
+          </div>
+          <div className="miao-bento-card-body">
+            <h3>{tool.title}</h3>
+            <p>{tool.description}</p>
+            <div className="miao-bento-tags">
+              {tool.tags.map((tag) => (
+                <span key={tag} className="miao-bento-tag">{tag}</span>
+              ))}
+            </div>
+          </div>
+          <div className="miao-bento-card-footer">
+            <span className="miao-bento-action">
+              {tool.available ? '打开工具' : '敬请期待'}
+              <ArrowRightOutlined className="miao-bento-arrow" />
+            </span>
+          </div>
+        </div>
+      </motion.button>
     );
   };
 
   return (
-    <div>
-      <header className="miao-page-header">
-        <div>
-          <div className="miao-page-eyebrow">工具列表</div>
-          <h1 className="miao-page-title">今天想让 AI 帮你做点什么？</h1>
-          <p className="miao-page-description">
-            常用能力集中在这里。后续接入新的模型或供应商时，入口保持一致，密钥和访问控制留在服务端。
-          </p>
+    <div className="miao-editorial-page">
+      {/* Hero Section */}
+      <section className="miao-editorial-hero">
+        <div className="miao-editorial-hero-bg" aria-hidden="true">
+          <div className="miao-editorial-noise" />
+          <div className="miao-editorial-gradient-orb orb-1" />
+          <div className="miao-editorial-gradient-orb orb-2" />
         </div>
-        <div className="miao-tools-toolbar">
-          <Input
-            allowClear
-            prefix={<SearchOutlined />}
-            placeholder="搜索工具"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ width: 'min(220px, 100%)' }}
-          />
+        
+        <div className="miao-editorial-hero-content">
+          <motion.div 
+            className="miao-editorial-hero-label"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+          >
+            <span className="miao-editorial-pill">AI TOOLBOX</span>
+          </motion.div>
+          
+          <motion.h1
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          >
+            探索 AI
+            <br />
+            <span className="miao-editorial-highlight">无限可能</span>
+          </motion.h1>
+          
+          <motion.p 
+            className="miao-editorial-hero-subtitle"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.4 }}
+          >
+            精心策划的 AI 工具集合，
+            <br />
+            让创意与效率触手可及。
+          </motion.p>
+          
+          <motion.div 
+            className="miao-editorial-search"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+          >
+            <SearchOutlined className="miao-editorial-search-icon" />
+            <Input
+              allowClear
+              placeholder="搜索工具..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="miao-editorial-search-input"
+              variant="borderless"
+            />
+          </motion.div>
         </div>
-      </header>
 
-      <section className="miao-quick-panel" aria-label="工具箱概览">
-        <Card className="miao-side-card">
-          <Space direction="vertical" size={8}>
-            <Text type="secondary">最近状态</Text>
-            <Text strong style={{ fontSize: 18 }}>网关、认证和请求签名已启用</Text>
-            <Text type="secondary">
-              所有 AI 请求会通过服务端代理层转发，前端只保留短期访问凭据。
-            </Text>
-          </Space>
-        </Card>
-        <div className="miao-stat-row">
-          <div className="miao-stat">
-            <strong>{toolsRegistry.length}</strong>
-            <span>工具入口</span>
+        <motion.div 
+          className="miao-editorial-stats"
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.7, delay: 0.5 }}
+        >
+          <div className="miao-editorial-stat">
+            <span className="miao-editorial-stat-number">{String(toolsRegistry.length).padStart(2, '0')}</span>
+            <span className="miao-editorial-stat-label">工具</span>
           </div>
-          <div className="miao-stat">
-            <strong>{getToolsByCategory('available').length}</strong>
-            <span>已可用</span>
+          <div className="miao-editorial-stat-divider" />
+          <div className="miao-editorial-stat">
+            <span className="miao-editorial-stat-number">{String(getToolsByCategory('available').length).padStart(2, '0')}</span>
+            <span className="miao-editorial-stat-label">可用</span>
           </div>
-          <div className="miao-stat">
-            <strong>JWT</strong>
-            <span>认证模式</span>
+          <div className="miao-editorial-stat-divider" />
+          <div className="miao-editorial-stat">
+            <span className="miao-editorial-stat-number">01</span>
+            <span className="miao-editorial-stat-label">平台</span>
           </div>
-        </div>
+        </motion.div>
       </section>
 
-      {availableTools.length > 0 && (
-        <section aria-label="已可用工具">
-          <h2 style={{ fontSize: 16, fontWeight: 600, margin: '24px 0 12px' }}>已可用</h2>
-          <section className="miao-tool-grid" aria-label="AI 工具">
-            {availableTools.map(renderToolCard)}
-          </section>
-        </section>
-      )}
+      {/* Bento Grid Section */}
+      <AnimatePresence mode="wait">
+        {filteredTools.length > 0 && (
+          <motion.section 
+            className="miao-bento-section"
+            initial="hidden"
+            animate="visible"
+            variants={containerVariants}
+          >
+            {availableTools.length > 0 && (
+              <div className="miao-bento-category">
+                <motion.h2 variants={itemVariants} className="miao-bento-category-title">
+                  <span className="miao-bento-category-indicator" />
+                  已上线
+                </motion.h2>
+                <div className="miao-bento-grid">
+                  {availableTools.map((tool) => (
+                    <ToolCard key={tool.key} tool={tool} featured={tool.key === 'text-compare'} />
+                  ))}
+                </div>
+              </div>
+            )}
 
-      {comingSoonTools.length > 0 && (
-        <section aria-label="即将接入工具">
-          <h2 style={{ fontSize: 16, fontWeight: 600, margin: '24px 0 12px' }}>即将接入</h2>
-          <section className="miao-tool-grid" aria-label="AI 工具">
-            {comingSoonTools.map(renderToolCard)}
-          </section>
-        </section>
+            {comingSoonTools.length > 0 && (
+              <div className="miao-bento-category">
+                <motion.h2 variants={itemVariants} className="miao-bento-category-title">
+                  <span className="miao-bento-category-indicator miao-bento-category-indicator--soon" />
+                  即将推出
+                </motion.h2>
+                <div className="miao-bento-grid miao-bento-grid--soon">
+                  {comingSoonTools.map((tool) => (
+                    <ToolCard key={tool.key} tool={tool} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.section>
+        )}
+      </AnimatePresence>
+
+      {filteredTools.length === 0 && (
+        <motion.div 
+          className="miao-editorial-empty"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+        >
+          <p>未找到匹配的工具</p>
+          <button onClick={() => setSearch('')} className="miao-editorial-empty-btn">
+            清除搜索
+          </button>
+        </motion.div>
       )}
     </div>
   );

@@ -10,9 +10,7 @@ const { Content } = Layout;
 const AppLayout: React.FC = () => {
   const location = useLocation();
   const reducedMotion = useReducedMotion();
-
-  const yShift = reducedMotion ? 0 : 6;
-  const duration = reducedMotion ? 0 : 0.22;
+  const dur = reducedMotion ? 0 : 0.18;
 
   return (
     <Layout className="miao-shell">
@@ -22,10 +20,11 @@ const AppLayout: React.FC = () => {
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0, y: yShift }}
+              initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -yShift }}
-              transition={{ duration, ease: [0.16, 1, 0.3, 1] }}
+              exit={reducedMotion ? { opacity: 1 } : { opacity: 0 }}
+              transition={{ duration: dur, ease: [0.25, 0.1, 0.25, 1] }}
+              style={{ minHeight: '100%' }}
             >
               <Outlet />
             </motion.div>

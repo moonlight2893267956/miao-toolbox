@@ -36,6 +36,10 @@ export interface ToolMeta {
   category: ToolCategory;
   /** 是否已可用（`category === 'available'` 的便捷布尔） */
   available: boolean;
+  /** 强调色（用于光晕和交互反馈） */
+  accentColor: string;
+  /** 图标背景色 */
+  iconBg: string;
 }
 
 /**
@@ -48,46 +52,54 @@ export const toolsRegistry: ToolMeta[] = [
   {
     key: 'translate',
     title: '智能翻译',
-    description: '面向日常写作和资料整理的多语言翻译入口。',
+    description: '面向日常写作和资料整理的多语言翻译入口。支持中英日韩及欧洲主要语言，保留原文语境与语气。',
     icon: TranslationOutlined,
     status: '可用',
     tags: ['文本', '多语言'],
     path: null,
     category: 'coming-soon',
     available: false,
+    accentColor: '#6366f1',
+    iconBg: 'rgba(99,102,241,0.12)',
   },
   {
     key: 'text-compare',
     title: '文本对照',
-    description: '粘贴或上传两段文本，支持字符/词/行级粒度对比，自动识别语言类型。',
+    description: '粘贴或上传两段文本，支持字符/词/行级粒度对比，自动识别语言类型并高亮差异。',
     icon: DiffOutlined,
     status: '可用',
-    tags: ['对比', '代码'],
+    tags: ['对比', '代码', 'Diff'],
     path: '/tools/text-compare',
     category: 'available',
     available: true,
+    accentColor: '#00d4aa',
+    iconBg: 'rgba(0,212,170,0.12)',
   },
   {
     key: 'image',
     title: '文生图',
-    description: '把提示词转成图片素材，适合封面、配图和灵感探索。',
+    description: '把提示词转成图片素材，适合封面、配图和灵感探索。支持多种风格与尺寸输出。',
     icon: PictureOutlined,
     status: '即将接入',
-    tags: ['图像', '创作'],
+    tags: ['图像', '创作', 'AIGC'],
     path: null,
     category: 'coming-soon',
     available: false,
+    accentColor: '#f59e0b',
+    iconBg: 'rgba(245,158,11,0.12)',
   },
   {
     key: 'voice',
     title: '文生语音',
-    description: '生成自然语音，用于试听、脚本样稿和轻量内容制作。',
+    description: '生成自然语音，用于试听、脚本样稿和轻量内容制作。支持多语种与情感调节。',
     icon: AudioOutlined,
     status: '即将接入',
-    tags: ['语音', '内容'],
+    tags: ['语音', '内容', 'TTS'],
     path: null,
     category: 'coming-soon',
     available: false,
+    accentColor: '#ec4899',
+    iconBg: 'rgba(236,72,153,0.12)',
   },
 ];
 

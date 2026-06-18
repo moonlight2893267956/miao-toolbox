@@ -89,22 +89,40 @@ const CodeEditor = forwardRef<{ view: EditorView | null }, CodeEditorProps>(({
         }
       }),
       EditorView.theme({
-        '&': { height: '100%', fontSize: '13px', backgroundColor: 'transparent' },
-        '.cm-scroller': { fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace' },
-        '.cm-gutters': { borderRight: 'none', backgroundColor: 'transparent' },
+        '&': {
+          height: '100%',
+          fontSize: '13px',
+          backgroundColor: 'var(--tc-editor-bg, transparent)',
+          overflow: 'hidden',
+        },
+        '.cm-scroller': {
+          fontFamily: 'var(--tc-font-mono, ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace)',
+          overflow: 'auto',
+        },
+        '.cm-gutters': {
+          borderRight: '1px solid var(--tc-border, transparent)',
+          backgroundColor: 'var(--tc-editor-gutter-bg, transparent)',
+        },
         '.cm-lineNumbers .cm-gutterElement': {
-          color: 'var(--dt-editor-muted, var(--ant-color-text-tertiary))',
-          fontSize: '11px', fontWeight: '500', paddingLeft: '12px',
+          color: 'var(--tc-text-tertiary, var(--dt-editor-muted, var(--ant-color-text-tertiary)))',
+          fontSize: '12px',
+          fontWeight: '500',
+          minWidth: '44px',
+          paddingLeft: '14px',
+          paddingRight: '12px',
+          textAlign: 'right',
         },
         '.cm-content': {
-          padding: '16px 0 16px 8px',
-          caretColor: 'var(--dt-text, var(--ant-color-text))',
+          minWidth: 'max-content',
+          padding: '14px 24px 18px 10px',
+          caretColor: 'var(--tc-text, var(--dt-text, var(--ant-color-text)))',
           backgroundColor: 'transparent',
         },
+        '.cm-line': { padding: '0 10px', whiteSpace: 'pre' },
         '.cm-activeLine': { backgroundColor: 'transparent' },
-        '.cm-activeLineGutter': { backgroundColor: 'transparent' },
+        '.cm-activeLineGutter': { backgroundColor: 'var(--tc-editor-gutter-bg, transparent)' },
         '.cm-foldGutter': { cursor: 'pointer' },
-        '.cm-foldPlaceholder': { color: 'var(--dt-editor-muted, var(--ant-color-text-tertiary))' },
+        '.cm-foldPlaceholder': { color: 'var(--tc-text-tertiary, var(--dt-editor-muted, var(--ant-color-text-tertiary)))' },
       }),
     ];
 
