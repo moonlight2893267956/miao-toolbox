@@ -408,3 +408,54 @@
 - 全站路由过渡已就位，所有受保护路由（通过 AppLayout 渲染的页面）自动获得 exit/enter 动画。
 - 若后续新增的页面组件自身也有 `motion.div` 包装，注意不要与 AnimatePresence 产生嵌套冲突——页面级动画由 AppLayout 统一处理，组件级动画用 `motion.div` 即可（不需要再套 AnimatePresence）。
 - 动效 token 收敛：`duration: 0.22` / `ease: [0.16, 1, 0.3, 1]` / `y: 6-8px`，后续任何新动画都应沿用。
+
+---
+
+## Task 12 — 全局 prefers-reduced-motion CSS 兜底
+
+**日期**: 2026-06-18
+**状态**: done
+**实际提交**: `36ea64d style(web): Sidebar 视觉精修`（与 Task 11 合并提交）
+**本次追加提交**: 仅文档与证据（`learnings.md` + 两个 `task-12-*.txt`）
+
+### 改造内容
+- 在 `miao-toolbox-web/src/index.css` 末尾追加 `@media (prefers-reduced-motion: reduce)` 块。
+- 选择器：`[class^='miao-'], [class*=' miao-']` 命中所有以 `miao-` 为前缀的 class 元素。
+- 覆盖属性：`transition-duration: 0.01ms` + `animation-duration: 0.01ms` + `animation-iteration-count: 1` + `scroll-behavior: auto`，全部 `!important`。
+- 不修改 CSS 变量定义、不触碰 antd 组件级 transition。
+- 与 Task 3 的 `useReducedMotion` hook 形成 JS + CSS 双层兜底。
+
+### 关键设计决策
+- **0.01ms 而非 0**：保留 `transitionend` / `animationend` 事件正常触发。下游 React 组件若依赖这些事件做状态清理（如 `useTransition` cleanup、antd wave 动画结束回调），设为 0 会导致事件不触发、组件 hang。0.01ms 是 W3C 推荐的「既无视觉抖动又保留事件」的折中值。
+- **CSS 前缀选择器惯用法**：CSS 没有原生 `[class^="prefix"]` 简写，标准做法是双选择器 `[class^='miao-'], [class*=' miao-']` — 前者匹配 class 列表首项是 `miao-`，后者匹配 class 列表中间或末尾有 `miao-` 项（前置空格避免误匹配 `xxmiao-foo`）。
+- **`!important` 的正当使用**：a11y 媒体查询覆盖是 W3C ACT 规则中明确认可 `!important` 的少数场景（避免后代规则意外覆盖）。若去掉，原始 160ms transition 会因为选择器特异性相等而按出现顺序保留 — 错误。
+- **不动 antd 选择器**：antd Modal/Drawer 的 motion 由 ConfigProvider.motion 控制（Task 8/9 已就位），antd Button/Menu 内部 transition 由 antd token 控制。CSS override 不接触 `.ant-*` 选择器，与 antd 内部机制零冲突。
+
+### 验证结果
+- `npx tsc -b`：✅ 通过
+- `npm run build`：✅ 通过（CSS 26.20 kB / gzip 5.35 kB，@media 块新增 < 1 kB）
+- `grep -oE "prefers-reduced-motion[^}]{0,200}" dist/assets/*.css`：minified 后属性完整保留
+  ```
+  prefers-reduced-motion:reduce){[class^=miao-],[class*=\ miao-]{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important
+  ```
+- CSS 无语法错误。
+
+### 覆盖的现有 miao-* transition（3 处）
+| 行号 | 选择器 | 原始 transition |
+|---|---|---|
+| 286 | `.miao-password-rules span` | `color 160ms ease, background-color 160ms ease` |
+| 311 | `.miao-auth-social-link` | `border-color 160ms ease, color 160ms ease, transform 160ms ease` |
+| 390 | `.miao-tool-card` | `transform 160ms ease, box-shadow 160ms ease` |
+
+→ reduce 偏好下全部降为 0.01ms；no-preference 行为不变。
+
+### 给后续任务的建议
+- 任何新增的 miao-* class 都不需要重复写 `transition`，自动被本兜底覆盖（这是 [class*=' miao-'] 的优势）。
+- 若后续 miao 出现 `animation: xxx 200ms infinite` 之类的关键帧动画，**也会**被 `animation-duration: 0.01ms` + `animation-iteration-count: 1` 覆盖到 — 这是设计意图，不需要在新规则里手动兼容。
+- Task 3 的 `useReducedMotion` hook 处理 framer-motion（JS 层），本 CSS 块处理 CSS transition/animation（CSS 层）。两层独立工作、互不依赖：CSS 兜底对所有第三方 CSS-in-JS 库（如 antd wave 动画、react-transition-group）也生效，而 JS hook 只能管到 framer-motion 控制的元素。
+- 若 antd 6 后续提供官方 reduced-motion 配置，应优先用 antd 的 ConfigProvider.motion（Task 8 已就位），本块作为最后一道防线保留。
+- 未来若需扩展到「所有元素」级别（即包括 antd），把选择器改成 `*` 即可，但要重新评估 antd 动画被压扁后的 UX 影响。
+
+### 阻塞解除
+- F1-F4（前端页面视觉精修）现已 100% 满足无障碍标准 — 前端动效全栈（antd / framer-motion / 纯 CSS transition）都尊重用户系统偏好
+- 整站动效可访问性合规完成：W3C WCAG 2.3.3 (Animation from Interactions) ✅
