@@ -1,58 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Input, Space, Tag, Typography, message } from 'antd';
-import {
-  AudioOutlined,
-  DiffOutlined,
-  PictureOutlined,
-  RightOutlined,
-  SearchOutlined,
-  TranslationOutlined,
-} from '@ant-design/icons';
+import { RightOutlined, SearchOutlined } from '@ant-design/icons';
+import { toolsRegistry, getToolsByCategory } from './registry';
+import type { ToolMeta } from './registry';
 
 const { Text } = Typography;
 
-const tools = [
-  {
-    key: 'translate',
-    title: '智能翻译',
-    description: '面向日常写作和资料整理的多语言翻译入口。',
-    icon: <TranslationOutlined />,
-    status: '可用',
-    tags: ['文本', '多语言'],
-    path: null,
-  },
-  {
-    key: 'text-compare',
-    title: '文本对照',
-    description: '粘贴或上传两段文本，支持字符/词/行级粒度对比，自动识别语言类型。',
-    icon: <DiffOutlined />,
-    status: '可用',
-    tags: ['对比', '代码'],
-    path: '/tools/text-compare',
-  },
-  {
-    key: 'image',
-    title: '文生图',
-    description: '把提示词转成图片素材，适合封面、配图和灵感探索。',
-    icon: <PictureOutlined />,
-    status: '即将接入',
-    tags: ['图像', '创作'],
-    path: null,
-  },
-  {
-    key: 'voice',
-    title: '文生语音',
-    description: '生成自然语音，用于试听、脚本样稿和轻量内容制作。',
-    icon: <AudioOutlined />,
-    status: '即将接入',
-    tags: ['语音', '内容'],
-    path: null,
-  },
-];
-
 const ToolsPage: React.FC = () => {
   const navigate = useNavigate();
+  const [search, setSearch] = useState('');
+
+  const filteredTools = toolsRegistry.filter(
+    (t) =>
+      t.title.toLowerCase().includes(search.toLowerCase()) ||
+      t.tags.some((tag) => tag.toLowerCase().includes(search.toLowerCase())),
+  );
+
+  const availableTools = getToolsByCategory('available').filter((t) =>
+    filteredTools.some((ft) => ft.key === t.key),
+  );
+  const comingSoonTools = getToolsByCategory('coming-soon').filter((t) =>
+    filteredTools.some((ft) => ft.key === t.key),
+  );
 
   const handleToolClick = (path: string | null, title: string) => {
     if (path) {
@@ -60,6 +30,41 @@ const ToolsPage: React.FC = () => {
     } else {
       message.info(`${title} 正在接入中`);
     }
+  };
+
+  const renderToolCard = (tool: ToolMeta) => {
+    const Icon = tool.icon;
+    return (
+      <button
+        key={tool.key}
+        type="button"
+        className="miao-tool-card"
+        onClick={() => handleToolClick(tool.path, tool.title)}
+      >
+        <span className="miao-tool-card-top">
+          <span className="miao-tool-icon"><Icon /></span>
+          <span className="miao-tool-status">{tool.status}</span>
+        </span>
+        <span>
+          <h3>{tool.title}</h3>
+          <p>{tool.description}</p>
+          <span className="miao-tool-meta">
+            {tool.tags.map((tag) => (
+              <span key={tag} className="miao-tool-pill">{tag}</span>
+            ))}
+          </span>
+        </span>
+        <span className="miao-tool-card-footer">
+          <Tag color="default" style={{ marginInlineEnd: 0 }}>AI Tool</Tag>
+          <span
+            className="miao-tool-open"
+            aria-label={`打开${tool.title}`}
+          >
+            <RightOutlined />
+          </span>
+        </span>
+      </button>
+    );
   };
 
   return (
@@ -77,6 +82,8 @@ const ToolsPage: React.FC = () => {
             allowClear
             prefix={<SearchOutlined />}
             placeholder="搜索工具"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             style={{ width: 'min(220px, 100%)' }}
           />
         </div>
@@ -94,11 +101,11 @@ const ToolsPage: React.FC = () => {
         </Card>
         <div className="miao-stat-row">
           <div className="miao-stat">
-            <strong>3</strong>
+            <strong>{toolsRegistry.length}</strong>
             <span>工具入口</span>
           </div>
           <div className="miao-stat">
-            <strong>1</strong>
+            <strong>{getToolsByCategory('available').length}</strong>
             <span>已可用</span>
           </div>
           <div className="miao-stat">
@@ -108,39 +115,23 @@ const ToolsPage: React.FC = () => {
         </div>
       </section>
 
-      <section className="miao-tool-grid" aria-label="AI 工具">
-        {tools.map((tool) => (
-          <button
-            key={tool.key}
-            type="button"
-            className="miao-tool-card"
-            onClick={() => handleToolClick(tool.path, tool.title)}
-          >
-            <span className="miao-tool-card-top">
-              <span className="miao-tool-icon">{tool.icon}</span>
-              <span className="miao-tool-status">{tool.status}</span>
-            </span>
-            <span>
-              <h3>{tool.title}</h3>
-              <p>{tool.description}</p>
-              <span className="miao-tool-meta">
-                {tool.tags.map((tag) => (
-                  <span key={tag} className="miao-tool-pill">{tag}</span>
-                ))}
-              </span>
-            </span>
-            <span className="miao-tool-card-footer">
-              <Tag color="default" style={{ marginInlineEnd: 0 }}>AI Tool</Tag>
-              <span
-                className="miao-tool-open"
-                aria-label={`打开${tool.title}`}
-              >
-                <RightOutlined />
-              </span>
-            </span>
-          </button>
-        ))}
-      </section>
+      {availableTools.length > 0 && (
+        <section aria-label="已可用工具">
+          <h2 style={{ fontSize: 16, fontWeight: 600, margin: '24px 0 12px' }}>已可用</h2>
+          <section className="miao-tool-grid" aria-label="AI 工具">
+            {availableTools.map(renderToolCard)}
+          </section>
+        </section>
+      )}
+
+      {comingSoonTools.length > 0 && (
+        <section aria-label="即将接入工具">
+          <h2 style={{ fontSize: 16, fontWeight: 600, margin: '24px 0 12px' }}>即将接入</h2>
+          <section className="miao-tool-grid" aria-label="AI 工具">
+            {comingSoonTools.map(renderToolCard)}
+          </section>
+        </section>
+      )}
     </div>
   );
 };
