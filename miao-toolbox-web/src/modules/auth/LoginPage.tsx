@@ -16,6 +16,7 @@ interface LoginFormValues {
 const LoginPage: React.FC = () => {
   const [form] = Form.useForm<LoginFormValues>();
   const [loading, setLoading] = React.useState(false);
+  const [oauthLoading, setOauthLoading] = React.useState<'github' | 'google' | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -42,6 +43,12 @@ const LoginPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOAuthClick = async (provider: 'github' | 'google') => {
+    setOauthLoading(provider);
+    await new Promise(r => setTimeout(r, 800));
+    window.location.href = `/api/auth/oauth/${provider}`;
   };
 
   return (
@@ -80,23 +87,31 @@ const LoginPage: React.FC = () => {
 
         <Divider style={{ margin: '16px 0' }}>或</Divider>
 
-        <a
-          href="/api/auth/oauth/github"
-          className="miao-auth-social-link"
-          style={{ marginBottom: 12 }}
-        >
-          <GithubOutlined />
-          使用 GitHub 登录
-        </a>
+        <div className="miao-auth-social-link" style={{ marginBottom: 12 }}>
+          <Button
+            block
+            size="large"
+            icon={<GithubOutlined />}
+            loading={oauthLoading === 'github'}
+            disabled={oauthLoading !== null}
+            onClick={() => handleOAuthClick('github')}
+          >
+            使用 GitHub 登录
+          </Button>
+        </div>
 
-        <a
-          href="/api/auth/oauth/google"
-          className="miao-auth-social-link"
-          style={{ marginBottom: 16 }}
-        >
-          <GoogleOutlined />
-          使用 Google 登录
-        </a>
+        <div className="miao-auth-social-link" style={{ marginBottom: 16 }}>
+          <Button
+            block
+            size="large"
+            icon={<GoogleOutlined />}
+            loading={oauthLoading === 'google'}
+            disabled={oauthLoading !== null}
+            onClick={() => handleOAuthClick('google')}
+          >
+            使用 Google 登录
+          </Button>
+        </div>
 
         <div style={{ textAlign: 'center' }}>
           <Text type="secondary">
