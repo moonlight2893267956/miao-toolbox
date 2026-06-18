@@ -224,3 +224,81 @@
 
 ### 阻塞解除
 - Task 9（路由动画需要 LoginPage 状态稳定）— 现在可以开工
+
+---
+
+## Task 6 — ToolsPage 消费 registry + 搜索绑定
+
+**日期**: 2026-06-18
+**状态**: done
+**提交**: `feat(web): ToolsPage 消费 registry + 搜索绑定`
+
+### 改造内容
+- 移除 `ToolsPage.tsx` 中硬编码的 `tools` 数组（原第 15-52 行）及 4 个图标 import。
+- 新增 `import { toolsRegistry, getToolsByCategory } from './registry'` + `import type { ToolMeta }`。
+- 搜索框绑定 `useState('')`，`onChange` 实时更新 `search` 状态。
+- 过滤逻辑：`title` + `tags` 双维度 `toLowerCase().includes()` 匹配。
+- 按 `category` 分组渲染：先 `available`（标题"已可用"），再 `coming-soon`（标题"即将接入"），各组为空时不渲染。
+- 提取 `renderToolCard(tool: ToolMeta)` 函数，`icon` 以 `<Icon />` 组件形式渲染（registry 存的是 `ComponentType`）。
+- 统计卡片数字改为动态：`toolsRegistry.length` / `getToolsByCategory('available').length`。
+
+### 设计决策
+- **分组过滤策略**：先对 `toolsRegistry` 做搜索过滤得到 `filteredTools`，再分别用 `getToolsByCategory` 取各组后与 `filteredTools` 取交集。这样保证搜索和分组两个维度正交，互不干扰。
+- **`miao-section-title` 未定义**：CSS 中不存在此 class，任务要求不修改其他文件，改用 `<h2>` 内联样式 `fontSize: 16, fontWeight: 600, margin: '24px 0 12px'`。后续 Task 10 视觉精修时可统一抽为 CSS class。
+- **placeholder 文案不变**：保持 `"搜索工具"` 不动。
+- **description / title / tags 文案不变**：全部来自 registry，消费方不硬编码。
+
+### 验证结果
+- `npx tsc -b`：✅ 通过
+- `npm run build`：✅ 通过
+- `npx eslint src/modules/tools/ToolsPage.tsx`：✅ 0 错误
+
+### 给后续任务的建议
+- Task 10（视觉精修）现在可以开工，骨架已稳定：搜索 + 分组 + registry 消费。
+- 搜索过滤目前是全量遍历 `tags.some()`，工具数量 <20 时性能无影响；若后续工具数增长，可加 debounce 或 useMemo。
+- 分组标题的内联样式应在 Task 10 中统一为 CSS class，避免散落在 JSX 中。
+
+---
+
+## Task 8 — AuthShell 包装 motion 容器
+
+**日期**: 2026-06-18
+**状态**: done
+**提交**: `feat(web): AuthShell motion 包装渐入`
+
+### 改造内容
+- 将 `AuthShell.tsx` 最外层 `<main className="miao-auth-page">` 替换为 `<motion.main>`。
+- 新增 `initial={{ opacity: 0, y: 8 }}` / `animate={{ opacity: 1, y: 0 }}` 实现 8px 上滑渐入。
+- `transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}` — 与 Task 5 (OAuthCallback) 保持完全一致的缓动曲线和时长，形成统一的动效语言。
+- 引入 `useReducedMotion()` hook 动态调整 `initialY` 和 `duration`：
+  - 普通用户：`y: 8 → 0`，duration `0.22s`
+  - reduce 偏好：`y: 0`（首尾无位移），duration `0`（即时呈现）
+- 保留所有原有 className（`miao-auth-page` / `miao-auth-brand` / `miao-auth-panel-wrap` / `miao-auth-panel` / `miao-auth-heading` 等）和子结构，未触动 props 接口。
+
+### 技术要点
+- `motion.main` 是 framer-motion `motion` 工厂对 HTML5 语义标签的内置支持，等价于 `motion('main')`，渲染为 `<main>` 而非 `<div>`，**保留 SEO / a11y 语义**。
+- `useReducedMotion()` 必须在组件顶层无条件调用（React hooks 规则），动态值通过三元表达式作用于 `initialY` 和 `duration` 常量。
+- 把派生值（`initialY`、`duration`）抽成局部常量后，`<motion.main>` 的 props 表达式保持简洁可读，避免在 JSX 里写内联三元。
+- 与 Task 5 模式一致：reduce 时**不省略动画**，而是 `duration: 0` —— framer-motion 对 `duration: 0` 走即时路径，无 layout shift，无 RAF 调度。
+- `ease: [0.16, 1, 0.3, 1]` 直接传入 cubic-bezier 数组，framer-motion 原生支持，无需 `cubicBezier()` 包装。
+
+### tsc -b 缓存陷阱
+- 第一次运行 `npm run typecheck` 时报 `Sidebar.tsx` 12 个 TS 错误（与本任务无关，是 Task 7 Sidebar 重构的进行中状态污染了 tsc 增量缓存）。
+- `npx tsc -b --force` 强制重建后**全部通过**。
+- `npm run build`（`tsc -b && vite build`）同样依赖增量缓存，受污染时也会失败 —— 任务验证时如遇 `Sidebar.tsx` 类错误，**先 `tsc -b --force` 清缓存再判定**。
+- 这是项目共性问题，建议 AGENTS.md 后续补充一条：「类型/构建验证前先 `npx tsc -b --force` 清缓存」。
+
+### 验证结果
+- `npx tsc -b --force`：✅ 通过（exit 0）
+- `npm run build`：✅ 通过（vite build 成功，dist 体积 2.21 MB gzip 717 KB，与改造前一致）
+- `npx eslint src/modules/auth/AuthShell.tsx`：✅ 0 错误
+- `git diff AuthShell.tsx`：仅修改 import、函数体顶部 3 行新增、`main` ↔ `motion.main` 互换闭合标签，**未触碰 props 接口 / className / 网格结构**。
+
+### 给后续任务的建议
+- Task 9（模态框/Drawer 动画）可复用「`motion.X` + `useReducedMotion` 动态 duration」模式，建议在 `learnings.md` 中总结成统一片段供后续任务直接复制。
+- 全站动效语言已统一在 `duration: 0.22` + `ease: [0.16, 1, 0.3, 1]`，后续任何页面级 / 组件级动画都应沿用此 token，避免视觉割裂。可考虑抽到 `src/styles/motion.ts` 导出常量（下一轮 UI polish 时可做）。
+- AuthShell 此次只做渐入，未做 `exit` 动画。考虑到 `<main>` 通常由 React Router 控制挂载/卸载，未来若在 `AppLayout` 的 `<AnimatePresence>` 包裹下出现闪烁，可补 `exit={{ opacity: 0, y: -8 }}` 与 `mode="wait"` 配合。
+
+### 阻塞解除
+- Task 9（模态框/Drawer 动画）— 现在可以开工
+- 整站动效 token（`duration: 0.22` / `ease: easeOutExpo`）已收敛，后续任务可直接复用
