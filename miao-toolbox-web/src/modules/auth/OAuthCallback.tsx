@@ -1,12 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { message, Spin } from 'antd';
+import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
+import useReducedMotion from '../../hooks/useReducedMotion';
 
 const OAuthCallback: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const processedRef = useRef(false);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     // 防止 React StrictMode 双重执行
@@ -65,17 +68,23 @@ const OAuthCallback: React.FC = () => {
   }, [navigate, login]);
 
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      flexDirection: 'column',
-      gap: 16,
-    }}>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.16, 1, 0.3, 1] }}
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        flexDirection: 'column',
+        gap: 16,
+      }}
+    >
       <Spin size="large" />
       <p>正在处理登录...</p>
-    </div>
+    </motion.div>
   );
 };
 
