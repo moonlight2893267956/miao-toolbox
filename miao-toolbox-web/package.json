@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -32,6 +33,7 @@
     "axios": "^1.17.0",
     "codemirror": "^6.0.2",
     "dayjs": "^1.11.21",
+    "framer-motion": "^11.18.2",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.17.0"
