@@ -11,34 +11,11 @@ import {
   TeamOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
+import { toolsRegistry } from '../../modules/tools/registry';
 import UserDropdown from './UserDropdown';
 import logoImg from '../../assets/logo.png';
 
 const { Sider } = Layout;
-
-interface MenuItem {
-  key: string;
-  icon: React.ReactNode;
-  label: string;
-  path?: string;
-  adminOnly?: boolean;
-  children?: MenuItem[];
-}
-
-const menuItems: MenuItem[] = [
-  { key: 'tools', icon: <ToolOutlined />, label: '工具列表', path: '/tools' },
-  {
-    key: 'admin',
-    icon: <SettingOutlined />,
-    label: '管理后台',
-    adminOnly: true,
-    children: [
-      { key: 'admin-dashboard', icon: <DashboardOutlined />, label: '仪表盘', path: '/admin/dashboard' },
-      { key: 'admin-logs', icon: <FileTextOutlined />, label: '调用日志', path: '/admin/logs' },
-      { key: 'admin-users', icon: <TeamOutlined />, label: '用户管理', path: '/admin/users' },
-    ],
-  },
-];
 
 // #22: 管理菜单仅对 ADMIN 角色显示
 const Sidebar: React.FC = () => {
@@ -47,13 +24,47 @@ const Sidebar: React.FC = () => {
   const location = useLocation();
   const { state } = useAuth();
 
-  const visibleItems = menuItems.filter(item => !item.adminOnly || state.userInfo?.role === 'ADMIN');
+  const isAdmin = state.userInfo?.role === 'ADMIN';
+
+  // 动态构建菜单项：工具列表 + 已可用工具子项 + 管理后台
+  const menuItems = [
+    {
+      key: 'tools',
+      icon: <ToolOutlined />,
+      label: '工具列表',
+      children: toolsRegistry
+        .filter(t => t.category === 'available')
+        .map(t => ({
+          key: t.key,
+          icon: <t.icon />,
+          label: t.title,
+          path: t.path!,
+        })),
+    },
+    ...(isAdmin
+      ? [
+          {
+            key: 'admin',
+            icon: <SettingOutlined />,
+            label: '管理后台',
+            children: [
+              { key: 'admin-dashboard', icon: <DashboardOutlined />, label: '仪表盘', path: '/admin/dashboard' },
+              { key: 'admin-logs', icon: <FileTextOutlined />, label: '调用日志', path: '/admin/logs' },
+              { key: 'admin-users', icon: <TeamOutlined />, label: '用户管理', path: '/admin/users' },
+            ],
+          },
+        ]
+      : []),
+  ];
 
   // 找到当前路径匹配的菜单项 key
-  const allLeafItems = visibleItems.flatMap(item => item.children || [item]);
+  const allLeafItems = menuItems.flatMap(item => item.children || [item]);
   const selectedKey = allLeafItems.find(item => item.path && location.pathname.startsWith(item.path))?.key || 'tools';
-  // 如果当前路径是 /admin 子路径，展开 admin 子菜单
-  const defaultOpenKeys = location.pathname.startsWith('/admin') ? ['admin'] : [];
+  // 如果当前路径是子路径，展开对应父菜单
+  const defaultOpenKeys = [
+    ...(location.pathname.startsWith('/admin') ? ['admin'] : []),
+    ...(location.pathname.startsWith('/tools/') ? ['tools'] : []),
+  ];
 
   const [openKeys, setOpenKeys] = useState<string[]>(defaultOpenKeys);
 
@@ -90,27 +101,17 @@ const Sidebar: React.FC = () => {
         selectedKeys={[selectedKey]}
         openKeys={collapsed ? [] : openKeys}
         onOpenChange={setOpenKeys}
-        items={visibleItems.map(item => {
-          if (item.children) {
-            return {
-              key: item.key,
-              icon: item.icon,
-              label: item.label,
-              children: item.children.map(child => ({
-                key: child.key,
-                icon: child.icon,
-                label: child.label,
-                onClick: () => child.path && navigate(child.path),
-              })),
-            };
-          }
-          return {
-            key: item.key,
-            icon: item.icon,
-            label: item.label,
-            onClick: () => item.path && navigate(item.path),
-          };
-        })}
+        items={menuItems.map(item => ({
+          key: item.key,
+          icon: item.icon,
+          label: item.label,
+          children: item.children.map(child => ({
+            key: child.key,
+            icon: child.icon,
+            label: child.label,
+            onClick: () => child.path && navigate(child.path),
+          })),
+        }))}
       />
       <div className="miao-sidebar-footer">
         <UserDropdown collapsed={collapsed} />

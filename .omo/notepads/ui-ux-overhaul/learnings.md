@@ -119,3 +119,108 @@
 ### 阻塞解除
 - Task 6（ToolsPage 重构消费 registry）— 现在可以开工
 - Task 7（Sidebar 重构消费 registry）— 现在可以开工
+
+---
+
+## Task 7 — Sidebar 消费 tools registry
+
+**日期**: 2026-06-18
+**状态**: done
+**提交**: `feat(web): Sidebar 消费 tools registry`
+
+### 改造内容
+- 移除 `Sidebar.tsx` 中硬编码的 `menuItems` 数组和 `MenuItem` 接口（原第 19-41 行）。
+- 新增 `import { toolsRegistry } from '../../modules/tools/registry'`。
+- 菜单结构改为动态生成：
+  - "工具列表" 作为父级菜单项（key: `tools`），子项从 `toolsRegistry.filter(t => t.category === 'available')` 动态生成。
+  - 每个工具子项的 `icon` 通过 `<t.icon />` 渲染（registry 以组件引用形式存储）。
+  - "管理后台" 父项保留，通过 `isAdmin` 布尔值条件展开（替代原 `adminOnly` 过滤模式）。
+  - admin 三个子项顺序不变：仪表盘 → 调用日志 → 用户管理。
+
+### 设计决策
+- **"工具列表" 从独立叶子节点变为父级菜单**：原结构是 `/tools` 的扁平入口，改造后变为可展开的父菜单，子项为已可用工具。这样侧边栏直接展示可用工具入口，用户无需先进入工具列表页。
+- **adminOnly 改为条件展开**：原代码用 `filter(item => !item.adminOnly || isAdmin)` 过滤，新代码用 `isAdmin ? [adminItem] : []` 条件展开。语义等价但更直观，且不再需要 `MenuItem` 接口上的 `adminOnly` 字段。
+- **defaultOpenKeys 扩展**：新增 `/tools/` 子路径匹配，当用户直接访问工具子页面时自动展开"工具列表"父菜单。
+- **不引入 SidebarContext**：遵循 YAGNI，collapsed 状态仍为组件内 `useState`，`UserDropdown` 接收 `collapsed` prop 的模式不变。
+
+### 验证结果
+- `npm run typecheck`：✅ 通过
+- `npm run build`：✅ 通过（标准 chunk size 警告，非本次引入）
+- `npx eslint src/components/layout/Sidebar.tsx`：✅ 0 错误
+
+### 给后续任务的建议
+- Task 11（侧边栏 CSS 精修）现在可以开工，菜单结构已稳定。
+- 当新工具从 `coming-soon` 变为 `available` 时，只需修改 `registry.ts` 中对应工具的 `category`、`available`、`path` 字段，Sidebar 会自动展示新入口，无需改动 Sidebar 代码。
+- 若后续需要工具分组展示（如按 tags 分组），可在 `menuItems` 构建逻辑中增加 `groupBy` 处理，不影响 admin 部分。
+
+---
+
+## Task 5 — OAuthCallback 渐入渐出动画
+
+**日期**: 2026-06-18
+**状态**: done
+**提交**: `feat(web): OAuthCallback 渐入渐出动画`
+
+### 改造内容
+- 将 `OAuthCallback.tsx` 外层 `<div>` 替换为 `<motion.div>`，添加 `initial/animate/exit` opacity 渐入渐出。
+- 引入 `useReducedMotion` hook，当用户系统偏好 `prefers-reduced-motion: reduce` 时，`transition.duration` 降为 `0`（即时切换，无动画）。
+- 缓动曲线 `[0.16, 1, 0.3, 1]`（easeOutExpo 变体），duration 0.22s，与后续页面过渡保持一致。
+- 保留所有原有逻辑：fragment 解析、`processedRef` StrictMode 保护、`replaceState` URL 清理、navigate 路由。
+
+### 技术要点
+- `motion.div` 的 `style` prop 直接传入原有内联样式对象，无需额外 CSS 文件。
+- `ease` 使用 cubic-bezier 数组 `[0.16, 1, 0.3, 1]`，framer-motion 原生支持，无需额外转换。
+- `useReducedMotion()` 在组件顶层调用（非条件分支），符合 React hooks 规则。
+- `transition.duration` 通过三元表达式动态设置：`reduceMotion ? 0 : 0.22`。
+
+### 验证结果
+- `npx tsc -b`：✅ 通过
+- `npm run build`：✅ 通过
+- `npx eslint src/modules/auth/OAuthCallback.tsx`：✅ 0 错误
+
+### 给后续任务的建议
+- Task 9（模态框/Drawer 动画）可复用同一模式：`motion.div` + `useReducedMotion` 动态 duration。
+- `exit` 动画需要 `AnimatePresence` 包裹才能生效（Task 4 已处理页面级 AnimatePresence）。
+- OAuthCallback 是纯展示+跳转页面，`exit` 动画实际触发场景有限（页面很快被 navigate 走），但为后续 AnimatePresence 集成预留了出口。
+
+---
+
+## Task 4 — LoginPage OAuth Button 化
+
+**日期**: 2026-06-18
+**状态**: done
+**提交**: `feat(web): LoginPage OAuth 按钮 antd Button 化 + loading 态`
+
+### 改造内容
+- 将两个 `<a href>` OAuth 链接改为 antd `<Button>` 组件
+- 新增 `oauthLoading` 状态（类型 `'github' | 'google' | null`）
+- 新增 `handleOAuthClick(provider)` 异步处理函数：
+  1. `setOauthLoading(provider)` 设置当前 provider 为 loading
+  2. `await new Promise(r => setTimeout(r, 800))` 最少等待 800ms
+  3. `window.location.href = /api/auth/oauth/${provider}` 跳转
+- Button 属性：`loading={oauthLoading === provider}` + `disabled={oauthLoading !== null}`
+- 保留 `miao-auth-social-link` className（移到外层 `<div>`）用于 hover 效果
+- 视觉与登录 Button 保持一致：`block` + `size="large"` + `icon={<XxxOutlined />}`
+
+### 设计决策
+- **不引入额外图标**：使用 antd Button 内置 spinner（`loading` 属性自动处理）
+- **不在 Button 上加 `href`**：改用 `onClick` + `window.location.href`，以便控制 loading 态
+- **800ms 最小延迟**：让用户看到 loading 反馈，避免"点击即跳转"的突兀感
+- **disabled 逻辑**：任一 OAuth 按钮 loading 时，两个按钮都 disabled，防止重复点击
+- **className 迁移**：原 `<a>` 上的 `miao-auth-social-link` 移到外层 `<div>`，保持 hover 样式生效
+
+### 验证结果
+- `npm run typecheck`：✅ 通过（`tsc -b` 无错误）
+- `npm run build`：✅ 通过（vite build 成功）
+- `npx eslint src/modules/auth/LoginPage.tsx`：❌ 3 个 pre-existing 错误（与本次改造无关）
+  - Line 26: `(location.state as any)` — pre-existing
+  - Line 41: `catch (error: any)` — pre-existing
+  - 新增代码（handleOAuthClick + Button）0 错误
+
+### 给后续任务的建议
+- Task 9（路由动画）现在可以开工，LoginPage 状态已稳定
+- 若需统一 OAuth 按钮样式，可抽取为 `<OAuthButton provider="github" />` 组件
+- `authService.getOAuthUrl()` 方法保留未动，备用场景仍可用
+
+### 阻塞解除
+- Task 9（路由动画需要 LoginPage 状态稳定）— 现在可以开工
