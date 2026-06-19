@@ -3,6 +3,7 @@ package com.miao.toolbox.tool.diff;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.vertical_blank.sqlformatter.SqlFormatter;
 import com.google.googlejavaformat.java.Formatter;
 import com.google.googlejavaformat.java.FormatterException;
 import com.miao.toolbox.common.constant.ErrorCode;
@@ -14,19 +15,26 @@ import org.jsoup.parser.Parser;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.error.YAMLException;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
-
-import com.github.vertical_blank.sqlformatter.SqlFormatter;
 
 @Slf4j
 @Service
 public class FormatService {
 
-    private static final long MAX_FORMAT_BYTES = 1L * 1024L * 1024L; // 1MB
+    /** 1MB 字符数上界（用于 OOM 防护预筛） */
+    private static final int MAX_FORMAT_CHARS = 1_000_000;
+    /** 1MB 字节数上界（UTF-8 编码后） */
+    private static final long MAX_FORMAT_BYTES = 1L * 1024L * 1024L;
+    /** UTF-8 BOM 字符 */
+    private static final char BOM = '\uFEFF';
 
-    private static final Formatter JAVA_FORMATTER = new Formatter();
+    /**
+     * google-java-format 的 Formatter 实例非线程安全，使用 ThreadLocal 隔离。
+     * 相比每次 new 节省了类加载与字段初始化开销。
+     */
+    private static final ThreadLocal<Formatter> JAVA_FORMATTER = ThreadLocal.withInitial(Formatter::new);
 
     private final ObjectMapper jsonMapper;
     private final Yaml yaml;
@@ -46,9 +54,22 @@ public class FormatService {
      * 入口：根据 language 分发到对应格式化器
      */
     public FormatResponse format(FormatRequest req) {
-        String text = req.getText() == null ? "" : req.getText();
+        String rawText = req.getText() == null ? "" : req.getText();
         String language = req.getLanguage();
 
+        // 字符数预筛，避免 1GB+ 输入触发 OOM（在 getBytes 之前拦下）
+        if (rawText.length() > MAX_FORMAT_CHARS) {
+            throw new BusinessException(ErrorCode.DIFF_FORMAT_TOO_LARGE,
+                    "格式化文本超过 1MB 上限（实际 " + rawText.length() + " 字符）", 400);
+        }
+
+        // 剥离 UTF-8 BOM（所有语言入口统一处理）
+        String text = rawText;
+        if (!text.isEmpty() && text.charAt(0) == BOM) {
+            text = text.substring(1);
+        }
+
+        // 字节数二次校验（多字节字符场景）
         long sizeBytes = text.getBytes(StandardCharsets.UTF_8).length;
         if (sizeBytes > MAX_FORMAT_BYTES) {
             throw new BusinessException(ErrorCode.DIFF_FORMAT_TOO_LARGE,
@@ -79,8 +100,11 @@ public class FormatService {
             log.warn("Format error ({}): {}", language, e.getMessage());
             throw new BusinessException(ErrorCode.DIFF_FORMAT_ERROR,
                     "Java 源码语法错误：" + e.getMessage(), 400);
+        } catch (YAMLException e) {
+            log.warn("Format error ({}): {}", language, e.getMessage());
+            throw new BusinessException(ErrorCode.DIFF_FORMAT_ERROR,
+                    "YAML 语法错误：" + safeMessage(e), 400);
         } catch (RuntimeException e) {
-            // snakeyaml YAMLException / sql-formatter / jsoup 异常
             log.warn("Format error ({}): {}", language, e.getMessage());
             throw new BusinessException(ErrorCode.DIFF_FORMAT_ERROR,
                     "格式化失败：" + safeMessage(e), 400);
@@ -100,7 +124,7 @@ public class FormatService {
     // === 各语言实现 ===
 
     private String formatJava(String text) throws FormatterException {
-        return JAVA_FORMATTER.formatSource(text);
+        return JAVA_FORMATTER.get().formatSource(text);
     }
 
     private String formatJson(String text) throws JsonProcessingException {
@@ -110,7 +134,6 @@ public class FormatService {
         return jsonMapper.writerWithDefaultPrettyPrinter().writeValueAsString(node);
     }
 
-    @SuppressWarnings("unchecked")
     private String formatYaml(String text) {
         Object loaded = yaml.load(text);
         if (loaded == null) return "";
@@ -122,6 +145,7 @@ public class FormatService {
     }
 
     private String formatXml(String text) {
+        // jsoup xmlParser 对不闭合标签会抛 InvalidMarkupException（RuntimeException 兜底接住）
         Document doc = Jsoup.parse(text, "", Parser.xmlParser());
         doc.outputSettings().prettyPrint(true).indentAmount(2);
         return doc.outerHtml();
@@ -130,20 +154,32 @@ public class FormatService {
     private String formatHtml(String text) {
         Document doc = Jsoup.parse(text);
         doc.outputSettings().prettyPrint(true).indentAmount(2);
-        return doc.html();
+        return doc.outerHtml();
     }
 
+    /**
+     * CSS 透传：jsoup 1.18.x 不支持 CSS parser，复杂 CSS 格式化由前端 Prettier 接管。
+     * 这里仅做轻量清洗（去 BOM 由入口统一处理），返回原文。
+     */
     private String formatCss(String text) {
-        // jsoup 1.18.x 不支持 CSS parser；简单分行：每条规则前保留原样 + 缩进
-        // 对于 v1 兜底：原文 + 行内多空白压缩为单空格，避免极端情况下的视觉混乱
-        return text.replaceAll("[ \\t]+", " ").trim();
+        return text;
     }
 
     // === 工具方法 ===
 
     private String formatErrorMessage(String language, String originalMessage, String location) {
+        String label = switch (language) {
+            case "json" -> "JSON";
+            case "yaml" -> "YAML";
+            case "sql" -> "SQL";
+            case "xml" -> "XML";
+            case "html" -> "HTML";
+            case "css" -> "CSS";
+            case "java" -> "Java";
+            default -> "源码";
+        };
         StringBuilder sb = new StringBuilder();
-        sb.append("源码语法错误");
+        sb.append(label).append(" 语法错误");
         if (location != null) {
             sb.append(" (").append(location).append(")");
         }
