@@ -1,6 +1,6 @@
 /**
  * 本地 Prettier 格式化：JavaScript / TypeScript / Markdown 三种语言
- * 其他 7 种语言（java / json / yaml / sql / xml / html / css）走后端 /api/diff/format
+ * 其他 6 种语言（json / yaml / sql / xml / html / css）走后端 /api/diff/format
  */
 export type PrettierLang = 'javascript' | 'typescript' | 'markdown';
 
@@ -38,7 +38,6 @@ export const PRETTIER_LANGUAGES: ReadonlySet<PrettierLang> = new Set([
 ]);
 
 export const BACKEND_FORMAT_LANGUAGES: ReadonlySet<string> = new Set([
-  'java',
   'json',
   'yaml',
   'sql',

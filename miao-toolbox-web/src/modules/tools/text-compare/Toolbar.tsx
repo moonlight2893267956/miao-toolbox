@@ -7,9 +7,9 @@ import { useDiffContext } from './useDiffContext';
 import type { LayoutMode } from './types';
 
 const LANGUAGE_LABEL: Record<string, string> = {
-  json: 'JSON', yaml: 'YAML', java: 'Java', python: 'Python',
+  json: 'JSON', yaml: 'YAML',
   javascript: 'JavaScript', typescript: 'TypeScript', css: 'CSS',
-  html: 'HTML', xml: 'XML', markdown: 'Markdown', sql: 'SQL', bash: 'Bash',
+  html: 'HTML', xml: 'XML', markdown: 'Markdown', sql: 'SQL',
 };
 
 interface ChipProps {

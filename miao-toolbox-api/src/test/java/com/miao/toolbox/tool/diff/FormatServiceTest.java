@@ -21,24 +21,8 @@ class FormatServiceTest {
     }
 
     @Nested
-    @DisplayName("正常路径：7 种语言")
+    @DisplayName("正常路径：6 种语言")
     class NormalPath {
-
-        @Test
-        @DisplayName("Java — google-java-format 真正格式化（缩进+换行）")
-        void javaFormat() {
-            String input = "class A{void m(){if(true){System.out.println(\"x\");}}}";
-            FormatResponse r = formatService.format(req(input, "java"));
-            assertEquals("java", r.getLanguage());
-            // 格式化后必须含换行（紧凑输入被展开）
-            assertTrue(r.getFormatted().contains("\n"),
-                    "Java 格式化后应包含换行，实际: " + r.getFormatted());
-            // 格式化后必须以 2 空格缩进
-            assertTrue(r.getFormatted().matches("(?s).*\\n  .*"),
-                    "Java 格式化后应使用 2 空格缩进，实际: " + r.getFormatted());
-            // 格式化后行数应 > 1
-            assertTrue(r.getLines() > 1, "Java 紧凑代码应被展开为多行");
-        }
 
         @Test
         @DisplayName("JSON — Jackson pretty 输出带换行+缩进")
@@ -156,12 +140,13 @@ class FormatServiceTest {
         }
 
         @Test
-        @DisplayName("Java 源码语法错抛 DIFF_FORMAT_ERROR")
-        void javaSyntaxError() {
+        @DisplayName("YAML 语法错抛 DIFF_FORMAT_ERROR 且 message 含 'YAML'")
+        void yamlSyntaxError() {
             BusinessException e = assertThrows(BusinessException.class,
-                    () -> formatService.format(req("class { void m() }", "java")));
+                    () -> formatService.format(req("key:\n - bad: x\n  - other", "yaml")));
             assertEquals("DIFF_FORMAT_ERROR", e.getErrorCode());
-            assertTrue(e.getMessage().contains("Java"));
+            assertTrue(e.getMessage().contains("YAML"),
+                    "错误消息应区分语言（YAML），实际: " + e.getMessage());
         }
     }
 
@@ -204,34 +189,6 @@ class FormatServiceTest {
             // BOM 剥离后第一个字符必须是引号
             assertFalse(r.getFormatted().startsWith("\uFEFF"));
             assertTrue(r.getFormatted().startsWith("{"));
-        }
-
-        @Test
-        @DisplayName("ThreadLocal 隔离：10 次并发调用结果一致")
-        void threadLocalSafety() throws InterruptedException {
-            String input = "class A{void m(){}}";
-            int threads = 10;
-            Thread[] ts = new Thread[threads];
-            String[] results = new String[threads];
-            Exception[] errors = new Exception[threads];
-            for (int i = 0; i < threads; i++) {
-                final int idx = i;
-                ts[i] = new Thread(() -> {
-                    try {
-                        results[idx] = formatService.format(req(input, "java")).getFormatted();
-                    } catch (Exception e) {
-                        errors[idx] = e;
-                    }
-                });
-            }
-            for (Thread t : ts) t.start();
-            for (Thread t : ts) t.join();
-            for (Exception e : errors) {
-                assertNull(e, "并发调用不应抛错: " + e);
-            }
-            for (String r : results) {
-                assertEquals(results[0], r, "并发调用结果应一致");
-            }
         }
     }
 }

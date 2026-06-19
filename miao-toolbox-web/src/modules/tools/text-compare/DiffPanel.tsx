@@ -15,7 +15,6 @@ import {
 const MAX_FORMAT_BYTES = 1_048_576; // 1MB
 
 const LANGUAGE_OPTIONS = [
-  { value: 'java', label: 'Java' },
   { value: 'json', label: 'JSON' },
   { value: 'yaml', label: 'YAML' },
   { value: 'sql', label: 'SQL' },
@@ -51,9 +50,9 @@ const DiffPanel: React.FC<{ side: 'left' | 'right' }> = ({ side }) => {
         dispatch({ type: fileAction, payload: { name: file.name, content } });
         const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
         const languageMap: Record<string, string> = {
-          json: 'json', yaml: 'yaml', yml: 'yaml', java: 'java', py: 'python',
+          json: 'json', yaml: 'yaml', yml: 'yaml',
           js: 'javascript', jsx: 'javascript', jsx2: 'javascript', ts: 'typescript', tsx: 'typescript',
-          css: 'css', html: 'html', xml: 'xml', md: 'markdown', sql: 'sql', sh: 'bash',
+          css: 'css', html: 'html', xml: 'xml', md: 'markdown', sql: 'sql',
         };
         dispatch({ type: 'SET_LANGUAGE', payload: languageMap[ext] ?? null });
       };

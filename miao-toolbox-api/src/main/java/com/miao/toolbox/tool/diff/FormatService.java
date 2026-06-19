@@ -4,13 +4,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.vertical_blank.sqlformatter.SqlFormatter;
-import com.google.googlejavaformat.java.Formatter;
-import com.google.googlejavaformat.java.FormatterException;
 import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.exception.BusinessException;
 import lombok.extern.slf4j.Slf4j;
-import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.Jsoup;
 import org.jsoup.parser.Parser;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.DumperOptions;
@@ -29,12 +27,6 @@ public class FormatService {
     private static final long MAX_FORMAT_BYTES = 1L * 1024L * 1024L;
     /** UTF-8 BOM 字符 */
     private static final char BOM = '\uFEFF';
-
-    /**
-     * google-java-format 的 Formatter 实例非线程安全，使用 ThreadLocal 隔离。
-     * 相比每次 new 节省了类加载与字段初始化开销。
-     */
-    private static final ThreadLocal<Formatter> JAVA_FORMATTER = ThreadLocal.withInitial(Formatter::new);
 
     private final ObjectMapper jsonMapper;
     private final Yaml yaml;
@@ -79,7 +71,6 @@ public class FormatService {
         String formatted;
         try {
             formatted = switch (language) {
-                case "java" -> formatJava(text);
                 case "json" -> formatJson(text);
                 case "yaml" -> formatYaml(text);
                 case "sql" -> formatSql(text);
@@ -92,12 +83,8 @@ public class FormatService {
         } catch (BusinessException e) {
             throw e;
         } catch (JsonProcessingException e) {
-            log.warn("Format error ({}): {}", language, e.getOriginalMessage());
-            throw new BusinessException(ErrorCode.DIFF_FORMAT_ERROR,
-                    formatErrorMessage(language, e.getOriginalMessage(), e.getLocation() == null ? null : e.getLocation().toString()),
-                    400);
-        } catch (FormatterException e) {
-            log.warn("Format error ({}): {}", language, e.getMessage());
+            log.warn("Format error ({}): message={}, location={}", language, e.getOriginalMessage(),
+                    e.getLocation() == null ? null : e.getLocation().toString());
             throw new BusinessException(ErrorCode.DIFF_FORMAT_ERROR,
                     friendlyFormatError(language), 400);
         } catch (YAMLException e) {
@@ -122,10 +109,6 @@ public class FormatService {
     }
 
     // === 各语言实现 ===
-
-    private String formatJava(String text) throws FormatterException {
-        return JAVA_FORMATTER.get().formatSource(text);
-    }
 
     private String formatJson(String text) throws JsonProcessingException {
         if (text.isEmpty()) return "";
@@ -167,11 +150,6 @@ public class FormatService {
 
     // === 工具方法 ===
 
-    private String formatErrorMessage(String language, String originalMessage, String location) {
-        log.warn("Format error details ({}): message={}, location={}", language, originalMessage, location);
-        return friendlyFormatError(language);
-    }
-
     private String friendlyFormatError(String language) {
         String label = switch (language) {
             case "json" -> "JSON";
@@ -180,14 +158,8 @@ public class FormatService {
             case "xml" -> "XML";
             case "html" -> "HTML";
             case "css" -> "CSS";
-            case "java" -> "Java";
             default -> "代码";
         };
         return label + " 片段不完整或语法有误，请检查后再试";
-    }
-
-    private String safeMessage(Exception e) {
-        String m = e.getMessage();
-        return m == null ? e.getClass().getSimpleName() : m;
     }
 }
