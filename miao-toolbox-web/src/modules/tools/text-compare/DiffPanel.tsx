@@ -73,6 +73,7 @@ const DiffPanel: React.FC<{ side: 'left' | 'right' }> = ({ side }) => {
   const handleManualSelect = (value: FormatLang | null | undefined) => {
     setSelectedLanguage(value ?? null);
     setHasManualSelected(value != null);
+    dispatch({ type: 'SET_LANGUAGE', payload: value ?? null });
   };
 
   const handleAutoDetect = async () => {
@@ -86,6 +87,7 @@ const DiffPanel: React.FC<{ side: 'left' | 'right' }> = ({ side }) => {
       if (result) {
         setSelectedLanguage(result.language);
         setHasManualSelected(true);
+        dispatch({ type: 'SET_LANGUAGE', payload: result.language });
         message.success(`已识别为 ${LANGUAGE_LABEL[result.language]}`);
       } else {
         message.warning('未能识别，请手动选择语言');
