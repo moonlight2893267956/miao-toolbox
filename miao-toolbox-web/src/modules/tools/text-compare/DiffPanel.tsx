@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Upload, message, Select, Button } from 'antd';
-import { CloudUploadOutlined, FileTextOutlined, FormatPainterOutlined } from '@ant-design/icons';
+import { Upload, message, Select, Button, Tooltip } from 'antd';
+import { CloudUploadOutlined, FileTextOutlined, FormatPainterOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import { useDiffContext } from './useDiffContext';
 import CodeEditor from './CodeEditor';
@@ -9,6 +9,7 @@ import {
   FORMAT_LANGUAGES,
   type FormatLang,
 } from './formatPrettier';
+import { detectLanguage } from './formatDetect';
 
 const MAX_FORMAT_BYTES = 1_048_576; // 1MB
 
@@ -24,6 +25,10 @@ const LANGUAGE_OPTIONS: Array<{ value: FormatLang; label: string }> = [
   { value: 'xml', label: 'XML' },
 ];
 
+const LANGUAGE_LABEL: Record<FormatLang, string> = Object.fromEntries(
+  LANGUAGE_OPTIONS.map((o) => [o.value, o.label]),
+) as Record<FormatLang, string>;
+
 const DiffPanel: React.FC<{ side: 'left' | 'right' }> = ({ side }) => {
   const { state, setLeft, setRight, dispatch } = useDiffContext();
   const text = side === 'left' ? state.leftText : state.rightText;
@@ -32,7 +37,9 @@ const DiffPanel: React.FC<{ side: 'left' | 'right' }> = ({ side }) => {
   const fileAction = side === 'left' ? 'SET_LEFT_FILE' as const : 'SET_RIGHT_FILE' as const;
 
   const [selectedLanguage, setSelectedLanguage] = useState<FormatLang | null>(null);
+  const [hasManualSelected, setHasManualSelected] = useState(false);
   const [formatting, setFormatting] = useState(false);
+  const [detecting, setDetecting] = useState(false);
 
   const uploadProps: UploadProps = {
     showUploadList: false,
@@ -52,11 +59,42 @@ const DiffPanel: React.FC<{ side: 'left' | 'right' }> = ({ side }) => {
           css: 'css', html: 'html', xml: 'xml', md: 'markdown', sql: 'sql',
         };
         const detected = languageMap[ext] as FormatLang | undefined;
+        if (detected) {
+          setSelectedLanguage(detected);
+          setHasManualSelected(true);
+        }
         dispatch({ type: 'SET_LANGUAGE', payload: detected ?? null });
       };
       reader.readAsText(file);
       return false;
     },
+  };
+
+  const handleManualSelect = (value: FormatLang | null | undefined) => {
+    setSelectedLanguage(value ?? null);
+    setHasManualSelected(value != null);
+  };
+
+  const handleAutoDetect = async () => {
+    if (!text.trim()) {
+      message.warning('请先粘贴或输入文本');
+      return;
+    }
+    setDetecting(true);
+    try {
+      const result = await detectLanguage(text);
+      if (result) {
+        setSelectedLanguage(result.language);
+        setHasManualSelected(true);
+        message.success(`已识别为 ${LANGUAGE_LABEL[result.language]}`);
+      } else {
+        message.warning('未能识别，请手动选择语言');
+      }
+    } catch {
+      message.warning('识别失败，请手动选择语言');
+    } finally {
+      setDetecting(false);
+    }
   };
 
   const handleFormat = async () => {
@@ -88,6 +126,13 @@ const DiffPanel: React.FC<{ side: 'left' | 'right' }> = ({ side }) => {
     }
   };
 
+  const detectDisabled = !text || hasManualSelected;
+  const detectTooltip = hasManualSelected
+    ? '已手动选择语言，自动识别已停用'
+    : !text
+      ? '请先粘贴文本'
+      : '根据文本内容自动识别语言';
+
   return (
     <div className={`tc-panel tc-panel-${side}`}>
       <div className="tc-panel-header">
@@ -101,10 +146,20 @@ const DiffPanel: React.FC<{ side: 'left' | 'right' }> = ({ side }) => {
           )}
         </div>
         <div className="tc-panel-actions">
+          <Tooltip title={detectTooltip}>
+            <Button
+              className="tc-btn"
+              icon={<ThunderboltOutlined />}
+              loading={detecting}
+              onClick={handleAutoDetect}
+              disabled={detectDisabled}
+              size="small"
+            />
+          </Tooltip>
           <Select
             className="tc-select-compact"
             value={selectedLanguage ?? undefined}
-            onChange={(v) => setSelectedLanguage(v ?? null)}
+            onChange={handleManualSelect}
             options={LANGUAGE_OPTIONS}
             placeholder="选择语言"
             size="small"
@@ -116,6 +171,7 @@ const DiffPanel: React.FC<{ side: 'left' | 'right' }> = ({ side }) => {
             icon={<FormatPainterOutlined />}
             loading={formatting}
             onClick={handleFormat}
+            disabled={!selectedLanguage}
             size="small"
           >
             格式化
