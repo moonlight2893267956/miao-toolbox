@@ -27,7 +27,6 @@ const DiffContent: React.FC = () => {
         dispatch({ type: 'SET_LOADING', payload: true });
         const result = await compare({
           left: state.leftText, right: state.rightText,
-          granularity: state.granularity,
           ignoreWhitespace: state.ignoreWhitespace,
           structuredDiff: state.structuredDiff,
         });
@@ -40,14 +39,13 @@ const DiffContent: React.FC = () => {
       }
     }, 500);
     return () => { if (debounceRef.current) window.clearTimeout(debounceRef.current); };
-  }, [state.leftText, state.rightText, state.granularity, state.ignoreWhitespace, state.structuredDiff, compare, dispatch]);
+  }, [state.leftText, state.rightText, state.ignoreWhitespace, state.structuredDiff, compare, dispatch]);
 
-  const isSplit = state.layout === 'split';
   const isStacked = state.layout === 'stacked';
 
   return (
     <>
-      <motion.div 
+      <motion.div
         className="tc-toolbar-float"
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -56,7 +54,7 @@ const DiffContent: React.FC = () => {
         <Toolbar />
       </motion.div>
 
-      <motion.div 
+      <motion.div
         className="tc-stats-float"
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -66,20 +64,7 @@ const DiffContent: React.FC = () => {
       </motion.div>
 
       <div className={`tc-panels-container ${isStacked ? 'tc-stacked' : ''}`}>
-        {isSplit ? (
-          <>
-            <div className="tc-panel-zone tc-panel-left">
-              <DiffPanel side="left" />
-            </div>
-            <div className="tc-divider">
-              <div className="tc-divider-glow" />
-              <div className="tc-divider-line" />
-            </div>
-            <div className="tc-panel-zone tc-panel-right">
-              <DiffPanel side="right" />
-            </div>
-          </>
-        ) : isStacked ? (
+        {isStacked ? (
           <>
             <div className="tc-panel-zone tc-panel-left tc-full-width">
               <DiffPanel side="left" />
@@ -138,7 +123,7 @@ const TextComparePage: React.FC = () => {
               <span className="tc-title-cool">对照</span>
             </h1>
             <p className="tc-header-desc">
-              字符级 · 词级 · 行级 粒度对比
+              行级粒度对比
               <br />
               自动识别代码语言，精准定位每一处差异
             </p>

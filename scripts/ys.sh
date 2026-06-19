@@ -49,45 +49,58 @@ echo "========================================="
 echo "  Story tc-1-1 验收: 后端对比引擎与 API"
 echo "========================================="
 
-echo "  AC1: 字符级对比"
-R=$(signed_curl POST "$BASE_URL/api/diff" '{"left":"abc","right":"axc","granularity":"char"}')
-assert_ok "AC1 字符级" "$R"
-
-echo "  AC2: 词级对比"
-R=$(signed_curl POST "$BASE_URL/api/diff" '{"left":"hello world","right":"hello there","granularity":"word"}')
-assert_ok "AC2 词级" "$R"
-
 echo "  AC3: 行级对比"
-R=$(signed_curl POST "$BASE_URL/api/diff" '{"left":"line1\nline2\nline3","right":"line1\nline2-mod\nline3\nline4","granularity":"line"}')
+R=$(signed_curl POST "$BASE_URL/api/diff" '{"left":"line1\nline2\nline3","right":"line1\nline2-mod\nline3\nline4"}')
 assert_ok "AC3 行级" "$R"
 
-echo "  AC5: 无效粒度"
-R=$(signed_curl POST "$BASE_URL/api/diff" '{"left":"a","right":"b","granularity":"invalid"}')
+echo "  AC4: 行级 — 纯新增"
+R=$(signed_curl POST "$BASE_URL/api/diff" '{"left":"line1","right":"line1\nline2"}')
 echo "$R" | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
-assert d.get('code')!='SUCCESS', 'AC5 FAIL'
-print('  ✅ AC5 无效粒度（返回错误）')
+hunks=d.get('data',{}).get('hunks',[])
+assert any(h.get('type')=='added' for h in hunks), 'AC4 FAIL'
+print('  ✅ AC4 行级纯新增')
 "
 
-echo "  AC8: 忽略空白符"
-R=$(signed_curl POST "$BASE_URL/api/diff" '{"left":"  foo","right":"\tfoo","granularity":"line","ignoreWhitespace":true}')
+echo "  AC5: 行级 — 纯删除"
+R=$(signed_curl POST "$BASE_URL/api/diff" '{"left":"line1\nline2","right":"line1"}')
+echo "$R" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+hunks=d.get('data',{}).get('hunks',[])
+assert any(h.get('type')=='removed' for h in hunks), 'AC5 FAIL'
+print('  ✅ AC5 行级纯删除')
+"
+
+echo "  AC6: 行级 — 完全相同"
+R=$(signed_curl POST "$BASE_URL/api/diff" '{"left":"hello","right":"hello"}')
+echo "$R" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+hunks=d.get('data',{}).get('hunks',[])
+assert hunks==[], 'AC6 FAIL'
+print('  ✅ AC6 行级完全相同')
+"
+
+echo "  AC7: 忽略空白符"
+R=$(signed_curl POST "$BASE_URL/api/diff" '{"left":"  foo","right":"\tfoo","ignoreWhitespace":true}')
 echo "$R" | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
 s=d['data']['statistics']
-assert s['modifications']<=1, 'AC8 FAIL'
-print('  ✅ AC8 忽略空白符（modifications≤1）')
+assert s['modifications']<=1, 'AC7 FAIL'
+print('  ✅ AC7 忽略空白符（modifications≤1）')
 "
 
-echo "  AC9: 空内容"
-R=$(signed_curl POST "$BASE_URL/api/diff" '{"left":"","right":"","granularity":"line"}')
+echo "  AC8: 空内容"
+R=$(signed_curl POST "$BASE_URL/api/diff" '{"left":"","right":""}')
 echo "$R" | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
 s=d['data']['statistics']
-assert s['additions']==0 and s['deletions']==0 and s['modifications']==0, 'AC9 FAIL'
-print('  ✅ AC9 空内容（statistics全0）')
+assert s['additions']==0 and s['deletions']==0 and s['modifications']==0, 'AC8 FAIL'
+print('  ✅ AC8 空内容（statistics全0）')
 "
 
 echo ""
@@ -111,10 +124,9 @@ echo "  请在 http://localhost:5173/tools/text-compare 页面操作"
 echo "  左右各粘贴一段多行差异文本"
 echo "  ✅ AC1: StatCard 显示 +N / -N / 修改 N 处"
 echo "  ✅ AC2: 导航控件显示 \"1/3\"，点击上下箭头跳转"
-echo "  ✅ AC3: 切换粒度下拉，对比结果实时刷新"
-echo "  ✅ AC4: 切换 split/unified/stacked 布局"
-echo "  ✅ AC5: DiffViewer 中每个差异块有 ← / → 箭头"
-echo "  ✅ AC6: 忽略空白符开关生效"
+echo "  ✅ AC3: 切换 split/stacked 布局（粒度选项已废弃，不再提供）"
+echo "  ✅ AC4: DiffViewer 中每个差异块有 ← / → 箭头"
+echo "  ✅ AC5: 忽略空白符开关生效"
 
 echo ""
 echo "========================================="

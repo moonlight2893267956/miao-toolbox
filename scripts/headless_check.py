@@ -61,7 +61,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(1000)
     html = page.content()
     ok("AC1-页面标题'文本对照'", "文本对照" in html)
-    ok("AC1-工具栏(粒度/行号)", "粒度" in html and "行号" in html)
+    ok("AC1-工具栏(布局/行号)", "布局" in html and "行号" in html)
     ok("AC1-原文(A)标签", "原文(A)" in html)
     ok("AC1-对比(B)标签", "对比(B)" in html)
     shot(page, "tc1-2-01-initial")
@@ -94,12 +94,10 @@ with sync_playwright() as p:
         ok("AC2-DiffViewer 渲染差异块", "diff-viewer" in html or "差异结果" in html or "修改" in html)
         shot(page, "tc1-3-01-diff")
 
-    # AC3: 粒度切换
-    ok("AC3-粒度选择器", page.query_selector("text=字符级") is not None or page.query_selector("text=词级") is not None or page.query_selector("text=行级") is not None)
-
+    # AC3: 布局切换（粒度选项已废弃，不再验证）
     # AC4: 布局切换
-    ok("AC4-布局切换(上下分层)", page.query_selector("text=上下分层") is not None)
-    ok("AC4-布局切换(左右分栏)", page.query_selector("text=左右分栏") is not None)
+    ok("AC3-布局切换(堆叠)", page.query_selector("text=堆叠") is not None)
+    ok("AC4-布局切换(分栏)", page.query_selector("text=分栏") is not None)
 
     # AC6: 忽略空白符
     ok("AC6-忽略空白符开关", page.query_selector("text=忽略空白符") is not None)

@@ -4,52 +4,44 @@ import com.github.difflib.DiffUtils;
 import com.github.difflib.patch.AbstractDelta;
 import com.github.difflib.patch.DeltaType;
 import com.github.difflib.patch.Patch;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.miao.toolbox.common.exception.BusinessException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 public class DiffService {
 
     private static final int CHUNK_SIZE = 1_000_000; // 1MB
-    private static final Pattern WORD_PATTERN = Pattern.compile("(\\s+|\\p{Punct}+)");
 
     /**
-     * 执行文本对比
+     * 执行文本对比（行级）
      */
     public DiffResult compare(DiffRequest request) {
         String left = request.getLeft() != null ? request.getLeft() : "";
         String right = request.getRight() != null ? request.getRight() : "";
 
-        String granularity = request.getGranularity();
-
-        // AC9: 空内容处理
+        // 空内容处理
         if (left.isEmpty() && right.isEmpty()) {
             return DiffResult.builder()
-                    .granularity(granularity)
                     .statistics(DiffStatistics.builder().additions(0).deletions(0).modifications(0).build())
                     .hunks(Collections.emptyList())
                     .language(null)
                     .build();
         }
 
-        // AC8: 忽略空白符预处理
+        // 忽略空白符预处理
         if (request.isIgnoreWhitespace()) {
             left = normalizeWhitespace(left);
             right = normalizeWhitespace(right);
         }
 
-        // AC4: 大文件分 chunk 处理
+        // 大文件分 chunk 处理
         if (left.length() > CHUNK_SIZE || right.length() > CHUNK_SIZE) {
-            return compareInChunks(left, right, granularity);
+            return compareInChunks(left, right);
         }
 
         // 结构化对比（JSON/YAML key-level diff）
@@ -59,7 +51,6 @@ public class DiffService {
                 List<DiffHunk> hunks = compareStructured(left, right, detectedLang);
                 DiffStatistics statistics = calculateStatistics(hunks);
                 return DiffResult.builder()
-                        .granularity(granularity)
                         .statistics(statistics)
                         .hunks(hunks)
                         .language(detectedLang)
@@ -67,27 +58,11 @@ public class DiffService {
             }
         }
 
-        // 按粒度对比
-        List<DiffHunk> hunks;
-        switch (granularity) {
-            case "char":
-                hunks = compareCharLevel(left, right);
-                break;
-            case "word":
-                hunks = compareWordLevel(left, right);
-                break;
-            case "line":
-                hunks = compareLineLevel(left, right);
-                break;
-            default:
-                throw new BusinessException("DIFF_INVALID_GRANULARITY", "不支持的对比粒度: " + granularity, 400);
-        }
-
-        // 计算统计
+        // 行级对比
+        List<DiffHunk> hunks = compareLineLevel(left, right);
         DiffStatistics statistics = calculateStatistics(hunks);
 
         return DiffResult.builder()
-                .granularity(granularity)
                 .statistics(statistics)
                 .hunks(hunks)
                 .language(null)
@@ -95,35 +70,7 @@ public class DiffService {
     }
 
     /**
-     * AC1: 字符级对比
-     */
-    private List<DiffHunk> compareCharLevel(String left, String right) {
-        List<String> leftChars = left.chars().mapToObj(c -> String.valueOf((char) c)).collect(Collectors.toList());
-        List<String> rightChars = right.chars().mapToObj(c -> String.valueOf((char) c)).collect(Collectors.toList());
-
-        if (leftChars.isEmpty()) leftChars = Collections.singletonList("");
-        if (rightChars.isEmpty()) rightChars = Collections.singletonList("");
-
-        Patch<String> patch = DiffUtils.diff(leftChars, rightChars);
-        return buildHunksFromPatch(patch, leftChars, rightChars);
-    }
-
-    /**
-     * AC2: 词级对比
-     */
-    private List<DiffHunk> compareWordLevel(String left, String right) {
-        List<String> leftWords = splitIntoWords(left);
-        List<String> rightWords = splitIntoWords(right);
-
-        if (leftWords.isEmpty()) leftWords = Collections.singletonList("");
-        if (rightWords.isEmpty()) rightWords = Collections.singletonList("");
-
-        Patch<String> patch = DiffUtils.diff(leftWords, rightWords);
-        return buildHunksFromPatch(patch, leftWords, rightWords);
-    }
-
-    /**
-     * AC3: 行级对比
+     * 行级对比
      */
     private List<DiffHunk> compareLineLevel(String left, String right) {
         List<String> leftLines = Arrays.asList(left.split("\n", -1));
@@ -145,10 +92,10 @@ public class DiffService {
     }
 
     /**
-     * AC4: 大文件分 chunk 对比
-     * 按换行符对齐切割，避免在行/词中间截断导致错误 diff
+     * 大文件分 chunk 对比
+     * 按换行符对齐切割，避免在行中间截断导致错误 diff
      */
-    private DiffResult compareInChunks(String left, String right, String granularity) {
+    private DiffResult compareInChunks(String left, String right) {
         List<String> leftLines = new ArrayList<>(Arrays.asList(left.split("\n", -1)));
         List<String> rightLines = new ArrayList<>(Arrays.asList(right.split("\n", -1)));
         if (leftLines.size() > 1 && leftLines.getLast().isEmpty()) leftLines.removeLast();
@@ -162,22 +109,10 @@ public class DiffService {
             List<String> leftChunk = leftLines.subList(lineOffset, Math.min(lineOffset + linesPerChunk, leftLines.size()));
             List<String> rightChunk = rightLines.subList(lineOffset, Math.min(lineOffset + linesPerChunk, rightLines.size()));
 
-            List<DiffHunk> chunkHunks;
-            if ("line".equals(granularity)) {
-                Patch<String> patch = DiffUtils.diff(leftChunk, rightChunk);
-                chunkHunks = buildHunksFromPatch(patch, leftChunk, rightChunk);
-            } else {
-                // char/word 级对 chunk 内的行拼接文本再对比
-                String leftText = String.join("\n", leftChunk);
-                String rightText = String.join("\n", rightChunk);
-                chunkHunks = switch (granularity) {
-                    case "char" -> compareCharLevel(leftText, rightText);
-                    case "word" -> compareWordLevel(leftText, rightText);
-                    default -> compareLineLevel(leftText, rightText);
-                };
-            }
+            Patch<String> patch = DiffUtils.diff(leftChunk, rightChunk);
+            List<DiffHunk> chunkHunks = buildHunksFromPatch(patch, leftChunk, rightChunk);
 
-            // 调整行号偏移（lineOffset 是行偏移量）
+            // 调整行号偏移
             for (DiffHunk hunk : chunkHunks) {
                 allHunks.add(DiffHunk.builder()
                         .type(hunk.getType())
@@ -194,7 +129,6 @@ public class DiffService {
 
         DiffStatistics statistics = calculateStatistics(allHunks);
         return DiffResult.builder()
-                .granularity(granularity)
                 .statistics(statistics)
                 .hunks(allHunks)
                 .language(null)
@@ -374,23 +308,6 @@ public class DiffService {
                 .deletions(deletions)
                 .modifications(modifications)
                 .build();
-    }
-
-    private List<String> splitIntoWords(String text) {
-        if (text == null || text.isEmpty()) return Collections.singletonList("");
-        String[] tokens = WORD_PATTERN.split(text);
-        List<String> words = new ArrayList<>();
-        int pos = 0;
-        for (String token : tokens) {
-            if (!token.isEmpty()) {
-                // 添加分隔符
-                if (pos > 0) words.add(" ");
-                words.add(token);
-                pos++;
-            }
-        }
-        if (words.isEmpty()) words.add(text);
-        return words;
     }
 
     private String normalizeWhitespace(String text) {

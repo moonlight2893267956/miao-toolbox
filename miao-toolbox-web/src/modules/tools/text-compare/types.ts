@@ -1,6 +1,4 @@
-export type LayoutMode = 'split' | 'unified' | 'stacked';
-
-export type Granularity = 'char' | 'word' | 'line';
+export type LayoutMode = 'split' | 'stacked';
 
 export type HunkType = 'added' | 'removed' | 'modified' | 'unchanged';
 
@@ -28,7 +26,6 @@ export interface DiffStatistics {
 }
 
 export interface DiffResult {
-  granularity: Granularity;
   statistics: DiffStatistics;
   hunks: DiffHunk[];
   language: string | null;
@@ -38,7 +35,6 @@ export interface DiffResult {
 export interface DiffRequestBody {
   left: string;
   right: string;
-  granularity: Granularity;
   ignoreWhitespace?: boolean;
   structuredDiff?: boolean;
   leftLabel?: string;
@@ -56,7 +52,6 @@ export interface DiffState {
   rightText: string;
   leftLabel: string;
   rightLabel: string;
-  granularity: Granularity;
   layout: LayoutMode;
   ignoreWhitespace: boolean;
   structuredDiff: boolean;
@@ -72,7 +67,6 @@ export interface DiffState {
 export type DiffAction =
   | { type: 'SET_LEFT'; payload: string }
   | { type: 'SET_RIGHT'; payload: string }
-  | { type: 'SET_GRANULARITY'; payload: Granularity }
   | { type: 'SET_LAYOUT'; payload: LayoutMode }
   | { type: 'SET_IGNORE_WHITESPACE'; payload: boolean }
   | { type: 'SET_STRUCTURED_DIFF'; payload: boolean }

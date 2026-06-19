@@ -1,10 +1,10 @@
 import React from 'react';
 import {
   ColumnHeightOutlined, EyeOutlined, AlignLeftOutlined,
-  ApartmentOutlined, MenuOutlined, CodeOutlined,
+  ApartmentOutlined, CodeOutlined,
 } from '@ant-design/icons';
 import { useDiffContext } from './useDiffContext';
-import type { LayoutMode, Granularity } from './types';
+import type { LayoutMode } from './types';
 
 const LANGUAGE_LABEL: Record<string, string> = {
   json: 'JSON', yaml: 'YAML', java: 'Java', python: 'Python',
@@ -35,41 +35,16 @@ const Chip: React.FC<ChipProps> = ({ icon, label, active, onClick, ariaLabel }) 
 );
 
 const Toolbar: React.FC = () => {
-  const { state, setGranularity, setLayout, setIgnoreWhitespace, setStructuredDiff, setShowLineNumbers } = useDiffContext();
+  const { state, setLayout, setIgnoreWhitespace, setStructuredDiff, setShowLineNumbers } = useDiffContext();
   const isJsonYaml = state.language === 'json' || state.language === 'yaml' || state.language === 'yml';
-
-  const granularityOptions: Array<{ value: Granularity; label: string }> = [
-    { value: 'char', label: '字符' },
-    { value: 'word', label: '词' },
-    { value: 'line', label: '行' },
-  ];
 
   const layoutOptions: Array<{ value: LayoutMode; label: string; icon: React.ReactNode }> = [
     { value: 'split', label: '分栏', icon: <ColumnHeightOutlined /> },
-    { value: 'unified', label: '统一', icon: <MenuOutlined /> },
     { value: 'stacked', label: '堆叠', icon: <ApartmentOutlined /> },
   ];
 
   return (
     <div className="tc-toolbar">
-      <div className="tc-toolbar-group">
-        <span className="tc-toolbar-label">粒度</span>
-        <div className="tc-pill-group" role="radiogroup" aria-label="对比粒度">
-          {granularityOptions.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              className={`tc-pill${state.granularity === opt.value ? ' is-active' : ''}`}
-              onClick={() => setGranularity(opt.value)}
-              role="radio"
-              aria-checked={state.granularity === opt.value}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       <div className="tc-toolbar-group">
         <span className="tc-toolbar-label">布局</span>
         <div className="tc-pill-group" role="radiogroup" aria-label="展示布局">

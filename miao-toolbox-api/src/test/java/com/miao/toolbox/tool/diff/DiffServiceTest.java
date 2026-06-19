@@ -1,6 +1,5 @@
 package com.miao.toolbox.tool.diff;
 
-import com.miao.toolbox.common.exception.BusinessException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -18,67 +17,6 @@ class DiffServiceTest {
     private DiffService diffService;
 
     @Nested
-    @DisplayName("AC1: 字符级对比")
-    class CharLevelTest {
-
-        @Test
-        @DisplayName("字符级差异检测 — abc vs axc")
-        void charLevelDiff() {
-            DiffRequest request = new DiffRequest();
-            request.setLeft("abc");
-            request.setRight("axc");
-            request.setGranularity("char");
-
-            DiffResult result = diffService.compare(request);
-
-            assertNotNull(result);
-            assertEquals("char", result.getGranularity());
-            assertNotNull(result.getHunks());
-            assertFalse(result.getHunks().isEmpty());
-            // 应该有一个 modified 类型的 hunk
-            assertTrue(result.getHunks().stream().anyMatch(h -> "modified".equals(h.getType())));
-        }
-
-        @Test
-        @DisplayName("字符级 — 完全相同")
-        void charLevelSame() {
-            DiffRequest request = new DiffRequest();
-            request.setLeft("hello");
-            request.setRight("hello");
-            request.setGranularity("char");
-
-            DiffResult result = diffService.compare(request);
-
-            assertTrue(result.getHunks().isEmpty());
-            assertEquals(0, result.getStatistics().getAdditions());
-            assertEquals(0, result.getStatistics().getDeletions());
-            assertEquals(0, result.getStatistics().getModifications());
-        }
-    }
-
-    @Nested
-    @DisplayName("AC2: 词级对比")
-    class WordLevelTest {
-
-        @Test
-        @DisplayName("词级差异检测 — hello world vs hello there")
-        void wordLevelDiff() {
-            DiffRequest request = new DiffRequest();
-            request.setLeft("hello world");
-            request.setRight("hello there");
-            request.setGranularity("word");
-
-            DiffResult result = diffService.compare(request);
-
-            assertNotNull(result);
-            assertEquals("word", result.getGranularity());
-            assertFalse(result.getHunks().isEmpty());
-            // 应该检测到词的差异
-            assertTrue(result.getHunks().stream().anyMatch(h -> "modified".equals(h.getType()) || "removed".equals(h.getType()) || "added".equals(h.getType())));
-        }
-    }
-
-    @Nested
     @DisplayName("AC3: 行级对比")
     class LineLevelTest {
 
@@ -88,14 +26,12 @@ class DiffServiceTest {
             DiffRequest request = new DiffRequest();
             request.setLeft("line1\nline2\nline3");
             request.setRight("line1\nline2-modified\nline3\nline4");
-            request.setGranularity("line");
 
             DiffResult result = diffService.compare(request);
 
             assertNotNull(result);
-            assertEquals("line", result.getGranularity());
+            assertNotNull(result.getHunks());
             assertFalse(result.getHunks().isEmpty());
-            // 应该有 modified 和 added 类型
             assertTrue(result.getHunks().stream().anyMatch(h ->
                     "modified".equals(h.getType()) || "added".equals(h.getType())));
         }
@@ -106,7 +42,6 @@ class DiffServiceTest {
             DiffRequest request = new DiffRequest();
             request.setLeft("line1");
             request.setRight("line1\nline2");
-            request.setGranularity("line");
 
             DiffResult result = diffService.compare(request);
 
@@ -119,27 +54,25 @@ class DiffServiceTest {
             DiffRequest request = new DiffRequest();
             request.setLeft("line1\nline2");
             request.setRight("line1");
-            request.setGranularity("line");
 
             DiffResult result = diffService.compare(request);
 
             assertTrue(result.getHunks().stream().anyMatch(h -> "removed".equals(h.getType())));
         }
-    }
-
-    @Nested
-    @DisplayName("AC5: 无效粒度参数")
-    class InvalidGranularityTest {
 
         @Test
-        @DisplayName("无效粒度应抛出异常")
-        void invalidGranularity() {
+        @DisplayName("行级 — 完全相同")
+        void lineLevelSame() {
             DiffRequest request = new DiffRequest();
-            request.setLeft("abc");
-            request.setRight("def");
-            request.setGranularity("invalid");
+            request.setLeft("hello");
+            request.setRight("hello");
 
-            assertThrows(BusinessException.class, () -> diffService.compare(request));
+            DiffResult result = diffService.compare(request);
+
+            assertTrue(result.getHunks().isEmpty());
+            assertEquals(0, result.getStatistics().getAdditions());
+            assertEquals(0, result.getStatistics().getDeletions());
+            assertEquals(0, result.getStatistics().getModifications());
         }
     }
 
@@ -153,7 +86,6 @@ class DiffServiceTest {
             DiffRequest request = new DiffRequest();
             request.setLeft("\tfoo");
             request.setRight("  foo");
-            request.setGranularity("line");
             request.setIgnoreWhitespace(true);
 
             DiffResult result = diffService.compare(request);
@@ -173,7 +105,6 @@ class DiffServiceTest {
             DiffRequest request = new DiffRequest();
             request.setLeft("");
             request.setRight("");
-            request.setGranularity("line");
 
             DiffResult result = diffService.compare(request);
 
@@ -190,7 +121,6 @@ class DiffServiceTest {
             DiffRequest request = new DiffRequest();
             request.setLeft("");
             request.setRight("hello");
-            request.setGranularity("line");
 
             DiffResult result = diffService.compare(request);
 
@@ -204,7 +134,6 @@ class DiffServiceTest {
             DiffRequest request = new DiffRequest();
             request.setLeft(null);
             request.setRight(null);
-            request.setGranularity("char");
 
             DiffResult result = diffService.compare(request);
 

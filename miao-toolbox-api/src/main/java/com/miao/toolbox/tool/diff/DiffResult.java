@@ -13,9 +13,6 @@ import java.util.List;
 @Builder
 public class DiffResult {
 
-    /** 使用的对比粒度 */
-    private String granularity;
-
     /** 差异统计 */
     private DiffStatistics statistics;
 

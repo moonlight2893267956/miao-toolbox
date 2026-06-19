@@ -1,5 +1,5 @@
 import React, { useReducer, useCallback } from 'react';
-import type { DiffAction, DiffState, Granularity, LayoutMode } from './types';
+import type { DiffAction, DiffState, LayoutMode } from './types';
 import { DiffContext } from './diffContext';
 import type { DiffContextValue } from './diffContext';
 
@@ -8,7 +8,6 @@ const initialState: DiffState = {
   rightText: '',
   leftLabel: '原文(A)',
   rightLabel: '对比(B)',
-  granularity: 'line',
   layout: 'split',
   ignoreWhitespace: false,
   structuredDiff: false,
@@ -27,8 +26,6 @@ function diffReducer(state: DiffState, action: DiffAction): DiffState {
       return { ...state, leftText: action.payload, error: null };
     case 'SET_RIGHT':
       return { ...state, rightText: action.payload, error: null };
-    case 'SET_GRANULARITY':
-      return { ...state, granularity: action.payload };
     case 'SET_LAYOUT':
       return { ...state, layout: action.payload };
     case 'SET_IGNORE_WHITESPACE':
@@ -63,14 +60,13 @@ export const DiffProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const setLeft = useCallback((text: string) => dispatch({ type: 'SET_LEFT', payload: text }), []);
   const setRight = useCallback((text: string) => dispatch({ type: 'SET_RIGHT', payload: text }), []);
-  const setGranularity = useCallback((g: Granularity) => dispatch({ type: 'SET_GRANULARITY', payload: g }), []);
   const setLayout = useCallback((mode: LayoutMode) => dispatch({ type: 'SET_LAYOUT', payload: mode }), []);
   const setIgnoreWhitespace = useCallback((v: boolean) => dispatch({ type: 'SET_IGNORE_WHITESPACE', payload: v }), []);
   const setStructuredDiff = useCallback((v: boolean) => dispatch({ type: 'SET_STRUCTURED_DIFF', payload: v }), []);
   const setShowLineNumbers = useCallback((v: boolean) => dispatch({ type: 'SET_SHOW_LINE_NUMBERS', payload: v }), []);
 
   const value: DiffContextValue = {
-    state, dispatch, setLeft, setRight, setGranularity, setLayout,
+    state, dispatch, setLeft, setRight, setLayout,
     setIgnoreWhitespace, setStructuredDiff, setShowLineNumbers,
   };
 
