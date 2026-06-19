@@ -99,15 +99,15 @@ public class FormatService {
         } catch (FormatterException e) {
             log.warn("Format error ({}): {}", language, e.getMessage());
             throw new BusinessException(ErrorCode.DIFF_FORMAT_ERROR,
-                    "Java 源码语法错误：" + e.getMessage(), 400);
+                    friendlyFormatError(language), 400);
         } catch (YAMLException e) {
             log.warn("Format error ({}): {}", language, e.getMessage());
             throw new BusinessException(ErrorCode.DIFF_FORMAT_ERROR,
-                    "YAML 语法错误：" + safeMessage(e), 400);
+                    friendlyFormatError(language), 400);
         } catch (RuntimeException e) {
             log.warn("Format error ({}): {}", language, e.getMessage());
             throw new BusinessException(ErrorCode.DIFF_FORMAT_ERROR,
-                    "格式化失败：" + safeMessage(e), 400);
+                    friendlyFormatError(language), 400);
         }
 
         long bytes = formatted.getBytes(StandardCharsets.UTF_8).length;
@@ -168,6 +168,11 @@ public class FormatService {
     // === 工具方法 ===
 
     private String formatErrorMessage(String language, String originalMessage, String location) {
+        log.warn("Format error details ({}): message={}, location={}", language, originalMessage, location);
+        return friendlyFormatError(language);
+    }
+
+    private String friendlyFormatError(String language) {
         String label = switch (language) {
             case "json" -> "JSON";
             case "yaml" -> "YAML";
@@ -176,15 +181,9 @@ public class FormatService {
             case "html" -> "HTML";
             case "css" -> "CSS";
             case "java" -> "Java";
-            default -> "源码";
+            default -> "代码";
         };
-        StringBuilder sb = new StringBuilder();
-        sb.append(label).append(" 语法错误");
-        if (location != null) {
-            sb.append(" (").append(location).append(")");
-        }
-        sb.append("：").append(originalMessage == null ? "未知" : originalMessage);
-        return sb.toString();
+        return label + " 片段不完整或语法有误，请检查后再试";
     }
 
     private String safeMessage(Exception e) {
