@@ -1,6 +1,6 @@
 import axiosInstance from '../../../services/axiosInstance';
 import { useCallback } from 'react';
-import type { DiffRequestBody, DiffResult, FileUploadResult, FormatResponse } from './types';
+import type { DiffRequestBody, DiffResult, FileUploadResult } from './types';
 
 const BASE = '/api/diff';
 
@@ -8,7 +8,6 @@ const BASE = '/api/diff';
  * 文本对照 API Hook
  * - compare: 触发对比
  * - upload: 上传文件获取 fileKey
- * - format: 代码格式化（json/yaml/sql/xml/html/css 走后端）
  */
 export const useDiffApi = () => {
   const compare = useCallback(async (body: DiffRequestBody): Promise<DiffResult> => {
@@ -25,10 +24,5 @@ export const useDiffApi = () => {
     return res.data.data as FileUploadResult;
   }, []);
 
-  const format = useCallback(async (text: string, language: string): Promise<FormatResponse> => {
-    const res = await axiosInstance.post(`${BASE}/format`, { text, language });
-    return res.data.data as FormatResponse;
-  }, []);
-
-  return { compare, upload, format };
+  return { compare, upload };
 };

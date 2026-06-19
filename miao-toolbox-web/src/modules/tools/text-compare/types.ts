@@ -47,13 +47,6 @@ export interface FileUploadResult {
   size: number;
 }
 
-export interface FormatResponse {
-  formatted: string;
-  language: string;
-  lines: number;
-  bytes: number;
-}
-
 export interface DiffState {
   leftText: string;
   rightText: string;
