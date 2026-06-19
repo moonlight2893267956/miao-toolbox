@@ -21,9 +21,6 @@ const DiffContent: React.FC = () => {
       dispatch({ type: 'SET_DIFF_RESULT', payload: null });
       return;
     }
-    // JSON/YAML 选中时自动开启结构化对比（key-level diff 避免格式差异）
-    const isStructuredLang = state.language === 'json' || state.language === 'yaml' || state.language === 'yml';
-    const effectiveStructured = isStructuredLang || state.structuredDiff;
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(async () => {
       try {
@@ -31,7 +28,7 @@ const DiffContent: React.FC = () => {
         const result = await compare({
           left: state.leftText, right: state.rightText,
           ignoreWhitespace: state.ignoreWhitespace,
-          structuredDiff: effectiveStructured,
+          structuredDiff: state.structuredDiff,
         });
         dispatch({ type: 'SET_DIFF_RESULT', payload: result });
         const firstIdx = result?.hunks?.findIndex((h: { type: string }) => h.type !== 'unchanged') ?? -1;
@@ -42,7 +39,7 @@ const DiffContent: React.FC = () => {
       }
     }, 500);
     return () => { if (debounceRef.current) window.clearTimeout(debounceRef.current); };
-  }, [state.leftText, state.rightText, state.ignoreWhitespace, state.structuredDiff, state.language, compare, dispatch]);
+  }, [state.leftText, state.rightText, state.ignoreWhitespace, state.structuredDiff, compare, dispatch]);
 
   const isStacked = state.layout === 'stacked';
 
