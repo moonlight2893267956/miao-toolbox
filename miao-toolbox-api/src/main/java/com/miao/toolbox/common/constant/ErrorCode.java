@@ -31,4 +31,7 @@ public final class ErrorCode {
     public static final String DIFF_EMPTY_CONTENT = "DIFF_EMPTY_CONTENT";
     public static final String DIFF_FILE_NOT_FOUND = "DIFF_FILE_NOT_FOUND";
     public static final String DIFF_INVALID_REQUEST = "DIFF_INVALID_REQUEST";
+    public static final String DIFF_INVALID_LANGUAGE = "DIFF_INVALID_LANGUAGE";
+    public static final String DIFF_FORMAT_ERROR = "DIFF_FORMAT_ERROR";
+    public static final String DIFF_FORMAT_TOO_LARGE = "DIFF_FORMAT_TOO_LARGE";
 }
