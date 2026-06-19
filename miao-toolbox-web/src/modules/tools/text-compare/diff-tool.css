@@ -511,6 +511,31 @@
 .tc-panel-actions {
   display: flex;
   gap: 8px;
+  align-items: center;
+}
+
+.tc-select-compact .ant-select-selector {
+  background: var(--tc-surface) !important;
+  border-color: var(--tc-border) !important;
+  color: var(--tc-text-secondary) !important;
+  font-size: 12px !important;
+  height: 28px !important;
+  padding: 0 8px !important;
+  border-radius: var(--tc-radius-sm) !important;
+}
+
+.tc-select-compact .ant-select-selection-placeholder {
+  color: var(--tc-text-tertiary) !important;
+}
+
+.tc-select-compact .ant-select-selection-item {
+  color: var(--tc-text) !important;
+  font-weight: 500 !important;
+  line-height: 26px !important;
+}
+
+.tc-select-compact:hover .ant-select-selector {
+  border-color: var(--tc-accent) !important;
 }
 
 .tc-btn {

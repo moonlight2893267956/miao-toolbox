@@ -25,6 +25,7 @@ interface CodeEditorProps {
   maxRows?: number;
   onViewReady?: (view: EditorView, container: HTMLDivElement) => void;
   lineWrapping?: boolean;
+  onFormatShortcut?: () => void;
 }
 
 const LANGUAGE_EXTENSIONS: Record<string, Extension> = {
@@ -54,18 +55,21 @@ const CodeEditor = forwardRef<{ view: EditorView | null }, CodeEditorProps>(({
   maxRows = 30,
   onViewReady,
   lineWrapping = true,
+  onFormatShortcut,
 }, ref) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   const initialValueRef = useRef(value);
   const onViewReadyRef = useRef(onViewReady);
+  const onFormatShortcutRef = useRef(onFormatShortcut);
 
   useImperativeHandle(ref, () => ({ get view() { return viewRef.current; } }), []);
 
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
   useEffect(() => { initialValueRef.current = value; }, [value]);
   useEffect(() => { onViewReadyRef.current = onViewReady; }, [onViewReady]);
+  useEffect(() => { onFormatShortcutRef.current = onFormatShortcut; }, [onFormatShortcut]);
 
   const createEditor = useCallback(() => {
     if (!editorRef.current) return;
@@ -150,6 +154,20 @@ const CodeEditor = forwardRef<{ view: EditorView | null }, CodeEditorProps>(({
       }
     }
   }, [value, language, showLineNumbers, lineWrapping]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
+        e.preventDefault();
+        e.stopPropagation();
+        onFormatShortcutRef.current?.();
+      }
+    };
+    view.contentDOM.addEventListener('keydown', handler);
+    return () => view.contentDOM.removeEventListener('keydown', handler);
+  }, [language, lineWrapping, showLineNumbers, placeholderText]);
 
   return (
     <div className="dt-editor-wrap">
