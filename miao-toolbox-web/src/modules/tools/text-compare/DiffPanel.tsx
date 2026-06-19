@@ -75,10 +75,14 @@ const DiffPanel: React.FC<{ side: 'left' | 'right' }> = ({ side }) => {
     setFormatting(true);
     try {
       const formatted = await formatWithPrettier(text, selectedLanguage);
-      setText(formatted);
-    } catch (e: unknown) {
-      const err = e as { message?: string };
-      message.error('格式化失败：' + (err.message || '未知错误'));
+      if (formatted === text) {
+        message.info('无需格式化，文本已是规范格式');
+      } else {
+        setText(formatted);
+        message.success('已格式化');
+      }
+    } catch {
+      message.warning('当前文本无法被该格式化器解析，已保持原样');
     } finally {
       setFormatting(false);
     }
