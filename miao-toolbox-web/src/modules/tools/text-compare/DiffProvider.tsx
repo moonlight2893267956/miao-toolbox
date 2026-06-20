@@ -43,9 +43,9 @@ function diffReducer(state: DiffState, action: DiffAction): DiffState {
     case 'SET_DIFF_RESULT':
       return { ...state, diffResult: action.payload, loading: false, error: null, currentHunkIndex: -1 };
     case 'SET_LEFT_FILE':
-      return { ...state, leftText: action.payload.content, leftLabel: action.payload.name, error: null };
+      return { ...state, leftText: action.payload.content, error: null };
     case 'SET_RIGHT_FILE':
-      return { ...state, rightText: action.payload.content, rightLabel: action.payload.name, error: null };
+      return { ...state, rightText: action.payload.content, error: null };
     case 'SET_CURRENT_HUNK_INDEX':
       return { ...state, currentHunkIndex: action.payload };
     case 'GO_TO_HUNK':

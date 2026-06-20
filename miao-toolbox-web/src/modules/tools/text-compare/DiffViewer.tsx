@@ -1,4 +1,5 @@
 import React, { useRef, useCallback, useEffect } from 'react';
+import * as Diff from 'diff';
 import { useDiffContext } from './useDiffContext';
 import type { DiffHunk, DiffChange, HunkType } from './types';
 
@@ -30,24 +31,66 @@ function formatLineRef(hunk: DiffHunk): string {
 }
 
 function renderChangeContent(change: DiffChange): React.ReactNode {
-  if (change.type === 'modified' && change.oldValue != null) {
-    const oldWords = change.oldValue.split(/(\s+)/);
-    const newWords = change.value.split(/(\s+)/);
-    const spans: React.ReactNode[] = [];
-    const maxLen = Math.max(oldWords.length, newWords.length);
-    let keyIdx = 0;
-    for (let i = 0; i < maxLen; i++) {
-      const oldW = oldWords[i] ?? '';
-      const newW = newWords[i] ?? '';
-      if (oldW !== newW) {
-        spans.push(<span key={keyIdx++} className="tc-diff-highlight">{newW}</span>);
-      } else {
-        spans.push(<span key={keyIdx++}>{newW}</span>);
-      }
-    }
-    return spans;
+  if (change.type !== 'modified' || change.oldValue == null) {
+    return change.value;
   }
-  return change.value;
+
+  const oldVal = change.oldValue;
+  const newVal = change.value;
+
+  const wordDiff = Diff.diffWords(oldVal, newVal);
+  const changedLen = wordDiff
+    .filter((p) => p.added || p.removed)
+    .reduce((s, p) => s + p.value.length, 0);
+  const totalLen = Math.max(oldVal.length + newVal.length, 1);
+  const diffRatio = changedLen / totalLen;
+
+  if (diffRatio > 0.8) {
+    return (
+      <>
+        <div className="tc-diff-old-line">
+          <span className="tc-diff-marker-inline">-</span>
+          <span className="tc-diff-old-text">{oldVal}</span>
+        </div>
+        <div className="tc-diff-new-line">
+          <span className="tc-diff-marker-inline">+</span>
+          <span className="tc-diff-new-text">{newVal}</span>
+        </div>
+      </>
+    );
+  }
+
+  const oldSpans: React.ReactNode[] = [];
+  const newSpans: React.ReactNode[] = [];
+  let keyIdx = 0;
+
+  for (const part of wordDiff) {
+    if (part.removed) {
+      oldSpans.push(
+        <span key={keyIdx++} className="tc-diff-del">{part.value}</span>,
+      );
+    } else if (part.added) {
+      newSpans.push(
+        <span key={keyIdx++} className="tc-diff-add">{part.value}</span>,
+      );
+    } else {
+      oldSpans.push(<span key={keyIdx++}>{part.value}</span>);
+      newSpans.push(<span key={keyIdx++}>{part.value}</span>);
+    }
+  }
+
+  return (
+    <>
+      <div className="tc-diff-old-line">
+        <span className="tc-diff-marker-inline">-</span>
+        <span className="tc-diff-old-text">{oldSpans}</span>
+      </div>
+      <div className="tc-diff-new-line">
+        <span className="tc-diff-marker-inline">+</span>
+        <span className="tc-diff-new-text">{newSpans}</span>
+      </div>
+    </>
+  );
 }
 
 const DiffBlock: React.FC<{ hunk: DiffHunk; index: number; isActive: boolean }> = ({ hunk, index, isActive }) => {

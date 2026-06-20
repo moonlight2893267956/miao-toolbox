@@ -98,26 +98,42 @@ const DiffPanel: React.FC<{ side: 'left' | 'right' }> = ({ side }) => {
   };
 
   const handleFormat = async () => {
-    if (!selectedLanguage) {
-      message.warning('请先选择语言');
-      return;
+    let lang = selectedLanguage;
+    if (!lang) {
+      if (!text.trim()) {
+        message.warning('请先粘贴或输入文本');
+        return;
+      }
+      try {
+        const result = await detectLanguage(text);
+        if (!result) {
+          message.warning('未能识别语言，请手动选择');
+          return;
+        }
+        lang = result.language;
+        setSelectedLanguage(lang);
+        setHasManualSelected(true);
+      } catch {
+        message.warning('识别失败，请手动选择语言');
+        return;
+      }
     }
     if (text.length > MAX_FORMAT_BYTES) {
       message.warning('文本超过 1MB，无法格式化');
       return;
     }
-    if (!FORMAT_LANGUAGES.has(selectedLanguage)) {
-      message.error('不支持的格式化语言: ' + selectedLanguage);
+    if (!FORMAT_LANGUAGES.has(lang)) {
+      message.error('不支持的格式化语言: ' + lang);
       return;
     }
     setFormatting(true);
     try {
-      const formatted = await formatWithPrettier(text, selectedLanguage);
+      const formatted = await formatWithPrettier(text, lang);
       if (formatted === text) {
         message.info('无需格式化，文本已是规范格式');
       } else {
         setText(formatted);
-        message.success('已格式化');
+        message.success(`已格式化为 ${LANGUAGE_LABEL[lang]}`);
       }
     } catch {
       message.warning('当前文本无法被该格式化器解析，已保持原样');
@@ -162,7 +178,7 @@ const DiffPanel: React.FC<{ side: 'left' | 'right' }> = ({ side }) => {
             onChange={handleManualSelect}
             options={LANGUAGE_OPTIONS}
             placeholder="选择语言"
-            size="small"
+            size="middle"
             allowClear
             style={{ width: 130 }}
           />
@@ -171,7 +187,6 @@ const DiffPanel: React.FC<{ side: 'left' | 'right' }> = ({ side }) => {
             icon={<FormatPainterOutlined />}
             loading={formatting}
             onClick={handleFormat}
-            disabled={!selectedLanguage}
             size="small"
           >
             格式化
