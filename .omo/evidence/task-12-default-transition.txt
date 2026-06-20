@@ -1,0 +1,42 @@
+Task 12 — 默认（prefers-reduced-motion: no-preference）行为保持证据
+===================================================================
+日期: 2026-06-18
+
+1. @media 块为门控，不影响默认行为
+----------------------------------
+@media (prefers-reduced-motion: reduce) { ... }
+
+→ 该块仅在用户系统 / 浏览器启用「减少动效」偏好时生效。
+→ 没有该偏好的用户（绝大多数）走 @media 之外的所有原始 CSS 规则，行为完全不变。
+→ 验证方式：在 DevTools Rendering 面板切换 "Emulate CSS prefers-reduced-motion" 为 no-preference，
+  配合 miao-tool-card hover 仍可见 160ms transform/box-shadow 过渡。
+
+2. 原始 miao-* transition 规则保留（3 处）
+------------------------------------------
+$ grep -nE "transition:.*miao" src/index.css
+line 286 (.miao-password-rules span):
+    transition: color 160ms ease, background-color 160ms ease;
+line 311 (.miao-auth-social-link):
+    transition: border-color 160ms ease, color 160ms ease, transform 160ms ease;
+line 390 (.miao-tool-card):
+    transition: transform 160ms ease, box-shadow 160ms ease;
+
+→ 这 3 条 transition 在 no-preference 下保持原样，未被新 @media 块干扰（块内才有 transition-duration 覆盖）。
+→ 新 @media 块不修改 --miao-* CSS 变量定义 ✅ 满足 MUST NOT DO。
+
+3. antd 组件级 transition 不受影响
+-----------------------------------
+选择器 [class^='miao-'] + [class*=' miao-'] 不会命中任何 antd 元素：
+- antd Modal / Drawer 的 motion 由 ConfigProvider.motion 控制（Task 8 / 9 处理）
+- antd Button / Menu / Input 的 transition 由 antd 内部 token 控制
+- 我们的 CSS override 完全不接触 .ant-* 选择器 → 与 antd ConfigProvider 配置不冲突
+
+4. 验证方式
+------------
+(1) 静态：npm run build 通过 + grep 确认 dist 中 @media 块存在
+(2) 运行时（建议人工/QA 后续执行）：
+    - 打开 Chrome DevTools → More tools → Rendering
+    - "Emulate CSS media feature prefers-reduced-motion" 切到 reduce
+    - 访问 http://localhost:5173 → 登录页 / 工具列表页
+    - hover 工具卡片 / 密码规则 / OAuth 按钮 → 应几乎无过渡
+    - 切到 no-preference → 160ms 过渡恢复

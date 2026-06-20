@@ -1,0 +1,6 @@
+getToolByKey(text-compare).path = /tools/text-compare
+getToolByKey(translate).path = null
+getToolByKey(translate).available = false
+getToolsByCategory(available).length = 1
+getToolsByCategory(coming-soon).length = 3
+getToolsByCategory(coming-soon).keys = translate,image,voice

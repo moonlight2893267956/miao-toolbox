@@ -3,6 +3,10 @@ spring:
     name: miao-toolbox-api
   profiles:
     active: dev,local
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
   jpa:
     hibernate:
       ddl-auto: validate
@@ -41,3 +45,6 @@ miao:
   anti-replay:
     timestamp-tolerance-minutes: 5
     nonce-ttl-seconds: 300
+  cos:
+    base-path: text-compare
+    max-file-size: 104857600
