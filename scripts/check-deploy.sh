@@ -25,6 +25,10 @@ API_LOGIN="${PROTO}://${DOMAIN}/api/auth/login"
 FRONTEND_HOME="${PROTO}://${DOMAIN}/"
 SERVER_HOST="yunmiao@yunmiao.site"
 SERVER_DEPLOY_DIR="/opt/miao-toolbox"
+# 管理员密码:通过环境变量传入,避免硬编码
+#   ADMIN_PASSWORD=xxx bash scripts/check-deploy.sh
+# 默认值仅用于首次部署 + 强制改密前
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-Admin123}"
 
 # ===== 状态 =====
 PASS=0
@@ -98,17 +102,17 @@ ac3_frontend_indexhtml() {
 }
 
 ac4_login_admin() {
-  hdr "AC4: admin/Admin123 登录"
+  hdr "AC4: 管理员登录(密码从 \$ADMIN_PASSWORD 读取)"
   local resp
   resp=$(curl -s -m 10 -X POST "$API_LOGIN" \
     -H 'Content-Type: application/json' \
-    -d '{"username":"admin","password":"Admin123"}' || echo "")
+    -d "{\"username\":\"admin\",\"password\":\"$ADMIN_PASSWORD\"}" || echo "")
   if echo "$resp" | grep -q '"accessToken"'; then
     record_pass "AC4 登录成功,获取到 accessToken"
   elif echo "$resp" | grep -qi 'mustChangePassword'; then
     record_pass "AC4 登录成功(强制改密状态)"
-  elif echo "$resp" | grep -qi 'invalid\|unauthorized\|密码错误\|用户不存在'; then
-    record_fail "AC4 凭据错误: $resp"
+  elif echo "$resp" | grep -qi 'invalid\|unauthorized\|密码错误\|用户不存在\|AUTH_LOGIN_FAILED'; then
+    record_fail "AC4 凭据错误(密码错误或用户不存在): $resp"
   else
     record_fail "AC4 登录接口异常: $resp"
   fi
