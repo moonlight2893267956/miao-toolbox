@@ -48,35 +48,77 @@ step_ensure_remote_dir() {
 }
 
 step_pull_code() {
-  hdr "2. 拉取最新代码"
+  hdr "2. 本机打包代码 + SCP 传输(避免服务器 git clone 兼容问题)"
+  local tar_file
+  tar_file="/tmp/miao-toolbox-$(date +%s).tar.gz"
+  local repo_root
+  repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+
+  tar -C "$repo_root" \
+    --exclude='.git' --exclude='node_modules' --exclude='target' --exclude='dist' \
+    --exclude='.env' --exclude='.env.*' --exclude='.agents' --exclude='.atomcode' \
+    --exclude='.claude' --exclude='.qoder' --exclude='.omo' --exclude='.opencode' \
+    --exclude='.playwright-mcp' --exclude='AGENTS.md' --exclude='CLAUDE.md' \
+    --exclude='scripts/ys.sh' --exclude='scripts/final_qa.py' --exclude='scripts/headless_check.py' \
+    --exclude='screenshots' --exclude='*.log' --exclude='logs' \
+    -czf "$tar_file" .
+
+  scp $SSH_OPTS "$tar_file" "$REMOTE_HOST:/tmp/$(basename $tar_file)"
   ssh_run "cd '$REMOTE_DIR' && \
-    if [ ! -d .git ]; then \
-      git clone -b '$GIT_BRANCH' 'https://github.com/moonlight2893267956/miao-toolbox.git' .; \
-    else \
-      git fetch '$GIT_REMOTE' && git reset --hard '$GIT_REMOTE'/'$GIT_BRANCH'; \
-    fi"
-  grn "  ✓ 代码已是 $GIT_REMOTE/$GIT_BRANCH 最新"
+    tar xzf /tmp/$(basename $tar_file) --strip-components=0 && \
+    rm -f /tmp/$(basename $tar_file) && \
+    echo '代码已解压:' && ls -la | head -15"
+  rm -f "$tar_file"
+  grn "  ✓ 代码已传输到 $REMOTE_DIR"
 }
 
 step_gen_env() {
-  hdr "3. 生成 .env"
-  ssh_run "cd '$REMOTE_DIR' && \
-    if [ -f .env ]; then \
-      echo '  .env 已存在,保留现有密钥(避免重置数据库)'; \
-    else \
-      cp .env.example .env && chmod 600 .env && \
-      sed -i \"s|JWT_SECRET=.*|JWT_SECRET=\$(openssl rand -base64 64)|\" .env && \
-      sed -i \"s|JWT_REFRESH_SECRET=.*|JWT_REFRESH_SECRET=\$(openssl rand -base64 64)|\" .env && \
-      sed -i \"s|MYSQL_PASSWORD=.*|MYSQL_PASSWORD=\$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)|\" .env && \
-      sed -i \"s|MYSQL_ROOT_PASSWORD=.*|MYSQL_ROOT_PASSWORD=\$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)|\" .env && \
-      sed -i \"s|REDIS_PASSWORD=.*|REDIS_PASSWORD=\$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)|\" .env && \
-      echo '  ✓ .env 已生成(随机密钥)'; \
-    fi"
+  hdr "3. 生成 .env(本机生成密钥,避开嵌套 sed 坑)"
+  local env_file
+  env_file="/tmp/miao-toolbox-$(date +%s).env"
+  cp .env.example "$env_file"
+  chmod 600 "$env_file"
 
-  # CORS 配置:生产域名,如果没注册就先放开
-  ssh_run "cd '$REMOTE_DIR' && \
-    sed -i 's|CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=https://tools.yunmiao.site,http://81.70.216.46:8089|' .env && \
-    echo '  ✓ CORS 已配置'"
+  # 本机用 Python 生成安全随机密码(避免 base64 的 /+= 干扰 sed)
+  python3 - "$env_file" <<'PY'
+import secrets, string, sys, pathlib
+path = pathlib.Path(sys.argv[1])
+text = path.read_text()
+
+def rand_secret(n=64):
+    # URL-safe base64(用 - _ 替代 + /),避免 sed 分隔符冲突
+    return secrets.token_urlsafe(n)
+
+def rand_password(n=24):
+    # 字母数字,排除容易混淆的 0/O/1/l/I
+    alpha = ''.join(c for c in string.ascii_letters + string.digits if c not in '0O1lI')
+    return ''.join(secrets.choice(alpha) for _ in range(n))
+
+replacements = {
+    'JWT_SECRET=': f'JWT_SECRET={rand_secret(64)}',
+    'JWT_REFRESH_SECRET=': f'JWT_REFRESH_SECRET={rand_secret(64)}',
+    'MYSQL_PASSWORD=': f'MYSQL_PASSWORD={rand_password(24)}',
+    'MYSQL_ROOT_PASSWORD=': f'MYSQL_ROOT_PASSWORD={rand_password(24)}',
+    'REDIS_PASSWORD=': f'REDIS_PASSWORD={rand_password(24)}',
+    'CORS_ALLOWED_ORIGINS=': 'CORS_ALLOWED_ORIGINS=https://tools.yunmiao.site,http://81.70.216.46:8089',
+}
+
+for key, val in replacements.items():
+    needle = None
+    for line in text.splitlines():
+        if line.startswith(key):
+            needle = line
+            break
+    if needle:
+        text = text.replace(needle, val, 1)
+
+path.write_text(text)
+print(f"✓ .env 已生成: {path}")
+PY
+
+  scp $SSH_OPTS "$env_file" "$REMOTE_HOST:/opt/miao-toolbox/.env"
+  rm -f "$env_file"
+  grn "  ✓ .env 已上传到 $REMOTE_DIR/.env"
 }
 
 step_temp_insecure_cookie() {

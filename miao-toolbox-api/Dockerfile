@@ -18,6 +18,8 @@ LABEL maintainer="miao-toolbox"
 RUN addgroup -S miao && adduser -S miao -G miao
 
 WORKDIR /app
+# logback-spring.xml 配置了写文件日志 logs/miao-toolbox.log,需要这个目录
+RUN mkdir -p /app/logs
 COPY --from=builder /build/app.jar /app/app.jar
 
 # 健康检查(容器内直连 8080)
