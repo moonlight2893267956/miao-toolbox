@@ -18,7 +18,8 @@ set -uo pipefail
 
 # ===== 可配置 =====
 DOMAIN="${DOMAIN:-tools.yunmiao.site}"
-PROTO="${PROTO:-http}"
+# SSL 已配好,默认走 https
+PROTO="${PROTO:-https}"
 API_HEALTH="${PROTO}://${DOMAIN}/api/actuator/health"
 API_LOGIN="${PROTO}://${DOMAIN}/api/auth/login"
 FRONTEND_HOME="${PROTO}://${DOMAIN}/"

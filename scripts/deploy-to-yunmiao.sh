@@ -163,7 +163,8 @@ server {
     #CERT-APPLY-CHECK--END
 
     # API 反代(后端容器 8088)
-    location /api/ {
+    # 用 ^~ 前缀,优先级高于主 vhost 里的正则 location(location ~ .*\.js$ 等)
+    location ^~ /api/ {
         proxy_pass http://127.0.0.1:8088/api/;
         proxy_set_header Host              \$host;
         proxy_set_header X-Real-IP         \$remote_addr;
@@ -174,7 +175,7 @@ server {
     }
 
     # 前端反代(nginx 容器 8089)
-    location / {
+    location ^~ / {
         proxy_pass http://127.0.0.1:8089;
         proxy_set_header Host              \$host;
         proxy_set_header X-Real-IP         \$remote_addr;
