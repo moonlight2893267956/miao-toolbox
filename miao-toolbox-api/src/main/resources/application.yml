@@ -24,6 +24,9 @@ spring:
 
 server:
   port: 8080
+  # 反代部署时,让 Spring 解析 X-Forwarded-Proto / X-Forwarded-For
+  # 否则 cookie-secure: true 在反代后面会失效(请求看起来是 HTTP)
+  forward-headers-strategy: framework
 
 management:
   endpoints:
