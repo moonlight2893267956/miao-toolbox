@@ -215,6 +215,27 @@ curl http://127.0.0.1:8088/actuator/health
 curl -sI http://127.0.0.1:8089/
 ```
 
+### 5.2 修改 .env 后必须用 `up -d`,不要用 `restart`
+
+**这是最容易踩的坑**:
+
+| 命令 | 是否重读 .env | 何时用 |
+|---|---|---|
+| `docker compose restart api` | ❌ **不会重读** | 只重启容器进程(代码 bug、内存问题等) |
+| `docker compose up -d api` | ✅ **会重读** | 改了 `.env` 后必须用这个 |
+
+**症状**:改了 `.env` 里的某个变量(比如 OAuth 的 `CLIENT_ID`),重启后发现容器内环境变量**还是旧值**。
+
+**原因**:`restart` 只是给容器发 SIGHUP,容器进程还在,**不重新解析 docker-compose 配置**。`up -d` 会重新读 compose 文件 + `.env`,如果环境变量有变化,会自动 recreate 容器(看到输出 "Container ... Recreate" / "Recreated")。
+
+**诊断命令**:
+```bash
+# 查容器内环境变量实际值(权威)
+docker exec miao-toolbox-api-1 printenv | grep GITHUB
+# 或
+docker inspect miao-toolbox-api-1 --format '{{range .Config.Env}}{{println .}}{{end}}' | grep GITHUB
+```
+
 ### 5.2 部署脚本子命令
 
 ```bash
