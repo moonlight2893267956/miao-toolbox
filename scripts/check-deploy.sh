@@ -73,12 +73,15 @@ ac1_frontend_200() {
 
 ac2_backend_health() {
   hdr "AC2: 后端健康检查"
+  # 走宝塔 vhost + /api/ 路径会被 AntiReplayFilter 拦截(actuator 不需要 nonce)
+  # 直接 SSH 到服务器测后端容器,验证后端真实健康
   local body
-  body=$(curl -sf -m 10 "$API_HEALTH" || echo "")
+  body=$(ssh -o ConnectTimeout=10 -o BatchMode=yes "$SERVER_HOST" \
+    "curl -sf -m 10 http://127.0.0.1:8088/actuator/health 2>/dev/null" 2>/dev/null)
   if echo "$body" | grep -q '"status":"UP"'; then
     record_pass "AC2 后端健康: $body"
   else
-    record_fail "AC2 后端未 UP (URL=$API_HEALTH, body=$body)"
+    record_fail "AC2 后端未 UP (body=$body)"
   fi
 }
 
@@ -129,36 +132,40 @@ ac5_frontend_assets() {
 
 ac6_containers_up() {
   hdr "AC6: 4 个 Docker 容器全 Up"
-  local out
-  out=$(ssh -o ConnectTimeout=10 -o BatchMode=yes "$SERVER_HOST" \
-    "cd '$SERVER_DEPLOY_DIR' && docker compose -f docker-compose.prod.yml ps --services" 2>/dev/null)
+  # docker compose ps --services 在 ssh 嵌套里输出不稳定,改用 docker ps 直接读
   local running
   running=$(ssh -o ConnectTimeout=10 -o BatchMode=yes "$SERVER_HOST" \
-    "cd '$SERVER_DEPLOY_DIR' && docker compose -f docker-compose.prod.yml ps --status running --services" 2>/dev/null)
+    "docker ps --format '{{.Names}}'" 2>/dev/null | grep -E "^miao-toolbox-(api|web|mysql|redis)-1$" | sort)
   if [ -z "$running" ]; then
-    record_fail "AC6 无任何运行中的服务(SSH 失败或 compose 文件未找到)"
+    record_fail "AC6 未检测到任何 miao-toolbox 容器(SSH 失败?)"
     return
   fi
-  # 期望服务
-  local expected="api web mysql redis"
+  local expected="miao-toolbox-api-1 miao-toolbox-web-1 miao-toolbox-mysql-1 miao-toolbox-redis-1"
   local miss=""
   for s in $expected; do
-    echo " $running " | grep -q " $s " || miss="$miss $s"
+    echo "$running" | grep -qx "$s" || miss="$miss $s"
   done
   if [ -z "$miss" ]; then
-    record_pass "AC6 服务运行中:$running"
+    record_pass "AC6 4 个容器都在运行"
   else
-    record_fail "AC6 缺失服务:$miss(实际:$running)"
+    record_fail "AC6 缺失:$miss(实际:$running)"
   fi
 }
 
 ac7_api_logs_no_error() {
   hdr "AC7: 后端无 ERROR 级别日志"
+  # 通过 docker logs 直接读(避免 compose logs 嵌套的转义问题)
   local errs
   errs=$(ssh -o ConnectTimeout=10 -o BatchMode=yes "$SERVER_HOST" \
-    "cd '$SERVER_DEPLOY_DIR' && docker compose -f docker-compose.prod.yml logs --no-color --tail=200 api 2>/dev/null | grep -c ' ERROR '" 2>/dev/null || echo "0")
+    "docker logs --tail 500 miao-toolbox-api-1 2>&1 | grep -c ' ERROR '" 2>/dev/null | tr -d '[:space:]')
+  # 若 docker logs 没结果,fallback 到 docker compose logs
+  if [ -z "$errs" ]; then
+    errs=$(ssh -o ConnectTimeout=10 -o BatchMode=yes "$SERVER_HOST" \
+      "cd '$SERVER_DEPLOY_DIR' && docker compose -f docker-compose.prod.yml logs --tail 500 api 2>/dev/null | grep -cE '^[a-z0-9-]+-1  \\| .* ERROR '" 2>/dev/null | tr -d '[:space:]')
+  fi
+  errs=${errs:-0}
   if [ "$errs" = "0" ]; then
-    record_pass "AC7 后端最近 200 行无 ERROR"
+    record_pass "AC7 后端最近 500 行无 ERROR"
   else
     record_fail "AC7 后端日志有 $errs 条 ERROR"
   fi
@@ -183,20 +190,21 @@ ac9_text_compare_tool() {
 
 ac10_db_tables() {
   hdr "AC10: 数据库表存在(Flyway 已迁移)"
+  # 用 --raw-output 避免被 ssh 多层 shell 解释;按行 read 判断
   local tables
   tables=$(ssh -o ConnectTimeout=10 -o BatchMode=yes "$SERVER_HOST" \
     "cd '$SERVER_DEPLOY_DIR' && \
      ROOT=\$(grep '^MYSQL_ROOT_PASSWORD=' .env | cut -d= -f2-) && \
-     docker exec miao-mysql mysql -uroot -p\"\$ROOT\" -N -B -e 'SHOW TABLES' miao_toolbox 2>/dev/null" 2>/dev/null)
+     docker exec miao-toolbox-mysql-1 mysql -uroot -p\"\$ROOT\" -N -B -e 'SHOW TABLES' miao_toolbox 2>/dev/null" 2>/dev/null)
   local expected="users refresh_tokens audit_logs"
   local miss=""
   for t in $expected; do
-    echo "$tables" | grep -q "^$t\$" || miss="$miss $t"
+    echo "$tables" | grep -qx "$t" || miss="$miss $t"
   done
   if [ -z "$miss" ]; then
-    record_pass "AC10 数据库表齐全:$tables"
+    record_pass "AC10 数据库表齐全(共 $(echo "$tables" | wc -l | tr -d ' ') 张表)"
   else
-    record_fail "AC10 缺失表:$miss(实际:$tables)"
+    record_fail "AC10 缺失表:$miss(实际表:$tables)"
   fi
 }
 
