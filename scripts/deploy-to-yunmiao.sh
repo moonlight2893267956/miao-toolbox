@@ -158,7 +158,7 @@ server {
     # 临时:80/443 还没配 SSL,先只走 80
     # 域名+SSL 配好后,在此 server 内追加 listen 443 ssl + 80 -> 443 跳转
     #CERT-APPLY-CHECK--START
-    # 用于 SSL 证书申请时的文件验证
+    # 用于 SSL 证书申请时的文件验证(SSL 申请前需要先存在此目录)
     include /www/server/panel/vhost/nginx/well-known/tools.yunmiao.site.conf;
     #CERT-APPLY-CHECK--END
 
@@ -189,7 +189,12 @@ EOF
 
   scp_to "$vhost_tmp" "/tmp/tools.yunmiao.site.conf"
   rm -f "$vhost_tmp"
-  ssh_run "sudo cp /tmp/tools.yunmiao.site.conf '$BT_VHOST' && \
+  ssh_run "\
+    sudo mkdir -p /www/server/panel/vhost/nginx/well-known/tools.yunmiao.site && \
+    sudo touch /www/server/panel/vhost/nginx/well-known/tools.yunmiao.site/.keep && \
+    sudo mkdir -p /www/wwwlogs && \
+    sudo touch /www/wwwlogs/tools.yunmiao.site.access.log /www/wwwlogs/tools.yunmiao.site.error.log && \
+    sudo cp /tmp/tools.yunmiao.site.conf '$BT_VHOST' && \
     sudo nginx -t && \
     sudo nginx -s reload && \
     echo '  ✓ 宝塔 vhost 已生效'"
