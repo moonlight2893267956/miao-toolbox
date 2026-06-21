@@ -236,7 +236,7 @@ docker exec miao-toolbox-api-1 printenv | grep GITHUB
 docker inspect miao-toolbox-api-1 --format '{{range .Config.Env}}{{println .}}{{end}}' | grep GITHUB
 ```
 
-### 5.2 部署脚本子命令
+### 5.3 部署脚本子命令
 
 ```bash
 ./scripts/deploy-to-yunmiao.sh all       # 完整流程
@@ -247,7 +247,7 @@ docker inspect miao-toolbox-api-1 --format '{{range .Config.Env}}{{println .}}{{
 ./scripts/deploy-to-yunmiao.sh logs      # 实时日志
 ```
 
-### 5.3 验收脚本选项
+### 5.4 验收脚本选项
 
 ```bash
 # 全套 10 条
