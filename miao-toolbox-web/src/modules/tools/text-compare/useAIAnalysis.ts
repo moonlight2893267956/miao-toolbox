@@ -122,7 +122,10 @@ export const useAIAnalysis = () => {
         // 手动计算 HMAC 签名（fetch 不走 axios 拦截器）
         const headers = await buildSignedHeaders(body);
 
-        const response = await fetch(`${axiosInstance.defaults.baseURL}${BASE}/summary`, {
+        const baseUrl = axiosInstance.defaults.baseURL || '';
+        const url = `${baseUrl}${BASE}/summary`;
+
+        const response = await fetch(url, {
           method: 'POST',
           headers,
           body,
@@ -156,23 +159,38 @@ export const useAIAnalysis = () => {
           if (done) break;
 
           buffer += decoder.decode(value, { stream: true });
+
+          // SSE 协议：事件由空行分隔
+          // Spring Boot SseEmitter 输出格式：
+          //   event:token\n
+          //   data:{"token":"xxx"}\n
+          //   \n
           const lines = buffer.split('\n');
+          // 保留最后一行（可能不完整）
           buffer = lines.pop() || '';
 
           let currentEvent = '';
           for (const line of lines) {
-            if (line.startsWith('event: ')) {
-              currentEvent = line.slice(7).trim();
-            } else if (line.startsWith('data: ')) {
-              const data = line.slice(6);
+            const trimmedLine = line.trim();
+
+            if (trimmedLine.startsWith('event:')) {
+              // event:token 或 event: token
+              currentEvent = trimmedLine.slice(6).trim();
+            } else if (trimmedLine.startsWith('data:')) {
+              // data:{"token":"xxx"} 或 data: {"token":"xxx"}
+              const dataStr = trimmedLine.slice(5).trim();
+              if (!dataStr) continue;
+
               try {
-                const parsed = JSON.parse(data);
+                const parsed = JSON.parse(dataStr);
 
                 if (currentEvent === 'token') {
                   const token = parsed.token || '';
-                  fullContent += token;
-                  setStreamContent(fullContent);
-                  onToken(token);
+                  if (token) {
+                    fullContent += token;
+                    setStreamContent(fullContent);
+                    onToken(token);
+                  }
                 } else if (currentEvent === 'done') {
                   onDone(parsed.trace_id);
                 } else if (currentEvent === 'error') {
@@ -181,11 +199,44 @@ export const useAIAnalysis = () => {
                   // 非 generator 的完整输出
                   fullContent = JSON.stringify(parsed, null, 2);
                   setStreamContent(fullContent);
+                } else if (!currentEvent || currentEvent === 'message') {
+                  // 默认事件：可能是 token
+                  if (parsed.token) {
+                    fullContent += parsed.token;
+                    setStreamContent(fullContent);
+                    onToken(parsed.token);
+                  }
                 }
               } catch {
-                // 非 JSON 数据，忽略
+                // 非 JSON 数据，作为纯文本处理
+                if (currentEvent === 'token' && dataStr) {
+                  fullContent += dataStr;
+                  setStreamContent(fullContent);
+                  onToken(dataStr);
+                }
               }
               currentEvent = '';
+            }
+            // 空行和注释行（:）被忽略 — 这是事件分隔符
+          }
+        }
+
+        // 处理 buffer 中可能残留的最后一批数据
+        if (buffer.trim()) {
+          const remainingLines = buffer.split('\n');
+          let lastEvent = '';
+          for (const line of remainingLines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('event:')) {
+              lastEvent = trimmed.slice(6).trim();
+            } else if (trimmed.startsWith('data:')) {
+              const dataStr = trimmed.slice(5).trim();
+              if (dataStr && lastEvent === 'done') {
+                try {
+                  const parsed = JSON.parse(dataStr);
+                  onDone(parsed.trace_id);
+                } catch { /* ignore */ }
+              }
             }
           }
         }
