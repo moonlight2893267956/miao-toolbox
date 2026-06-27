@@ -386,6 +386,62 @@ server {
 
 **修复**:在 `extension` 目录的 `00-miao-toolbox.conf` 里,所有 `location` 加 `^~` 前缀。
 
+### 8.2b 部署后 favicon/assets 仍是旧版本(`size` 偏小、tab 图标不对)
+
+**症状**:浏览器硬刷新后 `/favicon-512.png` 还是 71KB 旧版(本机新版 321KB),`/assets/index-*.js` 也是旧 hash。`/favicon.ico` 直接 404。`nginx -T` 显示 `^~ /favicon-512.png` 在加载,web 容器内文件也是新的。
+
+**根因**:**宝塔 `proxy.conf` 全局启用了 `proxy_cache cache_one`**:
+
+```nginx
+# /www/server/nginx/conf/proxy.conf
+proxy_cache_path /www/server/nginx/proxy_cache_dir levels=1:2 keys_zone=cache_one:20m inactive=1d max_size=5g;
+proxy_cache cache_one;
+```
+
+宝塔默认在 `http { }` 块 `include proxy.conf;`,**所有 `proxy_pass` 响应都被缓存**(按响应头 `Cache-Control` / `Expires` 决定过期)。所以 deploy 后第一次请求 favicon,宝塔从 `proxy_cache_dir` 返回旧的 71KB,根本不会打到 web 容器。
+
+**验证缓存就是元凶**:
+
+```bash
+# 加随机 query 绕过 cache
+curl -k -s -o /dev/null -w 'size=%{size_download}\n' 'https://tools.yunmiao.site/favicon-512.png?bust=1'
+#   → 321229(新版,打到了 web 容器)
+
+curl -k -s -o /dev/null -w 'size=%{size_download}\n' 'https://tools.yunmiao.site/favicon-512.png'
+#   → 71195(旧版,宝塔 proxy_cache 命中)
+```
+
+**修复**:在 `extension/00-miao-toolbox.conf` 的静态资源 location 加 `proxy_cache off;`(API 和根路径可以保留缓存,减轻后端压力):
+
+```nginx
+location ^~ /favicon-512.png {
+    proxy_pass http://127.0.0.1:8089;
+    proxy_cache off;  # 关键:绕过宝塔全局 proxy_cache
+    ...
+}
+location ^~ /favicon.svg    { proxy_pass http://127.0.0.1:8089; proxy_cache off; ... }
+location ^~ /favicon.ico    { proxy_pass http://127.0.0.1:8089; proxy_cache off; ... }
+location ^~ /assets/        { proxy_pass http://127.0.0.1:8089; proxy_cache off; ... }
+```
+
+然后 `sudo nginx -t && sudo nginx -s reload`,deploy 静态资源就能立即生效。
+
+**`/favicon.ico` 兜底**:浏览器默认会请求 `/favicon.ico`,如果 web 容器没这文件就 404。**用 Pillow 从 512 PNG 生成 16/32/48 多尺寸 ICO 放 `public/`**:
+
+```python
+from PIL import Image
+Image.open('public/favicon-512.png').save(
+    'public/favicon.ico', format='ICO', sizes=[(48,48), (32,32), (16,16)])
+```
+
+`index.html` 加 3 个 link tag,浏览器按顺序选最匹配的:
+
+```html
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="icon" type="image/png" sizes="512x512" href="/favicon-512.png" />
+<link rel="alternate icon" type="image/x-icon" href="/favicon.ico" />
+```
+
 ### 8.3 登录后立即掉登录态(刷新就退出)
 
 **症状**:能登录,但刷新页面就退出。
@@ -409,6 +465,86 @@ server {
 **修复**:我们的反代放在 `extension/00-miao-toolbox.conf`,理论上不会失效。如果真的失效了,先检查:
 - `include /www/server/panel/vhost/nginx/extension/tools.yunmiao.site/*.conf;` 在主 vhost 里
 - 重新跑 `./scripts/deploy-to-yunmiao.sh vhost`
+
+### 8.6 OAuth 回调超时(`SocketTimeoutException: Connect timed out`)
+
+**症状**:OAuth authorize 重定向 URL 正确(用户能看到 GitHub/Google 授权页),但授权完成后回调接口 `GET /api/auth/oauth/{github|google}/callback?code=...&state=...` 报错,后端日志:
+
+```
+ERROR c.m.t.a.controller.OAuthController - OAuth callback failed
+java.net.SocketTimeoutException: Connect timed out
+    at com.miao.toolbox.auth.oauth.GitHubOAuthService.exchangeCodeForToken
+    at com.miao.toolbox.auth.oauth.GitHubOAuthService.handleCallback
+```
+
+**根因**:腾讯云轻量服务器(国内出口)的国际访问被 GFW / 腾讯云边界防火墙屏蔽。验证方法:
+
+```bash
+# 宿主机直连测试(不走代理)
+curl -v -m 8 -o /dev/null https://github.com/login/oauth/access_token
+#   → TLS 握手中途被切断(github.com 根域)
+curl -v -m 8 -o /dev/null https://oauth2.googleapis.com/token
+#   → Connection timed out(googleapis.com 整个 IP 段)
+curl -v -m 8 -o /dev/null https://api.github.com/zen
+#   → 200 OK(api.github.com 子域的 IP 段是通的,容易误导)
+```
+
+| 端点 | 直连结果 |
+|---|---|
+| `api.github.com:443` | ✅ 通(20.205.243.168) |
+| `github.com:443` | ❌ TLS 握手中断(20.205.243.166) |
+| `oauth2.googleapis.com:443` | ❌ Connection timed out |
+| `accounts.google.com:443` | ❌ Connection timed out |
+
+**修复**:让 JVM 走宿主机的 HTTP 代理(如 Clash 监听 `0.0.0.0:7890`)。改 `docker-compose.prod.yml` 的 `api` service:
+
+```yaml
+  api:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # 让容器能解析到宿主机
+    environment:
+      HTTP_PROXY: http://host.docker.internal:7890
+      HTTPS_PROXY: http://host.docker.internal:7890
+      JAVA_OPTS: >-
+        -Xms256m -Xmx384m -XX:+UseG1GC
+        -Dhttp.proxyHost=host.docker.internal
+        -Dhttp.proxyPort=7890
+        -Dhttps.proxyHost=host.docker.internal
+        -Dhttps.proxyPort=7890
+        -Dhttp.nonProxyHosts=mysql|redis|api|web|localhost|127.*|*.yunmiao.site|10.*|172.16.*|172.17.*|172.18.*|192.168.*
+```
+
+**为什么这样能解决**:
+- `RestTemplate` 用 `SimpleClientHttpRequestFactory` → JDK `HttpURLConnection`
+- JVM 启动时 `-Dhttp(s).proxyHost/Port` 属性会自动设置 `ProxySelector` 给对应协议
+- `HttpURLConnection` 自动用代理,**不用改 Java 代码**
+- `nonProxyHosts` 排除内网服务(`mysql`/`redis`/`api`/`web`/宿主机反代/私网),免得这些连接绕一圈到代理
+
+**验证步骤**:
+
+```bash
+# 1. 同步 compose 文件到服务器 + 重建
+scp docker-compose.prod.yml yunmiao@yunmiao.site:/opt/miao-toolbox/
+ssh yunmiao@yunmiao.site "cd /opt/miao-toolbox && docker compose -f docker-compose.prod.yml up -d api"
+
+# 2. 确认 java 进程命令行有代理参数
+ssh yunmiao@yunmiao.site "docker exec miao-toolbox-api-1 ps -ef | grep app.jar | grep -v grep"
+#   应看到 -Dhttp.proxyHost=host.docker.internal -Dhttp.proxyPort=7890 ...
+
+# 3. 容器内 nc 测 HTTP CONNECT 隧道(Java 走代理时用的协议)
+ssh yunmiao@yunmiao.site "docker exec miao-toolbox-api-1 sh -c '
+printf \"CONNECT github.com:443 HTTP/1.1\\r\\nHost: github.com\\r\\n\\r\\n\" | nc -w 8 host.docker.internal 7890 | head -1
+printf \"CONNECT oauth2.googleapis.com:443 HTTP/1.1\\r\\nHost: oauth2.googleapis.com\\r\\n\\r\\n\" | nc -w 8 host.docker.internal 7890 | head -1
+'"
+#   应都返回 HTTP/1.1 200 Connection established
+
+# 4. 端到端实测:浏览器走一遍 GitHub/Google 授权,看后端日志
+ssh yunmiao@yunmiao.site "cd /opt/miao-toolbox && docker compose -f docker-compose.prod.yml logs -f api"
+#   应看到 OAuth callback success: userId=..., username=...
+#   整流程 2~5 秒完成
+```
+
+**如果不希望走代理**(接受 OAuth 不可用):把 `.env` 里 `GITHUB_CLIENT_ID` / `GOOGLE_CLIENT_ID` 等 OAuth 变量清空(注释掉 `# ` 前缀),`up -d api` 后前端登录页会自动隐藏 OAuth 按钮,用户只能用账号密码登录。
 
 ## 9. 数据备份
 

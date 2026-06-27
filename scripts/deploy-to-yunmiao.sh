@@ -145,60 +145,107 @@ step_deploy_services() {
 }
 
 step_ensure_vhost() {
-  hdr "6. 配置宝塔 vhost"
+  hdr "6. 配置宝塔 extension(主 vhost 由宝塔管理,这里只写我们的反代 + 静态资源)"
 
-  # 渲染 vhost 模板
-  local vhost_tmp
-  vhost_tmp=$(mktemp)
-  cat > "$vhost_tmp" <<EOF
-server {
-    listen 80;
-    server_name tools.yunmiao.site;
+  # 写 extension 文件(包含所有 ^~ location + 静态资源 proxy_cache off)
+  # 关键:宝塔主 vhost 有 location ~ .*\.png$ 和 ~ .*\.(js|css)?$ 两个静态资源 location,
+  #      虽然没 proxy_pass 但设了 expires 30d/12h; 而且宝塔 proxy.conf 全局启用了
+  #      proxy_cache cache_one(20m 内存,5G 磁盘,inactive=1d),会缓存所有 proxy_pass 响应
+  #      → 部署后 favicon 等更新不及时就是被这个缓存拦截
+  # 解决:用更具体的 ^~ location 抢前缀(长度比 ^~ / 2 长,带 ^~ 修饰会禁用正则);
+  #      静态资源加 proxy_cache off,绕过全局缓存
+  local ext_tmp
+  ext_tmp=$(mktemp)
+  cat > "$ext_tmp" <<'EXT_EOF'
+# 阿渺工具箱反代 + 静态资源配置
+# 放在宝塔 extension 目录,主 vhost 通过 include extension/*.conf 加载(主 vhost 重写时不影响)
+# 关键:所有 location 都用 ^~ 前缀,长度 > ^~ / 长度 2,会作为最长前缀胜出,
+#      带 ^~ 修饰后会禁用正则 location 检查(避免被主 vhost 的 png/js 静态资源 location 抢走)
 
-    # 临时:80/443 还没配 SSL,先只走 80
-    # 域名+SSL 配好后,在此 server 内追加 listen 443 ssl + 80 -> 443 跳转
-    #CERT-APPLY-CHECK--START
-    # 用于 SSL 证书申请时的文件验证(SSL 申请前需要先存在此目录)
-    include /www/server/panel/vhost/nginx/well-known/tools.yunmiao.site.conf;
-    #CERT-APPLY-CHECK--END
-
-    # API 反代(后端容器 8088)
-    # 用 ^~ 前缀,优先级高于主 vhost 里的正则 location(location ~ .*\.js$ 等)
-    location ^~ /api/ {
-        proxy_pass http://127.0.0.1:8088/api/;
-        proxy_set_header Host              \$host;
-        proxy_set_header X-Real-IP         \$remote_addr;
-        proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        client_max_body_size 100M;
-        proxy_read_timeout 60s;
-    }
-
-    # 前端反代(nginx 容器 8089)
-    location ^~ / {
-        proxy_pass http://127.0.0.1:8089;
-        proxy_set_header Host              \$host;
-        proxy_set_header X-Real-IP         \$remote_addr;
-        proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-
-    access_log /www/wwwlogs/tools.yunmiao.site.access.log;
-    error_log  /www/wwwlogs/tools.yunmiao.site.error.log;
+# 静态资源(favicon + /assets/):不走 BT 全局 proxy_cache,直接打 web 容器,
+# 否则部署后 favicon 等还会返回旧版(被 cache 拦截)
+location ^~ /favicon-512.png {
+    proxy_pass http://127.0.0.1:8089;
+    proxy_cache off;
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
 }
-EOF
+location ^~ /favicon.svg {
+    proxy_pass http://127.0.0.1:8089;
+    proxy_cache off;
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+location ^~ /favicon.ico {
+    proxy_pass http://127.0.0.1:8089;
+    proxy_cache off;
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+location ^~ /assets/ {
+    proxy_pass http://127.0.0.1:8089;
+    proxy_cache off;
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
 
-  scp_to "$vhost_tmp" "/tmp/tools.yunmiao.site.conf"
-  rm -f "$vhost_tmp"
+# /api/ 走后端(让 BT proxy_cache 缓存 API 响应,减轻后端压力)
+location ^~ /api/ {
+    proxy_pass http://127.0.0.1:8088/api/;
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host  $host;
+    client_max_body_size 100M;
+    proxy_read_timeout 60s;
+    proxy_http_version 1.1;
+}
+
+# 根路径反代到 web 容器(让 BT proxy_cache 缓存 HTML)
+location ^~ / {
+    proxy_pass http://127.0.0.1:8089;
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host  $host;
+}
+EXT_EOF
+
+  scp_to "$ext_tmp" "/tmp/00-miao-toolbox.conf"
+  rm -f "$ext_tmp"
+
   ssh_run "\
     sudo mkdir -p /www/server/panel/vhost/nginx/well-known/tools.yunmiao.site && \
     sudo touch /www/server/panel/vhost/nginx/well-known/tools.yunmiao.site/.keep && \
+    sudo mkdir -p /www/server/panel/vhost/nginx/extension/tools.yunmiao.site && \
+    sudo cp /tmp/00-miao-toolbox.conf /www/server/panel/vhost/nginx/extension/tools.yunmiao.site/00-miao-toolbox.conf && \
+    sudo chown root:root /www/server/panel/vhost/nginx/extension/tools.yunmiao.site/00-miao-toolbox.conf && \
+    sudo chmod 644 /www/server/panel/vhost/nginx/extension/tools.yunmiao.site/00-miao-toolbox.conf && \
     sudo mkdir -p /www/wwwlogs && \
     sudo touch /www/wwwlogs/tools.yunmiao.site.access.log /www/wwwlogs/tools.yunmiao.site.error.log && \
-    sudo cp /tmp/tools.yunmiao.site.conf '$BT_VHOST' && \
-    sudo nginx -t && \
-    sudo nginx -s reload && \
-    echo '  ✓ 宝塔 vhost 已生效'"
+    echo '  ✓ extension 已写入 /www/server/panel/vhost/nginx/extension/tools.yunmiao.site/00-miao-toolbox.conf'"
+
+  # 确保主 vhost 包含 extension include(主 vhost 由宝塔管理,我们只确保这一行存在)
+  # 如果没有,在 well-known include 后插入
+  if ssh_run "sudo grep -q 'include /www/server/panel/vhost/nginx/extension/tools.yunmiao.site/\\*\\.conf' '$BT_VHOST' 2>/dev/null"; then
+    grn "  ✓ 主 vhost 已包含 extension include"
+  else
+    ssh_run "sudo sed -i '/include \\/www\\/server\\/panel\\/vhost\\/nginx\\/well-known\\/tools.yunmiao.site.conf;/a\\    include /www/server/panel/vhost/nginx/extension/tools.yunmiao.site/*.conf;' '$BT_VHOST'" || \
+      ssh_run "sudo sed -i '/CERT-APPLY-CHECK--END/a\\    include /www/server/panel/vhost/nginx/extension/tools.yunmiao.site/*.conf;' '$BT_VHOST'"
+    grn "  ✓ 主 vhost 已添加 extension include"
+  fi
+
+  ssh_run "sudo nginx -t && sudo nginx -s reload && echo '  ✓ nginx reload 完成'"
 }
 
 step_verify() {
