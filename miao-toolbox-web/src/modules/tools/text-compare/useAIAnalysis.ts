@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import axiosInstance from '../../../services/axiosInstance';
 import { getAccessToken, getSigningKey } from '../../../contexts/AuthContext';
-import type { DiffResult, DiffHunk, DiffStatistics } from './types';
+import type { DiffResult, DiffHunk } from './types';
 
 const BASE = '/api/diff/ai';
 
