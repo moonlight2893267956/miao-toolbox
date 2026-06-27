@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { EditorView, keymap, placeholder, lineNumbers, highlightSpecialChars, drawSelection, highlightActiveLine } from '@codemirror/view';
-import { EditorState, type Extension } from '@codemirror/state';
+import { EditorState, Prec, type Extension } from '@codemirror/state';
 import { foldGutter, indentOnInput, indentUnit, foldKeymap } from '@codemirror/language';
 import { defaultKeymap, history } from '@codemirror/commands';
 import { json } from '@codemirror/lang-json';
@@ -14,6 +14,7 @@ import { sql } from '@codemirror/lang-sql';
 import { markdown } from '@codemirror/lang-markdown';
 import { yaml } from '@codemirror/lang-yaml';
 import { closeBrackets, autocompletion, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
+import { useDiffContext } from './useDiffContext';
 
 interface CodeEditorProps {
   value: string;
@@ -57,12 +58,14 @@ const CodeEditor = forwardRef<{ view: EditorView | null }, CodeEditorProps>(({
   lineWrapping = true,
   onFormatShortcut,
 }, ref) => {
+  const { runCompare } = useDiffContext();
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   const initialValueRef = useRef(value);
   const onViewReadyRef = useRef(onViewReady);
   const onFormatShortcutRef = useRef(onFormatShortcut);
+  const onCompareShortcutRef = useRef(runCompare);
 
   useImperativeHandle(ref, () => ({ get view() { return viewRef.current; } }), []);
 
@@ -70,6 +73,7 @@ const CodeEditor = forwardRef<{ view: EditorView | null }, CodeEditorProps>(({
   useEffect(() => { initialValueRef.current = value; }, [value]);
   useEffect(() => { onViewReadyRef.current = onViewReady; }, [onViewReady]);
   useEffect(() => { onFormatShortcutRef.current = onFormatShortcut; }, [onFormatShortcut]);
+  useEffect(() => { onCompareShortcutRef.current = runCompare; }, [runCompare]);
 
   const createEditor = useCallback(() => {
     if (!editorRef.current) return;
@@ -77,6 +81,14 @@ const CodeEditor = forwardRef<{ view: EditorView | null }, CodeEditorProps>(({
     const langExt = language ? LANGUAGE_EXTENSIONS[language] : null;
 
     const extensions: Extension[] = [
+      Prec.high(keymap.of([{
+        key: 'Mod-Enter',
+        preventDefault: true,
+        run: () => {
+          onCompareShortcutRef.current?.();
+          return true;
+        },
+      }])),
       keymap.of([...defaultKeymap, ...closeBracketsKeymap, ...completionKeymap, ...foldKeymap]),
       history(),
       indentOnInput(),

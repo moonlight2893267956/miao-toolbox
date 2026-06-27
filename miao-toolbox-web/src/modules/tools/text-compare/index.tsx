@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { DiffProvider } from './DiffProvider';
 import { useDiffContext } from './useDiffContext';
@@ -6,39 +6,23 @@ import Toolbar from './Toolbar';
 import DiffPanel from './DiffPanel';
 import StatCard from './StatCard';
 import DiffViewer from './DiffViewer';
-import { useDiffApi } from './useDiffApi';
 import './diff-tool.css';
 
 const DiffContent: React.FC = () => {
-  const { state, dispatch } = useDiffContext();
-  const { compare } = useDiffApi();
-  const debounceRef = useRef<number | null>(null);
+  const { state, runCompare } = useDiffContext();
 
   useEffect(() => {
-    const hasContent = state.leftText || state.rightText;
-    if (!hasContent) {
-      dispatch({ type: 'SET_DIFF_RESULT', payload: null });
-      return;
-    }
-    if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    debounceRef.current = window.setTimeout(async () => {
-      try {
-        dispatch({ type: 'SET_LOADING', payload: true });
-        const result = await compare({
-          left: state.leftText, right: state.rightText,
-          ignoreWhitespace: state.ignoreWhitespace,
-          structuredDiff: state.structuredDiff,
-        });
-        dispatch({ type: 'SET_DIFF_RESULT', payload: result });
-        const firstIdx = result?.hunks?.findIndex((h: { type: string }) => h.type !== 'unchanged') ?? -1;
-        dispatch({ type: 'SET_CURRENT_HUNK_INDEX', payload: firstIdx >= 0 ? firstIdx : -1 });
-      } catch (e: unknown) {
-        const err = e as { response?: { data?: { message?: string } } };
-        dispatch({ type: 'SET_ERROR', payload: err.response?.data?.message || '对比失败' });
-      }
-    }, 500);
-    return () => { if (debounceRef.current) window.clearTimeout(debounceRef.current); };
-  }, [state.leftText, state.rightText, state.ignoreWhitespace, state.structuredDiff, compare, dispatch]);
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter') return;
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      if (state.loading) return;
+      if (!state.leftText && !state.rightText) return;
+      runCompare();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [runCompare, state.loading, state.leftText, state.rightText]);
 
   const isStacked = state.layout === 'stacked';
 
@@ -50,7 +34,7 @@ const DiffContent: React.FC = () => {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.2 }}
       >
-        <Toolbar />
+        <Toolbar onCompare={runCompare} />
       </motion.div>
 
       <motion.div

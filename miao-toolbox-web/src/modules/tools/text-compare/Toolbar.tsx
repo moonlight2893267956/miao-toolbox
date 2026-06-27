@@ -1,8 +1,9 @@
 import React from 'react';
 import {
   ColumnHeightOutlined, EyeOutlined, AlignLeftOutlined,
-  ApartmentOutlined, CodeOutlined,
+  ApartmentOutlined, CodeOutlined, ThunderboltOutlined,
 } from '@ant-design/icons';
+import { Tooltip } from 'antd';
 import { useDiffContext } from './useDiffContext';
 import type { LayoutMode } from './types';
 
@@ -34,9 +35,10 @@ const Chip: React.FC<ChipProps> = ({ icon, label, active, onClick, ariaLabel }) 
   </button>
 );
 
-const Toolbar: React.FC = () => {
+const Toolbar: React.FC<{ onCompare: () => void }> = ({ onCompare }) => {
   const { state, setLayout, setIgnoreWhitespace, setStructuredDiff, setShowLineNumbers } = useDiffContext();
   const isJsonYaml = state.language === 'json' || state.language === 'yaml' || state.language === 'yml';
+  const canCompare = Boolean(state.leftText || state.rightText);
 
   const layoutOptions: Array<{ value: LayoutMode; label: string; icon: React.ReactNode }> = [
     { value: 'split', label: '分栏', icon: <ColumnHeightOutlined /> },
@@ -96,6 +98,18 @@ const Toolbar: React.FC = () => {
             {LANGUAGE_LABEL[state.language] ?? state.language.toUpperCase()}
           </span>
         )}
+        <Tooltip title="Ctrl + Enter" mouseEnterDelay={0.4}>
+          <button
+            type="button"
+            className="tc-pill tc-compare-btn is-active"
+            onClick={onCompare}
+            disabled={!canCompare || state.loading}
+            aria-label="开始对比 (Ctrl+Enter)"
+          >
+            <ThunderboltOutlined />
+            <span className="tc-pill-label">{state.loading ? '对比中…' : '对比'}</span>
+          </button>
+        </Tooltip>
       </div>
     </div>
   );
