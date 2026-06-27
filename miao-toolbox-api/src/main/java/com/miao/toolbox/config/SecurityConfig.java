@@ -26,6 +26,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import jakarta.servlet.DispatcherType;
 import java.util.Arrays;
 import java.util.List;
 
@@ -62,6 +63,11 @@ public class SecurityConfig {
                         .authenticationEntryPoint(jwtAuthEntryPoint())
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // SSE 异步回写（async dispatch）不重新验证权限
+                        // SseEmitter.send() → Tomcat async dispatch → FilterChain 重走 →
+                        // SecurityContextHolder(ThreadLocal) 无认证信息 → AuthorizationFilter 拒绝。
+                        // ASYNC dispatch 是同一 HTTP 连接上的延续请求，初始已认证，放行是安全的。
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                         .requestMatchers(
                                 "/api/auth/register",
                                 "/api/auth/login",
