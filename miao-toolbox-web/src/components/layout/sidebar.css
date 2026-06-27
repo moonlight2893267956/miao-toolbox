@@ -1,0 +1,756 @@
+/* ══════════════════════════════════════════════════════════════
+   Sidebar — Editorial Tech redesign v3
+   
+   亮色：浅暖色 #f7f4ef 背景，深灰字
+   暗色：深色 #0c0c14 背景，浅灰字
+   共享：3px 顶部渐变条、左侧竖条激活态、渐变 logo mark
+   动画：JS 驱动 stagger 级联 slide+fade（--item-delay / --item-tx / --item-opacity）
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Sidebar shell ── */
+.miao-sidebar {
+  --miao-sidebar-motion: 380ms cubic-bezier(0.22, 1, 0.36, 1);
+  --miao-sidebar-item-motion: 280ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  position: relative;
+  background: var(--miao-sidebar-bg) !important;
+  border-right: 1px solid var(--miao-sidebar-border);
+  transition:
+    width var(--miao-sidebar-motion),
+    min-width var(--miao-sidebar-motion),
+    max-width var(--miao-sidebar-motion),
+    flex-basis var(--miao-sidebar-motion),
+    background-color 180ms ease,
+    border-color 180ms ease;
+  will-change: width, min-width, max-width, flex-basis;
+  overflow: visible;  /* 让 FAB 能探出右边界 */
+  z-index: 5;         /* 保证 FAB 在主内容之上 */
+}
+
+.miao-sidebar .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: padding var(--miao-sidebar-motion);
+}
+
+.miao-sidebar .ant-layout-sider-children::-webkit-scrollbar {
+  width: 4px;
+}
+.miao-sidebar .ant-layout-sider-children::-webkit-scrollbar-track {
+  background: transparent;
+}
+.miao-sidebar .ant-layout-sider-children::-webkit-scrollbar-thumb {
+  background: var(--miao-sidebar-scrollbar);
+  border-radius: 2px;
+}
+
+/* ── Top gradient strip ── */
+.miao-sidebar-strip {
+  height: 3px;
+  flex: 0 0 auto;
+  background: linear-gradient(
+    90deg,
+    var(--miao-sidebar-gradient-start) 0%,
+    var(--miao-sidebar-gradient-mid) 50%,
+    var(--miao-sidebar-gradient-end) 100%
+  );
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* ── Brand header ── */
+.miao-sidebar-brand {
+  padding: 28px 20px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition:
+    padding var(--miao-sidebar-motion),
+    gap var(--miao-sidebar-motion),
+    opacity 180ms ease;
+}
+.miao-sidebar-brand:hover {
+  opacity: 0.9;
+}
+
+/* Collapsed brand */
+.ant-layout-sider-collapsed .miao-sidebar-brand {
+  padding: 20px 0 14px;
+  justify-content: center;
+  gap: 0;
+}
+
+/* ── Brand mark (gradient square with character) ── */
+.miao-sidebar-brand-mark {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #5C4FD0 0%, #8b7def 50%, #d97020 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: var(--miao-font-display);
+  font-size: 22px;
+  font-weight: 700;
+  box-shadow: 0 6px 20px rgba(92, 79, 208, 0.25),
+    0 0 0 3px rgba(92, 79, 208, 0.06);
+  transition:
+    width var(--miao-sidebar-motion),
+    height var(--miao-sidebar-motion),
+    border-radius var(--miao-sidebar-motion),
+    font-size var(--miao-sidebar-motion),
+    transform 200ms ease,
+    box-shadow 200ms ease;
+  line-height: 1;
+}
+.miao-sidebar-brand:hover .miao-sidebar-brand-mark {
+  transform: scale(1.05);
+  box-shadow: 0 8px 28px rgba(92, 79, 208, 0.35),
+    0 0 0 5px rgba(92, 79, 208, 0.10);
+}
+
+/* Collapsed mark */
+.ant-layout-sider-collapsed .miao-sidebar-brand-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  font-size: 20px;
+}
+
+/* ── Brand text ── */
+.miao-sidebar-brand-text {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1;
+  transition:
+    flex-basis var(--miao-sidebar-motion),
+    width var(--miao-sidebar-motion),
+    transform var(--miao-sidebar-item-motion),
+    opacity var(--miao-sidebar-item-motion);
+  transition-delay: var(--item-delay, 0ms);
+}
+/* Collapsed: explicit hide — CSS owns the final values, JS only adjusts delay */
+.ant-layout-sider-collapsed .miao-sidebar-brand-text {
+  flex: 0 0 0;
+  width: 0;
+  opacity: 0;
+  transform: translateX(-12px);
+  pointer-events: none;
+}
+
+.miao-sidebar-brand-title {
+  display: block;
+  font-family: var(--miao-font-display);
+  font-weight: 700;
+  font-size: 19px;
+  line-height: 1.15;
+  color: var(--miao-sidebar-brand-text);
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+
+.miao-sidebar-brand-subtitle {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--miao-font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--miao-sidebar-text-dim);
+  font-weight: 500;
+}
+
+/* ── Divider ── */
+.miao-sidebar-divider {
+  height: 1px;
+  background: var(--miao-sidebar-border);
+  margin: 0 20px;
+  flex: 0 0 auto;
+  transition:
+    margin var(--miao-sidebar-motion),
+    background-color 180ms ease;
+}
+.ant-layout-sider-collapsed .miao-sidebar-divider {
+  margin: 0 14px;
+}
+
+/* ── Section label ── */
+.miao-sidebar-section {
+  margin: 22px 20px 4px;
+  padding: 0;
+  flex: 0 0 auto;
+  overflow: hidden;
+  transition:
+    height var(--miao-sidebar-motion),
+    margin var(--miao-sidebar-motion),
+    opacity var(--miao-sidebar-item-motion),
+    transform var(--miao-sidebar-item-motion);
+  transition-delay: var(--item-delay, 0ms);
+}
+.miao-sidebar-section-label {
+  font-family: var(--miao-font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--miao-sidebar-section-label);
+  padding: 0 8px;
+}
+.ant-layout-sider-collapsed .miao-sidebar-section {
+  height: 6px;
+  margin: 8px 0 0;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-8px);
+}
+
+/* ── Nav list ── */
+.miao-sidebar-nav {
+  margin: 6px 12px 0;
+  padding: 0;
+  list-style: none;
+  flex: 0 0 auto;
+  transition: margin var(--miao-sidebar-motion);
+}
+.ant-layout-sider-collapsed .miao-sidebar-nav {
+  margin: 6px 10px 0;
+}
+
+/* ── Nav item ── */
+.miao-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 9px;
+  color: var(--miao-sidebar-text);
+  cursor: pointer;
+  transition:
+    width var(--miao-sidebar-motion),
+    height var(--miao-sidebar-motion),
+    margin var(--miao-sidebar-motion),
+    padding var(--miao-sidebar-motion),
+    gap var(--miao-sidebar-motion),
+    border-radius var(--miao-sidebar-motion),
+    background-color 180ms ease,
+    color 160ms ease;
+  margin: 1px 0;
+  user-select: none;
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+/* Collapsed nav item: centered icon only */
+.ant-layout-sider-collapsed .miao-nav-item {
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+  height: 44px;
+  margin: 2px auto;
+  width: 44px;
+}
+
+.miao-nav-item:hover {
+  background: var(--miao-sidebar-bg-hover);
+  color: var(--miao-sidebar-text);
+}
+.miao-nav-item:hover .miao-nav-icon {
+  color: var(--miao-sidebar-text);
+}
+
+/* ── Nav icon ── */
+.miao-nav-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--miao-sidebar-text-muted);
+  font-size: 16px;
+  transition:
+    color 160ms ease,
+    transform 180ms ease;
+}
+
+/* ── Active state: subtle bg + left gradient bar ── */
+.miao-nav-item-active {
+  background: var(--miao-sidebar-bg-active);
+  color: var(--miao-sidebar-text);
+  font-weight: 600;
+}
+.miao-nav-item-active .miao-nav-icon {
+  color: var(--miao-sidebar-active-color);
+}
+
+.miao-nav-item-active::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--miao-sidebar-active-bar);
+  transition:
+    left var(--miao-sidebar-motion),
+    top var(--miao-sidebar-motion),
+    bottom var(--miao-sidebar-motion),
+    opacity 180ms ease;
+}
+.ant-layout-sider-collapsed .miao-nav-item-active::before {
+  left: -8px;
+}
+
+/* ── Nav label ── */
+.miao-nav-label-clip {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  transition:
+    width var(--miao-sidebar-motion),
+    flex-basis var(--miao-sidebar-motion),
+    opacity 160ms ease;
+}
+.miao-nav-label {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+  overflow: hidden;
+  transition:
+    transform var(--miao-sidebar-item-motion),
+    opacity var(--miao-sidebar-item-motion);
+  transition-delay: var(--item-delay, 0ms);
+}
+.ant-layout-sider-collapsed .miao-nav-label-clip {
+  flex: 0 0 0;
+  width: 0;
+  opacity: 0;
+}
+.ant-layout-sider-collapsed .miao-nav-label {
+  opacity: 0;
+  transform: translateX(-24px);
+  pointer-events: none;
+}
+
+/* ── Badge ── */
+.miao-nav-badge-clip {
+  flex: 0 0 auto;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  transition:
+    width var(--miao-sidebar-motion),
+    flex-basis var(--miao-sidebar-motion),
+    opacity 160ms ease;
+}
+.miao-nav-badge {
+  display: block;
+  font-family: var(--miao-font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 5px;
+  line-height: 1;
+  transition:
+    transform var(--miao-sidebar-item-motion),
+    opacity var(--miao-sidebar-item-motion);
+  transition-delay: var(--item-delay, 0ms);
+}
+.ant-layout-sider-collapsed .miao-nav-badge-clip {
+  flex-basis: 0;
+  width: 0;
+  opacity: 0;
+}
+.ant-layout-sider-collapsed .miao-nav-badge {
+  opacity: 0;
+  transform: translateX(-24px) scale(0.5);
+  pointer-events: none;
+}
+
+/* Badge variants */
+.miao-nav-badge-count {
+  background: var(--miao-sidebar-badge-bg);
+  color: var(--miao-sidebar-badge-text);
+}
+.miao-nav-badge-dot {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--miao-accent);
+}
+
+/* ── Spacer ── */
+.miao-sidebar-spacer {
+  flex: 1;
+  min-height: 16px;
+}
+
+/* ── Unified collapse/expand FAB ──
+   32px 圆形按钮，绝对定位在 sidebar 竖直中点
+   默认 opacity 0（不显形），hover 整个 sidebar 时显现
+   展开态：MenuFold（折叠方向），折叠态：MenuUnfold（展开方向）
+*/
+.miao-sidebar-toggle-fab {
+  position: absolute;
+  top: 50%;
+  right: -16px;        /* 悬出 sidebar 右边缘，形成"骑墙"效果 */
+  z-index: 10;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--miao-sidebar-border);
+  border-radius: 50%;
+  /* 径向顶光 + 线性纵向渐变，质感更精致 */
+  background:
+    radial-gradient(circle at 30% 0%, rgba(255, 255, 255, 0.18), transparent 60%),
+    linear-gradient(180deg, var(--miao-sidebar-bg) 0%, var(--miao-sidebar-bg-soft) 100%);
+  color: var(--miao-sidebar-text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: translateY(-50%) scale(0.9);
+  transition: opacity 220ms ease,
+              transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+              background 200ms ease,
+              color 160ms ease,
+              box-shadow 240ms ease,
+              border-color 160ms ease;
+  /* 三层阴影：近实 + 远弥散 + 顶部内高光 */
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.10),
+    0 6px 16px -2px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  pointer-events: none;  /* 隐藏时不让点击 */
+}
+
+/* 悬停整个 sidebar 容器时才显现 */
+.miao-sidebar:hover .miao-sidebar-toggle-fab {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+  pointer-events: auto;
+}
+
+/* 直接悬停按钮 → 高亮态 */
+.miao-sidebar-toggle-fab:hover {
+  /* 顶光 + 主色对角渐变，悬停时质感更显 */
+  background:
+    radial-gradient(circle at 30% 0%, rgba(255, 255, 255, 0.30), transparent 60%),
+    linear-gradient(135deg, var(--miao-primary) 0%, var(--miao-primary-soft) 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow:
+    0 4px 12px rgba(92, 79, 208, 0.32),
+    0 0 0 4px rgba(92, 79, 208, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.20);
+}
+
+/* 按下回弹 */
+.miao-sidebar-toggle-fab:active {
+  transform: translateY(-50%) scale(0.94);
+}
+
+/* 键盘聚焦可见 */
+.miao-sidebar-toggle-fab:focus-visible {
+  outline: none;
+  border-color: var(--miao-primary);
+  box-shadow: 0 0 0 3px rgba(92, 79, 208, 0.20);
+}
+
+/* ── Footer: user card ── */
+.miao-sidebar-footer {
+  flex: 0 0 auto;
+  padding: 12px 12px 16px;
+  border-top: 1px solid var(--miao-sidebar-border);
+  margin: 0 20px;
+  transition:
+    margin var(--miao-sidebar-motion),
+    padding var(--miao-sidebar-motion),
+    border-color 180ms ease;
+}
+.ant-layout-sider-collapsed .miao-sidebar-footer {
+  margin: 0 10px;
+  padding: 12px 0 14px;
+  display: flex;
+  justify-content: center;
+}
+
+.miao-user-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  width: 100%;
+  min-width: 0;
+  border-radius: 10px;
+  transition:
+    width var(--miao-sidebar-motion),
+    height var(--miao-sidebar-motion),
+    padding var(--miao-sidebar-motion),
+    gap var(--miao-sidebar-motion),
+    border-radius var(--miao-sidebar-motion),
+    background-color 180ms ease;
+}
+.miao-user-card:hover {
+  background: var(--miao-sidebar-bg-hover);
+}
+
+/* ── User avatar ── */
+.miao-user-card-avatar-trigger {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    width var(--miao-sidebar-motion),
+    height var(--miao-sidebar-motion),
+    flex-basis var(--miao-sidebar-motion),
+    background-color 180ms ease,
+    transform 180ms ease;
+}
+.miao-user-card-avatar-trigger:hover {
+  background: var(--miao-sidebar-bg-hover);
+}
+.miao-user-card-avatar-trigger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(92, 79, 208, 0.20);
+}
+
+.miao-user-card-avatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #5C4FD0 0%, #d97020 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  font-family: var(--miao-font-display);
+  position: relative;
+  line-height: 1;
+  transition:
+    width var(--miao-sidebar-motion),
+    height var(--miao-sidebar-motion),
+    transform 180ms ease;
+}
+.miao-user-card-avatar::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #00d4aa;
+  border: 2px solid var(--miao-sidebar-bg);
+}
+
+/* Collapsed avatar */
+.ant-layout-sider-collapsed .miao-user-card-avatar-trigger {
+  width: 38px;
+  height: 38px;
+  flex-basis: 38px;
+}
+.ant-layout-sider-collapsed .miao-user-card-avatar {
+  width: 36px;
+  height: 36px;
+}
+
+/* ── User info ── */
+.miao-user-card-info {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  transition:
+    width var(--miao-sidebar-motion),
+    flex-basis var(--miao-sidebar-motion),
+    transform var(--miao-sidebar-item-motion),
+    opacity var(--miao-sidebar-item-motion);
+  transition-delay: var(--item-delay, 0ms);
+}
+.ant-layout-sider-collapsed .miao-user-card-info {
+  flex: 0 0 0;
+  width: 0;
+  opacity: 0;
+  transform: translateX(-24px);
+  pointer-events: none;
+}
+
+.miao-user-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--miao-sidebar-text);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.miao-user-card-role {
+  display: inline-block;
+  margin-top: 3px;
+  font-family: var(--miao-font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--miao-accent);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid rgba(217, 112, 32, 0.25);
+  background: rgba(217, 112, 32, 0.06);
+}
+
+/* ── User actions (theme toggle + collapse) ── */
+.miao-user-card-actions {
+  display: flex;
+  gap: 2px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  transition:
+    width var(--miao-sidebar-motion),
+    flex-basis var(--miao-sidebar-motion),
+    transform var(--miao-sidebar-item-motion),
+    opacity var(--miao-sidebar-item-motion);
+  transition-delay: var(--item-delay, 0ms);
+}
+.ant-layout-sider-collapsed .miao-user-card-actions {
+  flex: 0 0 0;
+  width: 0;
+  opacity: 0;
+  transform: translateX(-24px);
+  pointer-events: none;
+}
+
+.miao-user-card-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--miao-sidebar-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 140ms ease;
+  font-size: 14px;
+  padding: 0;
+}
+.miao-user-card-btn:hover {
+  background: var(--miao-sidebar-bg-hover);
+  color: var(--miao-sidebar-text);
+}
+
+/* Collapsed user card */
+.ant-layout-sider-collapsed .miao-user-card {
+  width: 44px;
+  height: 44px;
+  justify-content: center;
+  gap: 0;
+  padding: 3px;
+  border-radius: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .miao-sidebar,
+  .miao-sidebar *,
+  .miao-sidebar *::before,
+  .miao-sidebar *::after {
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Sidebar CSS Custom Properties — Light Theme
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --miao-sidebar-bg: #f7f4ef;
+  --miao-sidebar-bg-hover: rgba(92, 79, 208, 0.05);
+  --miao-sidebar-bg-active: rgba(92, 79, 208, 0.09);
+  --miao-sidebar-text: #3d3a4e;
+  --miao-sidebar-text-muted: #8a8796;
+  --miao-sidebar-text-dim: #bab5c2;
+  --miao-sidebar-border: rgba(26, 26, 62, 0.06);
+  --miao-scrollbar: rgba(26, 26, 62, 0.12);
+  --miao-sidebar-scrollbar: rgba(26, 26, 62, 0.10);
+  --miao-sidebar-active-bar: linear-gradient(180deg, #5C4FD0 0%, #8b7def 60%, #d97020 100%);
+  --miao-sidebar-active-color: #5C4FD0;
+  --miao-sidebar-section-label: #b0aab8;
+  --miao-sidebar-brand-text: #1a1a3e;
+  --miao-sidebar-badge-bg: rgba(92, 79, 208, 0.10);
+  --miao-sidebar-badge-text: #5C4FD0;
+  --miao-sidebar-gradient-start: #5C4FD0;
+  --miao-sidebar-gradient-mid: #8b7def;
+  --miao-sidebar-gradient-end: #d97020;
+  --miao-sidebar-bg-soft: #efeae1;  /* sidebar-bg 暗 3%，给 FAB 渐变底色 */
+  --miao-primary-soft: #8b7def;     /* 主色亮过渡色，给 FAB hover 渐变末色 */
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Sidebar CSS Custom Properties — Dark Theme
+   ══════════════════════════════════════════════════════════════ */
+:root[data-theme='dark'] {
+  --miao-sidebar-bg: #0c0c14;
+  --miao-sidebar-bg-hover: rgba(255, 255, 255, 0.04);
+  --miao-sidebar-bg-active: rgba(162, 155, 254, 0.12);
+  --miao-sidebar-text: rgba(255, 255, 255, 0.78);
+  --miao-sidebar-text-muted: rgba(255, 255, 255, 0.45);
+  --miao-sidebar-text-dim: rgba(255, 255, 255, 0.25);
+  --miao-sidebar-border: rgba(255, 255, 255, 0.06);
+  --miao-sidebar-scrollbar: rgba(255, 255, 255, 0.08);
+  --miao-sidebar-active-bar: linear-gradient(180deg, #A29BFE 0%, #7c6fe8 60%, #d97020 100%);
+  --miao-sidebar-active-color: #A29BFE;
+  --miao-sidebar-section-label: rgba(255, 255, 255, 0.22);
+  --miao-sidebar-brand-text: #f0f0f5;
+  --miao-sidebar-badge-bg: rgba(162, 155, 254, 0.15);
+  --miao-sidebar-badge-text: #A29BFE;
+  --miao-sidebar-gradient-start: #A29BFE;
+  --miao-sidebar-gradient-mid: #7c6fe8;
+  --miao-sidebar-gradient-end: #d97020;
+  --miao-sidebar-bg-soft: #16161e;  /* sidebar-bg 亮 4%，给 FAB 渐变底色 */
+  --miao-primary-soft: #7c6fe8;    /* 主色暗过渡色，给 FAB hover 渐变末色 */
+}
+
+/* ── Tooltip for collapsed items ── */
+.miao-nav-item-tooltip .ant-tooltip-inner {
+  font-family: var(--miao-font-body);
+  font-size: 12px;
+  border-radius: 6px;
+  padding: 4px 10px;
+}
