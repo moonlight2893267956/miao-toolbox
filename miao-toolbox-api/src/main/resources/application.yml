@@ -51,3 +51,10 @@ miao:
   cos:
     base-path: text-compare
     max-file-size: 104857600
+  ai:
+    enabled: ${MIAO_AI_ENABLED:false}
+    base-url: ${MIAO_AI_BASE_URL:}
+    api-key: ${MIAO_AI_API_KEY:}
+    agent-name: ${MIAO_AI_AGENT_NAME:diff-explainer}
+    connect-timeout: ${MIAO_AI_CONNECT_TIMEOUT:5000}
+    read-timeout: ${MIAO_AI_READ_TIMEOUT:60000}

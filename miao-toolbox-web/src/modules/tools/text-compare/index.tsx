@@ -6,6 +6,7 @@ import Toolbar from './Toolbar';
 import DiffPanel from './DiffPanel';
 import StatCard from './StatCard';
 import DiffViewer from './DiffViewer';
+import AIAnalysisPanel from './AIAnalysisPanel';
 import './diff-tool.css';
 
 const DiffContent: React.FC = () => {
@@ -73,6 +74,7 @@ const DiffContent: React.FC = () => {
       </div>
 
       <DiffViewer />
+      <AIAnalysisPanel />
     </>
   );
 };

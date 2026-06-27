@@ -49,3 +49,12 @@ miao:
     secret-key: ${COS_SECRET_KEY:}
     bucket: ${COS_BUCKET:}
     region: ${COS_REGION:ap-guangzhou}
+  ai:
+    enabled: ${MIAO_AI_ENABLED:true}
+    base-url: ${MIAO_AI_BASE_URL:http://localhost:8000}
+    api-key: ${MIAO_AI_API_KEY:}
+    agent-name: ${MIAO_AI_AGENT_NAME:diff-explainer}
+    connect-timeout: ${MIAO_AI_CONNECT_TIMEOUT:5000}
+    read-timeout: ${MIAO_AI_READ_TIMEOUT:60000}
+    retry-count: ${MIAO_AI_RETRY_COUNT:2}
+    retry-interval: ${MIAO_AI_RETRY_INTERVAL:1000}
