@@ -43,6 +43,7 @@ public class AiInvocationQueryService {
                 query.getAgentName(),
                 query.getModel(),
                 query.getStatus(),
+                query.getTraceId(),
                 startTime,
                 endTime,
                 PageRequest.of(query.getPage() - 1, query.getPageSize(),

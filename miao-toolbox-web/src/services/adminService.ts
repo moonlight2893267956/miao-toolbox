@@ -1,33 +1,5 @@
 import axiosInstance from './axiosInstance';
 
-export interface AuditLogItem {
-  id: number;
-  userId: number;
-  toolId: string;
-  requestSummary: string;
-  responseStatus: string;
-  durationMs: number | null;
-  tokenConsumption: number | null;
-  createdAt: string;
-}
-
-export interface AuditLogQuery {
-  startTime?: string;
-  endTime?: string;
-  userId?: number;
-  toolId?: string;
-  responseStatus?: string;
-  page?: number;
-  pageSize?: number;
-}
-
-export interface PagedAuditLogs {
-  items: AuditLogItem[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
 export interface ToolCallCount {
   toolId: string;
   count: number;
@@ -46,21 +18,6 @@ export interface DashboardStats {
   toolCallDistribution: ToolCallCount[];
   errorTrend7d: DailyErrorCount[];
   rateLimitHits: number;
-}
-
-/** 查询审计日志 */
-export async function getAuditLogs(query: AuditLogQuery): Promise<PagedAuditLogs> {
-  const params = new URLSearchParams();
-  if (query.startTime) params.append('startTime', query.startTime);
-  if (query.endTime) params.append('endTime', query.endTime);
-  if (query.userId) params.append('userId', String(query.userId));
-  if (query.toolId) params.append('toolId', query.toolId);
-  if (query.responseStatus) params.append('responseStatus', query.responseStatus);
-  if (query.page) params.append('page', String(query.page));
-  if (query.pageSize) params.append('pageSize', String(query.pageSize));
-
-  const res = await axiosInstance.get(`/api/admin/logs?${params.toString()}`);
-  return res.data.data;
 }
 
 /** 获取仪表盘统计数据 */

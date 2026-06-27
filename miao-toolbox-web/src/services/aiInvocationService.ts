@@ -27,6 +27,7 @@ export interface AiInvocationQuery {
   agentName?: string;
   model?: string;
   status?: string;
+  traceId?: string;
   page?: number;
   pageSize?: number;
 }
@@ -99,6 +100,7 @@ export async function getAiInvocations(query: AiInvocationQuery): Promise<PagedA
   if (query.agentName) params.append('agentName', query.agentName);
   if (query.model) params.append('model', query.model);
   if (query.status) params.append('status', query.status);
+  if (query.traceId) params.append('traceId', query.traceId);
   if (query.page) params.append('page', String(query.page));
   if (query.pageSize) params.append('pageSize', String(query.pageSize));
 
@@ -109,12 +111,6 @@ export async function getAiInvocations(query: AiInvocationQuery): Promise<PagedA
 /** 获取 Agent 下拉选项 */
 export async function getAgentOptions(): Promise<string[]> {
   const res = await axiosInstance.get('/api/admin/ai-invocations/agents');
-  return res.data.data;
-}
-
-/** 获取模型下拉选项 */
-export async function getModelOptions(): Promise<string[]> {
-  const res = await axiosInstance.get('/api/admin/ai-invocations/models');
   return res.data.data;
 }
 

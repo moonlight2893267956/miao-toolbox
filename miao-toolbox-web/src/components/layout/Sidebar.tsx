@@ -6,7 +6,6 @@ import {
   SettingOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  FileTextOutlined,
   DashboardOutlined,
   TeamOutlined,
   RobotOutlined,
@@ -50,7 +49,6 @@ const Sidebar: React.FC = () => {
             label: '管理后台',
             children: [
               { key: 'admin-dashboard', icon: <DashboardOutlined />, label: '仪表盘', path: '/admin/dashboard' },
-              { key: 'admin-logs', icon: <FileTextOutlined />, label: '调用日志', path: '/admin/logs' },
               { key: 'admin-invocations', icon: <RobotOutlined />, label: 'AI 调用日志', path: '/admin/invocations' },
               { key: 'admin-users', icon: <TeamOutlined />, label: '用户管理', path: '/admin/users' },
             ],

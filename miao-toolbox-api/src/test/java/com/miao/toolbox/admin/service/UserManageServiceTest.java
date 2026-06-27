@@ -33,7 +33,6 @@ import static org.mockito.Mockito.*;
 class UserManageServiceTest {
 
     @Mock private UserRepository userRepository;
-    @Mock private AuditLogService auditLogService;
     @Mock private RedisTemplate<String, Object> redisTemplate;
     @Mock private ValueOperations<String, Object> valueOperations;
 

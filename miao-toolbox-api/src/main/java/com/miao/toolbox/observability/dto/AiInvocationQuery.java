@@ -26,6 +26,9 @@ public class AiInvocationQuery {
     /** 状态：SUCCESS / FAILURE */
     private String status;
 
+    /** Trace ID（精确或模糊匹配） */
+    private String traceId;
+
     /** 页码（从 1 开始） */
     private int page = 1;
 

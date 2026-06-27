@@ -1,14 +1,13 @@
 package com.miao.toolbox.admin.service;
 
 import com.miao.toolbox.admin.dto.DashboardStatsResponse;
-import com.miao.toolbox.admin.repository.AuditLogStatsRepository;
 import com.miao.toolbox.auth.repository.UserRepository;
+import com.miao.toolbox.observability.AiInvocationRepository;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -20,7 +19,7 @@ import static org.mockito.Mockito.*;
 @DisplayName("DashboardService 单元测试")
 class DashboardServiceTest {
 
-    @Mock private AuditLogStatsRepository statsRepository;
+    @Mock private AiInvocationRepository aiInvocationRepository;
     @Mock private UserRepository userRepository;
     @Mock private RedisTemplate<String, Object> redisTemplate;
 
@@ -41,12 +40,12 @@ class DashboardServiceTest {
         @Test
         @DisplayName("返回正确的统计数据")
         void returnCorrectStats() {
-            when(statsRepository.countSince(any())).thenReturn(100L);
-            when(statsRepository.countErrorsSince(any())).thenReturn(5L);
-            when(statsRepository.countDistinctUsersSince(any())).thenReturn(10L);
+            when(aiInvocationRepository.countSince(any())).thenReturn(100L);
+            when(aiInvocationRepository.countFailuresSince(any())).thenReturn(5L);
+            when(aiInvocationRepository.countDistinctUsersSince(any())).thenReturn(10L);
             when(userRepository.count()).thenReturn(50L);
-            when(statsRepository.toolCallDistribution(any())).thenReturn(List.of());
-            when(statsRepository.dailyErrorCounts(any())).thenReturn(List.of());
+            when(aiInvocationRepository.agentCallDistribution(any())).thenReturn(List.of());
+            when(aiInvocationRepository.dailyFailureCounts(any())).thenReturn(List.of());
             when(redisTemplate.keys(anyString())).thenReturn(null);
 
             DashboardStatsResponse stats = dashboardService.getStats();
@@ -57,21 +56,21 @@ class DashboardServiceTest {
             assertThat(stats.getTotalUsers()).isEqualTo(50L);
             assertThat(stats.getRateLimitHits()).isEqualTo(0L);
             assertThat(stats.getErrorTrend7d()).hasSize(7);
-            verify(statsRepository).countSince(any());
-            verify(statsRepository).countErrorsSince(any());
-            verify(statsRepository).countDistinctUsersSince(any());
+            verify(aiInvocationRepository).countSince(any());
+            verify(aiInvocationRepository).countFailuresSince(any());
+            verify(aiInvocationRepository).countDistinctUsersSince(any());
             verify(userRepository).count();
         }
 
         @Test
         @DisplayName("7天异常趋势补全空日期")
         void fillEmptyDays() {
-            when(statsRepository.countSince(any())).thenReturn(0L);
-            when(statsRepository.countErrorsSince(any())).thenReturn(0L);
-            when(statsRepository.countDistinctUsersSince(any())).thenReturn(0L);
+            when(aiInvocationRepository.countSince(any())).thenReturn(0L);
+            when(aiInvocationRepository.countFailuresSince(any())).thenReturn(0L);
+            when(aiInvocationRepository.countDistinctUsersSince(any())).thenReturn(0L);
             when(userRepository.count()).thenReturn(0L);
-            when(statsRepository.toolCallDistribution(any())).thenReturn(List.of());
-            when(statsRepository.dailyErrorCounts(any())).thenReturn(List.of());
+            when(aiInvocationRepository.agentCallDistribution(any())).thenReturn(List.of());
+            when(aiInvocationRepository.dailyFailureCounts(any())).thenReturn(List.of());
             when(redisTemplate.keys(anyString())).thenReturn(null);
 
             DashboardStatsResponse stats = dashboardService.getStats();
@@ -84,12 +83,12 @@ class DashboardServiceTest {
         @Test
         @DisplayName("Redis 异常时速率限制计数返回0")
         void redisExceptionReturnsZero() {
-            when(statsRepository.countSince(any())).thenReturn(0L);
-            when(statsRepository.countErrorsSince(any())).thenReturn(0L);
-            when(statsRepository.countDistinctUsersSince(any())).thenReturn(0L);
+            when(aiInvocationRepository.countSince(any())).thenReturn(0L);
+            when(aiInvocationRepository.countFailuresSince(any())).thenReturn(0L);
+            when(aiInvocationRepository.countDistinctUsersSince(any())).thenReturn(0L);
             when(userRepository.count()).thenReturn(0L);
-            when(statsRepository.toolCallDistribution(any())).thenReturn(List.of());
-            when(statsRepository.dailyErrorCounts(any())).thenReturn(List.of());
+            when(aiInvocationRepository.agentCallDistribution(any())).thenReturn(List.of());
+            when(aiInvocationRepository.dailyFailureCounts(any())).thenReturn(List.of());
             when(redisTemplate.keys(anyString())).thenThrow(new RuntimeException("Redis down"));
 
             DashboardStatsResponse stats = dashboardService.getStats();
@@ -104,12 +103,12 @@ class DashboardServiceTest {
             field.setAccessible(true);
             field.set(dashboardService, null);
 
-            when(statsRepository.countSince(any())).thenReturn(0L);
-            when(statsRepository.countErrorsSince(any())).thenReturn(0L);
-            when(statsRepository.countDistinctUsersSince(any())).thenReturn(0L);
+            when(aiInvocationRepository.countSince(any())).thenReturn(0L);
+            when(aiInvocationRepository.countFailuresSince(any())).thenReturn(0L);
+            when(aiInvocationRepository.countDistinctUsersSince(any())).thenReturn(0L);
             when(userRepository.count()).thenReturn(0L);
-            when(statsRepository.toolCallDistribution(any())).thenReturn(List.of());
-            when(statsRepository.dailyErrorCounts(any())).thenReturn(List.of());
+            when(aiInvocationRepository.agentCallDistribution(any())).thenReturn(List.of());
+            when(aiInvocationRepository.dailyFailureCounts(any())).thenReturn(List.of());
 
             DashboardStatsResponse stats = dashboardService.getStats();
 

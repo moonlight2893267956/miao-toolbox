@@ -28,7 +28,6 @@ import java.util.List;
 public class UserManageService {
 
     private final UserRepository userRepository;
-    private final AuditLogService auditLogService;
     private final RedisTemplate<String, Object> redisTemplate;
 
     /**

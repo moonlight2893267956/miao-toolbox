@@ -12,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -267,11 +269,22 @@ public class MiaoAiClient {
 
     private Long getCurrentUserId() {
         try {
+            // 优先从 SecurityContextHolder 取（异步线程也能用）
+            var auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getPrincipal() != null) {
+                if (auth.getPrincipal() instanceof com.miao.toolbox.auth.entity.User u) {
+                    return u.getId();
+                }
+            }
+            // 兜底：从 request attribute 取
             var attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-            if (attrs == null) return null;
-            HttpServletRequest request = attrs.getRequest();
-            Object userIdAttr = request.getAttribute("userId");
-            return userIdAttr instanceof Long l ? l : null;
+            if (attrs != null) {
+                Object userIdAttr = attrs.getRequest().getAttribute("userId");
+                if (userIdAttr instanceof Long l) {
+                    return l;
+                }
+            }
+            return null;
         } catch (Exception e) {
             return null;
         }

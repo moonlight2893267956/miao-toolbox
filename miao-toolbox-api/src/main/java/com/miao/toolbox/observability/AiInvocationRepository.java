@@ -99,6 +99,7 @@ public interface AiInvocationRepository extends JpaRepository<AiInvocation, Long
           AND (:agentName IS NULL OR a.agentName = :agentName)
           AND (:model IS NULL OR a.model = :model)
           AND (:status IS NULL OR a.status = :status)
+          AND (:traceId IS NULL OR a.traceId LIKE %:traceId%)
           AND a.createdAt >= :startTime
           AND (:endTime IS NULL OR a.createdAt < :endTime)
         ORDER BY a.createdAt DESC
@@ -108,6 +109,7 @@ public interface AiInvocationRepository extends JpaRepository<AiInvocation, Long
             @Param("agentName") String agentName,
             @Param("model") String model,
             @Param("status") String status,
+            @Param("traceId") String traceId,
             @Param("startTime") LocalDateTime startTime,
             @Param("endTime") LocalDateTime endTime,
             Pageable pageable);
@@ -149,4 +151,38 @@ public interface AiInvocationRepository extends JpaRepository<AiInvocation, Long
      * 删除指定时间之前的调用记录（定时清理任务）
      */
     long deleteByCreatedAtBefore(LocalDateTime before);
+
+    // ========== DashboardService 旧接口兼容（基于 ai_invocations） ==========
+
+    /** 起始时间之后的总调用数 */
+    @Query(value = "SELECT COUNT(*) FROM ai_invocations WHERE created_at >= :since", nativeQuery = true)
+    long countSince(@Param("since") LocalDateTime since);
+
+    /** 起始时间之后的失败数（status = 'FAILURE'） */
+    @Query(value = "SELECT COUNT(*) FROM ai_invocations WHERE created_at >= :since AND status = 'FAILURE'", nativeQuery = true)
+    long countFailuresSince(@Param("since") LocalDateTime since);
+
+    /** 起始时间之后的去重用户数 */
+    @Query(value = "SELECT COUNT(DISTINCT user_id) FROM ai_invocations WHERE created_at >= :since", nativeQuery = true)
+    long countDistinctUsersSince(@Param("since") LocalDateTime since);
+
+    /** Agent 调用量分布（按 agent_name 聚合） */
+    @Query(value = """
+        SELECT agent_name, COUNT(*) AS cnt
+        FROM ai_invocations
+        WHERE created_at >= :since
+        GROUP BY agent_name
+        ORDER BY cnt DESC
+        """, nativeQuery = true)
+    List<Object[]> agentCallDistribution(@Param("since") LocalDateTime since);
+
+    /** 每日失败数（近 N 天） */
+    @Query(value = """
+        SELECT DATE(created_at) AS d, COUNT(*) AS cnt
+        FROM ai_invocations
+        WHERE created_at >= :since AND status = 'FAILURE'
+        GROUP BY DATE(created_at)
+        ORDER BY d
+        """, nativeQuery = true)
+    List<Object[]> dailyFailureCounts(@Param("since") LocalDateTime since);
 }

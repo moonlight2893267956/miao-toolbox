@@ -108,6 +108,7 @@ public class AuthService {
         // Reset fail count on successful login
         user.setLoginFailCount(0);
         user.setLockedUntil(null);
+        user.setLastLoginAt(LocalDateTime.now(ZoneOffset.UTC));
 
         // Generate signing key
         String signingKey = jwtService.generateSigningKey();
