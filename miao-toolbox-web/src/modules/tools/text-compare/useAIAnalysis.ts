@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import axiosInstance from '../../../services/axiosInstance';
+import { getAccessToken, getSigningKey } from '../../../contexts/AuthContext';
 import type { DiffResult, DiffHunk, DiffStatistics } from './types';
 
 const BASE = '/api/diff/ai';
@@ -49,6 +50,45 @@ export interface SSEErrorEvent {
 }
 
 /**
+ * HMAC-SHA256 签名（与 axiosInstance 拦截器逻辑一致）
+ */
+async function hmacSha256(key: string, data: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(key);
+  const messageData = encoder.encode(data);
+  const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+  return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * 构建带 HMAC 签名的请求头（fetch API 不走 axios 拦截器，需手动签名）
+ */
+async function buildSignedHeaders(body: string): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  const token = getAccessToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const signingKey = getSigningKey();
+  if (signingKey && token) {
+    const timestamp = Date.now().toString();
+    const nonce = crypto.randomUUID();
+    const signature = await hmacSha256(signingKey, timestamp + nonce + body);
+
+    headers['X-Request-Timestamp'] = timestamp;
+    headers['X-Request-Nonce'] = nonce;
+    headers['X-Request-Signature'] = signature;
+  }
+
+  return headers;
+}
+
+/**
  * AI 分析 API Hook
  *
  * - analyzeSummary: SSE 流式全局摘要（逐 token 输出）
@@ -72,26 +112,32 @@ export const useAIAnalysis = () => {
       abortRef.current = new AbortController();
 
       try {
-        const body = {
+        const body = JSON.stringify({
           mode: 'summary',
           language: diffResult.language || undefined,
           statistics: diffResult.statistics,
           hunks: diffResult.hunks,
-        };
+        });
+
+        // 手动计算 HMAC 签名（fetch 不走 axios 拦截器）
+        const headers = await buildSignedHeaders(body);
 
         const response = await fetch(`${axiosInstance.defaults.baseURL}${BASE}/summary`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(_getAuthHeaders()),
-          },
-          body: JSON.stringify(body),
+          headers,
+          body,
           signal: abortRef.current.signal,
           credentials: 'include',
         });
 
         if (!response.ok) {
-          onError(`请求失败: ${response.status}`);
+          // 尝试解析错误体
+          try {
+            const errData = await response.json();
+            onError(errData.message || `请求失败: ${response.status}`);
+          } catch {
+            onError(`请求失败: ${response.status}`);
+          }
           return;
         }
 
@@ -163,7 +209,7 @@ export const useAIAnalysis = () => {
     setStreaming(false);
   }, []);
 
-  /** 选中解释 — 同步调用 */
+  /** 选中解释 — 同步调用（走 axios，自动签名） */
   const analyzeExplain = useCallback(
     async (
       selectedHunks: DiffHunk[],
@@ -193,14 +239,3 @@ export const useAIAnalysis = () => {
     streamContent,
   };
 };
-
-/** 从 cookie 或 localStorage 获取认证头 */
-function _getAuthHeaders(): Record<string, string> {
-  // axiosInstance 拦截器会自动处理 JWT token
-  // 但 fetch API 不走 axios 拦截器，需要手动获取 token
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    return { Authorization: `Bearer ${token}` };
-  }
-  return {};
-}
