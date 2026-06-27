@@ -15,17 +15,14 @@ import { useAIAnalysis } from './useAIAnalysis';
 const AIAnalysisPanel: React.FC = () => {
   const { state } = useDiffContext();
   const { analyzeSummary, cancelStream, streaming, streamContent } = useAIAnalysis();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true); // 默认展开，方便观察
   const [error, setError] = useState<string | null>(null);
   const [traceId, setTraceId] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
-  // 追踪是否有请求发起过（区分"从未请求"和"请求完成但无内容"）
-  const requestedRef = useRef(false);
 
   const handleSummary = useCallback(async () => {
     if (!state.diffResult) return;
 
-    requestedRef.current = true;
     setExpanded(true);
     setError(null);
     setTraceId(null);
@@ -33,7 +30,7 @@ const AIAnalysisPanel: React.FC = () => {
 
     await analyzeSummary(
       state.diffResult,
-      // onToken — 不需要本地回调，streamContent 由 hook 自动更新
+      // onToken — streamContent 由 hook 自动更新
       () => {},
       // onDone
       (tid) => {
@@ -47,10 +44,8 @@ const AIAnalysisPanel: React.FC = () => {
       },
     );
 
-    // 流式结束后标记完成
-    if (!error) {
-      setCompleted(true);
-    }
+    // 流式结束（无论成功/失败），标记完成
+    setCompleted(true);
   }, [state.diffResult, analyzeSummary]);
 
   const handleCancel = useCallback(() => {
@@ -214,10 +209,10 @@ const AIAnalysisContentView: React.FC<{ content: string; streaming: boolean }> =
       );
     }
 
-    // 其他 JSON 格式
-    return <pre>{JSON.stringify(parsed, null, 2)}</pre>;
+    // 其他 JSON 格式 — 格式化展示
+    return <pre className="ai-analysis-json">{JSON.stringify(parsed, null, 2)}</pre>;
   } catch {
-    // 非 JSON 纯文本输出
+    // 非 JSON 纯文本输出（Agent 返回 Markdown 等格式）
     return <div className="ai-analysis-streaming-text">{content}</div>;
   }
 };

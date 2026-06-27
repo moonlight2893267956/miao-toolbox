@@ -6,13 +6,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -28,6 +29,10 @@ import java.util.concurrent.Executors;
  *
  * SSE 转发方式：直接用 SseEmitter 逐事件转发 miao-ai 的 SSE 流，
  * 保持 event/data 格式与 miao-ai 原始输出一致。
+ *
+ * 关键：SseEmitter 异步回写时，Tomcat 会重新走 FilterChain，
+ * SecurityContextHolder 是 ThreadLocal 的，异步线程无认证 → Access Denied。
+ * 修复：在返回 SseEmitter 前捕获 SecurityContext，在异步线程中设置。
  */
 @Slf4j
 @RestController
@@ -65,108 +70,23 @@ public class DiffAIController {
         // 强制设置 summary 模式
         request.setMode("summary");
 
+        // ★★★ 关键：捕获当前线程（Servlet 线程）的 SecurityContext ★★★
+        // SseEmitter 的异步回写会触发 Tomcat async dispatch，重新走 FilterChain。
+        // 此时 SecurityContextHolder（ThreadLocal）中没有认证信息，导致 Access Denied。
+        // 必须在异步线程中恢复 SecurityContext。
+        SecurityContext securityContext = SecurityContextHolder.getContext();
+
         // 3 分钟超时（大 diff + 慢模型可能很慢）
         SseEmitter emitter = new SseEmitter(180_000L);
 
         sseExecutor.execute(() -> {
-            HttpURLConnection conn = null;
+            // ★★★ 在异步线程中设置 SecurityContext，防止 async dispatch 时 Access Denied ★★★
+            SecurityContextHolder.setContext(securityContext);
             try {
-                String streamUrl = aiAnalysisService.getStreamUrl();
-                HttpHeaders headers = aiAnalysisService.getStreamHeaders();
-                Map<String, Object> body = aiAnalysisService.buildInvokeBody(request);
-
-                log.info("SSE proxy: connecting to miao-ai at {}", streamUrl);
-
-                // 建立 HTTP 长连接
-                URI uri = URI.create(streamUrl);
-                conn = (HttpURLConnection) uri.toURL().openConnection();
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                conn.setConnectTimeout(miaoAiProperties.getConnectTimeout());
-                // SSE 是长连接，readTimeout 必须设为 0（无限），否则中途超时断开
-                conn.setReadTimeout(0);
-                conn.setRequestProperty("Content-Type", "application/json");
-                conn.setRequestProperty("Authorization", headers.getFirst("Authorization"));
-                conn.setRequestProperty("Accept", "text/event-stream");
-
-                // 发送请求体
-                try (OutputStream os = conn.getOutputStream()) {
-                    String jsonBody = new com.fasterxml.jackson.databind.ObjectMapper()
-                            .writeValueAsString(body);
-                    os.write(jsonBody.getBytes(StandardCharsets.UTF_8));
-                    os.flush();
-                }
-
-                int responseCode = conn.getResponseCode();
-                log.info("SSE proxy: miao-ai responded HTTP {}", responseCode);
-
-                if (responseCode != 200) {
-                    String errorBody = readErrorBody(conn);
-                    log.error("SSE proxy: miao-ai error (HTTP {}): {}", responseCode, errorBody);
-                    emitter.send(SseEmitter.event()
-                            .name("error")
-                            .data("{\"message\":\"miao-ai 返回错误: " + responseCode + "\"}"));
-                    emitter.complete();
-                    return;
-                }
-
-                // 逐行读取 miao-ai 的 SSE 事件并逐个转发给前端
-                int tokenCount = 0;
-                try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
-
-                    String line;
-                    String currentEvent = "message";
-                    StringBuilder currentData = new StringBuilder();
-
-                    while ((line = reader.readLine()) != null) {
-                        // SSE 协议解析
-                        if (line.startsWith("event:")) {
-                            currentEvent = line.substring(6).trim();
-                        } else if (line.startsWith("data:")) {
-                            // data 行可能多行拼接，但 miao-ai 每个 event 只有一行 data
-                            currentData.append(line.substring(5).trim());
-                        } else if (line.isEmpty()) {
-                            // 空行 = 事件分隔符，发送当前累积的事件
-                            if (currentData.length() > 0) {
-                                try {
-                                    emitter.send(SseEmitter.event()
-                                            .name(currentEvent)
-                                            .data(currentData.toString()));
-                                    if ("token".equals(currentEvent)) {
-                                        tokenCount++;
-                                    }
-                                } catch (Exception sendEx) {
-                                    // 前端可能已经断开（页面跳转/取消）
-                                    log.warn("SSE proxy: failed to send event to client: {}", sendEx.getMessage());
-                                    break;
-                                }
-                            }
-                            // 重置当前事件
-                            currentEvent = "message";
-                            currentData.setLength(0);
-                        }
-                        // 忽略 : 开头的注释行和其他行
-                    }
-                }
-
-                log.info("SSE proxy: stream completed, forwarded {} token events", tokenCount);
-                emitter.complete();
-
-            } catch (Exception e) {
-                log.error("SSE proxy error: {}", e.getMessage(), e);
-                try {
-                    emitter.send(SseEmitter.event()
-                            .name("error")
-                            .data("{\"message\":\"AI 分析服务异常: " + e.getMessage() + "\"}"));
-                } catch (Exception ignored) {}
-                try {
-                    emitter.completeWithError(e);
-                } catch (Exception ignored) {}
+                doProxyStream(request, emitter);
             } finally {
-                if (conn != null) {
-                    try { conn.disconnect(); } catch (Exception ignored) {}
-                }
+                // 清理，避免线程池复用时泄漏
+                SecurityContextHolder.clearContext();
             }
         });
 
@@ -185,6 +105,109 @@ public class DiffAIController {
         request.setMode("explain_selection");
         AIAnalysisResponse response = aiAnalysisService.analyze(request);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
+     * SSE 流代理核心逻辑：从 miao-ai 读取 SSE 事件，逐个转发给前端。
+     */
+    private void doProxyStream(AIAnalysisRequest request, SseEmitter emitter) {
+        HttpURLConnection conn = null;
+        try {
+            String streamUrl = aiAnalysisService.getStreamUrl();
+            HttpHeaders headers = aiAnalysisService.getStreamHeaders();
+            Map<String, Object> body = aiAnalysisService.buildInvokeBody(request);
+
+            log.info("SSE proxy: connecting to miao-ai at {}", streamUrl);
+
+            // 建立 HTTP 长连接
+            URI uri = URI.create(streamUrl);
+            conn = (HttpURLConnection) uri.toURL().openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(miaoAiProperties.getConnectTimeout());
+            // SSE 是长连接，readTimeout 必须设为 0（无限），否则中途超时断开
+            conn.setReadTimeout(0);
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Authorization", headers.getFirst("Authorization"));
+            conn.setRequestProperty("Accept", "text/event-stream");
+
+            // 发送请求体
+            try (OutputStream os = conn.getOutputStream()) {
+                String jsonBody = new com.fasterxml.jackson.databind.ObjectMapper()
+                        .writeValueAsString(body);
+                os.write(jsonBody.getBytes(StandardCharsets.UTF_8));
+                os.flush();
+            }
+
+            int responseCode = conn.getResponseCode();
+            log.info("SSE proxy: miao-ai responded HTTP {}", responseCode);
+
+            if (responseCode != 200) {
+                String errorBody = readErrorBody(conn);
+                log.error("SSE proxy: miao-ai error (HTTP {}): {}", responseCode, errorBody);
+                emitter.send(SseEmitter.event()
+                        .name("error")
+                        .data("{\"message\":\"miao-ai 返回错误: " + responseCode + "\"}"));
+                emitter.complete();
+                return;
+            }
+
+            // 逐行读取 miao-ai 的 SSE 事件并逐个转发给前端
+            int tokenCount = 0;
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+
+                String line;
+                String currentEvent = "message";
+                StringBuilder currentData = new StringBuilder();
+
+                while ((line = reader.readLine()) != null) {
+                    // SSE 协议解析
+                    if (line.startsWith("event:")) {
+                        currentEvent = line.substring(6).trim();
+                    } else if (line.startsWith("data:")) {
+                        currentData.append(line.substring(5).trim());
+                    } else if (line.isEmpty()) {
+                        // 空行 = 事件分隔符，发送当前累积的事件
+                        if (currentData.length() > 0) {
+                            try {
+                                emitter.send(SseEmitter.event()
+                                        .name(currentEvent)
+                                        .data(currentData.toString()));
+                                if ("token".equals(currentEvent)) {
+                                    tokenCount++;
+                                }
+                            } catch (Exception sendEx) {
+                                log.warn("SSE proxy: failed to send event to client: {}", sendEx.getMessage());
+                                break;
+                            }
+                        }
+                        // 重置当前事件
+                        currentEvent = "message";
+                        currentData.setLength(0);
+                    }
+                    // 忽略 : 开头的注释行和其他行
+                }
+            }
+
+            log.info("SSE proxy: stream completed, forwarded {} token events", tokenCount);
+            emitter.complete();
+
+        } catch (Exception e) {
+            log.error("SSE proxy error: {}", e.getMessage(), e);
+            try {
+                emitter.send(SseEmitter.event()
+                        .name("error")
+                        .data("{\"message\":\"AI 分析服务异常: " + e.getMessage() + "\"}"));
+            } catch (Exception ignored) {}
+            try {
+                emitter.completeWithError(e);
+            } catch (Exception ignored) {}
+        } finally {
+            if (conn != null) {
+                try { conn.disconnect(); } catch (Exception ignored) {}
+            }
+        }
     }
 
     private String readErrorBody(HttpURLConnection conn) {
