@@ -1,5 +1,6 @@
 import React from 'react';
 import { Dropdown, Avatar, Switch } from 'antd';
+import type { MenuProps } from 'antd';
 import { UserOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -20,7 +21,14 @@ const UserDropdown: React.FC<UserDropdownProps> = ({ collapsed = false, isMobile
     navigate('/login', { replace: true });
   };
 
-  const menuItems = [
+  // 阻止 MenuItem 的点击事件冒泡到 Dropdown 触发关闭。
+  // 关键: 不能用 onClick: () => {} no-op,AntD 5/6 仍会关闭 popup;
+  // 必须 stopPropagation domEvent 才能阻止关闭。
+  const keepMenuOpen: NonNullable<MenuProps['onClick']> = ({ domEvent }) => {
+    domEvent.stopPropagation();
+  };
+
+  const menuItems: NonNullable<MenuProps['items']> = [
     {
       key: 'settings',
       icon: <SettingOutlined />,
@@ -33,13 +41,15 @@ const UserDropdown: React.FC<UserDropdownProps> = ({ collapsed = false, isMobile
         size="small"
         checked={isDark}
         onChange={toggleTheme}
+        // Switch 内部 click 也需阻断冒泡,避免被 AntD 视作菜单项点击
+        onClick={(_, e) => e.stopPropagation()}
         checkedChildren="暗"
         unCheckedChildren="亮"
       />,
       label: '暗色模式',
-      onClick: () => {},
+      onClick: keepMenuOpen,
     },
-    { type: 'divider' as const },
+    { type: 'divider' },
     {
       key: 'logout',
       icon: <LogoutOutlined />,

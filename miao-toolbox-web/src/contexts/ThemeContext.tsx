@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { ConfigProvider, theme } from 'antd';
 
 interface ThemeContextType {
@@ -25,11 +25,32 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
 
+  // 持有"主题切换过渡"定时器,便于 effect 清理与快速连点时取消旧 timer
+  const transitionTimerRef = useRef<number | null>(null);
+
   useEffect(() => {
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
-    // 添加 CSS transition 实现暗色/亮色切换的平滑过渡
+    // 临时给 <html> 加上 background-color/color 过渡,让主题切换更柔和。
+    // 关键: 必须在动画结束后清除,否则会永久挂在 <html> 上,
+    // 干扰 AntD Dropdown/Switch 等组件的内置动画(导致下拉菜单闪烁)。
     document.documentElement.style.transition = 'background-color 200ms ease, color 200ms ease';
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+
+    if (transitionTimerRef.current !== null) {
+      clearTimeout(transitionTimerRef.current);
+    }
+    transitionTimerRef.current = window.setTimeout(() => {
+      document.documentElement.style.transition = '';
+      transitionTimerRef.current = null;
+    }, 250);
+
+    return () => {
+      if (transitionTimerRef.current !== null) {
+        clearTimeout(transitionTimerRef.current);
+        transitionTimerRef.current = null;
+      }
+      document.documentElement.style.transition = '';
+    };
   }, [isDark]);
 
   // 监听系统主题偏好变化（仅在用户未手动设置时跟随）
