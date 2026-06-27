@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Switch, Tag, Button, Popconfirm, message, InputNumber, Dropdown, Spin, Empty } from 'antd';
-import { ReloadOutlined, DownOutlined } from '@ant-design/icons';
+import { Table, Switch, Tag, Button, Popconfirm, message, InputNumber, Dropdown, Spin, Empty, Drawer, Tabs, Card, Row, Col } from 'antd';
+import { ReloadOutlined, DownOutlined, RobotOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import {
   getAdminUsers,
@@ -10,6 +10,121 @@ import {
   setUserRateLimit,
   type AdminUser,
 } from '../../services/adminService';
+import {
+  getUserUsageSummary,
+  getAiInvocations,
+  type UserUsageSummary,
+  type AiInvocationItem,
+} from '../../services/aiInvocationService';
+
+/** 用户 AI 用量 Tab */
+const UserAiUsageTab: React.FC<{ userId: number }> = ({ userId }) => {
+  const [summary, setSummary] = useState<UserUsageSummary | null>(null);
+  const [invocations, setInvocations] = useState<AiInvocationItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [summaryData, invData] = await Promise.all([
+        getUserUsageSummary(userId),
+        getAiInvocations({ userId, page, pageSize: 10 }),
+      ]);
+      setSummary(summaryData);
+      setInvocations(invData.items);
+      setTotal(invData.total);
+    } catch {
+      message.error('加载用户 AI 用量失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, page]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  if (loading && !summary) {
+    return <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>;
+  }
+
+  if (!summary) {
+    return <Empty description="暂无 AI 调用记录" />;
+  }
+
+  const failureRate = (summary.failureRate * 100).toFixed(1);
+
+  const columns: ColumnsType<AiInvocationItem> = [
+    { title: '时间', dataIndex: 'createdAt', width: 150, render: (v: string) => new Date(v).toLocaleString() },
+    { title: 'Agent', dataIndex: 'agentName', width: 120 },
+    { title: '模型', dataIndex: 'model', width: 120, render: (v: string | null) => v || '-' },
+    { title: 'Tokens', key: 'tokens', width: 80, render: (_: unknown, r: AiInvocationItem) => r.totalTokens ?? '-' },
+    { title: '耗时', dataIndex: 'latencyMs', width: 70, render: (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}s` : `${v}ms` },
+    { title: '状态', dataIndex: 'status', width: 70, render: (v: string) => <Tag color={v === 'SUCCESS' ? '#52c41a' : '#ff4d4f'}>{v === 'SUCCESS' ? '成功' : '失败'}</Tag> },
+  ];
+
+  return (
+    <div>
+      {/* 累计统计 */}
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col span={8}>
+          <Card size="small" style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 12, color: 'var(--miao-text-secondary)' }}>总调用</div>
+            <div style={{ fontSize: 20, fontWeight: 700 }}>{summary.totalCalls}</div>
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card size="small" style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 12, color: 'var(--miao-text-secondary)' }}>总 Token</div>
+            <div style={{ fontSize: 20, fontWeight: 700 }}>{summary.totalTokens.toLocaleString()}</div>
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card size="small" style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 12, color: 'var(--miao-text-secondary)' }}>失败率</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: summary.failureRate > 0.05 ? '#ff4d4f' : undefined }}>{failureRate}%</div>
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col span={12}>
+          <Card size="small">
+            <div style={{ fontSize: 12, color: 'var(--miao-text-secondary)' }}>涉及 Agent 数</div>
+            <div style={{ fontSize: 16, fontWeight: 600 }}>{summary.agentCount}</div>
+          </Card>
+        </Col>
+        <Col span={12}>
+          <Card size="small">
+            <div style={{ fontSize: 12, color: 'var(--miao-text-secondary)' }}>涉及模型数</div>
+            <div style={{ fontSize: 16, fontWeight: 600 }}>{summary.modelCount}</div>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 最近调用明细 */}
+      <h4 style={{ margin: '16px 0 8px' }}>最近调用</h4>
+      <Table<AiInvocationItem>
+        rowKey="id"
+        columns={columns}
+        dataSource={invocations}
+        loading={loading}
+        size="small"
+        scroll={{ x: 600 }}
+        pagination={{
+          current: page,
+          pageSize: 10,
+          total,
+          simple: true,
+          onChange: setPage,
+        }}
+        locale={{ emptyText: <Empty description="暂无调用记录" /> }}
+      />
+    </div>
+  );
+};
 
 const UserManagePage: React.FC = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -17,6 +132,10 @@ const UserManagePage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(false);
+
+  // Drawer 状态
+  const [drawerUser, setDrawerUser] = useState<AdminUser | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -76,6 +195,11 @@ const UserManagePage: React.FC = () => {
       title: '用户名',
       dataIndex: 'username',
       key: 'username',
+      render: (v: string, user: AdminUser) => (
+        <Button type="link" size="small" onClick={() => { setDrawerUser(user); setDrawerOpen(true); }}>
+          {v}
+        </Button>
+      ),
     },
     {
       title: '邮箱',
@@ -192,6 +316,40 @@ const UserManagePage: React.FC = () => {
         }}
         locale={{ emptyText: <Empty description="暂无用户" /> }}
       />
+
+      {/* 用户详情 Drawer */}
+      <Drawer
+        title={drawerUser?.username}
+        open={drawerOpen}
+        onClose={() => { setDrawerOpen(false); setDrawerUser(null); }}
+        width={640}
+      >
+        {drawerUser && (
+          <Tabs
+            items={[
+              {
+                key: 'info',
+                label: '基本信息',
+                children: (
+                  <div>
+                    <p><strong>用户名：</strong>{drawerUser.username}</p>
+                    <p><strong>邮箱：</strong>{drawerUser.email || '-'}</p>
+                    <p><strong>角色：</strong><Tag color={drawerUser.role === 'ADMIN' ? 'red' : 'blue'}>{drawerUser.role}</Tag></p>
+                    <p><strong>状态：</strong>{drawerUser.isEnabled ? '启用' : '禁用'}</p>
+                    <p><strong>最后登录：</strong>{drawerUser.lastLoginAt ? new Date(drawerUser.lastLoginAt).toLocaleString() : '-'}</p>
+                    <p><strong>注册时间：</strong>{new Date(drawerUser.createdAt).toLocaleString()}</p>
+                  </div>
+                ),
+              },
+              {
+                key: 'ai-usage',
+                label: <><RobotOutlined style={{ marginRight: 4 }} />AI 用量</>,
+                children: <UserAiUsageTab userId={drawerUser.id} />,
+              },
+            ]}
+          />
+        )}
+      </Drawer>
     </div>
   );
 };

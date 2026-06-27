@@ -9,6 +9,7 @@ import {
   FileTextOutlined,
   DashboardOutlined,
   TeamOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { toolsRegistry } from '../../modules/tools/registry';
@@ -50,6 +51,7 @@ const Sidebar: React.FC = () => {
             children: [
               { key: 'admin-dashboard', icon: <DashboardOutlined />, label: '仪表盘', path: '/admin/dashboard' },
               { key: 'admin-logs', icon: <FileTextOutlined />, label: '调用日志', path: '/admin/logs' },
+              { key: 'admin-invocations', icon: <RobotOutlined />, label: 'AI 调用日志', path: '/admin/invocations' },
               { key: 'admin-users', icon: <TeamOutlined />, label: '用户管理', path: '/admin/users' },
             ],
           },

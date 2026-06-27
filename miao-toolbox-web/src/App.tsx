@@ -14,6 +14,7 @@ import TextComparePage from './modules/tools/text-compare';
 import LogPage from './modules/admin/LogPage';
 import DashboardPage from './modules/admin/DashboardPage';
 import UserManagePage from './modules/admin/UserManagePage';
+import InvocationsPage from './modules/admin/InvocationsPage';
 
 function AppRoutes() {
   return (
@@ -43,6 +44,7 @@ function AppRoutes() {
         <Route path="admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="admin/dashboard" element={<DashboardPage />} />
         <Route path="admin/logs" element={<LogPage />} />
+        <Route path="admin/invocations" element={<InvocationsPage />} />
         <Route path="admin/users" element={<UserManagePage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
