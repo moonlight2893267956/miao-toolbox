@@ -11,6 +11,7 @@ import ChangePasswordPage from './modules/auth/ChangePasswordPage';
 import SettingsPage from './modules/settings/SettingsPage';
 import ToolsPage from './modules/tools/ToolsPage';
 import TextComparePage from './modules/tools/text-compare';
+import JsonWorkbenchPage from './modules/tools/json-workbench/JsonWorkbenchPage';
 import DashboardPage from './modules/admin/DashboardPage';
 import UserManagePage from './modules/admin/UserManagePage';
 import InvocationsPage from './modules/admin/InvocationsPage';
@@ -40,6 +41,7 @@ function AppRoutes() {
         <Route index element={<Navigate to="/tools" replace />} />
         <Route path="tools" element={<ToolsPage />} />
         <Route path="tools/text-compare" element={<TextComparePage />} />
+        <Route path="tools/json-workbench" element={<JsonWorkbenchPage />} />
         <Route path="admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="admin/dashboard" element={<DashboardPage />} />
         <Route path="admin/invocations" element={<InvocationsPage />} />

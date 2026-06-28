@@ -1,0 +1,844 @@
+/**
+ * JSON 工作台样式
+ *
+ * 使用 Ant Design CSS 变量确保深色/浅色主题自动适配。
+ * 不引入任何第三方追踪脚本。
+ */
+
+/* ─── 页面容器 ──────────────────────────────────────── */
+
+.miao-shell:has(.jw-page) {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.miao-shell:has(.jw-page) > .ant-layout {
+  min-height: 0;
+}
+
+.miao-content:has(.jw-page) {
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  min-height: 0;
+  margin: 0;
+  padding: 20px 28px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.miao-content:has(.jw-page) > div {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: 0;
+  width: 100%;
+}
+
+.jw-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--ant-color-bg-container);
+  color: var(--ant-color-text);
+}
+
+/* ─── 工具栏 ────────────────────────────────────────── */
+
+.jw-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--ant-color-border-secondary);
+  background: var(--ant-color-bg-layout);
+  flex-shrink: 0;
+}
+
+/* ─── 面包屑 ────────────────────────────────────────── */
+
+.jw-breadcrumb {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--ant-color-border-secondary);
+  background: var(--ant-color-bg-layout);
+  padding: 4px 16px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+}
+
+.jw-breadcrumb__list {
+  display: inline-flex;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.jw-breadcrumb__item {
+  display: inline-flex;
+  align-items: center;
+}
+
+.jw-breadcrumb__sep {
+  color: var(--ant-color-text-quaternary);
+  margin: 0 6px;
+  font-size: 11px;
+  user-select: none;
+}
+
+.jw-breadcrumb__link {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  color: var(--ant-color-text-tertiary);
+  cursor: pointer;
+  border-radius: 3px;
+  font: inherit;
+  font-size: inherit;
+  transition: all 0.15s;
+}
+
+.jw-breadcrumb__link:hover {
+  color: var(--ant-color-primary);
+  background: var(--ant-color-primary-bg);
+}
+
+:root[data-theme='dark'] .jw-breadcrumb__link:hover {
+  background: rgba(92, 79, 208, 0.15);
+}
+
+.jw-breadcrumb__current {
+  padding: 2px 4px;
+  color: var(--ant-color-text);
+  font-weight: 600;
+  border-radius: 3px;
+  background: var(--ant-color-fill-quaternary);
+}
+
+.jw-toolbar__left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ─── 格式化按钮组 ──────────────────────────────────── */
+
+.jw-format-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  margin-left: 4px;
+}
+
+.jw-format-btn {
+  padding: 3px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  border: 1px solid var(--ant-color-border);
+  background: var(--ant-color-bg-container);
+  color: var(--ant-color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.jw-format-btn:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.jw-format-btn:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.jw-format-btn:not(:first-child) {
+  margin-left: -1px;
+}
+
+.jw-format-btn:hover {
+  color: var(--ant-color-primary);
+}
+
+.jw-format-btn:active {
+  background: var(--ant-color-bg-elevated);
+}
+
+.jw-indent-select {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.jw-indent-btn {
+  padding: 3px 8px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  border: 1px solid var(--ant-color-border);
+  background: var(--ant-color-bg-container);
+  color: var(--ant-color-text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.jw-indent-btn:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.jw-indent-btn:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.jw-indent-btn:not(:first-child) {
+  margin-left: -1px;
+}
+
+.jw-indent-btn:hover {
+  color: var(--ant-color-primary);
+}
+
+.jw-indent-btn--active {
+  background: var(--ant-color-primary);
+  color: #fff;
+  border-color: var(--ant-color-primary);
+}
+
+.jw-indent-btn--active:hover {
+  background: var(--ant-color-primary-hover);
+  color: #fff;
+}
+
+.jw-toolbar__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ant-color-text-heading);
+}
+
+.jw-toolbar__status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(82, 196, 26, 0.1);
+  color: #52c41a;
+}
+
+:root[data-theme='dark'] .jw-toolbar__status {
+  background: rgba(82, 196, 26, 0.15);
+  color: #73d13d;
+}
+
+.jw-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ─── 视图模式切换 ───────────────────────────────────── */
+
+.jw-view-toggle {
+  display: inline-flex;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--ant-color-border);
+}
+
+.jw-view-toggle__btn {
+  padding: 4px 12px;
+  font-size: 13px;
+  border: none;
+  background: var(--ant-color-bg-container);
+  color: var(--ant-color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.jw-view-toggle__btn:not(:last-child) {
+  border-right: 1px solid var(--ant-color-border);
+}
+
+.jw-view-toggle__btn:hover {
+  background: var(--ant-color-bg-text-hover);
+  color: var(--ant-color-text);
+}
+
+.jw-view-toggle__btn--active {
+  background: var(--ant-color-primary);
+  color: var(--ant-color-bg-container);
+}
+
+.jw-view-toggle__btn--active:hover {
+  background: var(--ant-color-primary-hover);
+  color: var(--ant-color-bg-container);
+}
+
+/* ─── 内容区 ────────────────────────────────────────── */
+
+.jw-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ─── 自定义分栏布局 ─────────────────────────────────── */
+
+.jw-split-pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.jw-split-pane__left,
+.jw-split-pane__right {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 直接用 flex 继承高度，不用 absolute */
+.jw-split-pane__left > .jw-tree-panel,
+.jw-split-pane__left > .jw-raw-panel,
+.jw-split-pane__right > .jw-tree-panel,
+.jw-split-pane__right > .jw-raw-panel,
+.jw-content > .jw-tree-panel,
+.jw-content > .jw-raw-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.jw-split-pane__divider {
+  width: 6px;
+  cursor: col-resize;
+  flex-shrink: 0;
+  background: var(--ant-color-border-secondary);
+  transition: background 0.15s;
+  position: relative;
+}
+
+.jw-split-pane__divider:hover,
+.jw-split-pane__divider--active {
+  background: var(--ant-color-primary);
+}
+
+.jw-split-pane__divider::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* 扩大点击区域 */
+  margin: 0 -4px;
+}
+
+/* ─── 树形面板 ──────────────────────────────────────── */
+
+.jw-tree-panel {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 0;
+}
+
+.jw-tree-panel--has-content {
+  padding: 0;
+}
+
+/* ─── 树形视图行 ─────────────────────────────────────── */
+
+.jw-tree-rows {
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 22px;
+}
+
+.jw-node-row {
+  display: flex;
+  align-items: center;
+  padding-right: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.jw-node-row:hover {
+  background: var(--ant-color-bg-text-hover);
+}
+
+.jw-node-row--selected {
+  background: var(--ant-color-primary-bg);
+}
+
+:root[data-theme='dark'] .jw-node-row--selected {
+  background: rgba(92, 79, 208, 0.15);
+}
+
+.jw-node-row--search-match {
+  background: rgba(250, 204, 21, 0.15);
+}
+
+:root[data-theme='dark'] .jw-node-row--search-match {
+  background: rgba(250, 204, 21, 0.2);
+}
+
+/* 箭头 */
+.jw-node-row__arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 22px;
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--ant-color-text-tertiary);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.jw-node-row__arrow:hover {
+  color: var(--ant-color-text);
+}
+
+.jw-node-row__arrow-placeholder {
+  display: inline-block;
+  width: 10px;
+}
+
+/* Key */
+.jw-node-row__key {
+  color: var(--ant-color-text);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+/* 冒号 */
+.jw-node-row__colon {
+  color: var(--ant-color-text-tertiary);
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
+/* 值 */
+.jw-node__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 400px;
+}
+
+.jw-node__value--string {
+  color: #10b981;
+}
+
+:root[data-theme='dark'] .jw-node__value--string {
+  color: #34d399;
+}
+
+.jw-node__value--number {
+  color: #3b82f6;
+}
+
+:root[data-theme='dark'] .jw-node__value--number {
+  color: #60a5fa;
+}
+
+.jw-node__value--boolean {
+  color: #ec4899;
+}
+
+:root[data-theme='dark'] .jw-node__value--boolean {
+  color: #f472b6;
+}
+
+.jw-node__value--null {
+  color: #6b7280;
+  font-style: italic;
+}
+
+:root[data-theme='dark'] .jw-node__value--null {
+  color: #9ca3af;
+}
+
+.jw-node__value--collapsed {
+  color: var(--ant-color-text-tertiary);
+  font-style: italic;
+}
+
+.jw-node__value--empty {
+  color: var(--ant-color-text-quaternary);
+}
+
+.jw-node__value--truncated {
+  cursor: help;
+  border-bottom: 1px dashed var(--ant-color-text-quaternary);
+}
+
+/* ─── 长值 Tooltip ────────────────────────────────────── */
+
+.jw-value-tooltip .ant-tooltip-inner {
+  max-width: 480px;
+  padding: 0;
+  background: var(--ant-color-bg-elevated);
+  border: 1px solid var(--ant-color-border-secondary);
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.jw-value-tooltip__content {
+  padding: 10px 12px;
+}
+
+.jw-value-tooltip__pre {
+  margin: 0 0 8px;
+  max-height: 240px;
+  overflow: auto;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--ant-color-text);
+}
+
+.jw-value-tooltip__copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--ant-color-border);
+  border-radius: 4px;
+  background: var(--ant-color-bg-container);
+  color: var(--ant-color-text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.jw-value-tooltip__copy:hover {
+  color: var(--ant-color-primary);
+  border-color: var(--ant-color-primary);
+}
+
+/* ─── 类型徽标 ──────────────────────────────────────── */
+
+.jw-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  line-height: 16px;
+  flex-shrink: 0;
+}
+
+.jw-badge--object {
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+}
+
+:root[data-theme='dark'] .jw-badge--object {
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+}
+
+.jw-badge--array {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+:root[data-theme='dark'] .jw-badge--array {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+.jw-badge--string {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+:root[data-theme='dark'] .jw-badge--string {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.jw-badge--number {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+:root[data-theme='dark'] .jw-badge--number {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.jw-badge--boolean {
+  background: rgba(236, 72, 153, 0.1);
+  color: #ec4899;
+}
+
+:root[data-theme='dark'] .jw-badge--boolean {
+  background: rgba(236, 72, 153, 0.2);
+  color: #f472b6;
+}
+
+.jw-badge--null {
+  background: rgba(107, 114, 128, 0.1);
+  color: #6b7280;
+}
+
+:root[data-theme='dark'] .jw-badge--null {
+  background: rgba(107, 114, 128, 0.2);
+  color: #9ca3af;
+}
+
+/* ─── Raw 面板（CodeMirror） ─────────────────────────── */
+
+.jw-raw-panel {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.jw-cm-editor {
+  height: 100%;
+  min-height: 0;
+  position: relative;
+}
+
+.jw-cm-editor__core {
+  height: 100%;
+  min-height: 0;
+}
+
+.jw-cm-editor__core--empty {
+  opacity: 0.5;
+}
+
+.jw-cm-editor .cm-editor {
+  height: 100%;
+}
+
+.jw-cm-editor .cm-scroller {
+  overflow: auto !important;
+}
+
+/* ─── 欢迎引导层 ─────────────────────────────────────── */
+
+.jw-cm-editor__welcome {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+}
+
+.jw-cm-editor__welcome-icon {
+  color: var(--ant-color-text-quaternary);
+  margin-bottom: 16px;
+  opacity: 0.45;
+}
+
+.jw-cm-editor__welcome-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ant-color-text-tertiary);
+  margin: 0 0 6px;
+}
+
+.jw-cm-editor__welcome-hint {
+  font-size: 12px;
+  color: var(--ant-color-text-quaternary);
+  margin: 0;
+}
+
+/* CodeMirror 滚动条样式 */
+.jw-cm-editor .cm-scroller::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.jw-cm-editor .cm-scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.jw-cm-editor .cm-scroller::-webkit-scrollbar-thumb {
+  background: var(--ant-color-border-secondary);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.jw-cm-editor .cm-scroller::-webkit-scrollbar-thumb:hover {
+  background: var(--ant-color-text-quaternary);
+}
+
+/* Firefox */
+.jw-cm-editor .cm-scroller {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ant-color-border-secondary) transparent;
+}
+
+/* ─── 解析错误 ──────────────────────────────────────── */
+
+.jw-parse-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  padding: 24px;
+}
+
+.jw-parse-error__icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.jw-parse-error__message {
+  font-size: 14px;
+  color: #ff4d4f;
+  max-width: 400px;
+  word-break: break-word;
+}
+
+:root[data-theme='dark'] .jw-parse-error__message {
+  color: #ff7875;
+}
+
+.jw-parse-error__location {
+  font-size: 12px;
+  color: var(--ant-color-text-tertiary);
+  margin-top: 4px;
+  font-family: monospace;
+}
+
+/* ─── 空状态 ────────────────────────────────────────── */
+
+.jw-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 280px;
+  text-align: center;
+  padding: 48px 24px;
+}
+
+.jw-empty-state__icon-svg {
+  color: var(--ant-color-text-quaternary);
+  margin-bottom: 24px;
+  opacity: 0.5;
+}
+
+.jw-empty-state__title {
+  font-size: 15px;
+  font-weight: 500;
+  margin: 0 0 6px;
+  color: var(--ant-color-text-tertiary);
+}
+
+.jw-empty-state__hint {
+  font-size: 13px;
+  margin: 0 0 20px;
+  max-width: 300px;
+  line-height: 1.5;
+  color: var(--ant-color-text-quaternary);
+}
+
+.jw-empty-state__example {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.jw-empty-state__example-label {
+  font-size: 12px;
+  color: var(--ant-color-text-quaternary);
+}
+
+.jw-empty-state__example-code {
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 12px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  background: var(--ant-color-fill-tertiary);
+  color: var(--ant-color-text-secondary);
+  border: 1px solid var(--ant-color-border-secondary);
+  cursor: default;
+  user-select: all;
+  white-space: nowrap;
+}
+
+/* ─── 滚动条（参考文本对照工具风格） ──────────────────── */
+
+.jw-page ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.jw-page ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.jw-page ::-webkit-scrollbar-thumb {
+  background: var(--ant-color-border-secondary);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.jw-page ::-webkit-scrollbar-thumb:hover {
+  background: var(--ant-color-text-quaternary);
+}
+
+/* Firefox */
+.jw-tree-panel,
+.jw-raw-panel {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ant-color-border-secondary) transparent;
+}
+
+/* ─── 响应式：小屏幕上下布局 ─────────────────────────── */
+
+@media (max-width: 768px) {
+  .jw-split-pane {
+    flex-direction: column;
+  }
+
+  .jw-split-pane__divider {
+    width: 100%;
+    height: 6px;
+    cursor: row-resize;
+  }
+
+  .jw-split-pane__left,
+  .jw-split-pane__right {
+    width: 100% !important;
+  }
+}

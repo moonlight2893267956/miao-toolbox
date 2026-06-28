@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import {
   AudioOutlined,
+  CodeOutlined,
   DiffOutlined,
   PictureOutlined,
   TranslationOutlined,
@@ -74,6 +75,19 @@ export const toolsRegistry: ToolMeta[] = [
     available: true,
     accentColor: '#00d4aa',
     iconBg: 'rgba(0,212,170,0.12)',
+  },
+  {
+    key: 'json-workbench',
+    title: 'JSON 工作台',
+    description: '格式化、校验、编辑 JSON，支持大文件与 AI 辅助。树形视图 + 原始文本双栏同步。',
+    icon: CodeOutlined,
+    status: '可用',
+    tags: ['JSON', '格式化', '开发工具'],
+    path: '/tools/json-workbench',
+    category: 'available',
+    available: true,
+    accentColor: '#5C4FD0',
+    iconBg: 'rgba(92,79,208,0.12)',
   },
   {
     key: 'image',
