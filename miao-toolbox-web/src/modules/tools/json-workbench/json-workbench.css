@@ -842,3 +842,239 @@
     width: 100% !important;
   }
 }
+
+/* ─── 修复按钮 ──────────────────────────────────────────── */
+
+.jw-repair-btn {
+  padding: 4px 12px;
+  border: 1px solid #fa8c16;
+  border-radius: 4px;
+  background: transparent;
+  color: #fa8c16;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: 8px;
+}
+
+.jw-repair-btn:hover {
+  background: #fa8c16;
+  color: #fff;
+}
+
+[data-theme='dark'] .jw-repair-btn {
+  border-color: #ffc069;
+  color: #ffc069;
+}
+
+[data-theme='dark'] .jw-repair-btn:hover {
+  background: #ffc069;
+  color: #141414;
+}
+
+/* ─── 修复预览弹窗 ──────────────────────────────────────── */
+
+.jw-repair-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.jw-repair-modal {
+  background: var(--ant-color-bg-elevated, #fff);
+  border-radius: 8px;
+  width: min(720px, 90vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.jw-repair-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--ant-color-border-secondary, #f0f0f0);
+}
+
+.jw-repair-modal__header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--ant-color-text, #1f1f1f);
+}
+
+.jw-repair-modal__close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--ant-color-text-secondary, #8c8c8c);
+  padding: 0 4px;
+}
+
+.jw-repair-modal__close:hover {
+  color: var(--ant-color-text, #1f1f1f);
+}
+
+.jw-repair-modal__fixes {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--ant-color-border-secondary, #f0f0f0);
+}
+
+.jw-repair-modal__fixes h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--ant-color-text-secondary, #8c8c8c);
+  font-weight: 500;
+}
+
+.jw-repair-modal__fixes ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.jw-repair-modal__fix-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.jw-repair-modal__fix-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.jw-repair-modal__fix-badge--single-quotes { background: #6366f1; }
+.jw-repair-modal__fix-badge--trailing-comma { background: #f59e0b; }
+.jw-repair-modal__fix-badge--line-comment { background: #8b5cf6; }
+.jw-repair-modal__fix-badge--block-comment { background: #8b5cf6; }
+.jw-repair-modal__fix-badge--unquoted-key { background: #3b82f6; }
+.jw-repair-modal__fix-badge--case-fix { background: #ec4899; }
+
+.jw-repair-modal__fix-desc {
+  flex: 1;
+  color: var(--ant-color-text, #1f1f1f);
+}
+
+.jw-repair-modal__fix-count {
+  color: var(--ant-color-text-secondary, #8c8c8c);
+  font-size: 12px;
+}
+
+.jw-repair-modal__diff {
+  flex: 1;
+  overflow: auto;
+  padding: 12px 20px;
+}
+
+.jw-repair-modal__diff h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--ant-color-text-secondary, #8c8c8c);
+  font-weight: 500;
+}
+
+.jw-repair-modal__diff-content {
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  background: var(--ant-color-fill-quaternary, #fafafa);
+  border-radius: 4px;
+  overflow: auto;
+  max-height: 300px;
+  padding: 8px 0;
+}
+
+.jw-repair-modal__diff-line {
+  display: flex;
+  padding: 0 8px;
+}
+
+.jw-repair-modal__diff-line--del {
+  background: rgba(255, 77, 79, 0.08);
+}
+
+.jw-repair-modal__diff-line--add {
+  background: rgba(82, 196, 26, 0.08);
+}
+
+.jw-repair-modal__diff-num {
+  width: 32px;
+  text-align: right;
+  padding-right: 8px;
+  color: var(--ant-color-text-quaternary, #bfbfbf);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.jw-repair-modal__diff-prefix {
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.jw-repair-modal__diff-line--del .jw-repair-modal__diff-prefix {
+  color: #ff4d4f;
+}
+
+.jw-repair-modal__diff-line--add .jw-repair-modal__diff-prefix {
+  color: #52c41a;
+}
+
+.jw-repair-modal__diff-text {
+  flex: 1;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.jw-repair-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--ant-color-border-secondary, #f0f0f0);
+}
+
+.jw-repair-modal__cancel {
+  padding: 4px 16px;
+  border: 1px solid var(--ant-color-border, #d9d9d9);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ant-color-text, #1f1f1f);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.jw-repair-modal__cancel:hover {
+  border-color: var(--ant-color-primary, #1677ff);
+  color: var(--ant-color-primary, #1677ff);
+}
+
+.jw-repair-modal__confirm {
+  padding: 4px 16px;
+  border: none;
+  border-radius: 4px;
+  background: var(--ant-color-primary, #1677ff);
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.jw-repair-modal__confirm:hover {
+  background: var(--ant-color-primary-hover, #4096ff);
+}

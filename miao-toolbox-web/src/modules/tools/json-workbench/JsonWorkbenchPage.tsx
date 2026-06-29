@@ -6,10 +6,12 @@ import type {
 } from './types';
 import { useJsonParser } from './hooks/useJsonParser';
 import { getAllDescendantIds } from './utils/parseAndFlatten';
+import { canRepair } from './utils/jsonRepair';
 import { parseJsonPathToSegments, getAncestorPaths } from './utils/breadcrumb';
 import JsonTreeView from './components/JsonTreeView';
 import JsonRawEditor from './components/JsonRawEditor';
 import Breadcrumb from './components/Breadcrumb';
+import RepairPreviewModal from './components/RepairPreviewModal';
 import './json-workbench.css';
 
 // ─── 初始状态 ──────────────────────────────────────────
@@ -32,6 +34,8 @@ const initialState: JsonWorkbenchState = {
   aiLoading: false,
   aiResult: null,
   indentSize: 2,
+  repairPreview: null,
+  repairError: null,
 };
 
 // ─── Reducer ───────────────────────────────────────────
@@ -122,6 +126,12 @@ function jsonWbReducer(state: JsonWorkbenchState, action: JsonWbAction): JsonWor
     }
     case 'JSON_WB_SET_INDENT_SIZE':
       return { ...state, indentSize: action.payload };
+    case 'JSON_WB_REPAIR_SUCCESS':
+      return { ...state, repairPreview: action.payload, repairError: null };
+    case 'JSON_WB_REPAIR_FAIL':
+      return { ...state, repairError: action.payload, repairPreview: null };
+    case 'JSON_WB_SET_REPAIR_PREVIEW':
+      return { ...state, repairPreview: action.payload, repairError: action.payload ? null : state.repairError };
     default:
       return state;
   }
@@ -129,7 +139,7 @@ function jsonWbReducer(state: JsonWorkbenchState, action: JsonWbAction): JsonWor
 
 // ─── 工具栏 ────────────────────────────────────────────
 
-function Toolbar({ viewMode, onViewModeChange, hasData, canFormat, indentSize, onFormat, onCompress, onIndentChange }: {
+function Toolbar({ viewMode, onViewModeChange, hasData, canFormat, indentSize, onFormat, onCompress, onIndentChange, showError, canRepairJson, onRepair }: {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
   hasData: boolean;
@@ -138,12 +148,20 @@ function Toolbar({ viewMode, onViewModeChange, hasData, canFormat, indentSize, o
   onFormat: () => void;
   onCompress: () => void;
   onIndentChange: (size: 2 | 4) => void;
+  showError: boolean;
+  canRepairJson: boolean;
+  onRepair: () => void;
 }) {
   return (
     <div className="jw-toolbar">
       <div className="jw-toolbar__left">
         <span className="jw-toolbar__title">JSON 工作台</span>
         {hasData && <span className="jw-toolbar__status">已解析</span>}
+        {showError && canRepairJson && (
+          <button className="jw-repair-btn" onClick={onRepair} title="自动修复常见语法错误">
+            修复
+          </button>
+        )}
         {canFormat && (
           <div className="jw-format-group">
             <button className="jw-format-btn" onClick={onFormat} title="格式化 JSON">
@@ -232,7 +250,7 @@ function SplitPane({ left, right }: { left: React.ReactNode; right: React.ReactN
 
 export default function JsonWorkbenchPage() {
   const [state, dispatch] = useReducer(jsonWbReducer, initialState);
-  const { debouncedParse } = useJsonParser(dispatch);
+  const { debouncedParse, repair, applyRepair } = useJsonParser(dispatch);
   const [scrollTarget, setScrollTarget] = useState<number | null>(null);
 
   const handleViewModeChange = useCallback((mode: ViewMode) => {
@@ -324,6 +342,8 @@ export default function JsonWorkbenchPage() {
 
   const hasData = state.flatNodeList.length > 0;
   const canFormat = state.parsedJson !== null && state.parseError === null;
+  const showError = state.parseError !== null;
+  const canRepairJson = state.rawJson.trim().length > 0 && canRepair(state.rawJson);
 
   // 格式化
   const handleFormat = useCallback(() => {
@@ -344,6 +364,23 @@ export default function JsonWorkbenchPage() {
   // 缩进切换
   const handleIndentChange = useCallback((size: 2 | 4) => {
     dispatch({ type: 'JSON_WB_SET_INDENT_SIZE', payload: size });
+  }, []);
+
+  // 修复
+  const handleRepair = useCallback(() => {
+    repair(state.rawJson);
+  }, [repair, state.rawJson]);
+
+  // 确认修复
+  const handleApplyRepair = useCallback(() => {
+    if (state.repairPreview) {
+      applyRepair(state.repairPreview.repaired);
+    }
+  }, [applyRepair, state.repairPreview]);
+
+  // 取消修复
+  const handleCancelRepair = useCallback(() => {
+    dispatch({ type: 'JSON_WB_SET_REPAIR_PREVIEW', payload: null });
   }, []);
 
   // 面包屑路径段
@@ -387,6 +424,9 @@ export default function JsonWorkbenchPage() {
         onFormat={handleFormat}
         onCompress={handleCompress}
         onIndentChange={handleIndentChange}
+        showError={showError}
+        canRepairJson={canRepairJson}
+        onRepair={handleRepair}
       />
       {breadcrumbSegments.length > 0 && (
         <Breadcrumb segments={breadcrumbSegments} onNavigate={handleBreadcrumbNavigate} />
@@ -398,6 +438,14 @@ export default function JsonWorkbenchPage() {
           <SplitPane left={rawPanel} right={treePanel} />
         )}
       </div>
+      <RepairPreviewModal
+        visible={state.repairPreview !== null}
+        original={state.rawJson}
+        repaired={state.repairPreview?.repaired ?? ''}
+        fixes={state.repairPreview?.fixes ?? []}
+        onConfirm={handleApplyRepair}
+        onCancel={handleCancelRepair}
+      />
     </div>
   );
 }

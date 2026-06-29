@@ -4,6 +4,7 @@ import { ReloadOutlined, ThunderboltOutlined, WarningOutlined, UserOutlined, Tea
 import { useNavigate } from 'react-router-dom';
 import { getDashboardStats, type DashboardStats } from '../../services/adminService';
 import { getDashboardAiStats, type DashboardAiStats } from '../../services/aiInvocationService';
+import PageFadeIn from '../../components/shared/PageFadeIn';
 import AdminPageHeader from './components/AdminPageHeader';
 import AdminStatCard from './components/AdminStatCard';
 import AgentBarChart from './components/AgentBarChart';
@@ -71,8 +72,9 @@ const DashboardPage: React.FC = () => {
   const isFailureRateHigh = aiStats && aiStats.failureRate > 0.05;
 
   return (
-    <div style={{ padding: 32 }}>
-      <AdminPageHeader
+    <PageFadeIn>
+      <div style={{ padding: 32 }}>
+        <AdminPageHeader
         eyebrow="ADMIN · 实时概览"
         title={<>仪表盘 <em>·</em> <em>系统脉搏</em></>}
         description="实时呈现调用体量、失败率与用户活跃度。先看异常，再看趋势。"
@@ -206,6 +208,7 @@ const DashboardPage: React.FC = () => {
         />
       </div>
     </div>
+    </PageFadeIn>
   );
 };
 

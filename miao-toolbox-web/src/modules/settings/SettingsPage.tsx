@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, Tabs } from 'antd';
+import PageFadeIn from '../../components/shared/PageFadeIn';
 import ChangePasswordForm from './ChangePasswordForm';
 import GitHubBindSection from './GitHubBindSection';
 import GoogleBindSection from './GoogleBindSection';
@@ -24,8 +25,9 @@ const SettingsPage: React.FC = () => {
   ];
 
   return (
-    <div className="miao-settings-page">
-      <header className="miao-page-header">
+    <PageFadeIn>
+      <div className="miao-settings-page">
+        <header className="miao-page-header">
         <div>
           <div className="miao-page-eyebrow">个人设置</div>
           <h1 className="miao-page-title">账户与偏好</h1>
@@ -38,6 +40,7 @@ const SettingsPage: React.FC = () => {
         <Tabs items={items} />
       </Card>
     </div>
+    </PageFadeIn>
   );
 };
 

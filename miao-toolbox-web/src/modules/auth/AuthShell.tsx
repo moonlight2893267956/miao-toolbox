@@ -1,5 +1,7 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import logoImg from '../../assets/logo.png';
+import useReducedMotion from '../../hooks/useReducedMotion';
 
 interface AuthShellProps {
   title: string;
@@ -22,9 +24,27 @@ const AuthShell: React.FC<AuthShellProps> = ({
   footnote = 'miao-toolbox',
   panelClassName,
 }) => {
+  const reducedMotion = useReducedMotion();
+
+  const brandAnim = reducedMotion
+    ? {}
+    : { initial: { opacity: 0, x: -24 }, animate: { opacity: 1, x: 0 } };
+
+  const panelAnim = reducedMotion
+    ? {}
+    : { initial: { opacity: 0, x: 24 }, animate: { opacity: 1, x: 0 } };
+
+  const dur = reducedMotion ? 0 : 0.45;
+  const ease: [number, number, number, number] = [0.25, 0.1, 0.25, 1];
+
   return (
     <main className="miao-auth-page">
-      <section className="miao-auth-brand" aria-hidden="true">
+      <motion.section
+        className="miao-auth-brand"
+        aria-hidden="true"
+        {...brandAnim}
+        transition={{ duration: dur, ease }}
+      >
         <div>
           <img src={logoImg} alt="阿渺工具箱" className="miao-brand-mark-img" />
         </div>
@@ -40,9 +60,13 @@ const AuthShell: React.FC<AuthShellProps> = ({
         </div>
 
         <div className="miao-auth-footnote">{footnote}</div>
-      </section>
+      </motion.section>
 
-      <section className="miao-auth-panel-wrap">
+      <motion.section
+        className="miao-auth-panel-wrap"
+        {...panelAnim}
+        transition={{ duration: dur, ease, delay: reducedMotion ? 0 : 0.08 }}
+      >
         <div className={['miao-auth-panel', panelClassName].filter(Boolean).join(' ')}>
           <div className="miao-auth-heading">
             <h2>{title}</h2>
@@ -52,7 +76,7 @@ const AuthShell: React.FC<AuthShellProps> = ({
           </div>
           {children}
         </div>
-      </section>
+      </motion.section>
     </main>
   );
 };

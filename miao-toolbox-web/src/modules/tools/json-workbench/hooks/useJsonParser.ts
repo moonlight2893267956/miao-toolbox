@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import type { JsonWbAction } from '../types';
 import { parseAndFlatten } from '../utils/parseAndFlatten';
+import { jsonRepair } from '../utils/jsonRepair';
 
 /**
  * JSON 解析唯一入口 hook。
@@ -55,5 +56,33 @@ export function useJsonParser(dispatch: React.Dispatch<JsonWbAction>) {
     [parse],
   );
 
-  return { parse, debouncedParse };
+  /**
+   * 尝试容错修复 JSON 文本。
+   * 修复成功后设置预览，用户确认后应用。
+   */
+  const repair = useCallback(
+    (raw: string) => {
+      const result = jsonRepair(raw);
+      if ('error' in result) {
+        dispatch({ type: 'JSON_WB_REPAIR_FAIL', payload: result.error });
+      } else {
+        dispatch({ type: 'JSON_WB_SET_REPAIR_PREVIEW', payload: result });
+      }
+    },
+    [dispatch],
+  );
+
+  /**
+   * 应用修复结果：更新 rawJson 并重新解析。
+   */
+  const applyRepair = useCallback(
+    (repaired: string) => {
+      dispatch({ type: 'JSON_WB_SET_RAW', payload: repaired });
+      parse(repaired);
+      dispatch({ type: 'JSON_WB_SET_REPAIR_PREVIEW', payload: null });
+    },
+    [parse, dispatch],
+  );
+
+  return { parse, debouncedParse, repair, applyRepair };
 }

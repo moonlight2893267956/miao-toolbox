@@ -1,6 +1,9 @@
 # 阿渺工具箱 (Miao Toolbox)
 
 > 自托管的 AI 工具集成门户。一次登录即可访问翻译、文生图、文生语音等独立 AI 工具。
+>
+> **📖 文档**：开发/部署/运维文档见 [docs/README.md](docs/README.md)
+> **📋 变更**：[CHANGELOG.md](CHANGELOG.md)
 
 ## 技术栈
 
@@ -54,17 +57,21 @@ OAuth2 配置（可选，不配置时登录页面不显示对应按钮）：
 
 ### 2. 启动依赖服务
 
+> MySQL 和 Redis 由兄弟项目 `miao-infra` 统一提供,本仓库不再编排。
+
 ```bash
-# 启动 MySQL 和 Redis
-docker compose -f docker-compose.dev.yml up -d
+# 一次性:克隆 miao-infra(放在 miao-toolbox 同级目录)
+cd ..
+git clone <miao-infra-repo-url> miao-infra
+cd miao-infra && docker compose up -d
 
 # 验证
-docker ps
+docker ps --format '{{.Names}}' | grep -E '^(miao-mysql|miao-redis)$'
 docker exec miao-redis redis-cli -a miao_redis_dev ping   # 应返回 PONG
 docker exec miao-mysql mysqladmin ping -h localhost -u miao -pmiao_dev  # 应返回 mysqld is alive
 ```
 
-> MySQL 和 Redis 的数据分别存储在 `mysql-data` 和 `redis-data` 两个 Docker volume 中，容器重启数据不丢失。
+> 数据卷归 miao-infra 管理(`miao-infra_mysql-data` / `miao-infra_redis-data`),跨项目共享。
 
 ### 3. 启动后端
 
@@ -79,7 +86,7 @@ cd miao-toolbox-api
 - Swagger 文档：`http://localhost:8080/swagger-ui/index.html`
 - 健康检查：`http://localhost:8080/actuator/health`
 
-Spring Boot Docker Compose 集成会自动检测已运行的容器，无需手动连接。
+后端通过 `localhost:3306` / `localhost:6379` 连 miao-infra 暴露的端口(在 `application-dev.yml` 默认值)。
 
 ### 4. 启动前端
 
@@ -158,20 +165,13 @@ npm run lint
 ### Docker
 
 ```bash
-# 启动服务
-docker compose -f docker-compose.dev.yml up -d
+# 启动依赖服务(由 miao-infra 提供,见上文 §2)
+cd ../miao-infra && docker compose up -d
 
-# 重启 Redis（修改密码后）
-docker compose -f docker-compose.dev.yml up -d redis
-
-# 查看日志
-docker compose -f docker-compose.dev.yml logs -f
-
-# 停止并清理
-docker compose -f docker-compose.dev.yml down
-
-# 清理数据（谨慎）
-docker compose -f docker-compose.dev.yml down -v
+# 可选:在容器里跑 API(验证与生产一致的网络栈,默认 profile=containerized)
+docker compose -f docker-compose.dev.yml --profile containerized up -d --build api
+docker logs -f miao-toolbox-api-dev
+docker compose -f docker-compose.dev.yml --profile containerized down
 ```
 
 ## 配置说明
@@ -197,12 +197,24 @@ docker compose -f docker-compose.dev.yml down -v
 - [x] Token 刷新与注销
 - [x] 防重放攻击（HMAC-SHA256 签名 + Nonce）
 - [x] 滑动窗口限流
-- [x] 管理员后台（用户管理、权限管理）
-- [x] 调用日志审计
 - [x] 自定义用户限流策略
 - [x] 用户禁用/启用
-- [ ] AI 工具集成（翻译、文生图等）
+- [x] 管理员后台（用户管理、权限管理、仪表盘）
+- [x] 文本对比工具（左右双栏 + 语法高亮 + 代码格式化）
+- [x] AI 工具集成：miao-ai 平台对接（diff-explainer agent）
+- [x] AI 调用记录（`ai_invocations` 表 + 仪表盘 + 调用日志）
 
 ## License
 
 MIT
+
+## 文档导航
+
+| 我想... | 看哪份 |
+|---|---|
+| 跑起来开发环境 | [docs/README.md](docs/README.md) → 给所有人 |
+| 改后端/前端代码 | [AGENTS.md](AGENTS.md) + [CLAUDE.md](CLAUDE.md) |
+| 理解系统架构 | [docs/architecture.md](docs/architecture.md) |
+| 部署到生产 | [docs/deployment.md](docs/deployment.md) |
+| 日常运维/排查 | [docs/operations.md](docs/operations.md) + [docs/troubleshooting.md](docs/troubleshooting.md) |
+| 看版本变更 | [CHANGELOG.md](CHANGELOG.md) |

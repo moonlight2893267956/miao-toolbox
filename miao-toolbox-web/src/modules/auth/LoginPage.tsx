@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { authService } from '../../services/authService';
 import AuthShell from './AuthShell';
+import LoginSuccessOverlay from '../../components/shared/LoginSuccessOverlay';
 
 const { Text } = Typography;
 
@@ -17,13 +18,24 @@ const LoginPage: React.FC = () => {
   const [form] = Form.useForm<LoginFormValues>();
   const [loading, setLoading] = React.useState(false);
   const [oauthLoading, setOauthLoading] = React.useState<'github' | 'google' | null>(null);
+  const [loginSuccess, setLoginSuccess] = React.useState<{ username: string } | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { login } = useAuth();
+  const safetyTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 优先从 location.state.from 读取重定向路径，其次从 redirect 查询参数读取
   const redirectPath = (location.state as any)?.from?.pathname || searchParams.get('redirect') || '/tools';
+
+  // 组件卸载时清除安全定时器
+  React.useEffect(() => {
+    return () => {
+      if (safetyTimerRef.current) {
+        clearTimeout(safetyTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleSubmit = async (values: LoginFormValues) => {
     setLoading(true);
@@ -36,7 +48,8 @@ const LoginPage: React.FC = () => {
         navigate('/change-password', { replace: true });
       } else {
         message.success(`欢迎回来，${result.user.username}`);
-        navigate(redirectPath, { replace: true });
+        // 显示与 OAuth2 一致的成功动画界面
+        setLoginSuccess({ username: result.user.username });
       }
     } catch (error: any) {
       message.error('用户名或密码错误');
@@ -45,11 +58,25 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  const handleOAuthClick = async (provider: 'github' | 'google') => {
+  const handleOAuthClick = (provider: 'github' | 'google') => {
     setOauthLoading(provider);
-    await new Promise(r => setTimeout(r, 800));
+    // 安全超时：如果 10 秒内没有离开页面，说明 OAuth 跳转失败，重置 loading
+    safetyTimerRef.current = setTimeout(() => {
+      setOauthLoading(null);
+      message.error('OAuth 服务暂时不可用，请稍后重试');
+    }, 10000);
     window.location.href = `/api/auth/oauth/${provider}`;
   };
+
+  // 登录成功后显示成功动画覆盖层
+  if (loginSuccess) {
+    return (
+      <LoginSuccessOverlay
+        username={loginSuccess.username}
+        redirectTo={redirectPath}
+      />
+    );
+  }
 
   return (
     <AuthShell title="阿渺工具箱" subtitle="登录以访问你的 AI 工具">

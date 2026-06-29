@@ -16,6 +16,7 @@ import {
   type UserUsageSummary,
   type AiInvocationItem,
 } from '../../services/aiInvocationService';
+import PageFadeIn from '../../components/shared/PageFadeIn';
 import AdminPageHeader from './components/AdminPageHeader';
 import StatusDot from './components/StatusDot';
 import UserAvatar from './components/UserAvatar';
@@ -380,9 +381,10 @@ const UserManagePage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 32 }}>
-      <AdminPageHeader
-        eyebrow={`USER BASE · ${total.toLocaleString()} 位成员`}
+    <PageFadeIn>
+      <div style={{ padding: 32 }}>
+        <AdminPageHeader
+          eyebrow={`USER BASE · ${total.toLocaleString()} 位成员`}
         title={<>用户 <em>管理</em></>}
         description="管理用户角色、启用状态与每分钟调用上限。点击用户名查看 AI 用量明细。"
       />
@@ -594,6 +596,7 @@ const UserManagePage: React.FC = () => {
         )}
       </Drawer>
     </div>
+    </PageFadeIn>
   );
 };
 

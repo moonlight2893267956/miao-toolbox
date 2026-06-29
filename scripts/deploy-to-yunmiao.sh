@@ -10,11 +10,12 @@
 #   - 仓库已经推到 origin/main
 #
 # 用法:
-#   ./scripts/deploy-to-yunmiao.sh           # 完整流程(首次部署)
-#   ./scripts/deploy-to-yunmiao.sh update    # 仅更新代码并重启
-#   ./scripts/deploy-to-yunmiao.sh env       # 仅重新生成 .env
-#   ./scripts/deploy-to-yunmiao.sh status    # 查看服务状态
-#   ./scripts/deploy-to-yunmiao.sh logs      # 查看日志
+#   ./scripts/deploy-to-yunmiao.sh              # 完整流程(首次部署)
+#   ./scripts/deploy-to-yunmiao.sh --skip-env   # 跳过 .env 生成(保留已有密钥,日常更新用)
+#   ./scripts/deploy-to-yunmiao.sh update       # 仅更新代码并重启
+#   ./scripts/deploy-to-yunmiao.sh env          # 仅重新生成 .env
+#   ./scripts/deploy-to-yunmiao.sh status       # 查看服务状态
+#   ./scripts/deploy-to-yunmiao.sh logs         # 查看日志
 # ===================================================================
 
 set -euo pipefail
@@ -32,6 +33,23 @@ BT_VHOST="/www/server/panel/vhost/nginx/tools.yunmiao.site.conf"
 # 临时模式:域名未注册时把 cookie-secure 改 false(后续 SSL 配好后改回)
 TEMP_INSECURE_COOKIE="${TEMP_INSECURE_COOKIE:-1}"
 
+# ===== 参数解析 =====
+SKIP_ENV=0
+for arg in "$@"; do
+  case "$arg" in
+    --skip-env) SKIP_ENV=1 ;;
+  esac
+done
+
+# 过滤掉 --skip-env,保留第一个非 flag 参数作为命令名
+cmd="${1:-all}"
+for arg in "$@"; do
+  case "$arg" in
+    --skip-env) ;;
+    *) cmd="$arg"; break ;;
+  esac
+done
+
 # ===== 工具函数 =====
 red() { printf "\033[31m%s\033[0m\n" "$*"; }
 grn() { printf "\033[32m%s\033[0m\n" "$*"; }
@@ -39,6 +57,56 @@ ylw() { printf "\033[33m%s\033[0m\n" "$*"; }
 hdr() { printf "\n\033[1;36m=== %s ===\033[0m\n" "$*"; }
 ssh_run() { ssh $SSH_OPTS "$REMOTE_HOST" "$@"; }
 scp_to() { scp $SSH_OPTS -r "$1" "$REMOTE_HOST:$2"; }
+
+# ===== 工具函数 =====
+
+sync_infra_secrets_to_env() {
+  local env_file="$1"
+  local miao_infra_env="/opt/miao-infra/.env"
+
+  if ! ssh_run "test -f $miao_infra_env" 2>/dev/null; then
+    ylw "  ⚠️ 未找到 $miao_infra_env，MYSQL_PASSWORD / REDIS_PASSWORD 需手动设置"
+    return 0
+  fi
+
+  # 用 ssh 在服务器上读取 miao-infra .env 的密码行
+  ssh_run "grep -E '^(MYSQL_PASSWORD|MYSQL_USER|REDIS_PASSWORD)=' $miao_infra_env" > /tmp/.infra-secrets.tmp 2>/dev/null
+
+  if [ ! -s /tmp/.infra-secrets.tmp ]; then
+    rm -f /tmp/.infra-secrets.tmp
+    ylw "  ⚠️ miao-infra .env 中未找到密码信息"
+    return 0
+  fi
+
+  python3 -c "
+import pathlib
+with open('/tmp/.infra-secrets.tmp') as f:
+    infra = {}
+    for line in f:
+        line = line.strip()
+        if '=' in line:
+            k, v = line.split('=', 1)
+            infra[k] = v
+
+env = pathlib.Path('${env_file}')
+text = env.read_text()
+lines = text.splitlines()
+result = []
+for line in lines:
+    if '=' in line:
+        k = line.split('=', 1)[0]
+        if k in infra:
+            result.append(f'{k}={infra.pop(k)}')
+            continue
+    result.append(line)
+for k, v in infra.items():
+    result.append(f'{k}={v}')
+env.write_text('\n'.join(result) + '\n')
+" 2>/dev/null
+
+  rm -f /tmp/.infra-secrets.tmp
+  grn "  ✓ 已从 miao-infra 同步 MYSQL_USER / MYSQL_PASSWORD / REDIS_PASSWORD"
+}
 
 # ===== 步骤函数 =====
 step_ensure_remote_dir() {
@@ -73,33 +141,24 @@ step_pull_code() {
 }
 
 step_gen_env() {
-  hdr "3. 生成 .env(本机生成密钥,避开嵌套 sed 坑)"
+  hdr "3. 生成 .env(JWT 密钥本机生成,DB/Redis 密码从 miao-infra 自动同步)"
   local env_file
   env_file="/tmp/miao-toolbox-$(date +%s).env"
   cp .env.example "$env_file"
   chmod 600 "$env_file"
 
-  # 本机用 Python 生成安全随机密码(避免 base64 的 /+= 干扰 sed)
+  # 本机用 Python 生成安全随机 JWT 密钥
   python3 - "$env_file" <<'PY'
-import secrets, string, sys, pathlib
+import secrets, sys, pathlib
 path = pathlib.Path(sys.argv[1])
 text = path.read_text()
 
 def rand_secret(n=64):
-    # URL-safe base64(用 - _ 替代 + /),避免 sed 分隔符冲突
     return secrets.token_urlsafe(n)
-
-def rand_password(n=24):
-    # 字母数字,排除容易混淆的 0/O/1/l/I
-    alpha = ''.join(c for c in string.ascii_letters + string.digits if c not in '0O1lI')
-    return ''.join(secrets.choice(alpha) for _ in range(n))
 
 replacements = {
     'JWT_SECRET=': f'JWT_SECRET={rand_secret(64)}',
     'JWT_REFRESH_SECRET=': f'JWT_REFRESH_SECRET={rand_secret(64)}',
-    'MYSQL_PASSWORD=': f'MYSQL_PASSWORD={rand_password(24)}',
-    'MYSQL_ROOT_PASSWORD=': f'MYSQL_ROOT_PASSWORD={rand_password(24)}',
-    'REDIS_PASSWORD=': f'REDIS_PASSWORD={rand_password(24)}',
     'CORS_ALLOWED_ORIGINS=': 'CORS_ALLOWED_ORIGINS=https://tools.yunmiao.site,http://81.70.216.46:8089',
 }
 
@@ -113,12 +172,38 @@ for key, val in replacements.items():
         text = text.replace(needle, val, 1)
 
 path.write_text(text)
-print(f"✓ .env 已生成: {path}")
+print(f"✓ JWT 密钥已生成")
 PY
+
+  # 从服务器 miao-infra .env 同步 DB/Redis 密码(首次部署前需确保 miao-infra 已启动)
+  sync_infra_secrets_to_env "$env_file"
 
   scp $SSH_OPTS "$env_file" "$REMOTE_HOST:/opt/miao-toolbox/.env"
   rm -f "$env_file"
   grn "  ✓ .env 已上传到 $REMOTE_DIR/.env"
+}
+
+step_wait_infra() {
+  hdr "3.5 等待 miao-infra 就绪(miao-mysql + miao-redis)"
+  local max_wait=120
+  local elapsed=0
+  while [ $elapsed -lt $max_wait ]; do
+    local mysql_status redis_status
+    mysql_status=$(ssh_run "docker inspect --format='{{.State.Health.Status}}' miao-mysql 2>/dev/null" || echo "missing")
+    redis_status=$(ssh_run "docker inspect --format='{{.State.Health.Status}}' miao-redis 2>/dev/null" || echo "missing")
+    if [ "$mysql_status" = "healthy" ] && [ "$redis_status" = "healthy" ]; then
+      grn "  ✓ miao-mysql / miao-redis 均 healthy(等待 ${elapsed}s)"
+      return 0
+    fi
+    if [ $((elapsed % 10)) -eq 0 ] && [ $elapsed -gt 0 ]; then
+      ylw "  等待中(${elapsed}s/${max_wait}s)  mysql=${mysql_status}  redis=${redis_status}"
+    fi
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+  red "  ✗ 等待 miao-infra 超时(${max_wait}s)"
+  red "  请先在服务器上: cd /opt/miao-infra && docker compose up -d"
+  exit 1
 }
 
 step_temp_insecure_cookie() {
@@ -137,7 +222,7 @@ step_temp_insecure_cookie() {
 }
 
 step_deploy_services() {
-  hdr "5. 构建并启动服务"
+  hdr "5. 构建并启动 miao-toolbox 服务"
   ssh_run "cd '$REMOTE_DIR' && \
     docker compose -f docker-compose.prod.yml --env-file .env up -d --build"
   sleep 5
@@ -275,10 +360,11 @@ step_status() {
 # ===== 主流程 =====
 usage() {
   cat <<EOF
-用法: $0 [命令]
+用法: $0 [命令] [--skip-env]
   (无)        完整部署流程
+  --skip-env  跳过 .env 生成(保留已有密钥,日常更新用)
   update      仅拉代码 + 重启服务
-  env         仅重新生成 .env(慎用,会覆盖现有密钥)
+  env         仅重新生成 .env(慎用,会覆盖已有密钥)
   status      查看容器状态
   logs        查看实时日志
   vhost       仅重新配置宝塔 vhost
@@ -286,12 +372,16 @@ usage() {
 EOF
 }
 
-cmd="${1:-all}"
 case "$cmd" in
   all)
     step_ensure_remote_dir
     step_pull_code
-    step_gen_env
+    if [ "$SKIP_ENV" -eq 1 ]; then
+      grn "  ⏭ 跳过 .env 生成(使用服务器已有的密钥)"
+    else
+      step_gen_env
+    fi
+    step_wait_infra
     step_temp_insecure_cookie
     step_deploy_services
     step_ensure_vhost

@@ -3,66 +3,32 @@ name: miao-toolbox
 # 生产环境编排:
 #   - api: Spring Boot 后端,容器内 8080,宿主机 127.0.0.1:8088
 #   - web: 前端 nginx,容器内 80,宿主机 127.0.0.1:8089
-#   - mysql: MySQL 8.4,持久化数据卷
-#   - redis: Redis 7-alpine,持久化数据卷
 # 前端 nginx 通过 /api/ 反代到 miao-api:8080(同网络)
 # 宿主机宝塔 nginx 通过 tools.yunmiao.site vhost 再反代到 8088/8089
+#
+# ⚠️ MySQL/Redis 不在本编排内,由外部项目 miao-infra 提供:
+#   - 容器名: miao-mysql / miao-redis(固定名,miao-infra 自己声明)
+#   - 网络:   miao-infra-net(external,本编排声明引用)
+#   - 账号:   MYSQL_USER / MYSQL_PASSWORD 由 miao-infra 启动时生成的 .env 提供
+#             本项目只关心业务库名(MYSQL_DATABASE= miao_toolbox)
+#   - 跨 compose 健康检查: 部署脚本 step_wait_infra() 会先轮询 miao-mysql/miao-redis healthy,
+#             再启本编排的 api/web;api 容器自带 start_period=120s 兜底
 
 services:
-  mysql:
-    image: mysql:8.4
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?必须设置 MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-miao_toolbox}
-      MYSQL_USER: ${MYSQL_USER:?必须设置 MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?必须设置 MYSQL_PASSWORD}
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-      - --default-time-zone=+08:00
-    volumes:
-      - mysql-data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    networks: [miao-net]
-    # 不向宿主机暴露端口,只在 docker 网络内通信
-    expose: ["3306"]
-
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    command:
-      - redis-server
-      - --requirepass
-      - ${REDIS_PASSWORD:?必须设置 REDIS_PASSWORD}
-      - --appendonly
-      - "yes"
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks: [miao-net]
-    expose: ["6379"]
-
   api:
     build:
       context: ./miao-toolbox-api
       dockerfile: Dockerfile
     image: miao-toolbox/api:latest
     restart: unless-stopped
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+    # 不再 depends_on mysql/redis(跨 compose 不支持)
+    # 启动期间允许 unhealthy,等 miao-infra 就绪 + Spring Boot/HikariCP 重试兜底
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health 2>/dev/null | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
     # 让容器能解析宿主机名(走 Clash 代理用)
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -74,23 +40,24 @@ services:
       HTTPS_PROXY: http://host.docker.internal:7890
       # 覆盖 Dockerfile 的 JAVA_OPTS,加代理配置
       # nonProxyHosts 排除:docker 内网服务 + 宿主机反代 + 私网,避免内网流量绕一圈
+      # miao-mysql / miao-redis 在 miao-infra 提供的 miao-infra-net 网络里
       JAVA_OPTS: >-
         -Xms256m -Xmx384m -XX:+UseG1GC
         -Dhttp.proxyHost=host.docker.internal
         -Dhttp.proxyPort=7890
         -Dhttps.proxyHost=host.docker.internal
         -Dhttps.proxyPort=7890
-        -Dhttp.nonProxyHosts=mysql|redis|api|web|localhost|127.*|*.yunmiao.site|10.*|172.16.*|172.17.*|172.18.*|192.168.*
-      # 数据库
+        -Dhttp.nonProxyHosts=miao-mysql|miao-redis|miao-backend|api|web|localhost|127.*|*.yunmiao.site|10.*|172.16.*|172.17.*|172.18.*|192.168.*|172.19.*|host.docker.internal
+      # 数据库(由 miao-infra 提供)
       # characterEncoding 必须是 Java 识别的 charset 名(UTF-8),不是 MySQL 服务端的 utf8mb4
-      MYSQL_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-miao_toolbox}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      # Redis
-      REDIS_HOST: redis
+      MYSQL_URL: jdbc:mysql://miao-mysql:3306/${MYSQL_DATABASE:-miao_toolbox}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      MYSQL_USER: ${MYSQL_USER:?必须设置 MYSQL_USER(miao-infra 生成的 .env 中)}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?必须设置 MYSQL_PASSWORD(miao-infra 生成的 .env 中)}
+      # Redis(由 miao-infra 提供)
+      REDIS_HOST: miao-redis
       REDIS_PORT: 6379
       REDIS_USERNAME: ${REDIS_USERNAME:-}
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?必须设置 REDIS_PASSWORD(miao-infra 生成的 .env 中)}
       # JWT(必填)
       JWT_SECRET: ${JWT_SECRET:?必须设置 JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?必须设置 JWT_REFRESH_SECRET}
@@ -112,9 +79,19 @@ services:
       COS_SECRET_KEY: ${COS_SECRET_KEY:-}
       COS_BUCKET: ${COS_BUCKET:-}
       COS_REGION: ${COS_REGION:-ap-guangzhou}
+      # miao-ai Agent 平台(文本对比 AI 解释)
+      # 走 host.docker.internal:18000 — miao-ai 在另一个 docker network,必须用宿主机的 IP
+      MIAO_AI_ENABLED: ${MIAO_AI_ENABLED:-false}
+      MIAO_AI_BASE_URL: ${MIAO_AI_BASE_URL:-}
+      MIAO_AI_API_KEY: ${MIAO_AI_API_KEY:-}
+      MIAO_AI_AGENT_NAME: ${MIAO_AI_AGENT_NAME:-diff-explainer}
+      MIAO_AI_CONNECT_TIMEOUT: ${MIAO_AI_CONNECT_TIMEOUT:-5000}
+      MIAO_AI_READ_TIMEOUT: ${MIAO_AI_READ_TIMEOUT:-60000}
     ports:
       - "127.0.0.1:8088:8080"
-    networks: [miao-net]
+    networks:
+      - miao-net
+      - miao-infra-net
     # 资源限制(防 OOM)
     deploy:
       resources:
@@ -131,16 +108,17 @@ services:
       - api
     ports:
       - "127.0.0.1:8089:80"
-    networks: [miao-net]
+    networks:
+      - miao-net
     deploy:
       resources:
         limits:
           memory: 64M
 
-volumes:
-  mysql-data:
-  redis-data:
-
 networks:
   miao-net:
     driver: bridge
+  miao-infra-net:
+    # miao-infra 提供的外部网络,要求 miao-infra 已 up
+    external: true
+    name: miao-infra-net

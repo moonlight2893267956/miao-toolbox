@@ -1,38 +1,55 @@
+# ===========================================
+# 开发环境 Docker 编排
+# ===========================================
+# 与生产保持一致:MySQL/Redis 不在本编排内,由外部 miao-infra 提供
+#
+# 启动顺序:
+#   1. 启动 miao-infra(一次性)
+#      cd ../miao-infra && docker compose up -d
+#   2. 选择下面任一开发方式:
+#
+# 方式 A — 本地进程(默认,最常用)
+#   cd miao-toolbox-api && ./mvnw spring-boot:run
+#   cd miao-toolbox-web && npm run dev
+#   → 后端连 localhost:3306 / 6379(miao-infra 把端口映射到 host)
+#
+# 方式 B — 容器化 API 验证(可选,验证与生产一致的网络栈)
+#   docker compose -f docker-compose.dev.yml up -d --build api
+#   → api 容器通过 miao-infra-net 连 miao-mysql / miao-redis
+#   → 前端仍可走方式 A 的 Vite(localhost:5173)
+# ===========================================
+
 services:
-  mysql:
-    image: mysql:8.4
-    container_name: miao-mysql
+  api:
+    build:
+      context: ./miao-toolbox-api
+      dockerfile: Dockerfile
+    image: miao-toolbox/api:dev
+    container_name: miao-toolbox-api-dev
+    profiles: ["containerized"]   # 默认不启动,需显式 --profile containerized
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
-      MYSQL_DATABASE: miao_toolbox
-      MYSQL_USER: miao
-      MYSQL_PASSWORD: miao_dev
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql-data:/var/lib/mysql
-    healthcheck:  
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    container_name: miao-redis
-    command: redis-server --requirepass ${REDIS_PASSWORD:-miao_redis_dev}
-    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      TZ: Asia/Shanghai
+      # miao-infra 在本机起,把端口映射到 host
+      # 但容器内要走 miao-mysql/miao-redis 容器名(host.docker.internal 走不到 3306 映射)
+      MYSQL_URL: jdbc:mysql://miao-mysql:3306/miao_toolbox?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      MYSQL_USER: ${MYSQL_USER:-miao}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-miao_dev}
+      REDIS_HOST: miao-redis
+      REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-miao_redis_dev}
+      JWT_SECRET: ${JWT_SECRET:-dev-only-jwt-secret-key-at-least-256-bits-long-replace-in-prod}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-only-jwt-refresh-secret-key-at-least-256-bits-replace}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
     ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-miao_redis_dev}", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - "127.0.0.1:8088:8080"
+    networks:
+      - miao-dev-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
-volumes:
-  mysql-data:
-  redis-data:
+networks:
+  miao-dev-net:
+    # 引用 miao-infra 的网络;要求本机已 cd ../miao-infra && docker compose up -d
+    external: true
+    name: miao-infra-net

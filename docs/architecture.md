@@ -1,6 +1,12 @@
 # 阿渺工具箱 — 系统架构文档
 
-> 版本：v1.1 · 更新日期：2026-06-08
+> 版本：v1.2 · 更新日期：2026-06-28
+> 维护人：项目 owner
+> 相关文档：[部署文档](deployment.md) · [运维 SOP](operations.md) · [故障排查](troubleshooting.md)
+
+**变更记录**：
+- v1.2（2026-06-28）— 新增 `ai_invocations` 表 + `observability` 模块（Epic 4）；`audit_logs` 标记为废弃
+- v1.1（2026-06-08）— 初版
 
 ---
 
@@ -93,11 +99,11 @@ graph TB
 
 ## 2. 部署架构
 
-### 开发环境 (Docker Compose)
+### 开发环境 (miao-infra + 本地进程)
 
 ```mermaid
 graph LR
-    subgraph Docker Compose
+    subgraph miao-infra compose
         MySQL_C[mysql:8.4<br/>:3306]
         Redis_C[redis:7-alpine<br/>:6379]
     end
@@ -112,22 +118,22 @@ graph LR
     Web -->|"代理 /api"| API
 ```
 
-| 服务 | 容器名 | 端口 | 镜像 |
-|---|---|---|---|
-| MySQL | miao-mysql | 3306:3306 | mysql:8.4 |
-| Redis | miao-redis | 6379:6379 | redis:7-alpine |
+| 服务 | 容器名 | 端口 | 镜像 | 来源 |
+|---|---|---|---|---|
+| MySQL | miao-mysql | 3306:3306 | mysql:8.4 | miao-infra |
+| Redis | miao-redis | 6379:6379 | redis:7-alpine | miao-infra |
 
-> 当前开发环境 API 和前端以本地进程运行，数据库和缓存通过 Docker Compose 启动。
+> 当前开发环境 API 和前端以本地进程运行,数据库和缓存由 miao-infra 启动。
+> 网络 `miao-infra-net` 由 miao-infra 创建并声明为 external,本项目 compose 在需要容器化 dev 时引用。
 
-### 生产环境（规划）
+### 生产环境 (miao-infra + miao-toolbox 编排)
 
 ```mermaid
 graph LR
     Client[用户浏览器] --> Nginx[Nginx<br/>反向代理]
     Nginx -->|"/api"| API[Spring Boot API<br/>:8080]
     Nginx -->|"/"| Web[React 静态资源]
-    API --> MySQL[(MySQL)]
-    API --> Redis[(Redis)]
+    API -.->|miao-infra-net| Infra[(miao-infra<br/>miao-mysql + miao-redis)]
     API -->|"代理"| External[外部 AI 服务]
 ```
 

@@ -65,6 +65,21 @@ export interface SchemaError {
   severity: 'error' | 'warning';
 }
 
+// ─── 修复 ──────────────────────────────────────────────
+
+/** 修复操作记录 */
+export interface RepairAction {
+  type: 'single-quotes' | 'trailing-comma' | 'line-comment' | 'block-comment' | 'unquoted-key' | 'case-fix';
+  description: string;
+  count: number;
+}
+
+/** 修复结果 */
+export interface RepairResult {
+  repaired: string;
+  fixes: RepairAction[];
+}
+
 // ─── 全局状态 ──────────────────────────────────────────
 
 /**
@@ -108,6 +123,10 @@ export interface JsonWorkbenchState {
   aiResult: string | null;
   /** 格式化缩进空格数 */
   indentSize: 2 | 4;
+  /** 修复预览（null = 无预览） */
+  repairPreview: RepairResult | null;
+  /** 修复错误信息 */
+  repairError: string | null;
 }
 
 // ─── Actions ──────────────────────────────────────────
@@ -130,4 +149,7 @@ export type JsonWbAction =
   | { type: 'JSON_WB_EXPAND_ALL'; payload: string }
   | { type: 'JSON_WB_COLLAPSE_ALL'; payload: string }
   | { type: 'JSON_WB_ENSURE_EXPANDED'; payload: string[] }
-  | { type: 'JSON_WB_SET_INDENT_SIZE'; payload: 2 | 4 };
+  | { type: 'JSON_WB_SET_INDENT_SIZE'; payload: 2 | 4 }
+  | { type: 'JSON_WB_REPAIR_SUCCESS'; payload: RepairResult }
+  | { type: 'JSON_WB_REPAIR_FAIL'; payload: string }
+  | { type: 'JSON_WB_SET_REPAIR_PREVIEW'; payload: RepairResult | null };

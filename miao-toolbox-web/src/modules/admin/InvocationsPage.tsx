@@ -9,6 +9,7 @@ import {
   type AiInvocationItem,
   type AiInvocationQuery,
 } from '../../services/aiInvocationService';
+import PageFadeIn from '../../components/shared/PageFadeIn';
 import AdminPageHeader from './components/AdminPageHeader';
 import StatusDot from './components/StatusDot';
 import EmptyState from './components/EmptyState';
@@ -212,9 +213,10 @@ const InvocationsPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 32 }}>
-      <AdminPageHeader
-        eyebrow="OBSERVABILITY · 实时追踪"
+    <PageFadeIn>
+      <div style={{ padding: 32 }}>
+        <AdminPageHeader
+          eyebrow="OBSERVABILITY · 实时追踪"
         title={<>AI 调用 <em>日志</em></>}
         description="按时间范围、Agent、状态、Trace ID 检索。点击 Trace ID 复制到剪贴板。"
       />
@@ -332,6 +334,7 @@ const InvocationsPage: React.FC = () => {
         />
       </div>
     </div>
+    </PageFadeIn>
   );
 };
 
