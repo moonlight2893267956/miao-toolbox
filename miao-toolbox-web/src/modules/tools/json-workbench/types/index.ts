@@ -7,8 +7,8 @@
 
 // ─── 值类型 ────────────────────────────────────────────
 
-/** JSON 值的 7 种类型 */
-export type JsonValueType = 'object' | 'array' | 'string' | 'number' | 'boolean' | 'null';
+/** JSON 值的 8 种类型（含数组省略占位） */
+export type JsonValueType = 'object' | 'array' | 'string' | 'number' | 'boolean' | 'null' | 'array-ellipsis';
 
 // ─── 数据模型 ──────────────────────────────────────────
 
@@ -37,6 +37,8 @@ export interface JsonNode {
   isExpanded: boolean;
   /** 子节点数量 */
   childrenCount: number;
+  /** 仅 array-ellipsis 类型：被折叠的元素数量 */
+  ellipsisCount?: number;
 }
 
 // ─── 视图模式 ──────────────────────────────────────────
@@ -127,6 +129,8 @@ export interface JsonWorkbenchState {
   repairPreview: RepairResult | null;
   /** 修复错误信息 */
   repairError: string | null;
+  /** 用户是否已关闭大文件提示 */
+  largeFileHintDismissed: boolean;
 }
 
 // ─── Actions ──────────────────────────────────────────
@@ -148,8 +152,11 @@ export type JsonWbAction =
   | { type: 'JSON_WB_SET_LARGE_FILE'; payload: boolean }
   | { type: 'JSON_WB_EXPAND_ALL'; payload: string }
   | { type: 'JSON_WB_COLLAPSE_ALL'; payload: string }
+  | { type: 'JSON_WB_SET_SEARCH_RESULTS'; payload: string[] }
+  | { type: 'JSON_WB_COLLAPSE_NON_MATCHES'; payload: string[] }
   | { type: 'JSON_WB_ENSURE_EXPANDED'; payload: string[] }
   | { type: 'JSON_WB_SET_INDENT_SIZE'; payload: 2 | 4 }
   | { type: 'JSON_WB_REPAIR_SUCCESS'; payload: RepairResult }
   | { type: 'JSON_WB_REPAIR_FAIL'; payload: string }
-  | { type: 'JSON_WB_SET_REPAIR_PREVIEW'; payload: RepairResult | null };
+  | { type: 'JSON_WB_SET_REPAIR_PREVIEW'; payload: RepairResult | null }
+  | { type: 'JSON_WB_DISMISS_LARGE_FILE_HINT' };

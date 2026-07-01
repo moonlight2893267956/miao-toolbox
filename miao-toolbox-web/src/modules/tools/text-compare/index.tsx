@@ -30,21 +30,17 @@ const DiffContent: React.FC = () => {
   return (
     <>
       <motion.div
-        className="tc-toolbar-float"
+        className="tc-command-bar"
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.2 }}
       >
-        <Toolbar onCompare={runCompare} />
-      </motion.div>
-
-      <motion.div
-        className="tc-stats-float"
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-      >
-        <StatCard />
+        <div className="tc-toolbar-float">
+          <Toolbar onCompare={runCompare} />
+        </div>
+        <div className="tc-stats-float">
+          <StatCard />
+        </div>
       </motion.div>
 
       <div className={`tc-panels-container ${isStacked ? 'tc-stacked' : ''}`}>
@@ -89,56 +85,6 @@ const TextComparePage: React.FC = () => {
           <div className="tc-bg-gradient-right" />
           <div className="tc-bg-noise" />
         </div>
-
-        {/* Header */}
-        <motion.header 
-          className="tc-header"
-          initial={{ opacity: 0, y: -30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <div className="tc-header-content">
-            <div className="tc-header-badge">
-              <span className="tc-header-badge-icon">D</span>
-              <span>DIFF TOOL · v1.0</span>
-            </div>
-            <h1 className="tc-header-title">
-              <span className="tc-title-icon-warm">A</span>
-              <span className="tc-title-text">文本对照</span>
-              <span className="tc-title-icon-cool">B</span>
-            </h1>
-            <div className="tc-header-desc">
-              <div className="tc-desc-line">
-                <span className="tc-desc-dot warm" />
-                <span><span className="tc-desc-key">行级粒度</span>对比 · 逐行定位每一处差异</span>
-              </div>
-              <div className="tc-desc-line">
-                <span className="tc-desc-dot cool" />
-                <span>自动识别 <span className="tc-desc-key">9 种</span>代码语言 · 智能检测 + 客户端格式化</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="tc-header-visual" aria-hidden="true">
-            <div className="tc-visual-card warm">
-              <span className="tc-visual-tag">A · ORIGINAL</span>
-              <div className="tc-visual-line w1 warm-line" />
-              <div className="tc-visual-line w2" />
-              <div className="tc-visual-line w3 warm-line" />
-              <div className="tc-visual-line w4" />
-              <div className="tc-visual-line w2" />
-            </div>
-            <div className="tc-visual-card cool">
-              <span className="tc-visual-tag">B · MODIFIED</span>
-              <div className="tc-visual-line w1 cool-line" />
-              <div className="tc-visual-line w4" />
-              <div className="tc-visual-line w2 cool-line" />
-              <div className="tc-visual-line w3" />
-              <div className="tc-visual-line w2" />
-            </div>
-            <div className="tc-visual-circle">⇄</div>
-          </div>
-        </motion.header>
 
         {/* Main Content */}
         <main className="tc-main">

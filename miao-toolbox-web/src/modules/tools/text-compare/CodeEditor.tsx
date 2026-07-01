@@ -27,6 +27,7 @@ interface CodeEditorProps {
   onViewReady?: (view: EditorView, container: HTMLDivElement) => void;
   lineWrapping?: boolean;
   onFormatShortcut?: () => void;
+  fillHeight?: boolean;
 }
 
 const LANGUAGE_EXTENSIONS: Record<string, Extension> = {
@@ -57,6 +58,7 @@ const CodeEditor = forwardRef<{ view: EditorView | null }, CodeEditorProps>(({
   onViewReady,
   lineWrapping = true,
   onFormatShortcut,
+  fillHeight = false,
 }, ref) => {
   const { runCompare } = useDiffContext();
   const editorRef = useRef<HTMLDivElement>(null);
@@ -187,8 +189,9 @@ const CodeEditor = forwardRef<{ view: EditorView | null }, CodeEditorProps>(({
         ref={editorRef}
         className="dt-editor-cm"
         style={{
-          minHeight: `${minRows * 18}px`,
-          maxHeight: `${maxRows * 18}px`,
+          height: fillHeight ? '100%' : undefined,
+          minHeight: fillHeight ? 0 : `${minRows * 18}px`,
+          maxHeight: fillHeight ? 'none' : `${maxRows * 18}px`,
           border: 'none',
         }}
       />

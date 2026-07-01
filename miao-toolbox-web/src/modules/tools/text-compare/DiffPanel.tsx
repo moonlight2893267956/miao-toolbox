@@ -207,6 +207,7 @@ const DiffPanel: React.FC<{ side: 'left' | 'right' }> = ({ side }) => {
           placeholder={side === 'left' ? '粘贴原文或旧版本...' : '粘贴对比文本或新版本...'}
           minRows={16}
           maxRows={52}
+          fillHeight
           lineWrapping={state.layout !== 'split'}
           onFormatShortcut={handleFormat}
         />
