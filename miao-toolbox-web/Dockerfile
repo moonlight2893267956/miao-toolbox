@@ -2,8 +2,9 @@
 FROM node:20-alpine AS builder
 WORKDIR /build
 
-# 单独 COPY package.json 充分利用 Docker 缓存
-COPY package*.json ./
+# 单独 COPY package*.json + .npmrc 充分利用 Docker 缓存
+# .npmrc 使用 npmmirror 国内镜像，避免从 npmjs.org 跨国下载缓慢
+COPY package*.json .npmrc ./
 RUN npm ci --no-audit --no-fund
 
 COPY . .
