@@ -3,6 +3,7 @@ import {
   AudioOutlined,
   CodeOutlined,
   DiffOutlined,
+  LockOutlined,
   PictureOutlined,
   TranslationOutlined,
 } from '@ant-design/icons';
@@ -75,6 +76,19 @@ export const toolsRegistry: ToolMeta[] = [
     available: true,
     accentColor: '#00d4aa',
     iconBg: 'rgba(0,212,170,0.12)',
+  },
+  {
+    key: 'crypto',
+    title: '加解密工具',
+    description: '一站式加解密、哈希、编解码工具。AES/DES/RSA、MD5/SHA/HMAC、Base64/URL/Escape，纯前端运算，密钥不离开设备。',
+    icon: LockOutlined,
+    status: '可用',
+    tags: ['加解密', '哈希', '开发工具'],
+    path: '/tools/crypto',
+    category: 'available',
+    available: true,
+    accentColor: '#8b5cf6',
+    iconBg: 'rgba(139,92,246,0.12)',
   },
   {
     key: 'json-workbench',

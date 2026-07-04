@@ -1,6 +1,7 @@
 import { useReducer, useCallback, useRef, useState, useEffect, useMemo } from 'react';
-import { CopyOutlined, SwapOutlined } from '@ant-design/icons';
-import { message, Tooltip } from 'antd';
+import { CopyOutlined, SwapOutlined, UploadOutlined, EditOutlined, ThunderboltOutlined, BulbOutlined } from '@ant-design/icons';
+import { message, Tooltip, Dropdown, Modal, Input } from 'antd';
+import type { MenuProps } from 'antd';
 import type {
   JsonWorkbenchState,
   JsonWbAction,
@@ -13,6 +14,7 @@ import { parseJsonPathToSegments, getAncestorPaths } from './utils/breadcrumb';
 import { computeSearchResults } from './utils/search';
 import { validateBySchema } from './utils/schemaValidate';
 import { compressAndEscapeJson, inspectEscapedJsonString, unescapeJsonString } from './utils/jsonEscape';
+import { inferSchemaFromValue, SAMPLE_SCHEMA } from './utils/inferSchema';
 import JsonTreeView from './components/JsonTreeView';
 import JsonRawEditor from './components/JsonRawEditor';
 import Breadcrumb from './components/Breadcrumb';
@@ -175,7 +177,7 @@ function jsonWbReducer(state: JsonWorkbenchState, action: JsonWbAction): JsonWor
 
 // ─── 工具栏 ────────────────────────────────────────────
 
-function Toolbar({ viewMode, onViewModeChange, hasData, hasRawInput, canFormat, isEscapedJson, indentSize, onFormat, onCompress, onEscapeCompact, onUnescape, onIndentChange, showError, onRepair, onCopyPretty, onCopyCompact, hasSchema, onSchemaUpload, onSchemaClear, parseProgress, fileSize }: {
+function Toolbar({ viewMode, onViewModeChange, hasData, hasRawInput, canFormat, isEscapedJson, indentSize, onFormat, onCompress, onEscapeCompact, onUnescape, onIndentChange, showError, onRepair, onCopyPretty, onCopyCompact, hasSchema, onSchemaClear, parseProgress, fileSize, schemaMenuItems }: {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
   hasData: boolean;
@@ -193,10 +195,10 @@ function Toolbar({ viewMode, onViewModeChange, hasData, hasRawInput, canFormat, 
   onCopyPretty: () => void;
   onCopyCompact: () => void;
   hasSchema: boolean;
-  onSchemaUpload: () => void;
   onSchemaClear: () => void;
   parseProgress: number;
   fileSize: number;
+  schemaMenuItems: MenuProps['items'];
 }) {
   return (
     <div className="jw-toolbar">
@@ -215,18 +217,26 @@ function Toolbar({ viewMode, onViewModeChange, hasData, hasRawInput, canFormat, 
         )}
         {(canFormat || hasRawInput) && parseProgress === 0 && (
           <div className="jw-format-group">
-            <button className="jw-format-btn" onClick={onFormat} title="格式化 JSON" disabled={!canFormat}>
-              格式化
-            </button>
-            <button className="jw-format-btn" onClick={onCompress} title="压缩为单行" disabled={!canFormat}>
-              压缩
-            </button>
-            <button className="jw-format-btn jw-format-btn--wide" onClick={onEscapeCompact} title="压缩转义 (Ctrl+Shift+E)" disabled={!canFormat || isEscapedJson}>
-              压缩转义
-            </button>
-            <button className="jw-format-btn jw-format-btn--wide" onClick={onUnescape} title="反转义 (Ctrl+Shift+U)">
-              反转义
-            </button>
+            <Tooltip title="格式化 (Ctrl+Shift+F)">
+              <button className="jw-format-btn" onClick={onFormat} disabled={!canFormat}>
+                格式化
+              </button>
+            </Tooltip>
+            <Tooltip title="压缩为单行 (Ctrl+Shift+K)">
+              <button className="jw-format-btn" onClick={onCompress} disabled={!canFormat}>
+                压缩
+              </button>
+            </Tooltip>
+            <Tooltip title="压缩转义 (Ctrl+Shift+E)">
+              <button className="jw-format-btn jw-format-btn--wide" onClick={onEscapeCompact} disabled={!canFormat || isEscapedJson}>
+                压缩转义
+              </button>
+            </Tooltip>
+            <Tooltip title="反转义 (Ctrl+Shift+U)">
+              <button className="jw-format-btn jw-format-btn--wide" onClick={onUnescape}>
+                反转义
+              </button>
+            </Tooltip>
             <div className="jw-indent-select">
               <button
                 className={`jw-indent-btn ${indentSize === 2 ? 'jw-indent-btn--active' : ''}`}
@@ -268,14 +278,19 @@ function Toolbar({ viewMode, onViewModeChange, hasData, hasRawInput, canFormat, 
             </button>
           </>
         )}
-        <Tooltip title={hasSchema ? '已加载校验规则，点击清除' : '上传 JSON Schema 进行校验'}>
-          <button
-            className={`jw-schema-btn ${hasSchema ? 'jw-schema-btn--active' : ''}`}
-            onClick={hasSchema ? onSchemaClear : onSchemaUpload}
-          >
-            {hasSchema ? '✓ 校验规则' : '校验规则'}
-          </button>
-        </Tooltip>
+        {hasSchema ? (
+          <Tooltip title="点击清除校验规则">
+            <button className="jw-schema-btn jw-schema-btn--active" onClick={onSchemaClear}>
+              ✓ 校验规则
+            </button>
+          </Tooltip>
+        ) : (
+          <Dropdown menu={{ items: schemaMenuItems }} placement="bottomLeft" trigger={['click']}>
+            <Tooltip title="点击选择加载 Schema 的方式">
+              <button className="jw-schema-btn">校验规则 ▾</button>
+            </Tooltip>
+          </Dropdown>
+        )}
         <div className="jw-view-toggle">
           {(['tree', 'split', 'raw'] as ViewMode[]).map((mode) => (
             <button
@@ -718,7 +733,7 @@ export default function JsonWorkbenchPage() {
     return () => window.removeEventListener('keydown', handler);
   }, [handleCopyCompact]);
 
-  // Ctrl+Shift+E / Ctrl+Shift+U 快捷键：压缩转义 / 反转义
+  // Ctrl+Shift+E / Ctrl+Shift+U / Ctrl+Shift+F / Ctrl+Shift+K 快捷键
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || !e.shiftKey) return;
@@ -729,19 +744,21 @@ export default function JsonWorkbenchPage() {
       } else if (key === 'u') {
         e.preventDefault();
         handleUnescape();
+      } else if (key === 'f') {
+        e.preventDefault();
+        handleFormat();
+      } else if (key === 'k') {
+        e.preventDefault();
+        handleCompress();
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleEscapeCompact, handleUnescape]);
+  }, [handleEscapeCompact, handleUnescape, handleFormat, handleCompress]);
 
   // ─── Schema 校验 ─────────────────────────────────────
 
   const schemaFileRef = useRef<HTMLInputElement>(null);
-
-  const handleSchemaUpload = useCallback(() => {
-    schemaFileRef.current?.click();
-  }, []);
 
   const handleSchemaFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -750,7 +767,8 @@ export default function JsonWorkbenchPage() {
     reader.onload = () => {
       try {
         const schema = JSON.parse(reader.result as string);
-        dispatch({ type: 'JSON_WB_SET_SCHEMA', payload: JSON.stringify(schema) });
+        const sPayload = JSON.stringify(schema);
+        dispatch({ type: 'JSON_WB_SET_SCHEMA', payload: sPayload });
         message.success('Schema 已加载');
       } catch {
         message.error('Schema 文件格式无效');
@@ -764,6 +782,77 @@ export default function JsonWorkbenchPage() {
   const handleSchemaClear = useCallback(() => {
     dispatch({ type: 'JSON_WB_SET_SCHEMA', payload: null });
   }, []);
+
+  // ─── Schema 粘贴弹窗 ─────────────────────────────────
+  const [schemaPasteVisible, setSchemaPasteVisible] = useState(false);
+  const [schemaPasteText, setSchemaPasteText] = useState('');
+
+  const handleSchemaPasteOk = useCallback(() => {
+    try {
+      const schema = JSON.parse(schemaPasteText);
+      const schemPayload = JSON.stringify(schema);
+      dispatch({ type: 'JSON_WB_SET_SCHEMA', payload: schemPayload });
+      message.success('Schema 已加载');
+    } catch {
+      message.error('Schema 格式无效，请检查 JSON 语法');
+      return;
+    }
+    setSchemaPasteVisible(false);
+    setSchemaPasteText('');
+  }, [schemaPasteText, dispatch]);
+
+  const handleSchemaPasteCancel = useCallback(() => {
+    setSchemaPasteVisible(false);
+    setSchemaPasteText('');
+  }, []);
+
+  // 从当前 JSON 自动推断 Schema
+  const handleSchemaAutoGenerate = useCallback(() => {
+    if (!state.parsedJson) {
+      message.warning('请先输入或导入有效的 JSON');
+      return;
+    }
+    const autoSchema = inferSchemaFromValue(state.parsedJson);
+    const autoPayload = JSON.stringify(autoSchema, null, 2);
+    dispatch({ type: 'JSON_WB_SET_SCHEMA', payload: autoPayload });
+    message.success('已根据当前 JSON 结构自动生成 Schema');
+  }, [state.parsedJson, dispatch]);
+
+  // 加载示例 Schema
+  const handleSchemaLoadSample = useCallback(() => {
+    const samplePayload = JSON.stringify(SAMPLE_SCHEMA, null, 2);
+    dispatch({ type: 'JSON_WB_SET_SCHEMA', payload: samplePayload });
+    message.success('已加载示例 Schema');
+  }, [dispatch]);
+
+  // 下拉菜单项
+  const schemaMenuItems: MenuProps['items'] = useMemo(() => [
+    {
+      key: 'upload',
+      icon: <UploadOutlined />,
+      label: '上传 Schema 文件',
+      onClick: () => schemaFileRef.current?.click(),
+    },
+    {
+      key: 'paste',
+      icon: <EditOutlined />,
+      label: '粘贴 Schema 文本',
+      onClick: () => setSchemaPasteVisible(true),
+    },
+    {
+      key: 'auto',
+      icon: <ThunderboltOutlined />,
+      label: '根据 JSON 自动生成',
+      onClick: handleSchemaAutoGenerate,
+      disabled: !state.parsedJson,
+    },
+    {
+      key: 'sample',
+      icon: <BulbOutlined />,
+      label: '加载示例 Schema',
+      onClick: handleSchemaLoadSample,
+    },
+  ], [handleSchemaAutoGenerate, handleSchemaLoadSample, state.parsedJson]);
 
   // 校验 effect: parsedJson 或 schemaJson 变化后 500ms 防抖执行
   const schemaTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -904,8 +993,8 @@ export default function JsonWorkbenchPage() {
         onCopyPretty={handleCopyPretty}
         onCopyCompact={handleCopyCompact}
         hasSchema={state.schemaJson !== null}
-        onSchemaUpload={handleSchemaUpload}
         onSchemaClear={handleSchemaClear}
+        schemaMenuItems={schemaMenuItems}
         parseProgress={state.parseProgress}
         fileSize={rawJsonByteSize}
       />
@@ -963,6 +1052,27 @@ export default function JsonWorkbenchPage() {
         onApply={handleAiApply}
         onCancel={handleAiCancel}
       />
+      <Modal
+        title="粘贴 JSON Schema"
+        open={schemaPasteVisible}
+        onOk={handleSchemaPasteOk}
+        onCancel={handleSchemaPasteCancel}
+        okText="确认加载"
+        cancelText="取消"
+        width={600}
+        destroyOnClose
+      >
+        <div style={{ marginBottom: 8, color: '#888', fontSize: 13 }}>
+          将 JSON Schema 文本粘贴到下方，点击「确认加载」即可开始校验
+        </div>
+        <Input.TextArea
+          value={schemaPasteText}
+          onChange={(e) => setSchemaPasteText(e.target.value)}
+          placeholder={`{\n  "type": "object",\n  "properties": {\n    "name": { "type": "string" }\n  },\n  "required": ["name"]\n}`}
+          rows={12}
+          style={{ fontFamily: 'monospace', fontSize: 13 }}
+        />
+      </Modal>
       <input
         ref={schemaFileRef}
         type="file"
