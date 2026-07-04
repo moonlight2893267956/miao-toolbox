@@ -3,6 +3,7 @@ package com.miao.toolbox.tool.diff.ai;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.observability.MiaoAiClient;
+import com.miao.toolbox.observability.MiaoAiProperties;
 import com.miao.toolbox.observability.dto.MiaoAiInvokeResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,19 +33,26 @@ class AIAnalysisServiceTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    private static MiaoAiProperties.AgentConfig createAgent(boolean enabled) {
+        MiaoAiProperties.AgentConfig agent = new MiaoAiProperties.AgentConfig();
+        agent.setEnabled(enabled);
+        agent.setBaseUrl("http://localhost:8000");
+        agent.setApiKey("test-key");
+        agent.setAgentName("diff-explainer");
+        return agent;
+    }
+
     @BeforeEach
     void setUp() {
-        lenient().when(miaoAiProperties.isEnabled()).thenReturn(true);
-        lenient().when(miaoAiProperties.getBaseUrl()).thenReturn("http://localhost:8000");
-        lenient().when(miaoAiProperties.getApiKey()).thenReturn("test-key");
-        lenient().when(miaoAiProperties.getAgentName()).thenReturn("diff-explainer");
+        lenient().when(miaoAiProperties.getAgent("diff-explainer")).thenReturn(createAgent(true));
+        lenient().when(miaoAiProperties.getEffectiveAgentName("diff-explainer")).thenReturn("diff-explainer");
 
         service = new AIAnalysisService(miaoAiProperties, miaoAiClient, objectMapper);
     }
 
     @Test
     void analyze_whenDisabled_throwsException() {
-        when(miaoAiProperties.isEnabled()).thenReturn(false);
+        when(miaoAiProperties.getAgent("diff-explainer")).thenReturn(createAgent(false));
 
         AIAnalysisRequest request = AIAnalysisRequest.builder()
                 .mode("summary")
@@ -100,8 +108,6 @@ class AIAnalysisServiceTest {
 
     @Test
     void buildInvokeBody_summaryMode_containsCorrectFields() {
-        // buildInvokeBody 内部调用 buildInput + miaoAiClient.buildStreamBody
-        // 由于 buildStreamBody 直接委托，需要 mock
         when(miaoAiClient.buildStreamBody(anyMap(), anyMap())).thenAnswer(invocation -> {
             Map<String, Object> input = invocation.getArgument(0);
             Map<String, Object> body = new HashMap<>();
@@ -186,7 +192,7 @@ class AIAnalysisServiceTest {
         HttpHeaders expectedHeaders = new HttpHeaders();
         expectedHeaders.setContentType(MediaType.APPLICATION_JSON);
         expectedHeaders.setBearerAuth("test-key");
-        when(miaoAiClient.getStreamHeaders()).thenReturn(expectedHeaders);
+        when(miaoAiClient.getStreamHeaders("diff-explainer")).thenReturn(expectedHeaders);
 
         HttpHeaders headers = service.getStreamHeaders();
         assertEquals("Bearer test-key", headers.getFirst("Authorization"));

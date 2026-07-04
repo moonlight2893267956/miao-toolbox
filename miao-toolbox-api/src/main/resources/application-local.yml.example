@@ -18,3 +18,13 @@ miao:
     secret-id: your-cos-secret-id
     secret-key: your-cos-secret-key
     bucket: your-cos-bucket-name
+  ai:
+    agents:
+      diff-explainer:
+        enabled: true
+        base-url: http://localhost:8000
+        api-key: your-diff-explainer-api-key
+      json-repairer:
+        enabled: true
+        base-url: http://localhost:8000
+        api-key: your-json-repairer-api-key

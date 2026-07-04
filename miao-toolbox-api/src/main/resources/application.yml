@@ -24,8 +24,6 @@ spring:
 
 server:
   port: 8080
-  # 反代部署时,让 Spring 解析 X-Forwarded-Proto / X-Forwarded-For
-  # 否则 cookie-secure: true 在反代后面会失效(请求看起来是 HTTP)
   forward-headers-strategy: framework
 
 management:
@@ -52,17 +50,29 @@ miao:
     base-path: text-compare
     max-file-size: 104857600
   ai:
-    enabled: ${MIAO_AI_ENABLED:false}
-    base-url: ${MIAO_AI_BASE_URL:}
-    api-key: ${MIAO_AI_API_KEY:}
-    agent-name: ${MIAO_AI_AGENT_NAME:diff-explainer}
-    connect-timeout: ${MIAO_AI_CONNECT_TIMEOUT:5000}
-    read-timeout: ${MIAO_AI_READ_TIMEOUT:60000}
-ai:
-  invocation:
-    retention-days: ${AI_INVOCATION_RETENTION_DAYS:90}
-    retention-cron: ${AI_INVOCATION_RETENTION_CRON:0 0 3 * * *}
-    async:
-      core-pool-size: ${AI_INVOCATION_ASYNC_CORE_POOL_SIZE:2}
-      max-pool-size: ${AI_INVOCATION_ASYNC_MAX_POOL_SIZE:8}
-      queue-capacity: ${AI_INVOCATION_ASYNC_QUEUE_CAPACITY:100}
+    agents:
+      diff-explainer:
+        enabled: ${MIAO_AI_AGENT_DIFF_ENABLED:true}
+        base-url: ${MIAO_AI_AGENT_DIFF_BASE_URL:}
+        agent-name: ${MIAO_AI_AGENT_DIFF_NAME:diff-explainer}
+        api-key: ${MIAO_AI_AGENT_DIFF_API_KEY:}
+        connect-timeout: ${MIAO_AI_AGENT_DIFF_CONNECT_TIMEOUT:5000}
+        read-timeout: ${MIAO_AI_AGENT_DIFF_READ_TIMEOUT:60000}
+        retry-count: ${MIAO_AI_AGENT_DIFF_RETRY_COUNT:2}
+        retry-interval: ${MIAO_AI_AGENT_DIFF_RETRY_INTERVAL:1000}
+      json-repairer:
+        enabled: ${MIAO_AI_AGENT_JSON_REPAIR_ENABLED:false}
+        base-url: ${MIAO_AI_AGENT_JSON_REPAIR_BASE_URL:}
+        agent-name: ${MIAO_AI_AGENT_JSON_REPAIR_NAME:json-repairer}
+        api-key: ${MIAO_AI_AGENT_JSON_REPAIR_API_KEY:}
+        connect-timeout: ${MIAO_AI_AGENT_JSON_REPAIR_CONNECT_TIMEOUT:5000}
+        read-timeout: ${MIAO_AI_AGENT_JSON_REPAIR_READ_TIMEOUT:60000}
+        retry-count: ${MIAO_AI_AGENT_JSON_REPAIR_RETRY_COUNT:2}
+        retry-interval: ${MIAO_AI_AGENT_JSON_REPAIR_RETRY_INTERVAL:1000}
+    invocation:
+      retention-days: ${MIAO_AI_INVOCATION_RETENTION_DAYS:90}
+      retention-cron: ${MIAO_AI_INVOCATION_RETENTION_CRON:0 0 3 * * *}
+      async:
+        core-pool-size: ${MIAO_AI_INVOCATION_ASYNC_CORE_POOL_SIZE:2}
+        max-pool-size: ${MIAO_AI_INVOCATION_ASYNC_MAX_POOL_SIZE:8}
+        queue-capacity: ${MIAO_AI_INVOCATION_ASYNC_QUEUE_CAPACITY:100}

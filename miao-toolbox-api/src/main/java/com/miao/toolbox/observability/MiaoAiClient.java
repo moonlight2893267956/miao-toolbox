@@ -3,17 +3,13 @@ package com.miao.toolbox.observability;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miao.toolbox.common.exception.BusinessException;
-import com.miao.toolbox.observability.dto.MiaoAiInvokeRequest;
 import com.miao.toolbox.observability.dto.MiaoAiInvokeResponse;
-import com.miao.toolbox.tool.diff.ai.MiaoAiProperties;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -25,13 +21,8 @@ import java.util.Map;
 /**
  * miao-ai 统一调用客户端。
  *
- * 封装所有对 miao-ai 的 HTTP 调用，并自动通过 AiInvocationRecorder 记录调用日志。
- * 所有业务代码必须通过此类调 miao-ai，禁止直接使用 RestTemplate 调用。
- *
- * 支持两种调用方式：
- * 1. 同步调用 invoke — 用于选中解释等耗时较短场景
- * 2. SSE 流式调用 — 通过 getStreamUrl / getStreamHeaders / buildStreamBody 获取连接参数，
- *    由 DiffAIController 做代理转发，在 SSE done 事件触发时调用 recordStreamSuccess/recordStreamFailure
+ * <p>封装所有对 miao-ai 的 HTTP 调用，并自动通过 AiInvocationRecorder 记录调用日志。
+ * 所有配置（base-url、api-key、超时、重试）均按 Agent 独立管理。
  */
 @Slf4j
 @Service
@@ -42,57 +33,57 @@ public class MiaoAiClient {
     private final AiInvocationRecorder recorder;
     private final ObjectMapper objectMapper;
 
-    private RestTemplate restTemplate;
-
     /**
      * 同步调用 miao-ai Agent（自动记录调用日志）。
      *
-     * @param agentName    Agent 名称（如 diff-explainer）
-     * @param input        业务输入参数
-     * @param metadata     元数据（可为空 Map）
+     * @param agentKey  Agent 标识（如 diff-explainer、json-repairer）
+     * @param input     业务输入参数
+     * @param metadata  元数据（可为空 Map）
      * @return miao-ai 响应
      */
-    public MiaoAiInvokeResponse invoke(String agentName, Map<String, Object> input,
+    public MiaoAiInvokeResponse invoke(String agentKey, Map<String, Object> input,
                                        Map<String, Object> metadata) {
-        if (!miaoAiProperties.isEnabled()) {
-            throw new BusinessException("AI_SERVICE_DISABLED", "AI 分析功能未启用", 503);
+        MiaoAiProperties.AgentConfig agent = miaoAiProperties.getAgent(agentKey);
+        if (!agent.isEnabled()) {
+            throw new BusinessException("AI_AGENT_DISABLED",
+                    "Agent '" + agentKey + "' 未启用", 503);
         }
 
+        String effectiveAgentName = miaoAiProperties.getEffectiveAgentName(agentKey);
+        String effectiveApiKey = agent.getApiKey();
         Long userId = getCurrentUserId();
         String clientIp = getClientIp();
         String userAgent = getUserAgent();
         String requestSummary = safeToJson(input);
 
-        // 记录调用开始
+        // 输入大小校验（所有 AI 端点统一）
+        validateInputSize(input);
+
         AiInvocationRecorder.InvocationHandle handle =
-                recorder.recordStart(userId, agentName, requestSummary, clientIp, userAgent);
+                recorder.recordStart(userId, effectiveAgentName, requestSummary, clientIp, userAgent);
 
         try {
-            String url = buildInvokeUrl(agentName);
-            HttpHeaders headers = buildHeaders();
+            RestTemplate rt = buildRestTemplate(agent);
+            String url = buildInvokeUrl(agent.getBaseUrl(), effectiveAgentName);
+            HttpHeaders headers = buildHeaders(effectiveApiKey);
             Map<String, Object> body = new HashMap<>();
             body.put("input", input);
             body.put("metadata", metadata != null ? metadata : Map.of());
 
-            MiaoAiInvokeResponse result = executeWithRetry(url, headers, body, agentName);
+            MiaoAiInvokeResponse result = executeWithRetry(rt, url, headers, body,
+                    effectiveAgentName, agent.getRetryCount(), agent.getRetryInterval());
 
-            // 记录成功
             handle.recordSuccess(
-                    result.getModel(),
-                    result.getMode(),
-                    result.getTraceId(),
-                    result.getPromptTokens(),
-                    result.getCompletionTokens(),
+                    result.getModel(), result.getMode(), result.getTraceId(),
+                    result.getPromptTokens(), result.getCompletionTokens(),
                     result.getTotalTokens(),
-                    truncate(String.valueOf(result.getOutput()), 512)
-            );
+                    truncate(String.valueOf(result.getOutput()), 512));
 
             log.info("MiaoAiClient invoke success: agent={}, model={}, traceId={}, latencyMs={}",
-                    agentName, result.getModel(), result.getTraceId(), result.getLatencyMs());
+                    effectiveAgentName, result.getModel(), result.getTraceId(), result.getLatencyMs());
             return result;
 
         } catch (BusinessException e) {
-            // 记录失败
             handle.recordFailure(e.getErrorCode(), truncate(e.getMessage(), 512));
             throw e;
         } catch (Exception e) {
@@ -104,19 +95,19 @@ public class MiaoAiClient {
     /**
      * 获取 SSE 流式调用 URL。
      */
-    public String getStreamUrl(String agentName) {
-        if (!miaoAiProperties.isEnabled()) {
-            throw new BusinessException("AI_SERVICE_DISABLED", "AI 分析功能未启用", 503);
-        }
+    public String getStreamUrl(String agentKey) {
+        MiaoAiProperties.AgentConfig agent = miaoAiProperties.getAgent(agentKey);
+        String effectiveAgentName = miaoAiProperties.getEffectiveAgentName(agentKey);
         return String.format("%s/api/v1/agents/%s/invoke/stream",
-                miaoAiProperties.getBaseUrl(), agentName);
+                agent.getBaseUrl(), effectiveAgentName);
     }
 
     /**
-     * 获取 miao-ai 认证请求头。
+     * 获取指定 Agent 的认证请求头。
      */
-    public HttpHeaders getStreamHeaders() {
-        return buildHeaders();
+    public HttpHeaders getStreamHeaders(String agentKey) {
+        MiaoAiProperties.AgentConfig agent = miaoAiProperties.getAgent(agentKey);
+        return buildHeaders(agent.getApiKey());
     }
 
     /**
@@ -130,9 +121,7 @@ public class MiaoAiClient {
         return body;
     }
 
-    /**
-     * SSE 流调用成功后，由 DiffAIController 在 done 事件触发时调用。
-     */
+    /** SSE 流调用成功后，由 DiffAIController 调用。 */
     public void recordStreamSuccess(AiInvocationRecorder.InvocationHandle handle,
                                      String model, String mode, String traceId,
                                      Integer promptTokens, Integer completionTokens,
@@ -141,18 +130,13 @@ public class MiaoAiClient {
                 promptTokens, completionTokens, totalTokens, responseSummary);
     }
 
-    /**
-     * SSE 流调用失败后，由 DiffAIController 调用。
-     */
+    /** SSE 流调用失败后，由 DiffAIController 调用。 */
     public void recordStreamFailure(AiInvocationRecorder.InvocationHandle handle,
                                      String errorCode, String responseSummary) {
         handle.recordFailure(errorCode, responseSummary);
     }
 
-    /**
-     * 为 SSE 流式调用创建 InvocationHandle。
-     * 在 DiffAIController.doProxyStream 开始时调用，在 done/error 事件时关闭。
-     */
+    /** 为 SSE 流式调用创建 InvocationHandle。 */
     public AiInvocationRecorder.InvocationHandle recordStreamStart(String agentName,
                                                                      String requestSummary) {
         Long userId = getCurrentUserId();
@@ -163,22 +147,30 @@ public class MiaoAiClient {
 
     // ========== 私有方法 ==========
 
-    private String buildInvokeUrl(String agentName) {
-        return String.format("%s/api/v1/agents/%s/invoke",
-                miaoAiProperties.getBaseUrl(), agentName);
+    private RestTemplate buildRestTemplate(MiaoAiProperties.AgentConfig agent) {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(agent.getConnectTimeout());
+        factory.setReadTimeout(agent.getReadTimeout());
+        return new RestTemplate(factory);
     }
 
-    private HttpHeaders buildHeaders() {
+    private String buildInvokeUrl(String baseUrl, String agentName) {
+        return String.format("%s/api/v1/agents/%s/invoke", baseUrl, agentName);
+    }
+
+    private HttpHeaders buildHeaders(String apiKey) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(miaoAiProperties.getApiKey());
+        headers.setBearerAuth(apiKey);
         return headers;
     }
 
-    private MiaoAiInvokeResponse executeWithRetry(String url, HttpHeaders headers,
-                                                   Map<String, Object> body, String agentName) {
-        RestTemplate rt = getRestTemplate();
-        int maxAttempts = miaoAiProperties.getRetryCount() + 1;
+    private MiaoAiInvokeResponse executeWithRetry(RestTemplate rt, String url,
+                                                   HttpHeaders headers,
+                                                   Map<String, Object> body,
+                                                   String agentName,
+                                                   int retryCount, long retryInterval) {
+        int maxAttempts = retryCount + 1;
 
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
@@ -201,7 +193,7 @@ public class MiaoAiClient {
                             "miao-ai 服务不可用，请稍后重试", 503);
                 }
                 try {
-                    Thread.sleep(miaoAiProperties.getRetryInterval());
+                    Thread.sleep(retryInterval);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     throw new BusinessException("AI_ANALYSIS_FAILED", "请求被中断", 503);
@@ -226,7 +218,6 @@ public class MiaoAiClient {
                 throw new BusinessException("AI_ANALYSIS_FAILED", "miao-ai 返回空 output", 502);
             }
 
-            // 解析 usage（可能缺失）
             Integer promptTokens = null;
             Integer completionTokens = null;
             Integer totalTokens = null;
@@ -240,7 +231,7 @@ public class MiaoAiClient {
 
             return MiaoAiInvokeResponse.builder()
                     .mode((String) output.get("mode"))
-                    .output(output.get("analysis"))
+                    .output(output)
                     .model((String) output.get("model"))
                     .traceId(traceId)
                     .latencyMs(latencyMs)
@@ -257,32 +248,19 @@ public class MiaoAiClient {
         }
     }
 
-    private RestTemplate getRestTemplate() {
-        if (restTemplate == null) {
-            SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-            factory.setConnectTimeout(miaoAiProperties.getConnectTimeout());
-            factory.setReadTimeout(miaoAiProperties.getReadTimeout());
-            restTemplate = new RestTemplate(factory);
-        }
-        return restTemplate;
-    }
-
     private Long getCurrentUserId() {
         try {
-            // 优先从 SecurityContextHolder 取（异步线程也能用）
-            var auth = SecurityContextHolder.getContext().getAuthentication();
+            var auth = org.springframework.security.core.context.SecurityContextHolder
+                    .getContext().getAuthentication();
             if (auth != null && auth.getPrincipal() != null) {
                 if (auth.getPrincipal() instanceof com.miao.toolbox.auth.entity.User u) {
                     return u.getId();
                 }
             }
-            // 兜底：从 request attribute 取
             var attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
             if (attrs != null) {
                 Object userIdAttr = attrs.getRequest().getAttribute("userId");
-                if (userIdAttr instanceof Long l) {
-                    return l;
-                }
+                if (userIdAttr instanceof Long l) return l;
             }
             return null;
         } catch (Exception e) {
@@ -296,11 +274,8 @@ public class MiaoAiClient {
             if (attrs == null) return null;
             HttpServletRequest request = attrs.getRequest();
             String ip = request.getHeader("X-Forwarded-For");
-            if (ip == null || ip.isBlank()) {
-                ip = request.getRemoteAddr();
-            } else {
-                ip = ip.split(",")[0].trim();
-            }
+            if (ip == null || ip.isBlank()) ip = request.getRemoteAddr();
+            else ip = ip.split(",")[0].trim();
             return ip;
         } catch (Exception e) {
             return null;
@@ -329,6 +304,26 @@ public class MiaoAiClient {
             return truncate(objectMapper.writeValueAsString(obj), 512);
         } catch (Exception e) {
             return truncate(String.valueOf(obj), 512);
+        }
+    }
+
+    /**
+     * 校验 AI 输入大小，超过 {@link MiaoAiProperties#getMaxInputBytes()} 则抛异常。
+     */
+    private void validateInputSize(Map<String, Object> input) {
+        long maxBytes = miaoAiProperties.getMaxInputBytes();
+        try {
+            byte[] bytes = objectMapper.writeValueAsBytes(input);
+            if (bytes.length > maxBytes) {
+                throw new BusinessException("AI_INPUT_TOO_LARGE",
+                        "输入内容超过最大限制（" + (maxBytes / 1024) + "KB）", 400);
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            // 序列化失败说明输入包含不可序列化对象，直接拒绝
+            throw new BusinessException("AI_INPUT_INVALID",
+                    "输入内容无法序列化: " + e.getMessage(), 400);
         }
     }
 }
