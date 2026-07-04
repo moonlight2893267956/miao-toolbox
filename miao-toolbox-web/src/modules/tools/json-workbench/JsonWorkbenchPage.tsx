@@ -1,5 +1,6 @@
 import { useReducer, useCallback, useRef, useState, useEffect, useMemo } from 'react';
-import { message } from 'antd';
+import { CopyOutlined, SwapOutlined } from '@ant-design/icons';
+import { message, Tooltip } from 'antd';
 import type {
   JsonWorkbenchState,
   JsonWbAction,
@@ -7,14 +8,18 @@ import type {
 } from './types';
 import { useJsonParser } from './hooks/useJsonParser';
 import { getAllDescendantIds, renameKeyAtPath, setValueAtPath } from './utils/parseAndFlatten';
-import { canRepair } from './utils/jsonRepair';
+import { jsonRepair } from './utils/jsonRepair';
 import { parseJsonPathToSegments, getAncestorPaths } from './utils/breadcrumb';
 import { computeSearchResults } from './utils/search';
+import { validateBySchema } from './utils/schemaValidate';
+import { compressAndEscapeJson, inspectEscapedJsonString, unescapeJsonString } from './utils/jsonEscape';
 import JsonTreeView from './components/JsonTreeView';
 import JsonRawEditor from './components/JsonRawEditor';
 import Breadcrumb from './components/Breadcrumb';
 import SearchBar from './components/SearchBar';
 import RepairPreviewModal from './components/RepairPreviewModal';
+import AiRepairModal from './components/AiRepairModal';
+import { useAiRepair } from './hooks/useAiRepair';
 import './json-workbench.css';
 
 // ─── 初始状态 ──────────────────────────────────────────
@@ -170,20 +175,26 @@ function jsonWbReducer(state: JsonWorkbenchState, action: JsonWbAction): JsonWor
 
 // ─── 工具栏 ────────────────────────────────────────────
 
-function Toolbar({ viewMode, onViewModeChange, hasData, canFormat, indentSize, onFormat, onCompress, onIndentChange, showError, canRepairJson, onRepair, onCopyPretty, onCopyCompact, parseProgress, fileSize }: {
+function Toolbar({ viewMode, onViewModeChange, hasData, hasRawInput, canFormat, isEscapedJson, indentSize, onFormat, onCompress, onEscapeCompact, onUnescape, onIndentChange, showError, onRepair, onCopyPretty, onCopyCompact, hasSchema, onSchemaUpload, onSchemaClear, parseProgress, fileSize }: {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
   hasData: boolean;
+  hasRawInput: boolean;
   canFormat: boolean;
+  isEscapedJson: boolean;
   indentSize: 2 | 4;
   onFormat: () => void;
   onCompress: () => void;
+  onEscapeCompact: () => void;
+  onUnescape: () => void;
   onIndentChange: (size: 2 | 4) => void;
   showError: boolean;
-  canRepairJson: boolean;
   onRepair: () => void;
   onCopyPretty: () => void;
   onCopyCompact: () => void;
+  hasSchema: boolean;
+  onSchemaUpload: () => void;
+  onSchemaClear: () => void;
   parseProgress: number;
   fileSize: number;
 }) {
@@ -194,18 +205,27 @@ function Toolbar({ viewMode, onViewModeChange, hasData, canFormat, indentSize, o
         {hasData && !showError && parseProgress === 0 && (
           <span className="jw-toolbar__status">已解析</span>
         )}
-        {showError && canRepairJson && (
-          <button className="jw-repair-btn" onClick={onRepair} title="自动修复常见语法错误">
+        {isEscapedJson && parseProgress === 0 && (
+          <span className="jw-toolbar__status jw-toolbar__status--escaped">已转义</span>
+        )}
+        {showError && (
+          <button className="jw-repair-btn" onClick={onRepair} title="优先使用规则修复，若无效则自动采用 AI 修复">
             修复
           </button>
         )}
-        {canFormat && parseProgress === 0 && (
+        {(canFormat || hasRawInput) && parseProgress === 0 && (
           <div className="jw-format-group">
-            <button className="jw-format-btn" onClick={onFormat} title="格式化 JSON">
+            <button className="jw-format-btn" onClick={onFormat} title="格式化 JSON" disabled={!canFormat}>
               格式化
             </button>
-            <button className="jw-format-btn" onClick={onCompress} title="压缩为单行">
+            <button className="jw-format-btn" onClick={onCompress} title="压缩为单行" disabled={!canFormat}>
               压缩
+            </button>
+            <button className="jw-format-btn jw-format-btn--wide" onClick={onEscapeCompact} title="压缩转义 (Ctrl+Shift+E)" disabled={!canFormat || isEscapedJson}>
+              压缩转义
+            </button>
+            <button className="jw-format-btn jw-format-btn--wide" onClick={onUnescape} title="反转义 (Ctrl+Shift+U)">
+              反转义
             </button>
             <div className="jw-indent-select">
               <button
@@ -248,6 +268,14 @@ function Toolbar({ viewMode, onViewModeChange, hasData, canFormat, indentSize, o
             </button>
           </>
         )}
+        <Tooltip title={hasSchema ? '已加载校验规则，点击清除' : '上传 JSON Schema 进行校验'}>
+          <button
+            className={`jw-schema-btn ${hasSchema ? 'jw-schema-btn--active' : ''}`}
+            onClick={hasSchema ? onSchemaClear : onSchemaUpload}
+          >
+            {hasSchema ? '✓ 校验规则' : '校验规则'}
+          </button>
+        </Tooltip>
         <div className="jw-view-toggle">
           {(['tree', 'split', 'raw'] as ViewMode[]).map((mode) => (
             <button
@@ -258,6 +286,38 @@ function Toolbar({ viewMode, onViewModeChange, hasData, canFormat, indentSize, o
               {mode === 'tree' ? '树形' : mode === 'raw' ? '文本' : '分栏'}
             </button>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EscapedJsonResultPanel({ preview, fileSize, onUnescape, onCopy }: {
+  preview: string;
+  fileSize: number;
+  onUnescape: () => void;
+  onCopy: () => void;
+}) {
+  return (
+    <div className="jw-escaped-panel">
+      <div className="jw-escaped-panel__content">
+        <div className="jw-escaped-panel__icon">
+          <SwapOutlined />
+        </div>
+        <div className="jw-escaped-panel__body">
+          <div className="jw-escaped-panel__header">
+            <span className="jw-escaped-panel__title">已压缩转义</span>
+            <span className="jw-escaped-panel__meta">{formatFileSize(fileSize)} · JSON 字符串</span>
+          </div>
+          <pre className="jw-escaped-panel__preview">{preview}</pre>
+          <div className="jw-escaped-panel__actions">
+            <button className="jw-escaped-panel__primary" onClick={onUnescape}>
+              <SwapOutlined /> 反转义
+            </button>
+            <button className="jw-escaped-panel__secondary" onClick={onCopy}>
+              <CopyOutlined /> 复制
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -315,7 +375,8 @@ function SplitPane({ left, right }: { left: React.ReactNode; right: React.ReactN
 
 export default function JsonWorkbenchPage() {
   const [state, dispatch] = useReducer(jsonWbReducer, initialState);
-  const { parse, debouncedParse, repair, applyRepair } = useJsonParser(dispatch);
+  const { parse, debouncedParse, applyRepair } = useJsonParser(dispatch);
+  const { repair: aiRepair, reset: resetAi, loading: aiLoading, result: aiResult, error: aiError } = useAiRepair();
   const [scrollTarget, setScrollTarget] = useState<number | null>(null);
   const [expandedArrayPaths, setExpandedArrayPaths] = useState<Set<string>>(new Set());
 
@@ -524,19 +585,20 @@ export default function JsonWorkbenchPage() {
     }
   }, [state.expandedIds, state.flatNodeList, state.rawJson]);
 
-  const hasData = state.flatNodeList.length > 0;
-  const canFormat = state.parsedJson !== null && state.parseError === null;
-  const showError = state.parseError !== null;
   // UTF-8 字节大小（用于大文件判断和文件大小显示）
   const rawJsonByteSize = useMemo(
     () => state.rawJson ? new TextEncoder().encode(state.rawJson).length : 0,
     [state.rawJson],
   );
-
-  const canRepairJson = useMemo(
-    () => showError && state.rawJson.trim().length > 0 && canRepair(state.rawJson),
-    [showError, state.rawJson],
+  const escapedJsonInspection = useMemo(
+    () => inspectEscapedJsonString(state.rawJson, state.indentSize),
+    [state.rawJson, state.indentSize],
   );
+  const isEscapedJson = escapedJsonInspection.isEscaped;
+  const hasData = state.flatNodeList.length > 0 && !isEscapedJson;
+  const canFormat = state.parsedJson !== null && state.parseError === null && !isEscapedJson;
+  const showError = state.parseError !== null && !isEscapedJson;
+  const hasRawInput = state.rawJson.trim().length > 0;
 
   // 格式化
   const handleFormat = useCallback(() => {
@@ -553,6 +615,34 @@ export default function JsonWorkbenchPage() {
     dispatch({ type: 'JSON_WB_SET_RAW', payload: compressed });
     debouncedParse(compressed, 1, expandedArrayPaths);
   }, [state.parsedJson, debouncedParse, expandedArrayPaths]);
+
+  // 压缩转义
+  const handleEscapeCompact = useCallback(() => {
+    if (state.parsedJson === null || state.parseError !== null) return;
+    const escaped = compressAndEscapeJson(state.parsedJson);
+    dispatch({ type: 'JSON_WB_SET_RAW', payload: escaped });
+    parse(escaped, 1, expandedArrayPaths).catch(() => {});
+    message.success('已压缩转义');
+  }, [state.parsedJson, state.parseError, parse, expandedArrayPaths]);
+
+  // 反转义
+  const handleUnescape = useCallback(() => {
+    const result = unescapeJsonString(state.rawJson, state.indentSize);
+    if ('error' in result) {
+      message.warning(result.error);
+      return;
+    }
+    dispatch({ type: 'JSON_WB_SET_RAW', payload: result.value });
+    parse(result.value, 1, expandedArrayPaths).catch(() => {});
+    message.success('已反转义');
+  }, [state.rawJson, state.indentSize, parse, expandedArrayPaths]);
+
+  const handleCopyRawJson = useCallback(async () => {
+    if (!state.rawJson) return;
+    await navigator.clipboard.writeText(state.rawJson);
+    const size = new TextEncoder().encode(state.rawJson).length;
+    message.success(`已复制 ${formatFileSize(size)}`);
+  }, [state.rawJson]);
 
   // 缩进切换
   const handleIndentChange = useCallback((size: 2 | 4) => {
@@ -628,10 +718,104 @@ export default function JsonWorkbenchPage() {
     return () => window.removeEventListener('keydown', handler);
   }, [handleCopyCompact]);
 
-  // 修复
+  // Ctrl+Shift+E / Ctrl+Shift+U 快捷键：压缩转义 / 反转义
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || !e.shiftKey) return;
+      const key = e.key.toLowerCase();
+      if (key === 'e') {
+        e.preventDefault();
+        handleEscapeCompact();
+      } else if (key === 'u') {
+        e.preventDefault();
+        handleUnescape();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [handleEscapeCompact, handleUnescape]);
+
+  // ─── Schema 校验 ─────────────────────────────────────
+
+  const schemaFileRef = useRef<HTMLInputElement>(null);
+
+  const handleSchemaUpload = useCallback(() => {
+    schemaFileRef.current?.click();
+  }, []);
+
+  const handleSchemaFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const schema = JSON.parse(reader.result as string);
+        dispatch({ type: 'JSON_WB_SET_SCHEMA', payload: JSON.stringify(schema) });
+        message.success('Schema 已加载');
+      } catch {
+        message.error('Schema 文件格式无效');
+      }
+    };
+    reader.readAsText(file);
+    // 重置 input 以便重复选择同一文件
+    e.target.value = '';
+  }, []);
+
+  const handleSchemaClear = useCallback(() => {
+    dispatch({ type: 'JSON_WB_SET_SCHEMA', payload: null });
+  }, []);
+
+  // 校验 effect: parsedJson 或 schemaJson 变化后 500ms 防抖执行
+  const schemaTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+  useEffect(() => {
+    if (schemaTimerRef.current) clearTimeout(schemaTimerRef.current);
+    if (!state.parsedJson || !state.schemaJson) {
+      dispatch({ type: 'JSON_WB_SET_SCHEMA_ERRORS', payload: [] });
+      return;
+    }
+    schemaTimerRef.current = setTimeout(() => {
+      try {
+        const schema = JSON.parse(state.schemaJson!);
+        const errors = validateBySchema(state.parsedJson, schema);
+        dispatch({ type: 'JSON_WB_SET_SCHEMA_ERRORS', payload: errors });
+      } catch {
+        dispatch({ type: 'JSON_WB_SET_SCHEMA_ERRORS', payload: [{ path: '$', message: 'Schema 格式无效', severity: 'error' as const }] });
+      }
+    }, 500);
+    return () => { if (schemaTimerRef.current) clearTimeout(schemaTimerRef.current); };
+  }, [state.parsedJson, state.schemaJson, dispatch]);
+
+  // 修复：先本地规则，不行走 AI
   const handleRepair = useCallback(() => {
-    repair(state.rawJson);
-  }, [repair, state.rawJson]);
+    const result = jsonRepair(state.rawJson);
+    if ('error' in result) {
+      // 本地规则未命中，降级到 AI 修复前检查大小
+      if (rawJsonByteSize > 20480) {
+        message.warning('内容过长（最大 20KB），请缩减后重试');
+        return;
+      }
+      setShowAiModal(true);
+      aiRepair(state.rawJson);
+    } else {
+      dispatch({ type: 'JSON_WB_SET_REPAIR_PREVIEW', payload: result });
+    }
+  }, [state.rawJson, rawJsonByteSize, dispatch, aiRepair]);
+
+  // AI 修复弹窗
+  const [showAiModal, setShowAiModal] = useState(false);
+
+  const handleAiApply = useCallback(() => {
+    if (!aiResult) return;
+    dispatch({ type: 'JSON_WB_SET_RAW', payload: aiResult });
+    parse(aiResult, 1, expandedArrayPaths).catch(() => {});
+    setShowAiModal(false);
+    resetAi();
+  }, [aiResult, parse, expandedArrayPaths, resetAi]);
+
+  const handleAiCancel = useCallback(() => {
+    setShowAiModal(false);
+    resetAi();
+  }, [resetAi]);
 
   // 确认修复
   const handleApplyRepair = useCallback(() => {
@@ -662,11 +846,18 @@ export default function JsonWorkbenchPage() {
 
   // 面包屑路径段
   const breadcrumbSegments = useMemo(
-    () => state.selectedNodeId ? parseJsonPathToSegments(state.selectedNodeId) : [],
-    [state.selectedNodeId],
+    () => !isEscapedJson && state.selectedNodeId ? parseJsonPathToSegments(state.selectedNodeId) : [],
+    [isEscapedJson, state.selectedNodeId],
   );
 
-  const treePanel = (
+  const treePanel = isEscapedJson ? (
+    <EscapedJsonResultPanel
+      preview={escapedJsonInspection.value ?? ''}
+      fileSize={rawJsonByteSize}
+      onUnescape={handleUnescape}
+      onCopy={handleCopyRawJson}
+    />
+  ) : (
     <JsonTreeView
       nodes={state.flatNodeList}
       expandedIds={state.expandedIds}
@@ -678,6 +869,7 @@ export default function JsonWorkbenchPage() {
       onEdit={handleNodeEdit}
       onKeyEdit={handleKeyEdit}
       searchResults={state.searchResults}
+      schemaErrors={state.schemaErrors}
       parseError={state.parseError}
     />
   );
@@ -698,16 +890,22 @@ export default function JsonWorkbenchPage() {
         viewMode={state.viewMode}
         onViewModeChange={handleViewModeChange}
         hasData={hasData}
+        hasRawInput={hasRawInput}
         canFormat={canFormat}
+        isEscapedJson={isEscapedJson}
         indentSize={state.indentSize}
         onFormat={handleFormat}
         onCompress={handleCompress}
+        onEscapeCompact={handleEscapeCompact}
+        onUnescape={handleUnescape}
         onIndentChange={handleIndentChange}
         showError={showError}
-        canRepairJson={canRepairJson}
         onRepair={handleRepair}
         onCopyPretty={handleCopyPretty}
         onCopyCompact={handleCopyCompact}
+        hasSchema={state.schemaJson !== null}
+        onSchemaUpload={handleSchemaUpload}
+        onSchemaClear={handleSchemaClear}
         parseProgress={state.parseProgress}
         fileSize={rawJsonByteSize}
       />
@@ -755,6 +953,22 @@ export default function JsonWorkbenchPage() {
         fixes={state.repairPreview?.fixes ?? []}
         onConfirm={handleApplyRepair}
         onCancel={handleCancelRepair}
+      />
+      <AiRepairModal
+        visible={showAiModal}
+        original={state.rawJson}
+        repaired={aiResult}
+        loading={aiLoading}
+        error={aiError}
+        onApply={handleAiApply}
+        onCancel={handleAiCancel}
+      />
+      <input
+        ref={schemaFileRef}
+        type="file"
+        accept=".json,.schema.json"
+        style={{ display: 'none' }}
+        onChange={handleSchemaFile}
       />
     </div>
   );

@@ -8,7 +8,7 @@ import {
   WarningFilled,
 } from '@ant-design/icons';
 import { Dropdown, Input, message, Tooltip } from 'antd';
-import type { JsonNode, ParseError } from '../types';
+import type { JsonNode, ParseError, SchemaError } from '../types';
 import { getVisibleNodes } from '../utils/parseAndFlatten';
 
 // ─── 错误信息分类 ──────────────────────────────────────
@@ -217,6 +217,7 @@ interface JsonNodeRowProps {
   onCollapseAll: (nodeId: string) => void;
   onEdit: (nodeId: string, newValue: string) => void;
   onKeyEdit: (nodeId: string, newKey: string) => void;
+  schemaError?: SchemaError;
 }
 
 const JsonNodeRow = memo(function JsonNodeRow({
@@ -230,6 +231,7 @@ const JsonNodeRow = memo(function JsonNodeRow({
   onCollapseAll,
   onEdit,
   onKeyEdit,
+  schemaError,
 }: JsonNodeRowProps) {
   const hasChildren = node.type === 'object' || node.type === 'array';
   const isPrimitive = !hasChildren && node.type !== 'array-ellipsis';
@@ -421,6 +423,16 @@ const JsonNodeRow = memo(function JsonNodeRow({
           )}
         </span>
 
+        {/* Schema 错误指示 */}
+        {schemaError && (
+          <Tooltip title={schemaError.message}>
+            <span
+              className={`jw-node-row__schema-dot ${schemaError.severity === 'error' ? 'jw-node-row__schema-dot--error' : 'jw-node-row__schema-dot--warning'}`}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </Tooltip>
+        )}
+
         {/* Key */}
         {node.id !== '$' && node.type !== 'array-ellipsis' && (
           editingKey ? (
@@ -504,6 +516,7 @@ interface JsonTreeViewProps {
   onEdit: (nodeId: string, newValue: string) => void;
   onKeyEdit: (nodeId: string, newKey: string) => void;
   searchResults: string[];
+  schemaErrors: SchemaError[];
   parseError: ParseError | null;
 }
 
@@ -518,9 +531,15 @@ export default function JsonTreeView({
   onEdit,
   onKeyEdit,
   searchResults,
+  schemaErrors,
   parseError,
 }: JsonTreeViewProps) {
   const searchSet = useMemo(() => new Set(searchResults), [searchResults]);
+  const schemaErrorMap = useMemo(() => {
+    const m = new Map<string, SchemaError>();
+    for (const err of schemaErrors) m.set(err.path, err);
+    return m;
+  }, [schemaErrors]);
 
   // 空状态（避免空数组场景走虚拟滚动，但提前到这里避免影响 hook 顺序）
   const isEmpty = nodes.length === 0;
@@ -659,6 +678,7 @@ export default function JsonTreeView({
                 onCollapseAll={captureScrollAndCollapseAll}
                 onEdit={onEdit}
                 onKeyEdit={onKeyEdit}
+                schemaError={schemaErrorMap.get(node.id)}
               />
             </div>
           );
