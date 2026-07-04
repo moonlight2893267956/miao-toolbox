@@ -219,72 +219,88 @@ public class GitHubOAuthService {
     }
 
     private String exchangeCodeForToken(String code) {
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Accept", "application/json");
-            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        RuntimeException lastException = null;
 
-            MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-            body.add("client_id", oAuthProperties.getClientId());
-            body.add("client_secret", oAuthProperties.getClientSecret());
-            body.add("code", code);
-            body.add("redirect_uri", oAuthProperties.getRedirectUri());
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                HttpHeaders headers = new HttpHeaders();
+                headers.set("Accept", "application/json");
+                headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
+                MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+                body.add("client_id", oAuthProperties.getClientId());
+                body.add("client_secret", oAuthProperties.getClientSecret());
+                body.add("code", code);
+                body.add("redirect_uri", oAuthProperties.getRedirectUri());
 
-            ResponseEntity<Map> apiResponse = restTemplate.postForEntity(GITHUB_TOKEN_URL, request, Map.class);
+                HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 
-            if (apiResponse.getBody() == null || apiResponse.getBody().containsKey("error")) {
-                log.error("GitHub OAuth token exchange failed: {}", apiResponse.getBody());
+                ResponseEntity<Map> apiResponse = restTemplate.postForEntity(GITHUB_TOKEN_URL, request, Map.class);
+
+                if (apiResponse.getBody() == null || apiResponse.getBody().containsKey("error")) {
+                    log.error("GitHub OAuth token exchange failed: {}", apiResponse.getBody());
+                    throw AuthException.loginFailed();
+                }
+
+                return (String) apiResponse.getBody().get("access_token");
+            } catch (HttpClientErrorException | HttpServerErrorException e) {
+                log.error("GitHub OAuth token exchange HTTP error: {} {}", e.getStatusCode(), e.getResponseBodyAsString());
                 throw AuthException.loginFailed();
+            } catch (RestClientException e) {
+                // 网络抖动（代理不稳定等），重试
+                lastException = e;
+                if (attempt < 3) {
+                    log.warn("GitHub OAuth token exchange attempt {}/3 failed, retrying...", attempt, e);
+                    try { Thread.sleep(1000L * attempt); } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        lastException = new RuntimeException("OAuth token exchange interrupted", ie);
+                        break;
+                    }
+                }
             }
-
-            return (String) apiResponse.getBody().get("access_token");
-        } catch (HttpClientErrorException | HttpServerErrorException e) {
-            // #16: 处理 GitHub API HTTP 错误
-            log.error("GitHub OAuth token exchange HTTP error: {} {}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw AuthException.loginFailed();
-        } catch (RestClientException e) {
-            // Network errors, timeouts etc.
-            log.error("GitHub OAuth token exchange network error", e);
-            throw AuthException.loginFailed();
-        } catch (AuthException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("GitHub OAuth token exchange unexpected error", e);
-            throw AuthException.loginFailed();
         }
+
+        log.error("GitHub OAuth token exchange failed after 3 attempts", lastException);
+        throw AuthException.loginFailed();
     }
 
     private GitHubUser fetchGitHubUser(String accessToken) {
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(accessToken);
-            headers.set("Accept", "application/json");
+        RuntimeException lastException = null;
 
-            HttpEntity<Void> request = new HttpEntity<>(headers);
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                HttpHeaders headers = new HttpHeaders();
+                headers.setBearerAuth(accessToken);
+                headers.set("Accept", "application/json");
 
-            ResponseEntity<GitHubUser> response = restTemplate.exchange(
-                    GITHUB_USER_URL, HttpMethod.GET, request, GitHubUser.class);
+                HttpEntity<Void> request = new HttpEntity<>(headers);
 
-            if (response.getBody() == null) {
+                ResponseEntity<GitHubUser> response = restTemplate.exchange(
+                        GITHUB_USER_URL, HttpMethod.GET, request, GitHubUser.class);
+
+                if (response.getBody() == null) {
+                    throw AuthException.loginFailed();
+                }
+
+                return response.getBody();
+            } catch (HttpClientErrorException | HttpServerErrorException e) {
+                log.error("GitHub OAuth fetch user HTTP error: {} {}", e.getStatusCode(), e.getResponseBodyAsString());
                 throw AuthException.loginFailed();
+            } catch (RestClientException e) {
+                lastException = e;
+                if (attempt < 3) {
+                    log.warn("GitHub OAuth fetch user attempt {}/3 failed, retrying...", attempt, e);
+                    try { Thread.sleep(1000L * attempt); } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        lastException = new RuntimeException("OAuth fetch user interrupted", ie);
+                        break;
+                    }
+                }
             }
-
-            return response.getBody();
-        } catch (HttpClientErrorException | HttpServerErrorException e) {
-            // #16: 处理 GitHub API HTTP 错误
-            log.error("GitHub OAuth fetch user HTTP error: {} {}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw AuthException.loginFailed();
-        } catch (RestClientException e) {
-            log.error("GitHub OAuth fetch user network error", e);
-            throw AuthException.loginFailed();
-        } catch (AuthException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("GitHub OAuth fetch user unexpected error", e);
-            throw AuthException.loginFailed();
         }
+
+        log.error("GitHub OAuth fetch user failed after 3 attempts", lastException);
+        throw AuthException.loginFailed();
     }
 
     private User createOAuthUser(GitHubUser githubUser) {

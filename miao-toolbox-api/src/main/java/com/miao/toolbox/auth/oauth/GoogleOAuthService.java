@@ -217,69 +217,89 @@ public class GoogleOAuthService {
     }
 
     private String exchangeCodeForToken(String code) {
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Accept", "application/json");
-            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        RuntimeException lastException = null;
 
-            MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-            body.add("client_id", googleOAuthProperties.getClientId());
-            body.add("client_secret", googleOAuthProperties.getClientSecret());
-            body.add("code", code);
-            body.add("redirect_uri", googleOAuthProperties.getRedirectUri());
-            body.add("grant_type", "authorization_code");
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                HttpHeaders headers = new HttpHeaders();
+                headers.set("Accept", "application/json");
+                headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
+                MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+                body.add("client_id", googleOAuthProperties.getClientId());
+                body.add("client_secret", googleOAuthProperties.getClientSecret());
+                body.add("code", code);
+                body.add("redirect_uri", googleOAuthProperties.getRedirectUri());
+                body.add("grant_type", "authorization_code");
 
-            ResponseEntity<Map> apiResponse = restTemplate.postForEntity(GOOGLE_TOKEN_URL, request, Map.class);
+                HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 
-            if (apiResponse.getBody() == null || apiResponse.getBody().containsKey("error")) {
-                log.error("Google OAuth token exchange failed: {}", apiResponse.getBody());
+                ResponseEntity<Map> apiResponse = restTemplate.postForEntity(GOOGLE_TOKEN_URL, request, Map.class);
+
+                if (apiResponse.getBody() == null || apiResponse.getBody().containsKey("error")) {
+                    log.error("Google OAuth token exchange failed: {}", apiResponse.getBody());
+                    throw AuthException.loginFailed();
+                }
+
+                return (String) apiResponse.getBody().get("access_token");
+            } catch (HttpClientErrorException | HttpServerErrorException e) {
+                log.error("Google OAuth token exchange HTTP error: {} {}", e.getStatusCode(), e.getResponseBodyAsString());
                 throw AuthException.loginFailed();
+            } catch (RestClientException e) {
+                // 网络抖动（代理不稳定等），重试
+                lastException = e;
+                if (attempt < 3) {
+                    log.warn("Google OAuth token exchange attempt {}/3 failed, retrying...", attempt, e);
+                    try { Thread.sleep(1000L * attempt); } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        lastException = new RuntimeException("OAuth token exchange interrupted", ie);
+                        break;
+                    }
+                }
             }
-
-            return (String) apiResponse.getBody().get("access_token");
-        } catch (HttpClientErrorException | HttpServerErrorException e) {
-            log.error("Google OAuth token exchange HTTP error: {} {}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw AuthException.loginFailed();
-        } catch (RestClientException e) {
-            log.error("Google OAuth token exchange network error", e);
-            throw AuthException.loginFailed();
-        } catch (AuthException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Google OAuth token exchange unexpected error", e);
-            throw AuthException.loginFailed();
         }
+
+        log.error("Google OAuth token exchange failed after 3 attempts", lastException);
+        throw AuthException.loginFailed();
     }
 
     private GoogleUser fetchGoogleUser(String accessToken) {
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(accessToken);
+        RuntimeException lastException = null;
 
-            HttpEntity<Void> request = new HttpEntity<>(headers);
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                HttpHeaders headers = new HttpHeaders();
+                headers.setBearerAuth(accessToken);
 
-            ResponseEntity<GoogleUser> apiResponse = restTemplate.exchange(
-                    GOOGLE_USER_URL, HttpMethod.GET, request, GoogleUser.class);
+                HttpEntity<Void> request = new HttpEntity<>(headers);
 
-            if (apiResponse.getBody() == null) {
+                ResponseEntity<GoogleUser> apiResponse = restTemplate.exchange(
+                        GOOGLE_USER_URL, HttpMethod.GET, request, GoogleUser.class);
+
+                if (apiResponse.getBody() == null) {
+                    throw AuthException.loginFailed();
+                }
+
+                return apiResponse.getBody();
+            } catch (HttpClientErrorException | HttpServerErrorException e) {
+                log.error("Google OAuth fetch user HTTP error: {} {}", e.getStatusCode(), e.getResponseBodyAsString());
                 throw AuthException.loginFailed();
+            } catch (RestClientException e) {
+                // 网络抖动（代理不稳定等），重试
+                lastException = e;
+                if (attempt < 3) {
+                    log.warn("Google OAuth fetch user attempt {}/3 failed, retrying...", attempt, e);
+                    try { Thread.sleep(1000L * attempt); } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        lastException = new RuntimeException("OAuth fetch user interrupted", ie);
+                        break;
+                    }
+                }
             }
-
-            return apiResponse.getBody();
-        } catch (HttpClientErrorException | HttpServerErrorException e) {
-            log.error("Google OAuth fetch user HTTP error: {} {}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw AuthException.loginFailed();
-        } catch (RestClientException e) {
-            log.error("Google OAuth fetch user network error", e);
-            throw AuthException.loginFailed();
-        } catch (AuthException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Google OAuth fetch user unexpected error", e);
-            throw AuthException.loginFailed();
         }
+
+        log.error("Google OAuth fetch user failed after 3 attempts", lastException);
+        throw AuthException.loginFailed();
     }
 
     private User createOAuthUser(GoogleUser googleUser) {
