@@ -209,7 +209,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         persistAccessibleRoutes(routes);
         dispatch({ type: 'ROUTES_REFRESHED', payload: routes });
       })
-      .catch((err) => {
+      .catch(() => {
         localStorage.removeItem(ROUTES_STORAGE_KEY);
         dispatch({ type: 'ROUTES_REFRESHED', payload: oldRoutes.length > 0 ? oldRoutes : [] });
       });
