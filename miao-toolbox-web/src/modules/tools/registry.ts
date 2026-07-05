@@ -34,6 +34,8 @@ export interface ToolMeta {
   tags: string[];
   /** 路由路径；未实现时为 `null` */
   path: string | null;
+  /** 权限路由码；没有路由码的占位工具不参与权限过滤 */
+  routeCode?: string;
   /** 工具分类（用于分组） */
   category: ToolCategory;
   /** 是否已可用（`category === 'available'` 的便捷布尔） */
@@ -72,6 +74,7 @@ export const toolsRegistry: ToolMeta[] = [
     status: '可用',
     tags: ['对比', '代码', 'Diff'],
     path: '/tools/text-compare',
+    routeCode: 'TOOL_TEXT_COMPARE',
     category: 'available',
     available: true,
     accentColor: '#00d4aa',
@@ -85,6 +88,7 @@ export const toolsRegistry: ToolMeta[] = [
     status: '可用',
     tags: ['加解密', '哈希', '开发工具'],
     path: '/tools/crypto',
+    routeCode: 'TOOL_CRYPTO',
     category: 'available',
     available: true,
     accentColor: '#8b5cf6',
@@ -98,6 +102,7 @@ export const toolsRegistry: ToolMeta[] = [
     status: '可用',
     tags: ['JSON', '格式化', '开发工具'],
     path: '/tools/json-workbench',
+    routeCode: 'TOOL_JSON_WORKBENCH',
     category: 'available',
     available: true,
     accentColor: '#5C4FD0',

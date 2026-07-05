@@ -4,8 +4,10 @@ import com.miao.toolbox.auth.dto.LoginRequest;
 import com.miao.toolbox.auth.dto.LoginResponse;
 import com.miao.toolbox.auth.dto.RegisterRequest;
 import com.miao.toolbox.auth.entity.RefreshToken;
+import com.miao.toolbox.auth.entity.Role;
 import com.miao.toolbox.auth.entity.User;
 import com.miao.toolbox.auth.repository.RefreshTokenRepository;
+import com.miao.toolbox.auth.repository.RoleRepository;
 import com.miao.toolbox.auth.repository.UserRepository;
 import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.constant.RedisKey;
@@ -32,6 +34,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -45,6 +48,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final RoleRepository roleRepository;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -54,9 +58,11 @@ public class AuthService {
     @Value("${miao.security.cookie-secure:false}")
     private boolean cookieSecure;
 
-    public AuthService(UserRepository userRepository, RefreshTokenRepository refreshTokenRepository, JwtService jwtService) {
+    public AuthService(UserRepository userRepository, RefreshTokenRepository refreshTokenRepository,
+                       RoleRepository roleRepository, JwtService jwtService) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
+        this.roleRepository = roleRepository;
         this.jwtService = jwtService;
     }
 
@@ -70,10 +76,13 @@ public class AuthService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "密码须包含字母和数字，且不少于8位", 400);
         }
 
+        Role userRole = roleRepository.findByCode("USER")
+                .orElseThrow(() -> new BusinessException(ErrorCode.SYSTEM_ERROR, "系统角色配置异常", 500));
+
         User user = User.builder()
                 .username(request.getUsername())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .role(User.Role.USER)
+                .roles(Set.of(userRole))
                 .isEnabled(true)
                 .mustChangePassword(false)
                 .loginFailCount(0)
@@ -116,7 +125,7 @@ public class AuthService {
         userRepository.save(user);
 
         // Generate tokens
-        String accessToken = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+        String accessToken = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getRoleCodes());
         String refreshToken = jwtService.generateRefreshToken(user.getId());
 
         // Store refresh token hash
@@ -132,7 +141,7 @@ public class AuthService {
                 .user(LoginResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
-                        .role(user.getRole().name())
+                        .roles(user.toRoleBriefs())
                         .build())
                 .build();
     }
@@ -169,7 +178,7 @@ public class AuthService {
         refreshTokenRepository.delete(storedToken);
 
         // Generate new tokens
-        String newAccessToken = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+        String newAccessToken = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getRoleCodes());
         String newRefreshToken = jwtService.generateRefreshToken(user.getId());
 
         // #19: Generate new signing key with transition period
@@ -203,7 +212,7 @@ public class AuthService {
                 .user(LoginResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
-                        .role(user.getRole().name())
+                        .roles(user.toRoleBriefs())
                         .build())
                 .build();
     }

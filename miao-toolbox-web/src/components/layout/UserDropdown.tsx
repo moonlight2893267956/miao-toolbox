@@ -3,7 +3,7 @@ import { Dropdown, Avatar } from 'antd';
 import type { MenuProps } from 'antd';
 import { UserOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { isSuperAdmin, useAuth } from '../../contexts/AuthContext';
 
 interface UserDropdownProps {
   collapsed?: boolean;
@@ -14,6 +14,7 @@ interface UserDropdownProps {
 const UserDropdown: React.FC<UserDropdownProps> = ({ collapsed = false, isMobile = false, children }) => {
   const navigate = useNavigate();
   const { state, logout } = useAuth();
+  const canAccessSettings = isSuperAdmin(state.userInfo) || state.accessibleRoutes.includes('PAGE_SETTINGS');
 
   const handleLogout = async () => {
     await logout();
@@ -21,13 +22,12 @@ const UserDropdown: React.FC<UserDropdownProps> = ({ collapsed = false, isMobile
   };
 
   const menuItems: NonNullable<MenuProps['items']> = [
-    {
+    ...(canAccessSettings ? [{
       key: 'settings',
       icon: <SettingOutlined />,
       label: '个人设置',
       onClick: () => navigate('/settings'),
-    },
-    { type: 'divider' },
+    } satisfies NonNullable<MenuProps['items']>[number], { type: 'divider' } satisfies NonNullable<MenuProps['items']>[number]] : []),
     {
       key: 'logout',
       icon: <LogoutOutlined />,

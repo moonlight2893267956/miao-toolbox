@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useReducer, useCallback, useRef } from 'react';
 import axios from 'axios';
 
+const ROUTES_STORAGE_KEY = 'miao_routes';
+
 // 闭包变量存储 token（不持久化到 localStorage/sessionStorage）
 let _accessToken: string | null = null;
 let _signingKey: string | null = null;
@@ -23,30 +25,46 @@ export function clearTokens() {
   _signingKey = null;
 }
 
+export interface RoleBrief {
+  id: number;
+  code: string;
+  name: string;
+}
+
 export interface UserInfo {
   id: number;
   username: string;
-  role: string;
+  roles: RoleBrief[];
+}
+
+/** 判断用户是否是超级管理员 */
+export function isSuperAdmin(userInfo: UserInfo | null): boolean {
+  return userInfo?.roles?.some(r => r.code === 'SUPER_ADMIN') ?? false;
 }
 
 interface AuthState {
   isAuthenticated: boolean;
   userInfo: UserInfo | null;
+  accessibleRoutes: string[];
+  routesLoading: boolean;
   mustChangePassword: boolean;
   loading: boolean;
   rehydrating: boolean;
 }
 
 type AuthAction =
-  | { type: 'LOGIN_SUCCESS'; payload: { userInfo: UserInfo; mustChangePassword: boolean } }
+  | { type: 'LOGIN_SUCCESS'; payload: { userInfo: UserInfo; mustChangePassword: boolean; accessibleRoutes: string[] } }
   | { type: 'LOGOUT' }
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'TOKEN_REFRESHED'; payload: { userInfo: UserInfo; mustChangePassword: boolean } }
-  | { type: 'REHYDRATED'; payload: { isAuthenticated: boolean; mustChangePassword: boolean } };
+  | { type: 'TOKEN_REFRESHED'; payload: { userInfo: UserInfo; mustChangePassword: boolean; accessibleRoutes: string[] } }
+  | { type: 'ROUTES_REFRESHED'; payload: string[] }
+  | { type: 'REHYDRATED'; payload: { isAuthenticated: boolean; mustChangePassword: boolean; accessibleRoutes: string[] } };
 
 const initialState: AuthState = {
   isAuthenticated: false,
   userInfo: null,
+  accessibleRoutes: [],
+  routesLoading: false,
   mustChangePassword: false,
   loading: false,
   rehydrating: true,
@@ -59,6 +77,8 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         ...state,
         isAuthenticated: true,
         userInfo: action.payload.userInfo,
+        accessibleRoutes: action.payload.accessibleRoutes,
+        routesLoading: true,
         mustChangePassword: action.payload.mustChangePassword,
         loading: false,
         rehydrating: false,
@@ -72,13 +92,19 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         ...state,
         isAuthenticated: true,
         userInfo: action.payload.userInfo,
+        accessibleRoutes: action.payload.accessibleRoutes,
+        routesLoading: false,
         mustChangePassword: action.payload.mustChangePassword,
         rehydrating: false,
       };
+    case 'ROUTES_REFRESHED':
+      return { ...state, accessibleRoutes: action.payload, routesLoading: false };
     case 'REHYDRATED':
       return {
         ...state,
         isAuthenticated: action.payload.isAuthenticated,
+        accessibleRoutes: action.payload.accessibleRoutes,
+        routesLoading: false,
         mustChangePassword: action.payload.mustChangePassword,
         rehydrating: false,
       };
@@ -92,6 +118,7 @@ interface AuthContextType {
   login: (accessToken: string, signingKey: string, userInfo: UserInfo, mustChangePassword: boolean) => void;
   logout: () => Promise<void>;
   refreshToken: () => Promise<string | null>;
+  refreshRoutes: () => Promise<string[]>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -111,11 +138,53 @@ function getInitialUserInfo(): UserInfo | null {
   return null;
 }
 
+function getInitialAccessibleRoutes(): string[] {
+  try {
+    const raw = localStorage.getItem(ROUTES_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistAccessibleRoutes(routes: string[]) {
+  localStorage.setItem(ROUTES_STORAGE_KEY, JSON.stringify(routes));
+}
+
+async function hmacSha256(key: string, data: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(key);
+  const messageData = encoder.encode(data);
+  const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+  return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function fetchAccessibleRoutes(accessToken: string, signingKey: string): Promise<string[]> {
+  const timestamp = Date.now().toString();
+  const nonce = crypto.randomUUID();
+  const signature = await hmacSha256(signingKey, timestamp + nonce);
+  const response = await axios.get('/api/auth/me/routes', {
+    withCredentials: true,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'X-Request-Timestamp': timestamp,
+      'X-Request-Nonce': nonce,
+      'X-Request-Signature': signature,
+    },
+  });
+  return response.data.data?.routes ?? [];
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const savedUser = getInitialUserInfo();
+  const savedRoutes = getInitialAccessibleRoutes();
   const [state, dispatch] = useReducer(authReducer, {
     ...initialState,
     userInfo: savedUser,
+    accessibleRoutes: savedRoutes,
   });
   const refreshPromiseRef = useRef<Promise<string | null> | null>(null);
 
@@ -132,7 +201,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       localStorage.removeItem('mustChangePassword');
     }
-    dispatch({ type: 'LOGIN_SUCCESS', payload: { userInfo, mustChangePassword } });
+    // 保留上次缓存的 routes 作为初始值，避免异步加载期间侧边栏闪烁
+    const oldRoutes = getInitialAccessibleRoutes();
+    dispatch({ type: 'LOGIN_SUCCESS', payload: { userInfo, mustChangePassword, accessibleRoutes: oldRoutes } });
+    fetchAccessibleRoutes(accessToken, signingKey)
+      .then((routes) => {
+        persistAccessibleRoutes(routes);
+        dispatch({ type: 'ROUTES_REFRESHED', payload: routes });
+      })
+      .catch((err) => {
+        localStorage.removeItem(ROUTES_STORAGE_KEY);
+        dispatch({ type: 'ROUTES_REFRESHED', payload: oldRoutes.length > 0 ? oldRoutes : [] });
+      });
   }, []);
 
   const logout = useCallback(async () => {
@@ -147,7 +227,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     clearTokens();
     localStorage.removeItem('user');
     localStorage.removeItem('mustChangePassword');
+    localStorage.removeItem(ROUTES_STORAGE_KEY);
     dispatch({ type: 'LOGOUT' });
+  }, []);
+
+  const refreshRoutes = useCallback(async (): Promise<string[]> => {
+    if (!_accessToken || !_signingKey) return [];
+    const routes = await fetchAccessibleRoutes(_accessToken, _signingKey);
+    persistAccessibleRoutes(routes);
+    dispatch({ type: 'ROUTES_REFRESHED', payload: routes });
+    return routes;
   }, []);
 
   const refreshTokenFn = useCallback(async (): Promise<string | null> => {
@@ -166,7 +255,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           localStorage.removeItem('mustChangePassword');
         }
-        dispatch({ type: 'TOKEN_REFRESHED', payload: { userInfo: data.user, mustChangePassword: data.mustChangePassword } });
+        let routes = getInitialAccessibleRoutes();
+        try {
+          routes = await fetchAccessibleRoutes(data.accessToken, data.signingKey);
+          persistAccessibleRoutes(routes);
+        } catch {
+          localStorage.removeItem(ROUTES_STORAGE_KEY);
+          routes = [];
+        }
+        dispatch({ type: 'TOKEN_REFRESHED', payload: { userInfo: data.user, mustChangePassword: data.mustChangePassword, accessibleRoutes: routes } });
         return data.accessToken;
       } catch {
         // 仅在未登录时清除状态（OAuth 回调可能在刷新期间已完成登录）
@@ -174,6 +271,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           clearTokens();
           localStorage.removeItem('user');
           localStorage.removeItem('mustChangePassword');
+          localStorage.removeItem(ROUTES_STORAGE_KEY);
           dispatch({ type: 'LOGOUT' });
         }
         return null;
@@ -200,6 +298,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           payload: {
             isAuthenticated: !!token || !!_accessToken,
             mustChangePassword: readMustChangePassword(),
+            accessibleRoutes: getInitialAccessibleRoutes(),
           },
         });
       }).catch(() => {
@@ -208,6 +307,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           payload: {
             isAuthenticated: !!_accessToken,
             mustChangePassword: readMustChangePassword(),
+            accessibleRoutes: getInitialAccessibleRoutes(),
           },
         });
       });
@@ -217,6 +317,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         payload: {
           isAuthenticated: !!_accessToken,
           mustChangePassword: readMustChangePassword(),
+          accessibleRoutes: getInitialAccessibleRoutes(),
         },
       });
     }
@@ -227,6 +328,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     logout,
     refreshToken: refreshTokenFn,
+    refreshRoutes,
   };
 
   return (

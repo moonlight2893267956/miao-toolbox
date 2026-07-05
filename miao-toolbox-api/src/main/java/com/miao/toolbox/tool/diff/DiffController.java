@@ -1,5 +1,6 @@
 package com.miao.toolbox.tool.diff;
 
+import com.miao.toolbox.auth.annotation.RequireRoute;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.common.response.ApiResponse;
 import jakarta.validation.Valid;
@@ -17,6 +18,7 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/api/diff")
+@RequireRoute("TOOL_TEXT_COMPARE")
 @RequiredArgsConstructor
 public class DiffController {
 

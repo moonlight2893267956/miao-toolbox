@@ -1,5 +1,6 @@
 package com.miao.toolbox.tool.jsonworkbench;
 
+import com.miao.toolbox.auth.annotation.RequireRoute;
 import com.miao.toolbox.observability.MiaoAiClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/api/json-workbench")
+@RequireRoute("TOOL_JSON_WORKBENCH")
 @RequiredArgsConstructor
 public class JsonWorkbenchController {
 

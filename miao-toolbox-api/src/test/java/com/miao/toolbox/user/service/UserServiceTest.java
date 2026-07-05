@@ -17,6 +17,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -43,7 +44,7 @@ class UserServiceTest {
                 .id(1L)
                 .username("testuser")
                 .passwordHash(new BCryptPasswordEncoder().encode("password123"))
-                .role(User.Role.USER)
+                .roles(Set.of())
                 .isEnabled(true)
                 .mustChangePassword(false)
                 .loginFailCount(0)
@@ -65,7 +66,7 @@ class UserServiceTest {
 
             assertThat(result.getId()).isEqualTo(1L);
             assertThat(result.getUsername()).isEqualTo("testuser");
-            assertThat(result.getRole()).isEqualTo("USER");
+            assertThat(result.getRoles()).isNotNull();
         }
 
         @Test

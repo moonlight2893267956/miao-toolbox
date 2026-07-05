@@ -34,11 +34,11 @@ const OAuthCallback: React.FC = () => {
     const token = params.get('token');
     const signingKey = params.get('signingKey');
     const usernameParam = params.get('username');
-    const role = params.get('role');
+    const rolesParam = params.get('roles') || '';
     const userIdStr = params.get('userId');
     const mustChangePassword = params.get('mustChangePassword') === 'true';
 
-    if (token && signingKey && usernameParam && role && userIdStr) {
+    if (token && signingKey && usernameParam && rolesParam && userIdStr) {
       const userId = parseInt(userIdStr, 10);
       if (isNaN(userId)) {
         message.error('登录信息解析失败，请重试');
@@ -47,10 +47,15 @@ const OAuthCallback: React.FC = () => {
       }
 
       const decodedUsername = decodeURIComponent(usernameParam);
+      const roles = rolesParam.split(',').filter(Boolean).map(code => ({
+        id: 0,
+        code,
+        name: code,
+      }));
       login(token, signingKey, {
         id: userId,
         username: decodedUsername,
-        role,
+        roles,
       }, mustChangePassword);
 
       window.history.replaceState(null, '', window.location.pathname);

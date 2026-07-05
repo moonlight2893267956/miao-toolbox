@@ -74,6 +74,16 @@
 
 * {
   box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input,
+textarea,
+select,
+[contenteditable="true"] {
+  user-select: auto;
+  -webkit-user-select: auto;
 }
 
 html {

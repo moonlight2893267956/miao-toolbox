@@ -1,7 +1,9 @@
 package com.miao.toolbox.auth.oauth;
 
 import com.miao.toolbox.auth.dto.LoginResponse;
+import com.miao.toolbox.auth.entity.Role;
 import com.miao.toolbox.auth.entity.User;
+import com.miao.toolbox.auth.repository.RoleRepository;
 import com.miao.toolbox.auth.repository.UserRepository;
 import com.miao.toolbox.auth.service.AuthService;
 import com.miao.toolbox.auth.service.JwtService;
@@ -26,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import jakarta.annotation.PreDestroy;
@@ -45,6 +48,7 @@ public class GoogleOAuthService {
 
     private final GoogleOAuthProperties googleOAuthProperties;
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final JwtService jwtService;
     private final AuthService authService;
     private final RestTemplate restTemplate;
@@ -58,9 +62,11 @@ public class GoogleOAuthService {
             });
 
     public GoogleOAuthService(GoogleOAuthProperties googleOAuthProperties, UserRepository userRepository,
-                              JwtService jwtService, AuthService authService, RestTemplate restTemplate) {
+                              RoleRepository roleRepository, JwtService jwtService,
+                              AuthService authService, RestTemplate restTemplate) {
         this.googleOAuthProperties = googleOAuthProperties;
         this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
         this.jwtService = jwtService;
         this.authService = authService;
         this.restTemplate = restTemplate;
@@ -150,7 +156,7 @@ public class GoogleOAuthService {
             user.setGoogleUsername(googleUser.getName());
             userRepository.save(user);
             // 绑定成功后返回 token
-            String jwtAccessToken = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+            String jwtAccessToken = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getRoleCodes());
             String refreshToken = jwtService.generateRefreshToken(user.getId());
             String signingKey = jwtService.generateSigningKey();
             user.setSigningKey(signingKey);
@@ -165,7 +171,7 @@ public class GoogleOAuthService {
                     .user(LoginResponse.UserInfo.builder()
                             .id(user.getId())
                             .username(user.getUsername())
-                            .role(user.getRole().name())
+                            .roles(user.toRoleBriefs())
                             .build())
                     .build();
         }
@@ -195,7 +201,7 @@ public class GoogleOAuthService {
         userRepository.save(user);
 
         // Generate tokens
-        String jwtAccessToken = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+        String jwtAccessToken = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getRoleCodes());
         String refreshToken = jwtService.generateRefreshToken(user.getId());
 
         // Store refresh token via AuthService
@@ -211,7 +217,7 @@ public class GoogleOAuthService {
                 .user(LoginResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
-                        .role(user.getRole().name())
+                        .roles(user.toRoleBriefs())
                         .build())
                 .build();
     }
@@ -305,12 +311,15 @@ public class GoogleOAuthService {
     private User createOAuthUser(GoogleUser googleUser) {
         String username = generateUniqueUsername(googleUser.getName(), googleUser.getSub());
 
+        Role userRole = roleRepository.findByCode("USER")
+                .orElseThrow(() -> new BusinessException(ErrorCode.SYSTEM_ERROR, "系统角色配置异常", 500));
+
         User user = User.builder()
                 .username(username)
                 .googleId(googleUser.getSub())
                 .googleUsername(googleUser.getName())
                 .email(googleUser.getEmail())
-                .role(User.Role.USER)
+                .roles(Set.of(userRole))
                 .isEnabled(true)
                 .mustChangePassword(false)
                 .loginFailCount(0)

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.*;
@@ -31,19 +32,19 @@ class JwtServiceTest {
         @Test
         @DisplayName("生成并验证有效的 access token")
         void generateAndValidateAccessToken() {
-            String token = jwtService.generateAccessToken(1L, "testuser", "USER");
+            String token = jwtService.generateAccessToken(1L, "testuser", List.of("USER"));
 
             Claims claims = jwtService.validateAccessToken(token);
             assertThat(claims).isNotNull();
             assertThat(jwtService.extractUserId(claims)).isEqualTo(1L);
             assertThat(jwtService.extractUsername(claims)).isEqualTo("testuser");
-            assertThat(jwtService.extractRole(claims)).isEqualTo("USER");
+            assertThat(jwtService.extractRoles(claims)).containsExactly("USER");
         }
 
         @Test
         @DisplayName("access token 包含 type=access 声明")
         void accessTokenContainsTypeClaim() {
-            String token = jwtService.generateAccessToken(1L, "testuser", "USER");
+            String token = jwtService.generateAccessToken(1L, "testuser", List.of("USER"));
             Claims claims = jwtService.validateAccessToken(token);
             assertThat(claims.get("type", String.class)).isEqualTo("access");
         }
@@ -63,7 +64,7 @@ class JwtServiceTest {
         @Test
         @DisplayName("access token 不能用 refresh secret 验证")
         void accessTokenCannotBeValidatedWithRefreshKey() {
-            String token = jwtService.generateAccessToken(1L, "testuser", "USER");
+            String token = jwtService.generateAccessToken(1L, "testuser", List.of("USER"));
             // 用 refresh 验证应返回 null
             assertThat(jwtService.validateRefreshToken(token)).isNull();
         }
@@ -133,19 +134,19 @@ class JwtServiceTest {
         @Test
         @DisplayName("access token 不能伪造为 refresh token（密钥不同）")
         void cannotForgeRefreshFromAccessToken() {
-            String accessToken = jwtService.generateAccessToken(1L, "hacker", "ADMIN");
+            String accessToken = jwtService.generateAccessToken(1L, "hacker", List.of("SUPER_ADMIN"));
             // 即使持有 access token，也无法用它通过 refresh 验证
             assertThat(jwtService.validateRefreshToken(accessToken)).isNull();
         }
 
         @Test
-        @DisplayName("refresh token 不能提取 username 和 role（无这些声明）")
+        @DisplayName("refresh token 不能提取 username 和 roles（无这些声明）")
         void refreshTokenHasNoUsernameOrRole() {
             String refreshToken = jwtService.generateRefreshToken(1L);
             Claims claims = jwtService.validateRefreshToken(refreshToken);
             assertThat(claims).isNotNull();
             assertThat(claims.get("username")).isNull();
-            assertThat(claims.get("role")).isNull();
+            assertThat(claims.get("roles")).isNull();
         }
     }
 

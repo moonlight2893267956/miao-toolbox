@@ -10,10 +10,16 @@ export interface RegisterParams {
   password: string;
 }
 
+export interface RoleBrief {
+  id: number;
+  code: string;
+  name: string;
+}
+
 export interface UserInfo {
   id: number;
   username: string;
-  role: string;
+  roles: RoleBrief[];
 }
 
 export interface LoginResult {
@@ -21,6 +27,10 @@ export interface LoginResult {
   signingKey: string;
   mustChangePassword: boolean;
   user: UserInfo;
+}
+
+export interface AccessibleRoutesResult {
+  routes: string[];
 }
 
 export const authService = {
@@ -36,6 +46,11 @@ export const authService = {
   async refresh(): Promise<LoginResult> {
     const response = await axiosInstance.post('/api/auth/refresh');
     return response.data.data;
+  },
+
+  async getAccessibleRoutes(): Promise<string[]> {
+    const response = await axiosInstance.get('/api/auth/me/routes');
+    return (response.data.data as AccessibleRoutesResult).routes;
   },
 
   async logout(): Promise<void> {

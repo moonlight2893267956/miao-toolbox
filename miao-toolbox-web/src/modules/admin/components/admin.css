@@ -86,25 +86,37 @@
   margin-bottom: 24px;
 }
 
+.miao-admin-stat-grid--users {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
 @media (max-width: 1100px) {
-  .miao-admin-stat-grid {
+  .miao-admin-stat-grid,
+  .miao-admin-stat-grid--users {
     grid-template-columns: 1fr 1fr;
   }
 }
 @media (max-width: 560px) {
-  .miao-admin-stat-grid {
+  .miao-admin-stat-grid,
+  .miao-admin-stat-grid--users {
     grid-template-columns: 1fr;
   }
 }
 
 .miao-admin-stat-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   background: var(--miao-bg-elevated);
   border: 1px solid var(--miao-border);
   border-radius: var(--miao-radius-lg);
-  padding: 22px 22px 20px;
+  padding: 24px 24px 22px;
   overflow: hidden;
   transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+  min-height: 156px;
 }
 
 .miao-admin-stat-card:hover {
@@ -114,7 +126,8 @@
 }
 
 .miao-admin-stat-card--feature {
-  padding: 26px 26px 24px;
+  padding: 28px 28px 26px;
+  min-height: 180px;
 }
 
 .miao-admin-stat-card--feature::before {
@@ -122,9 +135,22 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(120% 80% at 100% 0%, rgba(92, 79, 208, 0.06), transparent 60%),
+    radial-gradient(120% 80% at 100% 0%, rgba(92, 79, 208, 0.08), transparent 60%),
     radial-gradient(80% 60% at 0% 100%, rgba(217, 112, 32, 0.05), transparent 60%);
   pointer-events: none;
+}
+
+.miao-admin-stat-card--feature::after {
+  content: '';
+  position: absolute;
+  right: -28px;
+  bottom: -28px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(92, 79, 208, 0.06);
+  pointer-events: none;
+  filter: blur(18px);
 }
 
 [data-theme='dark'] .miao-admin-stat-card--feature::before {
@@ -133,8 +159,17 @@
     radial-gradient(80% 60% at 0% 100%, rgba(0, 212, 170, 0.08), transparent 60%);
 }
 
+[data-theme='dark'] .miao-admin-stat-card--feature::after {
+  background: rgba(162, 155, 254, 0.08);
+}
+
 .miao-admin-stat-card > * {
   position: relative;
+}
+
+.miao-admin-stat-card--compact {
+  padding: 20px 22px 18px;
+  min-height: 140px;
 }
 
 .miao-admin-stat-card--clickable {
@@ -151,6 +186,7 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
+  margin-bottom: 18px;
 }
 
 .miao-admin-stat-label {
@@ -163,31 +199,67 @@
 }
 
 .miao-admin-stat-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 18px;
   background: rgba(92, 79, 208, 0.08);
   color: var(--miao-primary);
   flex-shrink: 0;
+  transition: transform 200ms ease, background 200ms ease;
+  box-shadow: 0 2px 6px rgba(92, 79, 208, 0.08);
+}
+
+.miao-admin-stat-card:hover .miao-admin-stat-icon {
+  transform: scale(1.05);
+}
+
+.miao-admin-stat-icon--primary {
+  background: rgba(92, 79, 208, 0.10);
+  color: var(--miao-primary);
+  box-shadow: 0 2px 6px rgba(92, 79, 208, 0.10);
 }
 
 .miao-admin-stat-icon--amber {
-  background: rgba(217, 112, 32, 0.10);
+  background: rgba(217, 112, 32, 0.12);
   color: var(--miao-accent);
+  box-shadow: 0 2px 6px rgba(217, 112, 32, 0.10);
 }
 
 .miao-admin-stat-icon--green {
-  background: rgba(54, 179, 126, 0.12);
+  background: rgba(54, 179, 126, 0.14);
   color: var(--miao-teal);
+  box-shadow: 0 2px 6px rgba(54, 179, 126, 0.10);
 }
 
 .miao-admin-stat-icon--blue {
-  background: rgba(45, 107, 214, 0.10);
+  background: rgba(45, 107, 214, 0.12);
   color: var(--miao-indigo);
+  box-shadow: 0 2px 6px rgba(45, 107, 214, 0.10);
+}
+
+.miao-admin-stat-icon--red {
+  background: rgba(255, 77, 79, 0.12);
+  color: #C2362F;
+  box-shadow: 0 2px 6px rgba(255, 77, 79, 0.10);
+}
+
+[data-theme='dark'] .miao-admin-stat-icon--red {
+  color: #FF7875;
+  background: rgba(255, 120, 117, 0.16);
+  box-shadow: 0 2px 6px rgba(255, 120, 117, 0.12);
+}
+
+.miao-admin-stat-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex: 1;
+  margin-bottom: 16px;
 }
 
 .miao-admin-stat-value {
@@ -196,12 +268,16 @@
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.02em;
-  margin: 14px 0 6px;
   color: var(--miao-text-primary);
+  min-width: 0;
 }
 
 .miao-admin-stat-card--feature .miao-admin-stat-value {
   font-size: 56px;
+}
+
+.miao-admin-stat-card--compact .miao-admin-stat-value {
+  font-size: 36px;
 }
 
 .miao-admin-stat-suffix {
@@ -212,11 +288,60 @@
   margin-left: 6px;
 }
 
+/* Ring progress */
+.miao-admin-stat-ring {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.miao-admin-stat-ring svg {
+  transform: rotate(-90deg);
+  width: 48px;
+  height: 48px;
+}
+
+.miao-admin-stat-ring-track {
+  fill: transparent;
+  stroke: var(--miao-bg-muted);
+  stroke-linecap: round;
+}
+
+.miao-admin-stat-ring-fill {
+  fill: transparent;
+  stroke: var(--miao-primary);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 800ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.miao-admin-stat-ring-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--miao-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--miao-primary);
+  pointer-events: none;
+}
+
 .miao-admin-stat-foot {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 18px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--miao-border);
+}
+
+.miao-admin-stat-card--feature .miao-admin-stat-foot {
+  padding-top: 18px;
 }
 
 .miao-admin-trend {
@@ -242,18 +367,22 @@
 }
 
 .miao-admin-stat-bar {
-  height: 4px;
-  border-radius: 2px;
+  height: 6px;
+  border-radius: 3px;
   background: var(--miao-bg-muted);
   overflow: hidden;
-  margin-top: 12px;
+  margin-top: auto;
 }
 
 .miao-admin-stat-bar-fill {
   height: 100%;
-  background: var(--miao-primary);
-  border-radius: 2px;
+  background: linear-gradient(90deg, var(--miao-primary) 0%, #A29BFE 100%);
+  border-radius: 3px;
   transition: width 600ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme='dark'] .miao-admin-stat-bar-fill {
+  background: linear-gradient(90deg, var(--miao-primary) 0%, var(--miao-teal) 100%);
 }
 
 .miao-admin-stat-sparkline {
@@ -595,11 +724,40 @@
   cursor: pointer;
   transition: all 160ms ease;
   font-family: inherit;
+  min-width: 80px;
+  justify-content: center;
 }
 
-.miao-admin-btn-ghost:hover {
+.miao-admin-btn-ghost:hover:not(:disabled) {
   color: var(--miao-primary);
   border-color: var(--miao-primary);
+}
+
+/* 刷新中状态 */
+.miao-admin-btn-ghost.ant-btn-loading {
+  color: var(--miao-primary);
+  border-color: var(--miao-border-strong);
+  background: var(--miao-bg-muted);
+  cursor: default;
+}
+
+/* 刷新按钮旋转动画 */
+@keyframes miao-refresh-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.miao-admin-btn-ghost .anticon-reload {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.miao-admin-btn-ghost:active:not(:disabled) .anticon-reload {
+  transform: rotate(180deg);
+}
+
+/* 保持加载时按钮宽度稳定 */
+.miao-admin-btn-ghost .ant-btn-loading-icon {
+  font-size: 14px;
 }
 
 /* ---- Table ---- */

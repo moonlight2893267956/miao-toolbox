@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miao.toolbox.auth.dto.LoginRequest;
 import com.miao.toolbox.auth.dto.LoginResponse;
 import com.miao.toolbox.auth.dto.RegisterRequest;
+import com.miao.toolbox.auth.entity.User;
 import com.miao.toolbox.auth.service.AuthService;
+import com.miao.toolbox.auth.service.RouteAccessService;
 import com.miao.toolbox.common.exception.AuthException;
 import com.miao.toolbox.common.exception.BusinessException;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,9 +17,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import java.util.Collections;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
+import java.util.List;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -27,6 +33,7 @@ import static org.mockito.Mockito.*;
 class AuthControllerTest {
 
     @Mock private AuthService authService;
+    @Mock private RouteAccessService routeAccessService;
     @InjectMocks private AuthController authController;
 
     private RegisterRequest registerRequest;
@@ -47,7 +54,7 @@ class AuthControllerTest {
                 .accessToken("access-token")
                 .signingKey("signing-key")
                 .mustChangePassword(false)
-                .user(LoginResponse.UserInfo.builder().id(1L).username("testuser").role("USER").build())
+                .user(LoginResponse.UserInfo.builder().id(1L).username("testuser").roles(Collections.emptyList()).build())
                 .build();
     }
 
@@ -132,6 +139,25 @@ class AuthControllerTest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             verify(authService).logout(any(), any());
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/auth/me/routes")
+    class RoutesTests {
+
+        @Test
+        @DisplayName("正常查询 → 返回当前用户可访问路由码")
+        void routes_success() {
+            User user = User.builder().id(1L).username("testuser").build();
+            var auth = new UsernamePasswordAuthenticationToken(user, null, Collections.emptyList());
+            when(routeAccessService.getAccessibleRouteCodes(1L, auth))
+                    .thenReturn(List.of("TOOL_TEXT_COMPARE", "PAGE_SETTINGS"));
+
+            ResponseEntity<?> response = authController.getAccessibleRoutes(user, auth);
+
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            verify(routeAccessService).getAccessibleRouteCodes(1L, auth);
         }
     }
 }

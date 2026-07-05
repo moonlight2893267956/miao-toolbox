@@ -1,5 +1,6 @@
 package com.miao.toolbox.auth.controller;
 
+import com.miao.toolbox.auth.dto.RoleBrief;
 import com.miao.toolbox.auth.entity.User;
 import com.miao.toolbox.auth.dto.LoginResponse;
 import com.miao.toolbox.auth.oauth.OAuthProperties;
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -60,18 +63,7 @@ public class OAuthController {
         try {
             LoginResponse loginResponse = gitHubOAuthService.handleCallback(code, state, response);
 
-            // #1: 使用 URL fragment (#) 传递令牌，避免查询参数泄露到日志/Referer
-            // 前端通过 JavaScript 读取 window.location.hash 解析
-            String fragment = "token=" + URLEncoder.encode(loginResponse.getAccessToken(), StandardCharsets.UTF_8)
-                    + "&signingKey=" + URLEncoder.encode(loginResponse.getSigningKey(), StandardCharsets.UTF_8)
-                    + "&userId=" + loginResponse.getUser().getId()
-                    + "&username=" + URLEncoder.encode(loginResponse.getUser().getUsername(), StandardCharsets.UTF_8)
-                    + "&role=" + loginResponse.getUser().getRole();
-
-            if (Boolean.TRUE.equals(loginResponse.getMustChangePassword())) {
-                fragment += "&mustChangePassword=true";
-            }
-
+            String fragment = buildOAuthFragment(loginResponse);
             log.info("OAuth callback success: userId={}, username={}", loginResponse.getUser().getId(), loginResponse.getUser().getUsername());
             response.sendRedirect(oAuthProperties.getFrontendCallbackUrl() + "#" + fragment);
         } catch (Exception e) {
@@ -112,21 +104,32 @@ public class OAuthController {
         try {
             LoginResponse loginResponse = googleOAuthService.handleCallback(code, state, response);
 
-            String fragment = "token=" + URLEncoder.encode(loginResponse.getAccessToken(), StandardCharsets.UTF_8)
-                    + "&signingKey=" + URLEncoder.encode(loginResponse.getSigningKey(), StandardCharsets.UTF_8)
-                    + "&userId=" + loginResponse.getUser().getId()
-                    + "&username=" + URLEncoder.encode(loginResponse.getUser().getUsername(), StandardCharsets.UTF_8)
-                    + "&role=" + loginResponse.getUser().getRole();
-
-            if (Boolean.TRUE.equals(loginResponse.getMustChangePassword())) {
-                fragment += "&mustChangePassword=true";
-            }
-
+            String fragment = buildOAuthFragment(loginResponse);
             log.info("Google OAuth callback success: userId={}, username={}", loginResponse.getUser().getId(), loginResponse.getUser().getUsername());
             response.sendRedirect(googleOAuthProperties.getFrontendCallbackUrl() + "#" + fragment);
         } catch (Exception e) {
             log.error("Google OAuth callback failed", e);
             response.sendRedirect(googleOAuthProperties.getFrontendCallbackUrl() + "#error=oauth_failed");
         }
+    }
+
+    /**
+     * 构建 OAuth 回调的 URL fragment 参数。
+     * 使用 URL fragment (#) 传递令牌，避免查询参数泄露到日志/Referer。
+     */
+    private String buildOAuthFragment(LoginResponse loginResponse) throws IOException {
+        String rolesStr = loginResponse.getUser().getRoles().stream()
+                .map(RoleBrief::getCode)
+                .collect(Collectors.joining(","));
+        String fragment = "token=" + URLEncoder.encode(loginResponse.getAccessToken(), StandardCharsets.UTF_8)
+                + "&signingKey=" + URLEncoder.encode(loginResponse.getSigningKey(), StandardCharsets.UTF_8)
+                + "&userId=" + loginResponse.getUser().getId()
+                + "&username=" + URLEncoder.encode(loginResponse.getUser().getUsername(), StandardCharsets.UTF_8)
+                + "&roles=" + URLEncoder.encode(rolesStr, StandardCharsets.UTF_8);
+
+        if (Boolean.TRUE.equals(loginResponse.getMustChangePassword())) {
+            fragment += "&mustChangePassword=true";
+        }
+        return fragment;
     }
 }

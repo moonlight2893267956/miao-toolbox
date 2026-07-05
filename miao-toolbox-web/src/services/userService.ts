@@ -1,9 +1,15 @@
 import axiosInstance from './axiosInstance';
 
+export interface RoleBrief {
+  id: number;
+  code: string;
+  name: string;
+}
+
 export interface UserInfoData {
   id: number;
   username: string;
-  role: string;
+  roles: RoleBrief[];
   githubId: string | null;
   githubUsername: string | null;
   mustChangePassword: boolean;

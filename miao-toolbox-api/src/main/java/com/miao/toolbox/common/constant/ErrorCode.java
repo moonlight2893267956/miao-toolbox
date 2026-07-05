@@ -22,6 +22,15 @@ public final class ErrorCode {
     // Validation errors
     public static final String VALIDATION_FAILED = "VALIDATION_FAILED";
 
+    // Role errors
+    public static final String ROLE_NOT_FOUND = "ROLE_NOT_FOUND";
+    public static final String ROLE_SYSTEM_PROTECTED = "ROLE_SYSTEM_PROTECTED";
+    public static final String ROLE_HAS_USERS = "ROLE_HAS_USERS";
+
+    // Route errors
+    public static final String ROUTE_NOT_FOUND = "ROUTE_NOT_FOUND";
+    public static final String ROUTE_FORBIDDEN = "ROUTE_FORBIDDEN";
+
     // System errors
     public static final String SYSTEM_ERROR = "SYSTEM_ERROR";
 

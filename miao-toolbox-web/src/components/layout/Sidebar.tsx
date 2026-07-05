@@ -1,16 +1,17 @@
-import React, { useState, useMemo, useRef, useLayoutEffect } from 'react';
+import React, { useState, useMemo, useRef, useLayoutEffect, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Tooltip } from 'antd';
 import {
-  ToolOutlined,
   DashboardOutlined,
   TeamOutlined,
   RobotOutlined,
   HomeOutlined,
+  PartitionOutlined,
+  SafetyOutlined,
   SunOutlined,
   MoonOutlined,
 } from '@ant-design/icons';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth, isSuperAdmin } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { toolsRegistry } from '../../modules/tools/registry';
 import UserDropdown from './UserDropdown';
@@ -27,6 +28,7 @@ interface NavItem {
   icon: React.ReactNode;
   label: string;
   path?: string;
+  routeCode?: string;
   badge?: string | number;
   badgeType?: 'count' | 'dot';
 }
@@ -46,28 +48,37 @@ const Sidebar: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();
   const siderRef = useRef<HTMLDivElement>(null);
 
-  const isAdmin = state.userInfo?.role === 'ADMIN';
+  const admin = isSuperAdmin(state.userInfo);
+  const canAccess = useCallback((routeCode?: string) => (
+    admin || !routeCode || state.accessibleRoutes.includes(routeCode)
+  ), [admin, state.accessibleRoutes]);
   const username = state.userInfo?.username || '用户';
   const firstChar = username.charAt(0).toUpperCase();
+  const roleDisplay = useMemo(() => {
+    const roles = state.userInfo?.roles ?? [];
+    if (roles.length === 0) return '用户';
+    return roles.map(r => r.name).join(' / ');
+  }, [state.userInfo?.roles]);
 
   // Build sections with items (always flat, no Collapse)
   const sections: NavSection[] = useMemo(() => {
-    const availableTools = toolsRegistry.filter(t => t.category === 'available');
+    const availableTools = toolsRegistry.filter(t => t.category === 'available' && canAccess(t.routeCode));
 
     const toolItems: NavItem[] = availableTools.map(t => ({
       key: t.key,
       icon: <t.icon />,
       label: t.title,
       path: t.path!,
+      routeCode: t.routeCode,
     }));
 
-    const adminItems: NavItem[] = isAdmin
-      ? [
-          { key: 'admin-dashboard', icon: <DashboardOutlined />, label: '仪表盘', path: '/admin/dashboard' },
-          { key: 'admin-invocations', icon: <RobotOutlined />, label: 'AI 调用日志', path: '/admin/invocations' },
-          { key: 'admin-users', icon: <TeamOutlined />, label: '用户管理', path: '/admin/users' },
-        ]
-      : [];
+    const adminItems: NavItem[] = [
+      { key: 'admin-dashboard', icon: <DashboardOutlined />, label: '仪表盘', path: '/admin/dashboard', routeCode: 'ADMIN_DASHBOARD' },
+      { key: 'admin-invocations', icon: <RobotOutlined />, label: 'AI 调用日志', path: '/admin/invocations', routeCode: 'ADMIN_INVOCATIONS' },
+      { key: 'admin-users', icon: <TeamOutlined />, label: '用户管理', path: '/admin/users', routeCode: 'ADMIN_USERS' },
+      { key: 'admin-roles', icon: <SafetyOutlined />, label: '角色管理', path: '/admin/roles', routeCode: 'ADMIN_ROLES' },
+      { key: 'admin-routes', icon: <PartitionOutlined />, label: '路由管理', path: '/admin/routes', routeCode: 'ADMIN_ROUTES' },
+    ].filter(item => canAccess(item.routeCode));
 
     return [
       {
@@ -77,18 +88,16 @@ const Sidebar: React.FC = () => {
           { key: 'home', icon: <HomeOutlined />, label: '工作台', path: '/tools' },
         ],
       },
-      {
+      ...(toolItems.length > 0 ? [{
         key: 'tools',
         label: 'Tools',
-        items: toolItems.length > 0
-          ? toolItems
-          : [{ key: 'tools-empty', icon: <ToolOutlined />, label: '工具列表', path: '/tools' }],
-      },
+        items: toolItems,
+      }] : []),
       ...(adminItems.length > 0
         ? [{ key: 'admin', label: 'Admin', items: adminItems }]
         : []),
     ];
-  }, [isAdmin]);
+  }, [admin, canAccess]);
 
   // Find active key
   const activeKey = useMemo(() => {
@@ -250,7 +259,7 @@ const Sidebar: React.FC = () => {
           <div className="miao-user-card-info">
             <div className="miao-user-card-name">{username}</div>
             <div className="miao-user-card-role">
-              {isAdmin ? 'ADMIN' : 'USER'}
+              {roleDisplay}
             </div>
           </div>
           <div className="miao-user-card-actions">

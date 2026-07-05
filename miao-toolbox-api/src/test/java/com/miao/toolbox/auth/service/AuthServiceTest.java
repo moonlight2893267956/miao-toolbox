@@ -4,8 +4,10 @@ import com.miao.toolbox.auth.dto.LoginRequest;
 import com.miao.toolbox.auth.dto.LoginResponse;
 import com.miao.toolbox.auth.dto.RegisterRequest;
 import com.miao.toolbox.auth.entity.RefreshToken;
+import com.miao.toolbox.auth.entity.Role;
 import com.miao.toolbox.auth.entity.User;
 import com.miao.toolbox.auth.repository.RefreshTokenRepository;
+import com.miao.toolbox.auth.repository.RoleRepository;
 import com.miao.toolbox.auth.repository.UserRepository;
 import com.miao.toolbox.common.exception.AuthException;
 import com.miao.toolbox.common.exception.BusinessException;
@@ -29,6 +31,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -41,6 +44,7 @@ class AuthServiceTest {
 
     @Mock private UserRepository userRepository;
     @Mock private RefreshTokenRepository refreshTokenRepository;
+    @Mock private RoleRepository roleRepository;
     @Mock private JwtService jwtService;
     @Mock private HttpServletResponse response;
     @InjectMocks private AuthService authService;
@@ -48,29 +52,33 @@ class AuthServiceTest {
     private User enabledUser;
     private User disabledUser;
     private User lockedUser;
+    private Role userRole;
 
     @BeforeEach
     void setUp() {
+        userRole = Role.builder().id(2L).code("USER").name("普通用户").isSystem(true).build();
+
         enabledUser = User.builder()
                 .id(1L).username("testuser").passwordHash("$2a$10$hash")
-                .role(User.Role.USER).isEnabled(true).mustChangePassword(false)
+                .roles(Set.of(userRole)).isEnabled(true).mustChangePassword(false)
                 .loginFailCount(0).createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 .updatedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
 
         disabledUser = User.builder()
                 .id(2L).username("disabled").passwordHash("$2a$10$hash")
-                .role(User.Role.USER).isEnabled(false).mustChangePassword(false)
+                .roles(Set.of(userRole)).isEnabled(false).mustChangePassword(false)
                 .loginFailCount(0).createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 .updatedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
 
         lockedUser = User.builder()
                 .id(3L).username("locked").passwordHash("$2a$10$hash")
-                .role(User.Role.USER).isEnabled(true).mustChangePassword(false)
+                .roles(Set.of(userRole)).isEnabled(true).mustChangePassword(false)
                 .loginFailCount(5).lockedUntil(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(15))
                 .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 .updatedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
 
         lenient().when(jwtService.getRefreshTokenExpiryMs()).thenReturn(7 * 24 * 60 * 60 * 1000L);
+        lenient().when(roleRepository.findByCode("USER")).thenReturn(Optional.of(userRole));
     }
 
     // ========== 注册测试 ==========
@@ -92,7 +100,7 @@ class AuthServiceTest {
             assertThatCode(() -> authService.register(request)).doesNotThrowAnyException();
             verify(userRepository).save(argThat(user ->
                     user.getUsername().equals("newuser") &&
-                    user.getRole() == User.Role.USER &&
+                    user.getRoles() != null && !user.getRoles().isEmpty() &&
                     user.getIsEnabled()
             ));
         }
@@ -154,12 +162,11 @@ class AuthServiceTest {
             // 由于 passwordEncoder 是直接 new 的，需要绕过
             // 实际测试中使用 matches 需要真实 hash
             when(jwtService.generateSigningKey()).thenReturn("signkey123");
-            when(jwtService.generateAccessToken(anyLong(), anyString(), anyString())).thenReturn("access-token");
+            when(jwtService.generateAccessToken(anyLong(), anyString(), anyList())).thenReturn("access-token");
             when(jwtService.generateRefreshToken(anyLong())).thenReturn("refresh-token");
             when(refreshTokenRepository.findByUserIdOrderByCreatedAtAsc(1L)).thenReturn(List.of());
 
             // 密码验证会失败因为 passwordEncoder 是真实 BCrypt
-            // 此测试验证流程：用户存在但密码不匹配
             assertThatThrownBy(() -> authService.login(
                     new LoginRequest() {{ setUsername("testuser"); setPassword("wrong"); }},
                     response
@@ -215,7 +222,7 @@ class AuthServiceTest {
         void login_failureCountIncrement() {
             User user = User.builder()
                     .id(1L).username("test").passwordHash("$2a$10$hash")
-                    .role(User.Role.USER).isEnabled(true).loginFailCount(0)
+                    .roles(Set.of(userRole)).isEnabled(true).loginFailCount(0)
                     .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                     .updatedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
             when(userRepository.findByUsername("test")).thenReturn(Optional.of(user));
@@ -237,7 +244,7 @@ class AuthServiceTest {
         void login_lockedAfter5Failures() {
             User user = User.builder()
                     .id(1L).username("test").passwordHash("$2a$10$hash")
-                    .role(User.Role.USER).isEnabled(true).loginFailCount(4)
+                    .roles(Set.of(userRole)).isEnabled(true).loginFailCount(4)
                     .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                     .updatedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
             when(userRepository.findByUsername("test")).thenReturn(Optional.of(user));

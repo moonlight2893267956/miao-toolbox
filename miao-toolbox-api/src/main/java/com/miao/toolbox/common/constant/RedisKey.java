@@ -11,4 +11,5 @@ public final class RedisKey {
     public static final String SESSION_PREFIX = "miao:session:";
     public static final String SIGNING_KEY_TRANSITION_PREFIX = "miao:signing:transition:";
     public static final String RATE_LIMIT_CUSTOM_PREFIX = "miao:ratelimit:custom:";
+    public static final String USER_ROUTES_PREFIX = "miao:routes:user:";
 }

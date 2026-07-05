@@ -5,12 +5,19 @@ import { SearchOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toolsRegistry, getToolsByCategory } from './registry';
 import type { ToolMeta } from './registry';
+import { isSuperAdmin, useAuth } from '../../contexts/AuthContext';
 
 const ToolsPage: React.FC = () => {
   const navigate = useNavigate();
+  const { state } = useAuth();
   const [search, setSearch] = useState('');
+  const admin = isSuperAdmin(state.userInfo);
+  const canAccessTool = (tool: ToolMeta) => (
+    admin || !tool.routeCode || state.accessibleRoutes.includes(tool.routeCode)
+  );
 
-  const filteredTools = toolsRegistry.filter(
+  const visibleTools = toolsRegistry.filter((tool) => tool.category !== 'available' || canAccessTool(tool));
+  const filteredTools = visibleTools.filter(
     (t) =>
       t.title.toLowerCase().includes(search.toLowerCase()) ||
       t.tags.some((tag) => tag.toLowerCase().includes(search.toLowerCase())),
@@ -184,12 +191,12 @@ const ToolsPage: React.FC = () => {
           transition={{ duration: 0.7, delay: 0.5 }}
         >
           <div className="miao-editorial-stat">
-            <span className="miao-editorial-stat-number">{String(toolsRegistry.length).padStart(2, '0')}</span>
+            <span className="miao-editorial-stat-number">{String(visibleTools.length).padStart(2, '0')}</span>
             <span className="miao-editorial-stat-label">工具</span>
           </div>
           <div className="miao-editorial-stat-divider" />
           <div className="miao-editorial-stat">
-            <span className="miao-editorial-stat-number">{String(getToolsByCategory('available').length).padStart(2, '0')}</span>
+            <span className="miao-editorial-stat-number">{String(getToolsByCategory('available').filter(canAccessTool).length).padStart(2, '0')}</span>
             <span className="miao-editorial-stat-label">可用</span>
           </div>
           <div className="miao-editorial-stat-divider" />

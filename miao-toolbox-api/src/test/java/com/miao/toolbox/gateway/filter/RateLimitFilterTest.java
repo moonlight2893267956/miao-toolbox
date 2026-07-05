@@ -86,7 +86,7 @@ class RateLimitFilterTest {
         @Test
         @DisplayName("认证用户 → 使用用户 ID 作为限流 key")
         void authenticatedUser_userDimension() throws Exception {
-            User user = User.builder().id(42L).username("test").role(User.Role.USER)
+            User user = User.builder().id(42L).username("test")
                     .isEnabled(true).loginFailCount(0).build();
             var auth = new UsernamePasswordAuthenticationToken(
                     user, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));

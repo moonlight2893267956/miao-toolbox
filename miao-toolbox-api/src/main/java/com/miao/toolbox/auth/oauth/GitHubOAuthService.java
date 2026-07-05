@@ -1,7 +1,9 @@
 package com.miao.toolbox.auth.oauth;
 
 import com.miao.toolbox.auth.dto.LoginResponse;
+import com.miao.toolbox.auth.entity.Role;
 import com.miao.toolbox.auth.entity.User;
+import com.miao.toolbox.auth.repository.RoleRepository;
 import com.miao.toolbox.auth.repository.UserRepository;
 import com.miao.toolbox.auth.service.AuthService;
 import com.miao.toolbox.auth.service.JwtService;
@@ -9,7 +11,6 @@ import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.exception.AuthException;
 import com.miao.toolbox.common.exception.BusinessException;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.*;
@@ -27,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import jakarta.annotation.PreDestroy;
@@ -45,6 +47,7 @@ public class GitHubOAuthService {
 
     private final OAuthProperties oAuthProperties;
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final JwtService jwtService;
     private final AuthService authService;
     private final RestTemplate restTemplate;
@@ -58,9 +61,11 @@ public class GitHubOAuthService {
             });
 
     public GitHubOAuthService(OAuthProperties oAuthProperties, UserRepository userRepository,
-                              JwtService jwtService, AuthService authService, RestTemplate restTemplate) {
+                              RoleRepository roleRepository, JwtService jwtService,
+                              AuthService authService, RestTemplate restTemplate) {
         this.oAuthProperties = oAuthProperties;
         this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
         this.jwtService = jwtService;
         this.authService = authService;
         this.restTemplate = restTemplate;
@@ -150,7 +155,7 @@ public class GitHubOAuthService {
             user.setGithubUsername(githubUser.getLogin());
             userRepository.save(user);
             // 绑定成功后仍返回 token（用于前端刷新状态），但主要通过 userinfo 接口获取更新
-            String jwtAccessToken = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+            String jwtAccessToken = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getRoleCodes());
             String refreshToken = jwtService.generateRefreshToken(user.getId());
             String signingKey = jwtService.generateSigningKey();
             user.setSigningKey(signingKey);
@@ -165,7 +170,7 @@ public class GitHubOAuthService {
                     .user(LoginResponse.UserInfo.builder()
                             .id(user.getId())
                             .username(user.getUsername())
-                            .role(user.getRole().name())
+                            .roles(user.toRoleBriefs())
                             .build())
                     .build();
         }
@@ -197,7 +202,7 @@ public class GitHubOAuthService {
         userRepository.save(user);
 
         // Generate tokens
-        String jwtAccessToken = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+        String jwtAccessToken = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getRoleCodes());
         String refreshToken = jwtService.generateRefreshToken(user.getId());
 
         // Store refresh token via AuthService
@@ -213,7 +218,7 @@ public class GitHubOAuthService {
                 .user(LoginResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
-                        .role(user.getRole().name())
+                        .roles(user.toRoleBriefs())
                         .build())
                 .build();
     }
@@ -306,12 +311,15 @@ public class GitHubOAuthService {
     private User createOAuthUser(GitHubUser githubUser) {
         String username = generateUniqueUsername(githubUser.getLogin());
 
+        Role userRole = roleRepository.findByCode("USER")
+                .orElseThrow(() -> new BusinessException(ErrorCode.SYSTEM_ERROR, "系统角色配置异常", 500));
+
         User user = User.builder()
                 .username(username)
                 .githubId(String.valueOf(githubUser.getId()))
                 .githubUsername(githubUser.getLogin())
                 .email(githubUser.getEmail())
-                .role(User.Role.USER)
+                .roles(Set.of(userRole))
                 .isEnabled(true)
                 .mustChangePassword(false)
                 .loginFailCount(0)

@@ -5,6 +5,7 @@ import com.miao.toolbox.admin.dto.AdminUserResponse;
 import com.miao.toolbox.admin.dto.SetRateLimitRequest;
 import com.miao.toolbox.admin.dto.SetRoleRequest;
 import com.miao.toolbox.admin.service.UserManageService;
+import com.miao.toolbox.auth.dto.RoleBrief;
 import com.miao.toolbox.auth.entity.User;
 import com.miao.toolbox.common.response.PagedResponse;
 import org.junit.jupiter.api.*;
@@ -19,7 +20,9 @@ import org.springframework.test.web.servlet.*;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
@@ -39,14 +42,14 @@ class AdminUserControllerTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final User ADMIN_USER = User.builder()
-            .id(1L).username("admin").role(User.Role.ADMIN)
+            .id(1L).username("admin")
             .isEnabled(true).loginFailCount(0).build();
 
     private PagedResponse<AdminUserResponse> buildUserPage() {
         AdminUserResponse resp = new AdminUserResponse();
         resp.setId(2L);
         resp.setUsername("testuser");
-        resp.setRole("USER");
+        resp.setRoles(Collections.emptyList());
         resp.setIsEnabled(true);
         resp.setCreatedAt(LocalDateTime.now());
 
@@ -65,7 +68,7 @@ class AdminUserControllerTest {
                 .build();
         // 在 SecurityContext 中设置 User 作为 principal
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(ADMIN_USER, null, List.of(() -> "ROLE_ADMIN"))
+                new UsernamePasswordAuthenticationToken(ADMIN_USER, null, List.of(() -> "ROLE_SUPER_ADMIN"))
         );
     }
 
@@ -110,12 +113,12 @@ class AdminUserControllerTest {
     }
 
     @Test
-    @DisplayName("PUT /api/admin/users/{id}/role 变更角色")
+    @DisplayName("PUT /api/admin/users/{id}/roles 变更角色")
     void setRole_returnsOk() throws Exception {
         SetRoleRequest request = new SetRoleRequest();
-        request.setRole("ADMIN");
+        request.setRoleIds(List.of(1L));
 
-        mockMvc.perform(put("/api/admin/users/2/role")
+        mockMvc.perform(put("/api/admin/users/2/roles")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())

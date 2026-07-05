@@ -22,13 +22,14 @@ public class UserService {
     private final GoogleOAuthService googleOAuthService;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
+    @Transactional(readOnly = true)
     public UserInfoResponse getCurrentUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在", 404));
         return UserInfoResponse.builder()
                 .id(user.getId())
                 .username(user.getUsername())
-                .role(user.getRole().name())
+                .roles(user.toRoleBriefs())
                 .githubId(user.getGithubId())
                 .githubUsername(user.getGithubUsername())
                 .googleId(user.getGoogleId())

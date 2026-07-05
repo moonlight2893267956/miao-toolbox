@@ -1,7 +1,9 @@
 package com.miao.toolbox.auth.oauth;
 
 import com.miao.toolbox.auth.dto.LoginResponse;
+import com.miao.toolbox.auth.entity.Role;
 import com.miao.toolbox.auth.entity.User;
+import com.miao.toolbox.auth.repository.RoleRepository;
 import com.miao.toolbox.auth.repository.UserRepository;
 import com.miao.toolbox.auth.service.AuthService;
 import com.miao.toolbox.auth.service.JwtService;
@@ -39,6 +41,7 @@ class GitHubOAuthServiceTest {
 
     @Mock private OAuthProperties oAuthProperties;
     @Mock private UserRepository userRepository;
+    @Mock private RoleRepository roleRepository;
     @Mock private JwtService jwtService;
     @Mock private AuthService authService;
     @Mock private RestTemplate restTemplate;
@@ -47,6 +50,8 @@ class GitHubOAuthServiceTest {
 
     @BeforeEach
     void setUp() {
+        Role userRole = Role.builder().id(2L).code("USER").name("普通用户").isSystem(true).build();
+        when(roleRepository.findByCode("USER")).thenReturn(Optional.of(userRole));
         when(oAuthProperties.getClientId()).thenReturn("test-client-id");
         when(oAuthProperties.getClientSecret()).thenReturn("test-secret");
         when(oAuthProperties.getRedirectUri()).thenReturn("http://localhost:8080/callback");
@@ -145,7 +150,7 @@ class GitHubOAuthServiceTest {
 
             User existingUser = User.builder()
                     .id(1L).username("ghuser").githubId("12345")
-                    .role(User.Role.USER).isEnabled(true).mustChangePassword(false)
+                    .roles(java.util.Set.of()).isEnabled(true).mustChangePassword(false)
                     .loginFailCount(0).createdAt(LocalDateTime.now(ZoneOffset.UTC))
                     .updatedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
 

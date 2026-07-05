@@ -1,6 +1,7 @@
 package com.miao.toolbox.tool.diff.ai;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.miao.toolbox.auth.annotation.RequireRoute;
 import com.miao.toolbox.common.response.ApiResponse;
 import com.miao.toolbox.observability.AiInvocationRecorder;
 import com.miao.toolbox.observability.MiaoAiClient;
@@ -31,6 +32,7 @@ import java.util.concurrent.Executors;
 @Slf4j
 @RestController
 @RequestMapping("/api/diff/ai")
+@RequireRoute("TOOL_TEXT_COMPARE")
 @RequiredArgsConstructor
 public class DiffAIController {
 

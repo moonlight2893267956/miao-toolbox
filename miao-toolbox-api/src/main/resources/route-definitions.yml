@@ -1,0 +1,73 @@
+routes:
+  - code: TOOL_TEXT_COMPARE
+    name: 文本对照
+    path: /tools/text-compare
+    category: TOOL
+    icon: DiffOutlined
+    sortOrder: 1
+    adminRoute: false
+    enabled: true
+  - code: TOOL_CRYPTO
+    name: 加解密工具
+    path: /tools/crypto
+    category: TOOL
+    icon: LockOutlined
+    sortOrder: 2
+    adminRoute: false
+    enabled: true
+  - code: TOOL_JSON_WORKBENCH
+    name: JSON 工作台
+    path: /tools/json-workbench
+    category: TOOL
+    icon: CodeOutlined
+    sortOrder: 3
+    adminRoute: false
+    enabled: true
+  - code: PAGE_SETTINGS
+    name: 个人设置
+    path: /settings
+    category: SETTINGS
+    icon: SettingOutlined
+    sortOrder: 10
+    adminRoute: false
+    enabled: true
+  - code: ADMIN_DASHBOARD
+    name: 仪表盘
+    path: /admin/dashboard
+    category: ADMIN
+    icon: DashboardOutlined
+    sortOrder: 101
+    adminRoute: true
+    enabled: true
+  - code: ADMIN_INVOCATIONS
+    name: AI 调用日志
+    path: /admin/invocations
+    category: ADMIN
+    icon: RobotOutlined
+    sortOrder: 102
+    adminRoute: true
+    enabled: true
+  - code: ADMIN_USERS
+    name: 用户管理
+    path: /admin/users
+    category: ADMIN
+    icon: TeamOutlined
+    sortOrder: 103
+    adminRoute: true
+    enabled: true
+  - code: ADMIN_ROLES
+    name: 角色管理
+    path: /admin/roles
+    category: ADMIN
+    icon: SafetyOutlined
+    sortOrder: 104
+    adminRoute: true
+    enabled: true
+  - code: ADMIN_ROUTES
+    name: 路由管理
+    path: /admin/routes
+    category: ADMIN
+    icon: PartitionOutlined
+    sortOrder: 105
+    adminRoute: true
+    enabled: true

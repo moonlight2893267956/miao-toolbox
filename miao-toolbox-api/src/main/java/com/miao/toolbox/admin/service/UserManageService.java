@@ -3,13 +3,15 @@ package com.miao.toolbox.admin.service;
 import com.miao.toolbox.admin.dto.AdminUserResponse;
 import com.miao.toolbox.admin.dto.SetRateLimitRequest;
 import com.miao.toolbox.admin.dto.SetRoleRequest;
+import com.miao.toolbox.auth.entity.Role;
 import com.miao.toolbox.auth.entity.User;
+import com.miao.toolbox.auth.repository.RoleRepository;
 import com.miao.toolbox.auth.repository.UserRepository;
+import com.miao.toolbox.auth.service.RouteAccessService;
 import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.constant.RedisKey;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.common.response.PagedResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -20,24 +22,38 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class UserManageService {
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final RouteAccessService routeAccessService;
+
+    public UserManageService(UserRepository userRepository, RoleRepository roleRepository,
+                             RedisTemplate<String, Object> redisTemplate,
+                             RouteAccessService routeAccessService) {
+        this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.redisTemplate = redisTemplate;
+        this.routeAccessService = routeAccessService;
+    }
 
     /**
-     * 获取用户分页列表
+     * 获取用户分页列表。
+     * 使用 JOIN FETCH 预加载 roles，避免 N+1 查询。
      */
+    @Transactional(readOnly = true)
     public PagedResponse<AdminUserResponse> listUsers(int page, int pageSize) {
         int safePage = Math.max(page, 1) - 1;
         int safePageSize = Math.min(Math.max(pageSize, 1), 100);
 
-        Page<User> pageResult = userRepository.findAll(
+        Page<User> pageResult = userRepository.findAllWithRoles(
                 PageRequest.of(safePage, safePageSize, Sort.by(Sort.Direction.DESC, "createdAt"))
         );
 
@@ -100,27 +116,32 @@ public class UserManageService {
     public void setRole(Long userId, SetRoleRequest request, Long operatorId) {
         User user = findUserOrThrow(userId);
 
-        User.Role newRole;
-        try {
-            newRole = User.Role.valueOf(request.getRole());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "无效的角色: " + request.getRole(), 400);
+        if (request.getRoleIds() == null || request.getRoleIds().isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "用户至少需要一个角色", 422);
         }
 
-        // 不能降级最后一个管理员
-        if (user.getRole() == User.Role.ADMIN && newRole == User.Role.USER) {
-            long adminCount = userRepository.findAll().stream()
-                    .filter(u -> u.getRole() == User.Role.ADMIN)
-                    .count();
-            if (adminCount <= 1) {
-                throw new BusinessException(ErrorCode.VALIDATION_FAILED, "系统至少需要保留一个管理员", 400);
+        List<Role> newRoles = roleRepository.findAllById(request.getRoleIds());
+        if (newRoles.size() != request.getRoleIds().size()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "包含无效的角色ID", 400);
+        }
+
+        // 检查是否有系统内置角色被分配给非管理员用户
+        boolean hasSuperAdmin = newRoles.stream().anyMatch(r -> "SUPER_ADMIN".equals(r.getCode()));
+
+        // 不能移除最后一个超级管理员 — 通过 DB 计数避免全表加载到内存
+        if (user.isSuperAdmin() && !hasSuperAdmin) {
+            long superAdminCount = userRepository.countByRolesCode("SUPER_ADMIN");
+            if (superAdminCount <= 1) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, "系统至少需要保留一个超级管理员", 422);
             }
         }
 
-        user.setRole(newRole);
+        user.setRoles(new HashSet<>(newRoles));
         userRepository.save(user);
+        routeAccessService.evictUserRoutes(userId);
 
-        log.info("用户 {} 角色被管理员 {} 变更为 {}", userId, operatorId, newRole);
+        log.info("用户 {} 角色被管理员 {} 更新为 {}", userId, operatorId,
+                newRoles.stream().map(Role::getCode).toList());
     }
 
     /**
@@ -145,7 +166,7 @@ public class UserManageService {
         resp.setId(user.getId());
         resp.setUsername(user.getUsername());
         resp.setEmail(user.getEmail());
-        resp.setRole(user.getRole().name());
+        resp.setRoles(user.toRoleBriefs());
         resp.setIsEnabled(user.getIsEnabled());
         resp.setLastLoginAt(user.getLastLoginAt());
         resp.setCreatedAt(user.getCreatedAt());

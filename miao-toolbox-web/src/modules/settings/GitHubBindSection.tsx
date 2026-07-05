@@ -8,7 +8,6 @@ const { Text } = Typography;
 interface UserInfo {
   id: number;
   username: string;
-  role: string;
   githubId: string | null;
   githubUsername: string | null;
   mustChangePassword: boolean;

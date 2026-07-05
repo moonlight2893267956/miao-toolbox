@@ -8,7 +8,6 @@ const { Text } = Typography;
 interface UserInfo {
   id: number;
   username: string;
-  role: string;
   googleId: string | null;
   googleUsername: string | null;
   mustChangePassword: boolean;

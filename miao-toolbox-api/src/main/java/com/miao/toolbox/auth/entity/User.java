@@ -1,12 +1,19 @@
 package com.miao.toolbox.auth.entity;
 
+import com.miao.toolbox.auth.dto.RoleBrief;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Data
 @NoArgsConstructor
@@ -29,9 +36,15 @@ public class User {
     @Column(unique = true)
     private String email;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 10)
-    private Role role;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "user_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    @Builder.Default
+    @ToString.Exclude
+    private Set<Role> roles = new HashSet<>();
 
     @Column(name = "is_enabled", nullable = false)
     private Boolean isEnabled = true;
@@ -69,7 +82,39 @@ public class User {
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
-    public enum Role {
-        USER, ADMIN
+    /**
+     * 返回角色码列表
+     */
+    public List<String> getRoleCodes() {
+        if (roles == null || roles.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return roles.stream().map(Role::getCode).collect(Collectors.toList());
+    }
+
+    /**
+     * 判断用户是否拥有某个角色码
+     */
+    public boolean hasRole(String roleCode) {
+        return getRoleCodes().contains(roleCode);
+    }
+
+    /**
+     * 判断用户是否是超级管理员
+     */
+    public boolean isSuperAdmin() {
+        return hasRole("SUPER_ADMIN");
+    }
+
+    /**
+     * 返回角色信息列表（用于 API 响应）
+     */
+    public List<RoleBrief> toRoleBriefs() {
+        if (roles == null || roles.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return roles.stream()
+                .map(r -> RoleBrief.builder().id(r.getId()).code(r.getCode()).name(r.getName()).build())
+                .collect(Collectors.toList());
     }
 }

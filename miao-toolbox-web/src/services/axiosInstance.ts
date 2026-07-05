@@ -133,6 +133,7 @@ axiosInstance.interceptors.response.use(
         clearTokens();
         localStorage.removeItem('user');
         localStorage.removeItem('mustChangePassword');
+        localStorage.removeItem('miao_routes');
 
         // 标记 auth 错误，下游拦截器将静默吞掉，避免排队请求同时弹 toast
         Object.assign(refreshError as object, { [AUTH_REDIRECT]: true });

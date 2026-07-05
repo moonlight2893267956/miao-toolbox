@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -65,7 +66,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         Long userId = jwtService.extractUserId(claims);
         String username = jwtService.extractUsername(claims);
-        String role = jwtService.extractRole(claims);
+        List<String> roles = jwtService.extractRoles(claims);
 
         // Check user status from DB — use generic AUTH_LOGIN_FAILED to prevent user enumeration
         User user = userRepository.findById(userId).orElse(null);
@@ -88,11 +89,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             }
         }
 
+        List<SimpleGrantedAuthority> authorities = roles.stream()
+                .map(r -> new SimpleGrantedAuthority("ROLE_" + r))
+                .collect(Collectors.toList());
+
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(
                         user,
                         null,
-                        List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                        authorities
                 );
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
         SecurityContextHolder.getContext().setAuthentication(authentication);

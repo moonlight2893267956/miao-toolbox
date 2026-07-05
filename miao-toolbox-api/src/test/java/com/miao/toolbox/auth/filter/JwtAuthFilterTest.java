@@ -10,7 +10,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -20,6 +19,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
@@ -44,7 +44,7 @@ class JwtAuthFilterTest {
 
         enabledUser = User.builder()
                 .id(1L).username("testuser").passwordHash("hash")
-                .role(User.Role.USER).isEnabled(true).mustChangePassword(false)
+                .isEnabled(true).mustChangePassword(false)
                 .loginFailCount(0).signingKey("signkey")
                 .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 .updatedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
@@ -94,7 +94,7 @@ class JwtAuthFilterTest {
             when(jwtService.validateAccessToken("valid-token")).thenReturn(claims);
             when(jwtService.extractUserId(claims)).thenReturn(1L);
             when(jwtService.extractUsername(claims)).thenReturn("testuser");
-            when(jwtService.extractRole(claims)).thenReturn("USER");
+            when(jwtService.extractRoles(claims)).thenReturn(List.of("USER"));
         }
 
         @Test
@@ -116,7 +116,7 @@ class JwtAuthFilterTest {
         @DisplayName("禁用用户 → 401 + AUTH_LOGIN_FAILED（统一错误码防止用户枚举）")
         void disabledUser() throws Exception {
             User disabled = User.builder()
-                    .id(1L).username("test").role(User.Role.USER)
+                    .id(1L).username("test")
                     .isEnabled(false).mustChangePassword(false).loginFailCount(0)
                     .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                     .updatedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
@@ -136,7 +136,7 @@ class JwtAuthFilterTest {
         @DisplayName("锁定用户 → 401 + AUTH_LOGIN_FAILED（统一错误码防止用户枚举）")
         void lockedUser() throws Exception {
             User locked = User.builder()
-                    .id(1L).username("test").role(User.Role.USER)
+                    .id(1L).username("test")
                     .isEnabled(true).mustChangePassword(false).loginFailCount(5)
                     .lockedUntil(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(15))
                     .createdAt(LocalDateTime.now(ZoneOffset.UTC))

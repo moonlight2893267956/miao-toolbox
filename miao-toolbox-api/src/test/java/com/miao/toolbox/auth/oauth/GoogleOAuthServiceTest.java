@@ -1,7 +1,9 @@
 package com.miao.toolbox.auth.oauth;
 
 import com.miao.toolbox.auth.dto.LoginResponse;
+import com.miao.toolbox.auth.entity.Role;
 import com.miao.toolbox.auth.entity.User;
+import com.miao.toolbox.auth.repository.RoleRepository;
 import com.miao.toolbox.auth.repository.UserRepository;
 import com.miao.toolbox.auth.service.AuthService;
 import com.miao.toolbox.auth.service.JwtService;
@@ -41,6 +43,7 @@ class GoogleOAuthServiceTest {
 
     @Mock private GoogleOAuthProperties googleOAuthProperties;
     @Mock private UserRepository userRepository;
+    @Mock private RoleRepository roleRepository;
     @Mock private JwtService jwtService;
     @Mock private AuthService authService;
     @Mock private RestTemplate restTemplate;
@@ -49,13 +52,15 @@ class GoogleOAuthServiceTest {
 
     @BeforeEach
     void setUp() {
+        Role userRole = Role.builder().id(2L).code("USER").name("普通用户").isSystem(true).build();
+        when(roleRepository.findByCode("USER")).thenReturn(Optional.of(userRole));
         when(googleOAuthProperties.getClientId()).thenReturn("test-google-client-id");
         when(googleOAuthProperties.getClientSecret()).thenReturn("test-google-client-secret");
         when(googleOAuthProperties.getRedirectUri()).thenReturn("http://localhost:8080/api/auth/oauth/google/callback");
         when(googleOAuthProperties.getFrontendCallbackUrl()).thenReturn("http://localhost:5173/oauth/callback");
         when(googleOAuthProperties.getScope()).thenReturn("openid email profile");
         when(jwtService.generateSigningKey()).thenReturn("mock-signing-key");
-        when(jwtService.generateAccessToken(anyLong(), anyString(), anyString())).thenReturn("mock-access-token");
+        when(jwtService.generateAccessToken(anyLong(), anyString(), anyList())).thenReturn("mock-access-token");
         when(jwtService.generateRefreshToken(anyLong())).thenReturn("mock-refresh-token");
     }
 
@@ -474,7 +479,7 @@ class GoogleOAuthServiceTest {
         return User.builder()
                 .id(1L)
                 .username("testuser")
-                .role(User.Role.USER)
+                .roles(java.util.Set.of())
                 .isEnabled(true)
                 .mustChangePassword(false)
                 .loginFailCount(0)

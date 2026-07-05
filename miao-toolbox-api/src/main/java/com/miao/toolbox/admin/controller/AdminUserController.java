@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/admin/users")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasRole('SUPER_ADMIN')")
 public class AdminUserController {
 
     private final UserManageService userManageService;
@@ -47,7 +47,7 @@ public class AdminUserController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
-    @PutMapping("/{userId}/role")
+    @PutMapping("/{userId}/roles")
     public ResponseEntity<ApiResponse<Void>> setRole(
             @PathVariable Long userId,
             @Valid @RequestBody SetRoleRequest request,
