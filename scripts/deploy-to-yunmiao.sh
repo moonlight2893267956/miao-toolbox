@@ -291,7 +291,9 @@ location ^~ /api/ {
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-Host  $host;
     client_max_body_size 100M;
-    proxy_read_timeout 60s;
+    proxy_read_timeout 180s;
+    proxy_send_timeout 180s;
+    proxy_connect_timeout 60s;
     proxy_http_version 1.1;
 }
 
