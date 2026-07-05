@@ -277,7 +277,7 @@ const RoleManagePage: React.FC = () => {
         title={<>角色<em>管理</em></>}
         description="管理系统中的自定义角色，控制系统功能访问权限"
         actions={(
-          <>
+          <Space>
             <Input.Search
               placeholder="搜索角色名称..."
               value={search}
@@ -285,11 +285,13 @@ const RoleManagePage: React.FC = () => {
               style={{ width: 240 }}
               allowClear
             />
-            <Button icon={<ReloadOutlined />} onClick={fetchRoles} loading={loading} className="miao-admin-btn-ghost" style={{ marginLeft: 8 }} />
-            <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal} style={{ marginLeft: 8 }}>
+            <Button icon={<ReloadOutlined />} onClick={fetchRoles} loading={loading} className="miao-admin-btn-ghost">
+              刷新
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
               创建角色
             </Button>
-          </>
+          </Space>
         )}
       />
 
