@@ -67,7 +67,7 @@ miao:
         api-key: ${MIAO_AI_AGENT_JSON_REPAIR_API_KEY:}
         connect-timeout: ${MIAO_AI_AGENT_JSON_REPAIR_CONNECT_TIMEOUT:5000}
         read-timeout: ${MIAO_AI_AGENT_JSON_REPAIR_READ_TIMEOUT:60000}
-        retry-count: ${MIAO_AI_AGENT_JSON_REPAIR_RETRY_COUNT:2}
+        retry-count: ${MIAO_AI_AGENT_JSON_REPAIR_RETRY_COUNT:0}
         retry-interval: ${MIAO_AI_AGENT_JSON_REPAIR_RETRY_INTERVAL:1000}
     invocation:
       retention-days: ${MIAO_AI_INVOCATION_RETENTION_DAYS:90}
