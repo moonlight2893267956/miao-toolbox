@@ -388,7 +388,7 @@
   display: flex;
   gap: 14px;
   flex: 1;
-  min-height: 0;
+  min-height: 400px;
 }
 
 .crypto-codec-input,
@@ -514,7 +514,7 @@
   border: none !important;
   outline: none !important;
   resize: none !important;
-  min-height: 120px;
+  min-height: 200px;
   padding: 24px 26px !important;
   font-family: var(--crypto-font-mono) !important;
   font-size: 16px !important;
@@ -540,7 +540,7 @@
 
 .crypto-codec-output .crypto-output-content {
   flex: 1;
-  min-height: 120px;
+  min-height: 200px;
   padding: 24px 26px;
   font-family: var(--crypto-font-mono);
   font-size: 16px;
@@ -609,10 +609,6 @@
   min-width: 64px;
 }
 
-.crypto-hash-layout .crypto-codec {
-  flex: 1;
-  min-height: 0;
-}
 
 /* ============================================================
    Output Panel Header Toolbar (kept for compatibility)
@@ -828,7 +824,7 @@
   box-shadow: var(--crypto-shadow-sm);
   display: flex;
   flex-direction: column;
-  min-height: 120px;
+  min-height: 200px;
 }
 
 .crypto-hash-card:hover {
@@ -1035,10 +1031,6 @@
   to { transform: rotate(360deg); }
 }
 
-.crypto-sym-layout .crypto-codec {
-  flex: 1;
-  min-height: 0;
-}
 
 /* ============================================================
    RSA Key Display
