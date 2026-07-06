@@ -78,7 +78,7 @@ export function computeSearchResults(
 
 /** 安全转义 key 中的特殊字符（与 parseAndFlatten 保持一致） */
 function safeKey(key: string): string {
-  if (/[.\[\]"']/.test(key)) {
+  if (/[.[\]"']/.test(key)) {
     return `["${key.replace(/"/g, '\\"')}"]`;
   }
   return key;

@@ -181,7 +181,7 @@ function extractKeyFromPath(path: string): string {
  * 如果 key 包含 . 或 [ 或 ]，用引号包裹。
  */
 function safeKey(key: string): string {
-  if (/[.\[\]"']/.test(key)) {
+  if (/[.[\]"']/.test(key)) {
     return `["${key.replace(/"/g, '\\"')}"]`;
   }
   return key;

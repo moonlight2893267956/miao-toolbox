@@ -77,7 +77,6 @@ function getThemeExtensions(): Extension {
 export default function JsonRawEditor({
   value,
   onChange,
-  parseError: _parseError,
   scrollTarget,
   onScrollTargetHandled,
 }: JsonRawEditorProps) {

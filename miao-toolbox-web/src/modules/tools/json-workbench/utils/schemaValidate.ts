@@ -97,7 +97,7 @@ function ajvErrorToJsonPath(err: any): string {
 }
 
 function safeKey(key: string): string {
-  if (/[.\[\]"']/.test(key)) {
+  if (/[.[\]"']/.test(key)) {
     return `["${key.replace(/"/g, '\\"')}"]`;
   }
   return key;
