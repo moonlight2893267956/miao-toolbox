@@ -514,7 +514,7 @@
   border: none !important;
   outline: none !important;
   resize: none !important;
-  min-height: 420px;
+  min-height: 120px;
   padding: 24px 26px !important;
   font-family: var(--crypto-font-mono) !important;
   font-size: 16px !important;
@@ -540,7 +540,7 @@
 
 .crypto-codec-output .crypto-output-content {
   flex: 1;
-  min-height: 420px;
+  min-height: 120px;
   padding: 24px 26px;
   font-family: var(--crypto-font-mono);
   font-size: 16px;
@@ -1246,7 +1246,7 @@
 
   .crypto-codec-input textarea,
   .crypto-codec-output .crypto-output-content {
-    min-height: 260px;
+    min-height: 160px;
     font-size: 15px !important;
     padding: 18px !important;
   }
