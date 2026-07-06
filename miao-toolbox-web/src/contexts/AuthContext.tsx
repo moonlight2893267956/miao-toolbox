@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useReducer, useCallback, useRef } from 'react';
 import axios from 'axios';
 
