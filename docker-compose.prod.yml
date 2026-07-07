@@ -43,6 +43,7 @@ services:
       # miao-mysql / miao-redis 在 miao-infra 提供的 miao-infra-net 网络里
       JAVA_OPTS: >-
         -Xms256m -Xmx384m -XX:+UseG1GC
+        -XX:MaxMetaspaceSize=256m
         -Dhttp.proxyHost=host.docker.internal
         -Dhttp.proxyPort=7890
         -Dhttps.proxyHost=host.docker.internal
@@ -105,10 +106,13 @@ services:
       - miao-net
       - miao-infra-net
     # 资源限制(防 OOM)
+    # 注意: 512M 偏紧,堆外(Metaspace/线程栈/G1 原生内存/Lettuce-NIO 等)
+    # 约需 110MB,叠加 -Xmx384m 稳态即逼近上限,易触发 cgroup OOM-kill。
+    # 已提至 1G 给堆外留足余量(2026-07-07 线上因 OOM 反复重启的修复)。
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
 
   web:
     build:
