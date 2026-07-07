@@ -19,7 +19,7 @@ services:
     build:
       context: ./miao-toolbox-api
       dockerfile: Dockerfile
-    image: miao-toolbox/api:latest
+    image: ghcr.io/moonlight2893267956/miao-toolbox-api:latest
     restart: unless-stopped
     # 不再 depends_on mysql/redis(跨 compose 不支持)
     # 启动期间允许 unhealthy,等 miao-infra 就绪 + Spring Boot/HikariCP 重试兜底
@@ -118,7 +118,7 @@ services:
     build:
       context: ./miao-toolbox-web
       dockerfile: Dockerfile
-    image: miao-toolbox/web:latest
+    image: ghcr.io/moonlight2893267956/miao-toolbox-web:latest
     restart: unless-stopped
     depends_on:
       - api

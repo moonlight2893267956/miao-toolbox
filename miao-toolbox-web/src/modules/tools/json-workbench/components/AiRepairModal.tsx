@@ -26,9 +26,8 @@ export default function AiRepairModal({
   onApply,
   onCancel,
 }: AiRepairModalProps) {
-  if (!visible) return null;
-
   // 计算行级 diff（LCS-based，避免简单逐行对比的扭曲问题）
+  // 注意：useMemo 必须在 early return 之前调用，以遵守 React Hooks 规则
   const diffLines = useMemo(() => {
     if (!repaired) return [];
     const origLines = original.split('\n');
@@ -75,6 +74,8 @@ export default function AiRepairModal({
 
     return result.slice(0, 200);
   }, [original, repaired]);
+
+  if (!visible) return null;
 
   return (
     <div className="jw-ai-repair-overlay" onClick={onCancel}>

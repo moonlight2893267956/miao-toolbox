@@ -93,7 +93,7 @@ function getCandidates(text: string): HeuristicHit[] {
   // 11. CSS（{ ... : ...; } 模式 + 选择器）
   if (
     /[^{}]*\{[^{}]*:[^{}]*;[^{}]*\}/m.test(sample) ||
-    /^\s*[\.\#]?[\w-]+\s*\{/m.test(sample)
+    /^\s*[.#]?[\w-]+\s*\{/m.test(sample)
   ) {
     candidates.push({ language: 'css', confidence: 'low' as never, verify: verifyPrettier('css') });
   }

@@ -51,7 +51,7 @@ const LoginPage: React.FC = () => {
         // 显示与 OAuth2 一致的成功动画界面
         setLoginSuccess({ username: result.user.username });
       }
-    } catch (error: any) {
+    } catch {
       message.error('用户名或密码错误');
     } finally {
       setLoading(false);

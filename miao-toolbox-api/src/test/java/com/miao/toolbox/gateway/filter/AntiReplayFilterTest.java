@@ -28,12 +28,11 @@ class AntiReplayFilterTest {
     @Mock private RedisTemplate<String, Object> redisTemplate;
     @Mock private ValueOperations<String, Object> valueOps;
     @Mock private UserRepository userRepository;
-    private ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private AntiReplayFilter filter;
 
     @BeforeEach
     void setUp() {
-        lenient().when(redisTemplate.opsForValue()).thenReturn(valueOps);
         filter = new AntiReplayFilter(redisTemplate, objectMapper, userRepository);
     }
 
@@ -111,8 +110,8 @@ class AntiReplayFilterTest {
         @Test
         @DisplayName("nonce 已使用过 → 400")
         void nonceAlreadyUsed() throws Exception {
-            when(valueOps.setIfAbsent(anyString(), anyString(), any(Duration.class)))
-                    .thenReturn(false);
+            doReturn(valueOps).when(redisTemplate).opsForValue();
+            doReturn(false).when(valueOps).setIfAbsent(anyString(), anyString(), any(Duration.class));
 
             MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/tools/1/execute");
             request.addHeader("X-Request-Timestamp", String.valueOf(System.currentTimeMillis()));
