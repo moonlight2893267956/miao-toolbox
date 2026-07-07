@@ -1,47 +1,41 @@
-name: CD — 构建并推送 Docker 镜像
+name: CD - Build and Push Docker Images
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: '发布版本号 (例如 1.0.0)'
+        description: 'Release version (e.g. 1.0.0)'
         required: true
         type: string
 
-env:
-  REGISTRY: ghcr.io
-  API_IMAGE_NAME: ${{ github.repository }}-api
-  WEB_IMAGE_NAME: ${{ github.repository }}-web
-
 jobs:
   build-and-push:
-    name: 构建 & 推送至 GHCR
+    name: Build and Push to GHCR
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
     steps:
-      - name: 检出代码
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 登录 GHCR
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 提取元数据
+      - name: Set image names
         id: meta
         run: |
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          echo "api_image=${REGISTRY}/${REPO_LOWER}-api" >> $GITHUB_OUTPUT
-          echo "web_image=${REGISTRY}/${REPO_LOWER}-web" >> $GITHUB_OUTPUT
-          echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
-          echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+          {
+            echo "api_image=ghcr.io/${REPO_LOWER}-api"
+            echo "web_image=ghcr.io/${REPO_LOWER}-web"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: 构建并推送 API 镜像
+      - name: Build and push API image
         uses: docker/build-push-action@v6
         with:
           context: ./miao-toolbox-api
@@ -50,12 +44,8 @@ jobs:
           tags: |
             ${{ steps.meta.outputs.api_image }}:${{ inputs.version }}
             ${{ steps.meta.outputs.api_image }}:latest
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.version=${{ inputs.version }}
-            org.opencontainers.image.created=${{ steps.meta.outputs.created }}
 
-      - name: 构建并推送 Web 镜像
+      - name: Build and push Web image
         uses: docker/build-push-action@v6
         with:
           context: ./miao-toolbox-web
@@ -64,7 +54,3 @@ jobs:
           tags: |
             ${{ steps.meta.outputs.web_image }}:${{ inputs.version }}
             ${{ steps.meta.outputs.web_image }}:latest
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.version=${{ inputs.version }}
-            org.opencontainers.image.created=${{ steps.meta.outputs.created }}
