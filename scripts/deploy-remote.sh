@@ -45,27 +45,65 @@ step_check_prereqs() {
   grn "  ✓ 前置条件满足"
 }
 
+# 端口连通性探测(主机侧,适用于远端 IP/域名)
+_tcp_ok() {
+  (exec 3<>/dev/tcp/"$1"/"$2") 2>/dev/null
+}
+
+# 本地容器健康检查(适用于同机 miao-infra 容器名)
+_container_healthy() {
+  local s
+  s=$(docker inspect --format='{{.State.Health.Status}}' "$1" 2>/dev/null || echo "missing")
+  [ "$s" = "healthy" ]
+}
+
 step_wait_infra() {
-  hdr "1. 等待 miao-infra 就绪(miao-mysql + miao-redis)"
+  hdr "1. 检查数据库/缓存连通性 (MySQL/Redis)"
+  # 读取 .env 中真实主机(与 docker-compose.prod.yml 默认值保持一致)
+  if [ -f "$ENV_FILE" ]; then
+    set -a; . "$ENV_FILE"; set +a
+  fi
+  local mysql_host="${MYSQL_HOST:-miao-mysql}"
+  local mysql_port="${MYSQL_PORT:-3306}"
+  local redis_host="${REDIS_HOST:-miao-redis}"
+  local redis_port="${REDIS_PORT:-6379}"
+
   local max_wait=120
   local elapsed=0
   while [ $elapsed -lt $max_wait ]; do
-    local mysql_status redis_status
-    mysql_status=$(docker inspect --format='{{.State.Health.Status}}' miao-mysql 2>/dev/null || echo "missing")
-    redis_status=$(docker inspect --format='{{.State.Health.Status}}' miao-redis 2>/dev/null || echo "missing")
-    if [ "$mysql_status" = "healthy" ] && [ "$redis_status" = "healthy" ]; then
-      grn "  ✓ miao-mysql / miao-redis 均 healthy(等待 ${elapsed}s)"
+    local ok_mysql="no" ok_redis="no"
+    if _container_healthy "$mysql_host" || _tcp_ok "$mysql_host" "$mysql_port"; then
+      ok_mysql="yes"
+    fi
+    if _container_healthy "$redis_host" || _tcp_ok "$redis_host" "$redis_port"; then
+      ok_redis="yes"
+    fi
+    if [ "$ok_mysql" = "yes" ] && [ "$ok_redis" = "yes" ]; then
+      grn "  ✓ MySQL($mysql_host:$mysql_port) / Redis($redis_host:$redis_port) 连通(等待 ${elapsed}s)"
       return 0
     fi
     if [ $((elapsed % 10)) -eq 0 ] && [ $elapsed -gt 0 ]; then
-      ylw "  等待中(${elapsed}s/${max_wait}s)  mysql=${mysql_status}  redis=${redis_status}"
+      ylw "  等待中(${elapsed}s/${max_wait}s)  mysql=${ok_mysql}  redis=${ok_redis}"
     fi
     sleep 2
     elapsed=$((elapsed + 2))
   done
-  red "  ✗ 等待 miao-infra 超时(${max_wait}s)"
-  red "  请先执行: cd /opt/miao-infra && docker compose up -d"
+  red "  ✗ 等待 MySQL/Redis 连通超时(${max_wait}s)"
+  red "  当前配置: mysql=${mysql_host}:${mysql_port}  redis=${redis_host}:${redis_port}"
+  red "  - 若用本地 miao-infra: 先 cd /opt/miao-infra && docker compose up -d"
+  red "  - 若用远端: 确认 .env 的 MYSQL_HOST/REDIS_HOST 正确且防火墙放行"
   exit 1
+}
+
+step_ensure_net() {
+  hdr "1.5 确保 miao-infra-net 网络存在"
+  if docker network inspect miao-infra-net >/dev/null 2>&1; then
+    grn "  ✓ miao-infra-net 已存在(由 miao-infra 提供)"
+  else
+    ylw "  ⚠ miao-infra-net 不存在,创建空网络(远端 DB 场景,api 不依赖它)"
+    docker network create miao-infra-net >/dev/null 2>&1 || true
+    grn "  ✓ 已创建 miao-infra-net"
+  fi
 }
 
 step_login_ghcr() {
@@ -158,6 +196,7 @@ step_summary() {
 # ===== 主流程 =====
 step_check_prereqs
 step_wait_infra
+step_ensure_net
 step_login_ghcr
 step_pull_and_up
 step_health_check
