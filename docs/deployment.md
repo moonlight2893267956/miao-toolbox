@@ -8,7 +8,10 @@
 
 ---
 
-## TL;DR · 6 行版本
+## TL;DR
+
+> **日常更新**：推送 `main` 即自动部署（CI 构建 → 推送 GHCR → SSH 拉取重启），无需手动操作。
+> **首次部署**：需先跑一次 bootstrap 脚本完成一次性配置（`.env`、宝塔 vhost、GHCR 登录）。
 
 ```bash
 # 1) 本机:推代码到 main
@@ -17,14 +20,16 @@ git push origin main
 # 2) 服务器:先确认 miao-infra 已就绪(提供 miao-mysql / miao-redis)
 #    首次部署见 §4.2,从旧版升级(有旧数据)先跑 §4.2a 迁移步骤
 
-# 3) 本机:一键部署(日常更新加 --skip-env 保留已有密钥)
-./scripts/deploy-to-yunmiao.sh --skip-env all   # 日常更新(不覆盖 JWT + DB 密码)
-# ./scripts/deploy-to-yunmiao.sh all            # 首次部署(生成全新 .env)
+# 3) 本机:首次 bootstrap(生成 .env + 配置宝塔 vhost + 首次拉取镜像启动)
+export GHCR_TOKEN=ghp_xxxxx    # GitHub PAT(packages:read 权限)
+./scripts/deploy-to-yunmiao.sh all
+
+# 之后每次推 main 自动部署,无需手动跑脚本
 
 # 4) 服务器:申请 SSL(宝塔面板)
 # 登录宝塔 → 网站 → tools.yunmiao.site → SSL → Let's Encrypt → 申请
 
-# 5) 服务器:SSL 配好后的 3 步收尾(见 [§4.6](#46-ssl-配好后的收尾))
+# 5) 服务器:SSL 配好后的收尾(见 [§4.6](#46-ssl-配好后的收尾))
 # 6) 验收
 ADMIN_PASSWORD=你的密码 bash scripts/check-deploy.sh
 ```
@@ -122,7 +127,8 @@ miao-toolbox/                          # 本项目
 │   ├── Dockerfile                     # 多阶段:node:20-alpine → nginx:1.28-alpine
 │   └── nginx.conf                     # 容器内 /api/ 反代到 api:8080
 └── scripts/
-    ├── deploy-to-yunmiao.sh           # 一键部署 / 更新 / 状态 / 日志
+    ├── deploy-to-yunmiao.sh           # 首次 bootstrap / 手动部署
+    ├── deploy-remote.sh               # CI 远程部署(探活+拉取+健康检查)
     └── check-deploy.sh                # 10 条 AC 验收
 
 /opt/miao-infra/                       # 兄弟项目,独立仓库
@@ -227,12 +233,15 @@ docker exec miao-mysql mysql -u miao -p"$(grep MYSQL_PASSWORD .env | cut -d= -f2
 
 ### 4.3 一键部署到服务器
 
-```bash
-# 日常更新(保留已有 JWT 密钥 + DB 密码):
-./scripts/deploy-to-yunmiao.sh --skip-env all
+> 首次部署前，确保 GHCR 上已有镜像（推一次 main 触发 CI 构建即可）。
+> 需设置环境变量 `GHCR_TOKEN`（GitHub PAT，`packages:read` 权限）。
 
-# 首次部署(生成全新 .env):
+```bash
+# 首次部署(生成全新 .env + 配置宝塔 vhost + 拉取镜像启动):
+export GHCR_TOKEN=ghp_xxxxx
 ./scripts/deploy-to-yunmiao.sh all
+
+# 之后推送 main 即自动部署,无需手动跑脚本
 ```
 
 脚本会依次：
@@ -242,7 +251,7 @@ docker exec miao-mysql mysql -u miao -p"$(grep MYSQL_PASSWORD .env | cut -d= -f2
 3. 本机 Python 生成强随机 JWT 密钥 → 写入 `.env` → scp 到服务器(chmod 600)
 4. **轮询 miao-infra 状态**(检查 `miao-mysql` / `miao-redis` 容器 healthy,最多等 120s)
 5. 临时把 `cookie-secure` 改 `false`(SSL 申请前)
-6. `docker compose -f docker-compose.prod.yml up -d --build`
+6. 登录 GHCR + `docker compose pull` + `docker compose up -d --no-build`（镜像由 CI 构建推送至 GHCR，服务器纯拉取）
 7. 创建宝塔 well-known 目录 + wwwlogs 目录
 8. 写宝塔 vhost(`/www/server/panel/vhost/nginx/tools.yunmiao.site.conf`)
 9. `sudo nginx -t && sudo nginx -s reload`
@@ -304,11 +313,13 @@ cd /opt/miao-toolbox
 sed -i "s|^CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=https://tools.yunmiao.site|" .env
 
 # 2) 把 cookie-secure 改回 true
-sed -i "s/cookie-secure: false/cookie-secure: true/" miao-toolbox-api/src/main/resources/application-prod.yml
+#    ⚠️ 拉取模式下源码改动需走 CI 重新构建镜像，在本地改后推送:
+#    sed -i "s/cookie-secure: false/cookie-secure: true/" miao-toolbox-api/src/main/resources/application-prod.yml
+#    git add -A && git commit -m "fix: 开启 cookie-secure" && git push origin main
 
-# 3) 重新构建并重启 api(只重建 api/web,不影响 miao-infra)
-docker compose -f docker-compose.prod.yml build api
-docker compose -f docker-compose.prod.yml up -d api
+# 3) CI 自动构建并部署(或手动拉取最新镜像)
+docker compose -f docker-compose.prod.yml --env-file .env pull
+docker compose -f docker-compose.prod.yml --env-file .env up -d --no-build
 ```
 
 **关键依赖**：`miao-toolbox-api/src/main/resources/application.yml` 必须有：

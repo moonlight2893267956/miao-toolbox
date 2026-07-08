@@ -53,18 +53,22 @@ curl -sI http://127.0.0.1:8089/
 
 ## 2. 更新代码
 
+> **推送 main 即自动部署**，CI 会构建镜像 → 推送 GHCR → SSH 到服务器拉取重启。
+> 以下为手动部署方式（仅在 CI 不可用时使用，需先设置 `GHCR_TOKEN` 环境变量）。
+
 ```bash
-# 本机
+# 日常更新：直接推送 main，CI 自动完成部署
 git push origin main
 
-# 服务器（二选一）
-./scripts/deploy-to-yunmiao.sh update       # 自动化：拉代码 + 重建 + 重启
+# 手动部署（CI 不可用时）
+export GHCR_TOKEN=ghp_xxxxx
+./scripts/deploy-to-yunmiao.sh update       # 拉代码 + 拉镜像 + 重启
 
-# 或者手动重建特定服务
+# 或在服务器上直接操作
 ssh yunmiao@yunmiao.site
 cd /opt/miao-toolbox
-docker compose -f docker-compose.prod.yml build api
-docker compose -f docker-compose.prod.yml up -d api
+docker compose -f docker-compose.prod.yml --env-file .env pull
+docker compose -f docker-compose.prod.yml --env-file .env up -d --no-build
 ```
 
 ---
@@ -144,17 +148,23 @@ docker compose -f docker-compose.prod.yml down
 # docker compose -f docker-compose.prod.yml down -v
 ```
 
-**代码回滚**（回到上一个 main commit）：
+**镜像回滚**（回到上一个 GHCR 镜像版本）：
 
 ```bash
-# 本机
-git log --oneline | head -5
-git reset --hard <commit-sha>
-git push origin main --force-with-lease   # 慎用
+ssh yunmiao@yunmiao.site
+cd /opt/miao-toolbox
 
-# 服务器
-docker compose -f docker-compose.prod.yml build api web
-docker compose -f docker-compose.prod.yml up -d
+# 修改 image tag 为目标 sha 版本（CI 每次构建都推送 :sha-<7位短哈希> 标签）
+sed -i 's|miao-toolbox-api:latest|miao-toolbox-api:sha-<旧sha>|' docker-compose.prod.yml
+sed -i 's|miao-toolbox-web:latest|miao-toolbox-web:sha-<旧sha>|' docker-compose.prod.yml
+
+# 拉取并重启
+docker compose -f docker-compose.prod.yml --env-file .env pull
+docker compose -f docker-compose.prod.yml --env-file .env up -d --no-build
+
+# 验证无误后改回 latest
+sed -i 's|miao-toolbox-api:sha-<旧sha>|miao-toolbox-api:latest|' docker-compose.prod.yml
+sed -i 's|miao-toolbox-web:sha-<旧sha>|miao-toolbox-web:latest|' docker-compose.prod.yml
 ```
 
 **宝塔 vhost 移除**：
@@ -169,8 +179,8 @@ sudo nginx -s reload
 ## 7. 部署脚本子命令
 
 ```bash
-./scripts/deploy-to-yunmiao.sh all       # 完整流程
-./scripts/deploy-to-yunmiao.sh update    # 仅拉代码 + 重启（本机 push 后）
+./scripts/deploy-to-yunmiao.sh all       # 完整流程(首次 bootstrap)
+./scripts/deploy-to-yunmiao.sh update    # 拉代码 + 拉镜像 + 重启(需 GHCR_TOKEN)
 ./scripts/deploy-to-yunmiao.sh env       # 仅重新生成 .env（慎用，会覆盖密钥）
 ./scripts/deploy-to-yunmiao.sh vhost     # 仅重配宝塔 vhost
 ./scripts/deploy-to-yunmiao.sh status    # 查看容器状态

@@ -30,6 +30,12 @@ SSH_OPTS="-o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=accept-
 # 宝塔 vhost 路径
 BT_VHOST="/www/server/panel/vhost/nginx/tools.yunmiao.site.conf"
 
+# GHCR 镜像仓库登录(首次 bootstrap 和手动 update 时需要)
+# GHCR_OWNER: 镜像 owner(GitHub 用户名/组织名)
+# GHCR_TOKEN: GitHub PAT(packages:read 权限),用于服务器拉取私有镜像
+GHCR_OWNER="${GHCR_OWNER:-moonlight2893267956}"
+GHCR_TOKEN="${GHCR_TOKEN:-}"
+
 # 临时模式:域名未注册时把 cookie-secure 改 false(后续 SSL 配好后改回)
 TEMP_INSECURE_COOKIE="${TEMP_INSECURE_COOKIE:-1}"
 
@@ -221,10 +227,22 @@ step_temp_insecure_cookie() {
   fi
 }
 
+step_login_ghcr() {
+  hdr "4.5 登录 GHCR(拉取私有镜像)"
+  if [ -z "$GHCR_TOKEN" ]; then
+    red "  ✗ 未设置 GHCR_TOKEN 环境变量"
+    red "  请创建 GitHub PAT(packages:read 权限)并: export GHCR_TOKEN=ghp_xxxxx"
+    exit 1
+  fi
+  ssh_run "echo '$GHCR_TOKEN' | docker login ghcr.io -u '$GHCR_OWNER' --password-stdin"
+  grn "  ✓ GHCR 登录成功(user=$GHCR_OWNER)"
+}
+
 step_deploy_services() {
-  hdr "5. 构建并启动 miao-toolbox 服务"
+  hdr "5. 拉取镜像并启动 miao-toolbox 服务"
   ssh_run "cd '$REMOTE_DIR' && \
-    docker compose -f docker-compose.prod.yml --env-file .env up -d --build"
+    docker compose -f docker-compose.prod.yml --env-file .env pull && \
+    docker compose -f docker-compose.prod.yml --env-file .env up -d --no-build"
   sleep 5
   ssh_run "cd '$REMOTE_DIR' && docker compose -f docker-compose.prod.yml ps"
 }
@@ -363,14 +381,20 @@ step_status() {
 usage() {
   cat <<EOF
 用法: $0 [命令] [--skip-env]
-  (无)        完整部署流程
+  (无)        完整部署流程(首次 bootstrap)
   --skip-env  跳过 .env 生成(保留已有密钥,日常更新用)
-  update      仅拉代码 + 重启服务
+  update      仅拉代码 + 拉镜像 + 重启服务
   env         仅重新生成 .env(慎用,会覆盖已有密钥)
   status      查看容器状态
   logs        查看实时日志
   vhost       仅重新配置宝塔 vhost
   verify      仅执行验证
+
+环境变量:
+  GHCR_TOKEN   GitHub PAT(packages:read),拉取私有镜像用(首次部署和 update 必须设置)
+  GHCR_OWNER   镜像 owner(默认 moonlight2893267956)
+
+日常更新推荐直接推送 main,CI 会自动部署(无需手动跑此脚本)
 EOF
 }
 
@@ -385,6 +409,7 @@ case "$cmd" in
     fi
     step_wait_infra
     step_temp_insecure_cookie
+    step_login_ghcr
     step_deploy_services
     step_ensure_vhost
     step_verify
@@ -392,6 +417,7 @@ case "$cmd" in
     ;;
   update)
     step_pull_code
+    step_login_ghcr
     step_deploy_services
     grn "\n✓ 更新完成"
     ;;

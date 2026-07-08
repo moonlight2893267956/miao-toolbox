@@ -174,6 +174,75 @@ docker logs -f miao-toolbox-api-dev
 docker compose -f docker-compose.dev.yml --profile containerized down
 ```
 
+## CI/CD 自动部署
+
+推送 `main` 分支即自动触发完整流水线：测试 → 构建镜像推送 GHCR → SSH 部署到生产服务器。
+
+### 流水线阶段
+
+| 阶段 | 说明 |
+|---|---|
+| `test` | 运行后端 Maven 测试 + 前端 typecheck/lint/build |
+| `build-and-push` | 构建 api/web 镜像，推送至 GHCR（双标签 `:latest` + `:sha-<短哈希>`） |
+| `deploy` | SSH 到 VPS：探活 miao-infra → 拉取镜像 → 重启服务 → 健康检查 |
+
+工作流定义见 [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)。
+
+### 所需 GitHub Actions 配置
+
+在仓库 **Settings → Secrets and variables → Actions** 中配置：
+
+**Secrets（敏感，不可见）**
+
+| Secret | 说明 |
+|---|---|
+| `DEPLOY_SSH_KEY` | VPS SSH 私钥（用于 `yunmiao@yunmiao.site` 登录） |
+| `DEPLOY_GHCR_TOKEN` | GitHub PAT（`packages:read` 权限，服务器拉取私有镜像用） |
+
+**Variables（非敏感，明文可见）**
+
+| Variable | 值 |
+|---|---|
+| `DEPLOY_HOST` | 服务器地址（`yunmiao.site`） |
+| `DEPLOY_USER` | SSH 用户名（`yunmiao`） |
+
+> `GITHUB_TOKEN`（GitHub 自动提供）用于推送镜像到 GHCR，无需额外配置。
+
+### 首次部署（Bootstrap）
+
+CI 自动部署前，需先在本地执行一次 bootstrap 脚本，完成一次性配置（生成 `.env`、配置宝塔 vhost、首次拉取镜像启动）：
+
+```bash
+# 设置 GHCR 拉取令牌（GitHub PAT，需 packages:read 权限）
+export GHCR_TOKEN=ghp_xxxxx
+
+# 执行首次部署
+./scripts/deploy-to-yunmiao.sh
+```
+
+之后每次推送 `main` 即自动部署，无需手动操作。
+
+### 回滚
+
+镜像同时保留 `:latest` 和 `:sha-<短哈希>` 标签。回滚步骤：
+
+```bash
+# 1. SSH 到服务器
+ssh yunmiao@yunmiao.site
+
+# 2. 修改镜像 tag 为目标版本（以 sha-abc1234 为例）
+cd /opt/miao-toolbox
+sed -i 's|miao-toolbox-api:latest|miao-toolbox-api:sha-abc1234|' docker-compose.prod.yml
+sed -i 's|miao-toolbox-web:latest|miao-toolbox-web:sha-abc1234|' docker-compose.prod.yml
+
+# 3. 重启
+docker compose -f docker-compose.prod.yml --env-file .env up -d --no-build
+
+# 4. 验证后改回 latest
+sed -i 's|miao-toolbox-api:sha-abc1234|miao-toolbox-api:latest|' docker-compose.prod.yml
+sed -i 's|miao-toolbox-web:sha-abc1234|miao-toolbox-web:latest|' docker-compose.prod.yml
+```
+
 ## 配置说明
 
 ### 后端 Profile 机制

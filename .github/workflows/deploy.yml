@@ -1,0 +1,154 @@
+name: Deploy
+
+# 推送 main 自动部署；也支持手动触发
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 同一时间只允许一个部署流水线运行，排队而非取消（避免中断正在进行的部署）
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Job 1: 测试闸门（复用 ci.yml 逻辑，确保部署前代码质量）
+  # ─────────────────────────────────────────────
+  test:
+    name: 测试闸门
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: 运行 API 测试
+        working-directory: miao-toolbox-api
+        run: ./mvnw test --batch-mode
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: miao-toolbox-web/package-lock.json
+
+      - name: 安装前端依赖
+        working-directory: miao-toolbox-web
+        run: npm ci
+
+      - name: TypeScript 类型检查
+        working-directory: miao-toolbox-web
+        run: npm run typecheck
+
+      - name: ESLint 检查
+        working-directory: miao-toolbox-web
+        run: npm run lint
+
+      - name: 前端生产构建
+        working-directory: miao-toolbox-web
+        run: npm run build
+
+  # ─────────────────────────────────────────────
+  # Job 2: 构建并推送镜像到 GHCR（双标签 :latest + :sha-<短哈希>）
+  # ─────────────────────────────────────────────
+  build-and-push:
+    name: 构建并推送镜像
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 登录 GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 生成镜像元数据
+        id: meta
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          SHA_SHORT=${GITHUB_SHA::7}
+          {
+            echo "api_image=ghcr.io/${REPO_LOWER}-api"
+            echo "web_image=ghcr.io/${REPO_LOWER}-web"
+            echo "sha_short=${SHA_SHORT}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: 构建并推送 API 镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: ./miao-toolbox-api
+          file: ./miao-toolbox-api/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.api_image }}:latest
+            ${{ steps.meta.outputs.api_image }}:sha-${{ steps.meta.outputs.sha_short }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+
+      - name: 构建并推送 Web 镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: ./miao-toolbox-web
+          file: ./miao-toolbox-web/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.web_image }}:latest
+            ${{ steps.meta.outputs.web_image }}:sha-${{ steps.meta.outputs.sha_short }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+  # ─────────────────────────────────────────────
+  # Job 3: SSH 到 VPS 拉取镜像并重启
+  # ─────────────────────────────────────────────
+  deploy:
+    name: 部署到生产
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 SSH 密钥
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: 传输 compose 文件和部署脚本到服务器
+        run: |
+          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p /opt/miao-toolbox"
+          scp -i ~/.ssh/deploy_key docker-compose.prod.yml "$DEPLOY_USER@$DEPLOY_HOST:/opt/miao-toolbox/"
+          scp -i ~/.ssh/deploy_key scripts/deploy-remote.sh "$DEPLOY_USER@$DEPLOY_HOST:/tmp/deploy-remote.sh"
+
+      - name: 执行远程部署
+        run: |
+          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" \
+            "chmod +x /tmp/deploy-remote.sh && GHCR_TOKEN='${{ secrets.DEPLOY_GHCR_TOKEN }}' GHCR_OWNER='${{ github.repository_owner }}' /tmp/deploy-remote.sh"
+
+      - name: 部署失败提示
+        if: failure()
+        run: |
+          echo "::error::部署失败!请检查上方日志"
+          echo "排查步骤:"
+          echo "  1. SSH 到服务器: ssh $DEPLOY_USER@$DEPLOY_HOST"
+          echo "  2. 查看日志: cd /opt/miao-toolbox && docker compose -f docker-compose.prod.yml logs --tail=50"
+          echo "  3. 回滚: 修改 docker-compose.prod.yml 的 image tag 为旧 sha,重新 docker compose up -d"

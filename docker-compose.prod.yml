@@ -16,9 +16,7 @@ name: miao-toolbox
 
 services:
   api:
-    build:
-      context: ./miao-toolbox-api
-      dockerfile: Dockerfile
+    # 镜像由 CI 构建推送至 GHCR，服务器纯拉取（不再本地 build）
     image: ghcr.io/moonlight2893267956/miao-toolbox-api:latest
     restart: unless-stopped
     # 不再 depends_on mysql/redis(跨 compose 不支持)
@@ -116,9 +114,7 @@ services:
           memory: 1G
 
   web:
-    build:
-      context: ./miao-toolbox-web
-      dockerfile: Dockerfile
+    # 镜像由 CI 构建推送至 GHCR，服务器纯拉取（不再本地 build）
     image: ghcr.io/moonlight2893267956/miao-toolbox-web:latest
     restart: unless-stopped
     depends_on:
