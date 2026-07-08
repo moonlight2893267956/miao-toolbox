@@ -17,7 +17,8 @@ name: miao-toolbox
 services:
   api:
     # 镜像由 CI 构建推送至 GHCR，服务器纯拉取（不再本地 build）
-    image: ghcr.io/moonlight2893267956/miao-toolbox-api:latest
+    # IMAGE_TAG 默认 latest；回滚时由部署脚本/CI 传入旧 sha 标签
+    image: ghcr.io/moonlight2893267956/miao-toolbox-api:${IMAGE_TAG:-latest}
     restart: unless-stopped
     # 不再 depends_on mysql/redis(跨 compose 不支持)
     # 启动期间允许 unhealthy,等 miao-infra 就绪 + Spring Boot/HikariCP 重试兜底
@@ -115,7 +116,8 @@ services:
 
   web:
     # 镜像由 CI 构建推送至 GHCR，服务器纯拉取（不再本地 build）
-    image: ghcr.io/moonlight2893267956/miao-toolbox-web:latest
+    # IMAGE_TAG 默认 latest；回滚时由部署脚本/CI 传入旧 sha 标签
+    image: ghcr.io/moonlight2893267956/miao-toolbox-web:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       - api

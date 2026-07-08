@@ -23,6 +23,10 @@ COMPOSE_CMD="docker compose -f $COMPOSE_FILE --env-file $ENV_FILE"
 GHCR_TOKEN="${GHCR_TOKEN:?必须设置 GHCR_TOKEN}"
 GHCR_OWNER="${GHCR_OWNER:?必须设置 GHCR_OWNER}"
 
+# 部署的镜像标签：默认 latest；回滚时由 CI 传入旧 sha 标签
+IMAGE_TAG="${IMAGE_TAG:-latest}"
+export IMAGE_TAG
+
 # ===== 工具函数 =====
 red() { printf "\033[31m%s\033[0m\n" "$*"; }
 grn() { printf "\033[32m%s\033[0m\n" "$*"; }
@@ -185,11 +189,15 @@ step_health_check() {
 
 step_summary() {
   hdr "5. 部署摘要"
+  echo "  本次部署镜像标签: IMAGE_TAG=${IMAGE_TAG}"
   $COMPOSE_CMD ps
   echo ""
   echo "  当前镜像:"
   $COMPOSE_CMD images 2>/dev/null || true
   echo ""
+  if [ "$IMAGE_TAG" != "latest" ]; then
+    ylw "  ⚠ 当前为回滚/指定版本($IMAGE_TAG),下次推 main 会自动拉回 latest"
+  fi
   grn "🎉 部署完成!"
 }
 

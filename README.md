@@ -224,24 +224,28 @@ export GHCR_TOKEN=ghp_xxxxx
 
 ### 回滚
 
-镜像同时保留 `:latest` 和 `:sha-<短哈希>` 标签。回滚步骤：
+每次构建都会给镜像打双标签 `:latest` 和 `:sha-<短哈希>`，旧版本镜像永久保留在 GHCR，可直接回滚。
+
+**方式一：GitHub Actions 一键回滚（推荐）**
+
+1. 打开仓库 **Actions → Deploy** 工作流，点 **Run workflow**
+2. **分支**选 `main`，**deploy_tag** 填要回滚到的版本（如 `sha-a1b2c3d`，可在 GHCR Packages 或 `git log --oneline` 查 7 位短哈希）
+3. 留空则等同普通重新部署 `:latest`
+4. 点击运行，流水线会跳过测试与构建，直接 SSH 到服务器拉取该 `sha` 标签并重启
+
+> 回滚后服务运行在指定 `sha` 版本；之后若再次推送 `main`，会自动拉回 `:latest`（即最新代码），相当于"回滚态"被新发布覆盖。
+
+**方式二：服务器手动回滚（紧急/无网络时）**
 
 ```bash
-# 1. SSH 到服务器
 ssh yunmiao@yunmiao.site
-
-# 2. 修改镜像 tag 为目标版本（以 sha-abc1234 为例）
 cd /opt/miao-toolbox
-sed -i 's|miao-toolbox-api:latest|miao-toolbox-api:sha-abc1234|' docker-compose.prod.yml
-sed -i 's|miao-toolbox-web:latest|miao-toolbox-web:sha-abc1234|' docker-compose.prod.yml
-
-# 3. 重启
-docker compose -f docker-compose.prod.yml --env-file .env up -d --no-build
-
-# 4. 验证后改回 latest
-sed -i 's|miao-toolbox-api:sha-abc1234|miao-toolbox-api:latest|' docker-compose.prod.yml
-sed -i 's|miao-toolbox-web:sha-abc1234|miao-toolbox-web:latest|' docker-compose.prod.yml
+# 临时把镜像 tag 改为目标版本（以 sha-abc1234 为例）
+IMAGE_TAG=sha-abc1234 docker compose -f docker-compose.prod.yml --env-file .env pull
+IMAGE_TAG=sha-abc1234 docker compose -f docker-compose.prod.yml --env-file .env up -d --no-build
 ```
+
+> compose 中 image 使用 `:${IMAGE_TAG:-latest}`，手动指定 `IMAGE_TAG` 即可拉取旧版本，无需改文件。
 
 ## 配置说明
 

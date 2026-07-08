@@ -1,10 +1,16 @@
 name: Deploy
 
-# 推送 main 自动部署；也支持手动触发
+# 推送 main 自动部署（构建并上线 latest）；
+# 手动触发(workflow_dispatch)可填 deploy_tag=sha-xxxx 直接回滚到旧版本（跳过测试与构建）
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      deploy_tag:
+        description: '镜像标签。留空=部署 latest（普通发布）；填 sha-xxxx 回滚到指定版本'
+        required: false
+        default: ''
 
 # 同一时间只允许一个部署流水线运行，排队而非取消（避免中断正在进行的部署）
 concurrency:
@@ -18,6 +24,7 @@ jobs:
   test:
     name: 测试闸门
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -62,6 +69,7 @@ jobs:
   build-and-push:
     name: 构建并推送镜像
     needs: test
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -120,12 +128,15 @@ jobs:
   # ─────────────────────────────────────────────
   deploy:
     name: 部署到生产
-    needs: build-and-push
+    # 普通发布(push)需先构建；手动回滚(dispatch)直接部署旧 tag，跳过构建
+    needs: ${{ github.event_name == 'push' && fromJSON('["build-and-push"]') || fromJSON('[]') }}
     runs-on: ubuntu-latest
     environment: prod
     env:
       DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
       DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+      # 回滚时取输入的 deploy_tag；普通发布为 latest
+      IMAGE_TAG: ${{ github.event.inputs.deploy_tag || 'latest' }}
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -146,7 +157,7 @@ jobs:
       - name: 执行远程部署
         run: |
           ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" \
-            "chmod +x /tmp/deploy-remote.sh && GHCR_TOKEN='${{ secrets.DEPLOY_GHCR_TOKEN }}' GHCR_OWNER='${{ github.repository_owner }}' /tmp/deploy-remote.sh"
+            "chmod +x /tmp/deploy-remote.sh && IMAGE_TAG='${{ env.IMAGE_TAG }}' GHCR_TOKEN='${{ secrets.DEPLOY_GHCR_TOKEN }}' GHCR_OWNER='${{ github.repository_owner }}' /tmp/deploy-remote.sh"
 
       - name: 部署失败提示
         if: failure()
@@ -155,4 +166,4 @@ jobs:
           echo "排查步骤:"
           echo "  1. SSH 到服务器: ssh $DEPLOY_USER@$DEPLOY_HOST"
           echo "  2. 查看日志: cd /opt/miao-toolbox && docker compose -f docker-compose.prod.yml logs --tail=50"
-          echo "  3. 回滚: 修改 docker-compose.prod.yml 的 image tag 为旧 sha,重新 docker compose up -d"
+          echo "  3. 回滚: 在 Actions → Deploy → Run workflow,deploy_tag 填旧 sha（如 sha-a1b2c3d）"
