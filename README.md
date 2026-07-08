@@ -228,10 +228,9 @@ export GHCR_TOKEN=ghp_xxxxx
 
 **方式一：GitHub Actions 一键回滚（推荐）**
 
-1. 打开仓库 **Actions → Deploy** 工作流，点 **Run workflow**
-2. **分支**选 `main`，**deploy_tag** 填要回滚到的版本（如 `sha-a1b2c3d`，可在 GHCR Packages 或 `git log --oneline` 查 7 位短哈希）
-3. 留空则等同普通重新部署 `:latest`
-4. 点击运行，流水线会跳过测试与构建，直接 SSH 到服务器拉取该 `sha` 标签并重启
+1. 打开仓库 **Actions → Rollback** 工作流，点 **Run workflow**
+2. **deploy_tag** 填要回滚到的版本（必填，如 `sha-a1b2c3d`，可在 GHCR Packages 或 `git log --oneline` 查 7 位短哈希）
+3. 点击运行，流水线会跳过测试与构建，直接 SSH 到服务器拉取该 `sha` 标签并重启
 
 > 回滚后服务运行在指定 `sha` 版本；之后若再次推送 `main`，会自动拉回 `:latest`（即最新代码），相当于"回滚态"被新发布覆盖。
 

@@ -1,0 +1,59 @@
+name: Rollback
+
+# 手动触发：填 deploy_tag=sha-xxxx 直接回滚到旧版本
+# 跳过测试与构建，仅 SSH 到服务器拉取该 sha 标签并重启
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_tag:
+        description: '要回滚到的镜像标签，例如 sha-a1b2c3d（可在 GHCR Packages 或 `git log --oneline` 查 7 位短哈希）'
+        required: true
+
+# 同一时间只允许一个部署流水线运行，排队而非取消（避免中断正在进行的部署）
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  # ─────────────────────────────────────────────
+  # 回滚：直接拉取旧 sha 标签镜像并重启（无测试、无构建）
+  # ─────────────────────────────────────────────
+  deploy:
+    name: 回滚到指定版本
+    runs-on: ubuntu-latest
+    environment: prod
+    env:
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+      # 回滚目标标签，由手动输入提供
+      IMAGE_TAG: ${{ github.event.inputs.deploy_tag }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 SSH 密钥
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: 传输 compose 文件和部署脚本到服务器
+        run: |
+          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p /opt/miao-toolbox"
+          scp -i ~/.ssh/deploy_key docker-compose.prod.yml "$DEPLOY_USER@$DEPLOY_HOST:/opt/miao-toolbox/"
+          scp -i ~/.ssh/deploy_key scripts/deploy-remote.sh "$DEPLOY_USER@$DEPLOY_HOST:/tmp/deploy-remote.sh"
+
+      - name: 执行远程回滚
+        run: |
+          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" \
+            "chmod +x /tmp/deploy-remote.sh && IMAGE_TAG='${{ env.IMAGE_TAG }}' GHCR_TOKEN='${{ secrets.DEPLOY_GHCR_TOKEN }}' GHCR_OWNER='${{ github.repository_owner }}' /tmp/deploy-remote.sh"
+
+      - name: 回滚失败提示
+        if: failure()
+        run: |
+          echo "::error::回滚失败!请检查上方日志"
+          echo "排查步骤:"
+          echo "  1. 确认 deploy_tag 填的是历史发布过的 sha 标签（GHCR Packages 中可见）"
+          echo "  2. SSH 到服务器: ssh $DEPLOY_USER@$DEPLOY_HOST"
+          echo "  3. 查看日志: cd /opt/miao-toolbox && docker compose -f docker-compose.prod.yml logs --tail=50"
