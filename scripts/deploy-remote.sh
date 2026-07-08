@@ -116,6 +116,29 @@ step_login_ghcr() {
   grn "  ✓ GHCR 登录成功(user=$GHCR_OWNER)"
 }
 
+step_verify_image() {
+  # 回滚模式：检查目标 sha 标签是否真实存在，避免 pull 时 manifest unknown
+  if [ "$IMAGE_TAG" = "latest" ]; then
+    return 0
+  fi
+  hdr "2.5 验证回滚镜像标签"
+  local repo_lower api_image
+  repo_lower=$(echo "$GHCR_OWNER" | tr '[:upper:]' '[:lower:]')
+  api_image="ghcr.io/${repo_lower}/miao-toolbox-api:${IMAGE_TAG}"
+  echo "  正在检查 ${api_image} ..."
+  if ! docker manifest inspect "$api_image" >/dev/null 2>&1; then
+    red "  ✗ 镜像 ${api_image} 不存在!"
+    red "  该提交可能从未成功运行过 Deploy workflow（build-and-push 阶段）"
+    echo ""
+    echo "  排查步骤:"
+    echo "    1. 确认该提交曾成功推镜像到 GHCR"
+    echo "    2. 在 Packages 页面查看可用标签"
+    echo "    3. 如需恢复最新版本，用 Deploy 工作流（普通发布）或 IMAGE_TAG=latest 手动部署"
+    exit 1
+  fi
+  grn "  ✓ 镜像标签 ${IMAGE_TAG} 存在，将继续回滚"
+}
+
 step_pull_and_up() {
   hdr "3. 拉取镜像并重启服务"
   cd "$REMOTE_DIR"
@@ -206,6 +229,7 @@ step_check_prereqs
 step_wait_infra
 step_ensure_net
 step_login_ghcr
+step_verify_image
 step_pull_and_up
 step_health_check
 step_summary
