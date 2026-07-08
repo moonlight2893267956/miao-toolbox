@@ -49,14 +49,15 @@ services:
         -Dhttps.proxyHost=host.docker.internal
         -Dhttps.proxyPort=7890
         -Dhttp.nonProxyHosts=miao-mysql|miao-redis|miao-backend|api|web|localhost|127.*|*.yunmiao.site|10.*|172.16.*|172.17.*|172.18.*|192.168.*|172.19.*|host.docker.internal
-      # 数据库(由 miao-infra 提供)
+      # 数据库(由 miao-infra 提供；生产指向远端 ts.yunmiao.site 见 .env 的 MYSQL_HOST/PORT)
       # characterEncoding 必须是 Java 识别的 charset 名(UTF-8),不是 MySQL 服务端的 utf8mb4
-      MYSQL_URL: jdbc:mysql://miao-mysql:3306/${MYSQL_DATABASE:-miao_toolbox}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      # useSSL=true&trustServerCertificate=true: 跨公网连接启用 TLS 加密(远端 MySQL 为自签证书,跳过校验),与 miao-ai 一致
+      MYSQL_URL: jdbc:mysql://${MYSQL_HOST:-miao-mysql}:${MYSQL_PORT:-3306}/${MYSQL_DATABASE:-miao_toolbox}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=true&trustServerCertificate=true
       MYSQL_USER: ${MYSQL_USER:?必须设置 MYSQL_USER(miao-infra 生成的 .env 中)}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?必须设置 MYSQL_PASSWORD(miao-infra 生成的 .env 中)}
-      # Redis(由 miao-infra 提供)
-      REDIS_HOST: miao-redis
-      REDIS_PORT: 6379
+      # Redis(由 miao-infra 提供；生产指向远端 ts.yunmiao.site 见 .env 的 REDIS_HOST/PORT)
+      REDIS_HOST: ${REDIS_HOST:-miao-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_USERNAME: ${REDIS_USERNAME:-}
       REDIS_PASSWORD: ${REDIS_PASSWORD:?必须设置 REDIS_PASSWORD(miao-infra 生成的 .env 中)}
       # JWT(必填)
