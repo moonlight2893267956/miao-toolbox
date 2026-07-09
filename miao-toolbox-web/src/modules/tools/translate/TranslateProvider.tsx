@@ -10,6 +10,10 @@ function reducer(state: TranslateState, action: TranslateAction): TranslateState
   switch (action.type) {
     case 'SET_ACTIVE_TAB':
       return { ...state, activeTab: action.payload };
+    case 'SET_PREFILL':
+      return { ...state, prefill: action.payload };
+    case 'CLEAR_PREFILL':
+      return { ...state, prefill: undefined };
     default:
       return state;
   }

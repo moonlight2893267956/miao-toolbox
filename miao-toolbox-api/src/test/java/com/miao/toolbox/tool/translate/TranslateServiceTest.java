@@ -1,0 +1,111 @@
+package com.miao.toolbox.tool.translate;
+
+import com.miao.toolbox.common.exception.BusinessException;
+import com.miao.toolbox.proxy.client.BaiduTranslateClient;
+import com.miao.toolbox.tool.translate.dto.DetectRequest;
+import com.miao.toolbox.tool.translate.dto.DetectResponse;
+import com.miao.toolbox.tool.translate.dto.TranslateRequest;
+import com.miao.toolbox.tool.translate.dto.TranslateResponse;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+@DisplayName("TranslateService 业务编排测试")
+class TranslateServiceTest {
+
+    @Mock
+    private BaiduTranslateClient baiduTranslateClient;
+
+    private TranslateService service;
+
+    @BeforeEach
+    void setUp() {
+        service = new TranslateService(baiduTranslateClient);
+    }
+
+    @Test
+    @DisplayName("translate 映射为前端响应（译文拼接 + 源语言 + 字符数）")
+    void translate_mapsResponse() {
+        when(baiduTranslateClient.translate(eq("hello\nhi"), eq("auto"), eq("zh")))
+                .thenReturn(new BaiduTranslateClient.TranslateResult("en", "zh",
+                        List.of(
+                                new BaiduTranslateClient.TranslateItem("hello", "你好"),
+                                new BaiduTranslateClient.TranslateItem("hi", "嗨"))));
+
+        TranslateRequest req = new TranslateRequest();
+        req.setText("hello\nhi");
+        req.setFrom("auto");
+        req.setTo("zh");
+
+        TranslateResponse resp = service.translate(req);
+
+        assertEquals("你好\n嗨", resp.getTranslatedText());
+        assertEquals("en", resp.getFrom());
+        assertEquals(8, resp.getCharCount());
+    }
+
+    @Test
+    @DisplayName("detect 非中文源 → 推荐中文")
+    void detect_recommendsChinese() {
+        when(baiduTranslateClient.detectLanguage("bonjour"))
+                .thenReturn(new BaiduTranslateClient.DetectResult("fr", 0.9,
+                        List.of(new BaiduTranslateClient.DetectedLanguage("fr", 0.9))));
+
+        DetectRequest req = new DetectRequest();
+        req.setText("bonjour");
+
+        DetectResponse resp = service.detect(req);
+
+        assertEquals("fr", resp.getDominant());
+        assertEquals("zh", resp.getRecommendedTarget());
+        assertEquals(1, resp.getResults().size());
+    }
+
+    @Test
+    @DisplayName("detect 中文源 → 推荐英语（FR-7）")
+    void detect_zh_recommendsEnglish() {
+        when(baiduTranslateClient.detectLanguage("你好"))
+                .thenReturn(new BaiduTranslateClient.DetectResult("zh", 1.0,
+                        List.of(new BaiduTranslateClient.DetectedLanguage("zh", 1.0))));
+
+        DetectRequest req = new DetectRequest();
+        req.setText("你好");
+
+        DetectResponse resp = service.detect(req);
+
+        assertEquals("zh", resp.getDominant());
+        assertEquals("en", resp.getRecommendedTarget());
+    }
+
+    @Test
+    @DisplayName("translate 目标语言为空 → 校验异常 400")
+    void translate_emptyTo_throws() {
+        TranslateRequest req = new TranslateRequest();
+        req.setText("x");
+        req.setTo("  ");
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.translate(req));
+        assertEquals(400, ex.getHttpStatus());
+    }
+
+    @Test
+    @DisplayName("detect 文本为空 → 校验异常 400")
+    void detect_emptyText_throws() {
+        DetectRequest req = new DetectRequest();
+        req.setText("");
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.detect(req));
+        assertEquals(400, ex.getHttpStatus());
+    }
+}

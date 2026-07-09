@@ -28,3 +28,8 @@ miao:
         enabled: true
         base-url: http://localhost:8000
         api-key: your-json-repairer-api-key
+  baidu:
+    translate:
+      enabled: true
+      app-id: your-baidu-appid
+      secret: your-baidu-secret

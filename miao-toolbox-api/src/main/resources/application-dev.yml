@@ -70,3 +70,13 @@ miao:
         read-timeout: ${MIAO_AI_AGENT_JSON_REPAIR_READ_TIMEOUT:300000}
         retry-count: ${MIAO_AI_AGENT_JSON_REPAIR_RETRY_COUNT:2}
         retry-interval: ${MIAO_AI_AGENT_JSON_REPAIR_RETRY_INTERVAL:1000}
+  baidu:
+    translate:
+      enabled: ${BAIDU_TRANSLATE_ENABLED:false}
+      app-id: ${BAIDU_APPID:}
+      secret: ${BAIDU_SECRET:}
+      translate-url: ${BAIDU_TRANSLATE_URL:https://fanyi-api.baidu.com/api/trans/vip/translate}
+      detect-url: ${BAIDU_DETECT_URL:https://fanyi-api.baidu.com/api/trans/vip/language}
+      connect-timeout: ${BAIDU_CONNECT_TIMEOUT:5000}
+      read-timeout: ${BAIDU_READ_TIMEOUT:60000}
+      max-concurrency: ${BAIDU_MAX_CONCURRENCY:10}

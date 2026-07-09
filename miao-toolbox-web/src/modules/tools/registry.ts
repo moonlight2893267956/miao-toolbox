@@ -54,20 +54,6 @@ export interface ToolMeta {
  */
 export const toolsRegistry: ToolMeta[] = [
   {
-    key: 'translate',
-    title: '智能翻译',
-    description: '面向日常写作和资料整理的多语言翻译入口。支持中英日韩及欧洲主要语言，保留原文语境与语气。',
-    icon: TranslationOutlined,
-    status: '可用',
-    tags: ['文本', '多语言'],
-    path: '/tools/translate',
-    routeCode: 'TOOL_TRANSLATE',
-    category: 'available',
-    available: true,
-    accentColor: '#6366f1',
-    iconBg: 'rgba(99,102,241,0.12)',
-  },
-  {
     key: 'text-compare',
     title: '文本对照',
     description: '粘贴或上传两段文本，支持字符/词/行级粒度对比，自动识别语言类型并高亮差异。',
@@ -108,6 +94,20 @@ export const toolsRegistry: ToolMeta[] = [
     available: true,
     accentColor: '#5C4FD0',
     iconBg: 'rgba(92,79,208,0.12)',
+  },
+  {
+    key: 'translate',
+    title: '智能翻译',
+    description: '面向日常写作和资料整理的多语言翻译入口。支持中英日韩及欧洲主要语言，保留原文语境与语气。',
+    icon: TranslationOutlined,
+    status: '可用',
+    tags: ['文本', '多语言'],
+    path: '/tools/translate',
+    routeCode: 'TOOL_TRANSLATE',
+    category: 'available',
+    available: true,
+    accentColor: '#6366f1',
+    iconBg: 'rgba(99,102,241,0.12)',
   },
   {
     key: 'image',
