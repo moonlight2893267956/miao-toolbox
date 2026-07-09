@@ -161,18 +161,20 @@ const RsaCodec: React.FC<RsaCodecProps> = ({ state, dispatch, onHistoryAdd }) =>
         </div>
       </div>
 
-      <div className="crypto-hash-top-controls" style={{ padding: 18 }}>
-        <KeyBlock
-          label="公钥 (Public Key)"
-          value={state.publicKey}
-          onChange={(v) => dispatch({ type: 'CRYPTO_RSA_SET_PUBLIC_KEY', payload: v })}
-        />
-        <KeyBlock
-          label="私钥 (Private Key)"
-          value={state.privateKey}
-          onChange={(v) => dispatch({ type: 'CRYPTO_RSA_SET_PRIVATE_KEY', payload: v })}
-        />
-      </div>
+      {(state.publicKey || state.privateKey) && (
+        <div className="crypto-hash-top-controls" style={{ padding: 18 }}>
+          <KeyBlock
+            label="公钥 (Public Key)"
+            value={state.publicKey}
+            onChange={(v) => dispatch({ type: 'CRYPTO_RSA_SET_PUBLIC_KEY', payload: v })}
+          />
+          <KeyBlock
+            label="私钥 (Private Key)"
+            value={state.privateKey}
+            onChange={(v) => dispatch({ type: 'CRYPTO_RSA_SET_PRIVATE_KEY', payload: v })}
+          />
+        </div>
+      )}
 
       <CodecPanel
         input={state.input}
