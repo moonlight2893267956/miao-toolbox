@@ -100,8 +100,12 @@ const InvocationsPage: React.FC = () => {
         status: statusPreset === 'all' ? undefined : statusPreset,
         traceId: traceIdSearchDebounced || undefined,
       };
-      if (dateRange[0]) query.startTime = dateRange[0].startOf('day').toISOString();
-      if (dateRange[1]) query.endTime = dateRange[1].endOf('day').toISOString();
+      // 自定义日期选择器只选到天，因此按天边界；24h/7d/30d 用精确时间
+      const start = dateRange[0] && (timePreset === 'custom' ? dateRange[0].startOf('day') : dateRange[0]);
+      const end = dateRange[1] && (timePreset === 'custom' ? dateRange[1].endOf('day') : dateRange[1]);
+      // 使用无 Z 的本地格式，与后端 DateTimeFormatter.ISO_LOCAL_DATE_TIME 匹配
+      if (start) query.startTime = start.format('YYYY-MM-DDTHH:mm:ss');
+      if (end) query.endTime = end.format('YYYY-MM-DDTHH:mm:ss');
 
       const result = await getAiInvocations(query);
       setData(result.items);
@@ -111,7 +115,7 @@ const InvocationsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, dateRange, agentFilter, statusPreset, traceIdSearchDebounced]);
+  }, [page, pageSize, dateRange, agentFilter, statusPreset, timePreset, traceIdSearchDebounced]);
 
   useEffect(() => { fetchOptions(); }, []);
   useEffect(() => { fetchData(); }, [fetchData]);

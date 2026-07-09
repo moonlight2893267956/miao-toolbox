@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
@@ -131,9 +133,16 @@ public class AiInvocationQueryService {
             return LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         } catch (Exception e) {
             try {
-                return LocalDate.parse(value, DateTimeFormatter.ISO_LOCAL_DATE).atStartOfDay();
+                // 兜底：处理前端可能发送的带 Z/偏移的 ISO 时间，按服务器时区转换
+                return OffsetDateTime.parse(value)
+                        .atZoneSameInstant(ZoneId.systemDefault())
+                        .toLocalDateTime();
             } catch (Exception e2) {
-                return defaultVal;
+                try {
+                    return LocalDate.parse(value, DateTimeFormatter.ISO_LOCAL_DATE).atStartOfDay();
+                } catch (Exception e3) {
+                    return defaultVal;
+                }
             }
         }
     }
