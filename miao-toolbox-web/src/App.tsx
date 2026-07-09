@@ -14,6 +14,7 @@ import ToolsPage from './modules/tools/ToolsPage';
 import TextComparePage from './modules/tools/text-compare';
 import JsonWorkbenchPage from './modules/tools/json-workbench/JsonWorkbenchPage';
 import CryptoPage from './modules/tools/crypto/CryptoPage';
+import TranslatePage from './modules/tools/translate';
 import DashboardPage from './modules/admin/DashboardPage';
 import UserManagePage from './modules/admin/UserManagePage';
 import InvocationsPage from './modules/admin/InvocationsPage';
@@ -47,6 +48,7 @@ function AppRoutes() {
         <Route path="tools/text-compare" element={<RequireRoute code="TOOL_TEXT_COMPARE"><TextComparePage /></RequireRoute>} />
         <Route path="tools/json-workbench" element={<RequireRoute code="TOOL_JSON_WORKBENCH"><JsonWorkbenchPage /></RequireRoute>} />
         <Route path="tools/crypto" element={<RequireRoute code="TOOL_CRYPTO"><CryptoPage /></RequireRoute>} />
+        <Route path="tools/translate" element={<RequireRoute code="TOOL_TRANSLATE"><TranslatePage /></RequireRoute>} />
         <Route path="admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="admin/dashboard" element={<RequireRoute code="ADMIN_DASHBOARD"><DashboardPage /></RequireRoute>} />
         <Route path="admin/invocations" element={<RequireRoute code="ADMIN_INVOCATIONS"><InvocationsPage /></RequireRoute>} />

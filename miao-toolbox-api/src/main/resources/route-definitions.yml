@@ -23,6 +23,14 @@ routes:
     sortOrder: 3
     adminRoute: false
     enabled: true
+  - code: TOOL_TRANSLATE
+    name: 智能翻译
+    path: /tools/translate
+    category: TOOL
+    icon: TranslationOutlined
+    sortOrder: 4
+    adminRoute: false
+    enabled: true
   - code: PAGE_SETTINGS
     name: 个人设置
     path: /settings
