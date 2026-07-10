@@ -1071,6 +1071,28 @@
   box-shadow: 0 10px 24px var(--miao-brand-bg);
 }
 
+/* 图片来源记录：仅展示，不可载入文本面板 */
+.tt-history-item--image {
+  cursor: default;
+}
+
+.tt-history-item--image:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.tt-history-badge {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--miao-brand);
+  background: var(--miao-brand-bg);
+  border: 1px solid color-mix(in srgb, var(--miao-brand) 30%, transparent);
+}
+
 .tt-history-meta {
   display: flex;
   align-items: center;

@@ -139,6 +139,7 @@ const TranslateImagePanel: React.FC = () => {
         target: r.translatedText ?? '',
         from: r.from,
         to: r.to,
+        mode: 'image',
       });
       if (!r.blocks || r.blocks.length === 0) {
         message.info('未识别到文本，请尝试更清晰的图片');

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Button, Tooltip, Segmented } from 'antd';
+import { Button, Tooltip, Segmented, message } from 'antd';
 import {
   HistoryOutlined,
   StarOutlined,
@@ -9,6 +9,7 @@ import {
 import { useTranslateHistory } from './useTranslateHistory';
 import { useTranslateContext } from './useTranslateContext';
 import { LANGUAGE_OPTIONS, type LanguageCode } from './types';
+import type { TranslateHistoryEntry } from './useTranslateHistory';
 
 /**
  * 历史记录 Tab —— 实现 FR-21。
@@ -42,10 +43,15 @@ const TranslateHistoryPanel: React.FC = () => {
     [list, onlyFav],
   );
 
-  const handleLoad = (source: string, from: string, to: string) => {
+  const handleLoad = (e: TranslateHistoryEntry) => {
+    // 图片翻译记录无可用原文（或仅 [图片] 占位），不支持载入文本面板重编辑
+    if (e.mode === 'image' || e.source === '[图片]') {
+      message.info('图片翻译记录暂不支持重新编辑');
+      return;
+    }
     dispatch({
       type: 'SET_PREFILL',
-      payload: { text: source, from: from as LanguageCode, to: to as LanguageCode },
+      payload: { text: e.source, from: e.from as LanguageCode, to: e.to as LanguageCode },
     });
     dispatch({ type: 'SET_ACTIVE_TAB', payload: 'text' });
   };
@@ -86,16 +92,17 @@ const TranslateHistoryPanel: React.FC = () => {
         <div className="tt-history-list">
           {shown.map((e) => (
             <div
-              className="tt-history-item"
+              className={`tt-history-item${e.mode === 'image' ? ' tt-history-item--image' : ''}`}
               key={e.id}
               role="button"
               tabIndex={0}
-              onClick={() => handleLoad(e.source, e.from, e.to)}
-              onKeyDown={(ev) => ev.key === 'Enter' && handleLoad(e.source, e.from, e.to)}
+              onClick={() => handleLoad(e)}
+              onKeyDown={(ev) => ev.key === 'Enter' && handleLoad(e)}
             >
               <div className="tt-history-meta">
                 <span className="tt-history-lang">
                   {langLabel(e.from)} → {langLabel(e.to)}
+                  {e.mode === 'image' && <span className="tt-history-badge">图片</span>}
                 </span>
                 <span className="tt-history-time">{formatTime(e.timestamp)}</span>
               </div>

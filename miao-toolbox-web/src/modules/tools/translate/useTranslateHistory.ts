@@ -25,6 +25,8 @@ export interface TranslateHistoryEntry {
   to: string;
   /** 是否收藏 */
   favorite: boolean;
+  /** 来源：文本翻译 / 图片翻译（FR-8 兼容，旧记录缺省视为 text） */
+  mode?: 'text' | 'image';
 }
 
 const STORAGE_KEY = 'translate-history';
@@ -47,9 +49,18 @@ export function useTranslateHistory() {
   const [list, setList] = useState<TranslateHistoryEntry[]>(() => loadHistory());
 
   const add = useCallback(
-    (entry: { source: string; target: string; from: string; to: string }) => {
+    (
+      entry: {
+        source: string;
+        target: string;
+        from: string;
+        to: string;
+        mode?: 'text' | 'image';
+      },
+    ) => {
       const full: TranslateHistoryEntry = {
         ...entry,
+        mode: entry.mode ?? 'text',
         id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
         timestamp: Date.now(),
         favorite: false,
