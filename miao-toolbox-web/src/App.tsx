@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { App as AntApp } from 'antd';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -5,25 +6,46 @@ import { AuthProvider } from './contexts/AuthContext';
 import RequireAuth from './routes/index';
 import RequireRoute from './routes/RequireRoute';
 import AppLayout from './components/layout/AppLayout';
-import LoginPage from './modules/auth/LoginPage';
-import RegisterPage from './modules/auth/RegisterPage';
-import OAuthCallback from './modules/auth/OAuthCallback';
-import ChangePasswordPage from './modules/auth/ChangePasswordPage';
-import SettingsPage from './modules/settings/SettingsPage';
-import ToolsPage from './modules/tools/ToolsPage';
-import TextComparePage from './modules/tools/text-compare';
-import JsonWorkbenchPage from './modules/tools/json-workbench/JsonWorkbenchPage';
-import CryptoPage from './modules/tools/crypto/CryptoPage';
-import TranslatePage from './modules/tools/translate';
-import DashboardPage from './modules/admin/DashboardPage';
-import UserManagePage from './modules/admin/UserManagePage';
-import InvocationsPage from './modules/admin/InvocationsPage';
-import RoleManagePage from './modules/admin/RoleManagePage';
-import RouteManagePage from './modules/admin/RouteManagePage';
+
+// 路由级懒加载:每个页面拆成独立 chunk,刷新/进入时只加载当前页所需代码,
+// 不再一次性拉取整个应用(含 antd 全家桶),显著缩短首屏与刷新耗时。
+const LoginPage = lazy(() => import('./modules/auth/LoginPage'));
+const RegisterPage = lazy(() => import('./modules/auth/RegisterPage'));
+const OAuthCallback = lazy(() => import('./modules/auth/OAuthCallback'));
+const ChangePasswordPage = lazy(() => import('./modules/auth/ChangePasswordPage'));
+const SettingsPage = lazy(() => import('./modules/settings/SettingsPage'));
+const ToolsPage = lazy(() => import('./modules/tools/ToolsPage'));
+const TextComparePage = lazy(() => import('./modules/tools/text-compare'));
+const JsonWorkbenchPage = lazy(() => import('./modules/tools/json-workbench/JsonWorkbenchPage'));
+const CryptoPage = lazy(() => import('./modules/tools/crypto/CryptoPage'));
+const TranslatePage = lazy(() => import('./modules/tools/translate'));
+const DashboardPage = lazy(() => import('./modules/admin/DashboardPage'));
+const UserManagePage = lazy(() => import('./modules/admin/UserManagePage'));
+const InvocationsPage = lazy(() => import('./modules/admin/InvocationsPage'));
+const RoleManagePage = lazy(() => import('./modules/admin/RoleManagePage'));
+const RouteManagePage = lazy(() => import('./modules/admin/RouteManagePage'));
+
+function PageFallback() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '60vh',
+        color: 'var(--miao-text-secondary)',
+        fontSize: 14,
+      }}
+    >
+      加载中…
+    </div>
+  );
+}
 
 function AppRoutes() {
   return (
-    <Routes>
+    <Suspense fallback={<PageFallback />}>
+      <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/oauth/callback" element={<OAuthCallback />} />
@@ -59,6 +81,7 @@ function AppRoutes() {
       </Route>
       <Route path="*" element={<Navigate to="/tools" replace />} />
     </Routes>
+    </Suspense>
   );
 }
 
