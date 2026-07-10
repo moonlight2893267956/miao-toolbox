@@ -5,6 +5,8 @@ import com.miao.toolbox.proxy.client.BaiduTranslateClient;
 import com.miao.toolbox.tool.translate.dto.DetectRequest;
 import com.miao.toolbox.tool.translate.dto.DetectResponse;
 import com.miao.toolbox.tool.translate.dto.ImageTranslateResponse;
+import com.miao.toolbox.tool.translate.dto.SpeechTranslateRequest;
+import com.miao.toolbox.tool.translate.dto.SpeechTranslateResponse;
 import com.miao.toolbox.tool.translate.dto.TranslateRequest;
 import com.miao.toolbox.tool.translate.dto.TranslateResponse;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -30,6 +33,12 @@ public class TranslateService {
 
     /** 图片大小上限（百度图片翻译 ≤ 4MB） */
     private static final long MAX_IMAGE_BYTES = 4L * 1024 * 1024;
+
+    /** 语音翻译最大音频大小（≤60s@16k/16bit/单声道 ≈ 1.92MB，取 2MB 上限） */
+    private static final long MAX_VOICE_BYTES = 2L * 1024 * 1024;
+
+    /** 百度语音翻译支持的音频格式白名单（webm/opus 不在列，转码归 story-3.2） */
+    private static final Set<String> SUPPORTED_VOICE_FORMATS = Set.of("pcm", "wav", "amr", "m4a");
 
     private final BaiduTranslateClient baiduTranslateClient;
 
@@ -140,5 +149,61 @@ public class TranslateService {
         } catch (IOException e) {
             throw new BusinessException("TRANSLATE_INVALID_REQUEST", "读取图片失败", 400);
         }
+    }
+
+    /**
+     * 语音翻译（FR-12 后端，story-3.1）。
+     *
+     * <p>校验录音非空、目标语言非空、大小 ≤ 2MB、格式白名单（pcm/wav/amr/m4a），
+     * 委托 {@link BaiduTranslateClient#speechTranslate}，映射为前端契约 {@link SpeechTranslateResponse}。
+     * {@code from} 缺省时回传请求值（{@code auto}）；百度未在响应中单独返回源语言。
+     */
+    public SpeechTranslateResponse speechTranslate(SpeechTranslateRequest request) {
+        MultipartFile voice = request.getVoice();
+        if (voice == null || voice.isEmpty()) {
+            throw new BusinessException("TRANSLATE_INVALID_REQUEST", "录音音频不能为空", 400);
+        }
+        String to = request.getTo();
+        if (to == null || to.isBlank()) {
+            throw new BusinessException("TRANSLATE_INVALID_REQUEST", "目标语言不能为空", 400);
+        }
+        if (voice.getSize() > MAX_VOICE_BYTES) {
+            throw new BusinessException("TRANSLATE_INVALID_REQUEST", "录音文件过大（上限 2MB）", 400);
+        }
+        String format = resolveVoiceFormat(request.getFormat(), voice.getOriginalFilename());
+        if (!SUPPORTED_VOICE_FORMATS.contains(format)) {
+            throw new BusinessException("TRANSLATE_INVALID_REQUEST",
+                    "百度语音翻译仅支持 pcm/wav/amr/m4a 格式", 400);
+        }
+        String from = request.getFrom();
+        try {
+            BaiduTranslateClient.SpeechTranslateResult result =
+                    baiduTranslateClient.speechTranslate(voice.getBytes(), format, from, to);
+            return SpeechTranslateResponse.builder()
+                    .from(from)
+                    .to(to)
+                    .sourceText(result.source())
+                    .translatedText(result.target())
+                    .build();
+        } catch (IOException e) {
+            throw new BusinessException("TRANSLATE_INVALID_REQUEST", "读取录音文件失败", 400);
+        }
+    }
+
+    /**
+     * 解析音频格式：优先用显式 {@code format}；缺省时从文件名扩展名推断；
+     * 仍推断不出默认 {@code wav}。
+     */
+    private String resolveVoiceFormat(String format, String filename) {
+        if (format != null && !format.isBlank()) {
+            return format.trim().toLowerCase();
+        }
+        if (filename != null && filename.contains(".")) {
+            String ext = filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
+            if (!ext.isBlank()) {
+                return ext;
+            }
+        }
+        return "wav";
     }
 }

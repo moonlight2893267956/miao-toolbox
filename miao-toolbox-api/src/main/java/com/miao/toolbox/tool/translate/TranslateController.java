@@ -5,6 +5,8 @@ import com.miao.toolbox.common.response.ApiResponse;
 import com.miao.toolbox.tool.translate.dto.DetectRequest;
 import com.miao.toolbox.tool.translate.dto.DetectResponse;
 import com.miao.toolbox.tool.translate.dto.ImageTranslateResponse;
+import com.miao.toolbox.tool.translate.dto.SpeechTranslateRequest;
+import com.miao.toolbox.tool.translate.dto.SpeechTranslateResponse;
 import com.miao.toolbox.tool.translate.dto.TranslateRequest;
 import com.miao.toolbox.tool.translate.dto.TranslateResponse;
 import jakarta.validation.Valid;
@@ -65,5 +67,18 @@ public class TranslateController {
             @RequestParam(value = "from", defaultValue = "auto") String from,
             @RequestParam("to") String to) {
         return ResponseEntity.ok(ApiResponse.success(translateService.imageTranslate(image, from, to)));
+    }
+
+    /**
+     * POST /api/translate/voice — 语音翻译（FR-12，story-3.1）
+     *
+     * <p>以 multipart/form-data 上传录音，{@code from} 可选（默认 {@code auto}），
+     * {@code to} 必填，{@code format} 可选（百度支持 pcm/wav/amr/m4a）。
+     * 响应含识别原文与译文，供 story-3.2（录音 UI）/story-3.3（字幕）消费。
+     */
+    @PostMapping(value = "/voice", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<SpeechTranslateResponse>> speechTranslate(
+            @Valid SpeechTranslateRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(translateService.speechTranslate(request)));
     }
 }

@@ -11,11 +11,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Base64;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,6 +31,7 @@ class BaiduTranslateClientTest {
     private static final String TRANSLATE_URL = "https://translate";
     private static final String DETECT_URL = "https://detect";
     private static final String IMAGE_URL = "https://image";
+    private static final String VOICE_URL = "https://voice";
 
     @Mock
     private RestTemplate restTemplate;
@@ -49,6 +52,8 @@ class BaiduTranslateClientTest {
         properties.setTranslateUrl(TRANSLATE_URL);
         properties.setDetectUrl(DETECT_URL);
         properties.setImageUrl(IMAGE_URL);
+        properties.setVoiceUrl(VOICE_URL);
+        properties.setSecretKey("vsec1");
         properties.setMaxConcurrency(10);
 
         lenient().when(recorder.recordStart(any(), any(), any(), any(), any())).thenReturn(handle);
@@ -276,6 +281,96 @@ class BaiduTranslateClientTest {
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> disabled.imageTranslate("img".getBytes(), "auto", "zh"));
+        assertEquals("TRANSLATE_DISABLED", ex.getErrorCode());
+        assertEquals(503, ex.getHttpStatus());
+        verifyNoInteractions(restTemplate);
+    }
+
+    @Test
+    @DisplayName("speechTranslate 成功解析 data.source/data.target")
+    void speechTranslate_success() {
+        String body = "{\"code\":0,\"msg\":\"Success\",\"data\":{"
+                + "\"source\":\"Hello world\",\"target\":\"你好世界\","
+                + "\"target_tts\":\"V09STERU\"}}";
+        when(restTemplate.postForEntity(eq(VOICE_URL), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(body));
+
+        BaiduTranslateClient.SpeechTranslateResult result =
+                client.speechTranslate("audio".getBytes(), "wav", "en", "zh");
+
+        assertEquals("Hello world", result.source());
+        assertEquals("你好世界", result.target());
+        verify(handle).recordSuccess(isNull(), eq("voice-translate"), isNull(), eq(0), eq(0), eq(0), any());
+    }
+
+    @Test
+    @DisplayName("speechTranslate 实际计算 HMAC-SHA256 签名头 X-Sign/X-Appid/X-Timestamp")
+    void speechTranslate_computesVoiceSignature() {
+        byte[] audio = "fake-audio-bytes".getBytes();
+        String voiceB64 = Base64.getEncoder().encodeToString(audio);
+        when(restTemplate.postForEntity(eq(VOICE_URL), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok("{\"code\":0,\"data\":{\"source\":\"a\",\"target\":\"b\"}}"));
+
+        client.speechTranslate(audio, "wav", "en", "zh");
+
+        ArgumentCaptor<HttpEntity<?>> captor = ArgumentCaptor.forClass(HttpEntity.class);
+        verify(restTemplate).postForEntity(eq(VOICE_URL), captor.capture(), eq(String.class));
+
+        HttpHeaders headers = captor.getValue().getHeaders();
+        assertEquals("app1", headers.getFirst("X-Appid"));
+        assertNotNull(headers.getFirst("X-Timestamp"));
+        assertEquals(10, headers.getFirst("X-Timestamp").length());
+        String expectedSign = BaiduSignUtil.signVoice("app1", "vsec1",
+                headers.getFirst("X-Timestamp"), voiceB64);
+        assertEquals(expectedSign, headers.getFirst("X-Sign"));
+    }
+
+    @Test
+    @DisplayName("speechTranslate 百度返回 code!=0 → 友好异常（不暴露内部码）")
+    void speechTranslate_baiduError() {
+        String body = "{\"code\":6,\"msg\":\"signature error\"}";
+        when(restTemplate.postForEntity(eq(VOICE_URL), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(body));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> client.speechTranslate("a".getBytes(), "wav", "en", "zh"));
+        assertEquals("TRANSLATE_AUTH_FAILED", ex.getErrorCode());
+        assertEquals(502, ex.getHttpStatus());
+    }
+
+    @Test
+    @DisplayName("speechTranslate 百度返回配额错误 → 429 友好提示")
+    void speechTranslate_quotaExhausted() {
+        String body = "{\"code\":9,\"msg\":\"quota exceeded\"}";
+        when(restTemplate.postForEntity(eq(VOICE_URL), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(body));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> client.speechTranslate("a".getBytes(), "wav", "en", "zh"));
+        assertEquals("TRANSLATE_QUOTA_EXHAUSTED", ex.getErrorCode());
+        assertEquals(429, ex.getHttpStatus());
+    }
+
+    @Test
+    @DisplayName("speechTranslate HTTP 网络异常 → 503 服务不可用")
+    void speechTranslate_networkError() {
+        when(restTemplate.postForEntity(eq(VOICE_URL), any(), eq(String.class)))
+                .thenThrow(new RestClientException("boom"));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> client.speechTranslate("a".getBytes(), "wav", "en", "zh"));
+        assertEquals("TRANSLATE_SERVICE_UNAVAILABLE", ex.getErrorCode());
+        assertEquals(503, ex.getHttpStatus());
+    }
+
+    @Test
+    @DisplayName("speechTranslate 未启用 → 503 且不发起请求")
+    void speechTranslate_disabled_throwsWithoutCall() {
+        properties.setEnabled(false);
+        BaiduTranslateClient disabled = new BaiduTranslateClient(restTemplate, properties, recorder);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> disabled.speechTranslate("a".getBytes(), "wav", "en", "zh"));
         assertEquals("TRANSLATE_DISABLED", ex.getErrorCode());
         assertEquals(503, ex.getHttpStatus());
         verifyNoInteractions(restTemplate);

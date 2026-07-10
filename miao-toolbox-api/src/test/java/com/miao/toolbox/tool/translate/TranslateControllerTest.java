@@ -3,6 +3,7 @@ package com.miao.toolbox.tool.translate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miao.toolbox.tool.translate.dto.DetectResponse;
 import com.miao.toolbox.tool.translate.dto.ImageTranslateResponse;
+import com.miao.toolbox.tool.translate.dto.SpeechTranslateResponse;
 import com.miao.toolbox.tool.translate.dto.TranslateResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -104,5 +105,32 @@ class TranslateControllerTest {
                 .andExpect(jsonPath("$.data.to").value("en"))
                 .andExpect(jsonPath("$.data.translatedText").value("Hello"))
                 .andExpect(jsonPath("$.data.renderedImage").value("data:image/png;base64,xxx"));
+    }
+
+    @Test
+    @DisplayName("POST /api/translate/voice 返回语音翻译结果")
+    void speechTranslate_returnsOk() throws Exception {
+        when(translateService.speechTranslate(any())).thenReturn(
+                SpeechTranslateResponse.builder()
+                        .from("auto")
+                        .to("en")
+                        .sourceText("Hello")
+                        .translatedText("你好")
+                        .build());
+
+        MockMultipartFile file = new MockMultipartFile(
+                "voice", "rec.wav", "audio/wav", "x".getBytes());
+
+        mockMvc.perform(multipart("/api/translate/voice")
+                        .file(file)
+                        .param("from", "auto")
+                        .param("to", "en")
+                        .param("format", "wav"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.from").value("auto"))
+                .andExpect(jsonPath("$.data.to").value("en"))
+                .andExpect(jsonPath("$.data.sourceText").value("Hello"))
+                .andExpect(jsonPath("$.data.translatedText").value("你好"));
     }
 }

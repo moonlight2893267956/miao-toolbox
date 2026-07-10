@@ -18,6 +18,9 @@ import org.springframework.stereotype.Component;
  *       secret: ${BAIDU_SECRET:}
  *       translate-url: ${BAIDU_TRANSLATE_URL:...}
  *       detect-url: ${BAIDU_DETECT_URL:...}
+ *       image-url: ${BAIDU_IMAGE_URL:...}
+ *       voice-url: ${BAIDU_VOICE_URL:...}
+ *       secret-key: ${BAIDU_VOICE_SECRET_KEY:${BAIDU_SECRET}}
  *       connect-timeout: ${BAIDU_CONNECT_TIMEOUT:5000}
  *       read-timeout: ${BAIDU_READ_TIMEOUT:60000}
  *       max-concurrency: ${BAIDU_MAX_CONCURRENCY:10}
@@ -47,6 +50,16 @@ public class BaiduTranslateProperties {
 
     /** 图片翻译 API 地址（multipart/form-data） */
     private String imageUrl = "https://fanyi-api.baidu.com/api/trans/sdk/picture";
+
+    /** 语音翻译 API 地址（JSON + HMAC-SHA256 签名） */
+    private String voiceUrl = "https://fanyi-api.baidu.com/api/trans/v2/voicetrans";
+
+    /**
+     * 语音翻译密钥（HMAC-SHA256）。
+     * 百度语音翻译 v2 接口使用独立的 {@code secretKey}，不同于通用/图片翻译的 MD5 {@code secret}。
+     * 默认复用 {@code secret}，若后台二者不同，请在 local 配置单独覆盖。
+     */
+    private String secretKey = "${BAIDU_VOICE_SECRET_KEY:${BAIDU_SECRET}}";
 
     /** HTTP 连接超时（毫秒） */
     private int connectTimeout = 5000;

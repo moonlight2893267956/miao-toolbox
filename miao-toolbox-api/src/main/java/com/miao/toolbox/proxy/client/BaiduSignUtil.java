@@ -1,8 +1,12 @@
 package com.miao.toolbox.proxy.client;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 
 /**
  * 百度翻译签名工具。
@@ -56,6 +60,37 @@ public final class BaiduSignUtil {
      */
     public static String randomSalt() {
         return String.valueOf(System.nanoTime());
+    }
+
+    /**
+     * 生成百度语音翻译 v2 请求签名（HMAC-SHA256）。
+     *
+     * <p>语音翻译 API 与通用/图片翻译的 MD5 签名不同，使用 HMAC-SHA256：
+     * 以平台分配的 {@code secretKey} 为密钥，对 {@code appId + timestamp + voiceBase64}
+     * 做 HMAC-SHA256 运算，结果再 base64 编码，作为请求头 {@code X-Sign}。
+     *
+     * @param appId        百度 appid
+     * @param secretKey    语音翻译密钥（HMAC 密钥）
+     * @param timestamp    10 位 Unix 秒级时间戳
+     * @param voiceBase64  音频 base64 串（与请求体 voice 字段完全一致）
+     * @return base64 编码的 HMAC-SHA256 签名
+     */
+    public static String signVoice(String appId, String secretKey, String timestamp, String voiceBase64) {
+        String input = appId + timestamp + voiceBase64;
+        return hmacSha256Base64(secretKey, input);
+    }
+
+    private static String hmacSha256Base64(String key, String input) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec keySpec = new SecretKeySpec(
+                    key.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            mac.init(keySpec);
+            byte[] raw = mac.doFinal(input.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(raw);
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new IllegalStateException("HMAC-SHA256 不可用", e);
+        }
     }
 
     private static String md5Hex(String input) {

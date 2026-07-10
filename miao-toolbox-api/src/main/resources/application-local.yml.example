@@ -34,3 +34,9 @@ miao:
       app-id: your-baidu-appid
       secret: your-baidu-secret
       image-url: https://fanyi-api.baidu.com/api/trans/sdk/picture
+      # 语音翻译（FR-12, story-3.1）可选配置：
+      # voice-url 省略时使用代码内置默认值，无需配置。
+      # secret-key 省略时自动复用上方 secret（多数账号二者相同）；
+      # 仅当百度后台「语音翻译」使用独立 secretKey 时取消注释并填写：
+      # voice-url: https://fanyi-api.baidu.com/api/trans/v2/voicetrans
+      # secret-key: your-baidu-voice-secret-key

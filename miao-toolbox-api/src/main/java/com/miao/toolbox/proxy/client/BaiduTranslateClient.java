@@ -19,7 +19,10 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
 
 /**
@@ -185,6 +188,49 @@ public class BaiduTranslateClient {
         } catch (Exception e) {
             handle.recordFailure("TRANSLATE_PARSE_ERROR", truncate(e.getMessage()));
             throw new BusinessException("TRANSLATE_FAILED", "解析图片翻译结果失败", 502);
+        }
+    }
+
+    /**
+     * 语音翻译（录音识别 + 翻译）。
+     *
+     * <p>调用百度语音翻译 v2 API（{@code /api/trans/v2/voicetrans}），与通用/图片翻译的
+     * MD5 签名不同，本接口使用 {@code HMAC-SHA256}：以 {@code secretKey} 为密钥，
+     * 对 {@code appId + timestamp + voiceBase64} 签名，置于请求头 {@code X-Sign}。
+     *
+     * @param audio  录音音频原始字节（pcm/wav/amr/m4a）
+     * @param format 音频格式（百度码：pcm/wav/amr/m4a）
+     * @param from   源语言（百度码，{@code auto} 由百度识别）
+     * @param to     目标语言（百度码）
+     * @return 语音翻译结果（识别原文 + 译文）
+     */
+    public SpeechTranslateResult speechTranslate(byte[] audio, String format, String from, String to) {
+        ensureEnabled();
+        String voiceBase64 = Base64.getEncoder().encodeToString(audio);
+        String timestamp = String.valueOf(System.currentTimeMillis() / 1000);
+        String sign = BaiduSignUtil.signVoice(
+                properties.getAppId(), properties.getSecretKey(), timestamp, voiceBase64);
+
+        Map<String, String> headers = new HashMap<>();
+        headers.put("X-Appid", properties.getAppId());
+        headers.put("X-Timestamp", timestamp);
+        headers.put("X-Sign", sign);
+
+        String body = buildVoiceBody(from, to, format, voiceBase64);
+
+        AiInvocationRecorder.InvocationHandle handle =
+                startRecord("baidu-voice", "<audio " + audio.length + " bytes, format=" + format + ">");
+        try {
+            String json = doPostJson(properties.getVoiceUrl(), headers, body);
+            SpeechTranslateResult result = parseSpeechTranslate(json);
+            handle.recordSuccess(null, "voice-translate", null, 0, 0, 0, "sourceLen=" + result.source().length());
+            return result;
+        } catch (BusinessException e) {
+            handle.recordFailure(e.getErrorCode(), truncate(e.getMessage()));
+            throw e;
+        } catch (Exception e) {
+            handle.recordFailure("TRANSLATE_PARSE_ERROR", truncate(e.getMessage()));
+            throw new BusinessException("TRANSLATE_FAILED", "解析语音翻译结果失败", 502);
         }
     }
 
@@ -377,6 +423,98 @@ public class BaiduTranslateClient {
     }
 
     /**
+     * 发送 JSON POST（语音翻译专用，携带自定义鉴权头 {@code X-Appid/X-Timestamp/X-Sign}），
+     * 受信号量守护；网络异常统一映射为友好错误。
+     */
+    private String doPostJson(String url, Map<String, String> headers, String jsonBody) {
+        HttpHeaders httpHeaders = new HttpHeaders();
+        httpHeaders.setContentType(MediaType.APPLICATION_JSON);
+        if (headers != null) {
+            headers.forEach(httpHeaders::set);
+        }
+        HttpEntity<String> entity = new HttpEntity<>(jsonBody, httpHeaders);
+
+        try {
+            semaphore.acquire();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BusinessException("TRANSLATE_INTERRUPTED", "请求被中断", 503);
+        }
+        try {
+            ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return response.getBody();
+            }
+            throw new BusinessException("TRANSLATE_FAILED",
+                    "百度语音翻译返回异常状态: " + response.getStatusCode(), 502);
+        } catch (RestClientException e) {
+            log.warn("Baidu voice translate HTTP error: {}", e.getMessage());
+            throw new BusinessException("TRANSLATE_SERVICE_UNAVAILABLE", "翻译服务暂时不可用，请稍后重试", 503);
+        } finally {
+            semaphore.release();
+        }
+    }
+
+    /** 构造语音翻译 JSON 请求体（from/to/format/voice） */
+    private String buildVoiceBody(String from, String to, String format, String voiceBase64) {
+        try {
+            Map<String, String> m = new HashMap<>();
+            m.put("from", from);
+            m.put("to", to);
+            m.put("format", format);
+            m.put("voice", voiceBase64);
+            return objectMapper.writeValueAsString(m);
+        } catch (Exception e) {
+            throw new BusinessException("TRANSLATE_FAILED", "构建语音翻译请求失败", 502);
+        }
+    }
+
+    /**
+     * 解析语音翻译结果。百度 v2 接口以 {@code code=0} 表示成功，
+     * 业务数据位于 {@code data.source}/{@code data.target}（{@code target_tts} 为译文语音，P2 朗读再消费）。
+     */
+    private SpeechTranslateResult parseSpeechTranslate(String json) {
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(json);
+        } catch (Exception e) {
+            throw new BusinessException("TRANSLATE_FAILED", "解析百度语音响应失败", 502);
+        }
+        int code = root.path("code").asInt(-1);
+        if (code != 0) {
+            String msg = root.path("msg").asText("未知错误");
+            throw mapBaiduVoiceError(code, msg);
+        }
+        JsonNode data = root.get("data");
+        if (data == null) {
+            throw new BusinessException("TRANSLATE_FAILED", "百度语音翻译返回数据为空", 502);
+        }
+        String source = data.path("source").asText("");
+        String target = data.path("target").asText("");
+        String rawTts = data.path("target_tts").asText(null);
+        log.info("Baidu voice fields: sourceLen={}, targetLen={}, ttsLen={}",
+                source.length(), target.length(), rawTts != null ? rawTts.length() : 0);
+        return new SpeechTranslateResult(source, target);
+    }
+
+    /**
+     * 语音翻译错误映射：百度 v2 接口使用 {@code code}/{@code msg} 而非通用接口的
+     * {@code error_code}。基于 msg 语义给出友好中文提示，不暴露百度内部码。
+     */
+    private BusinessException mapBaiduVoiceError(int code, String msg) {
+        String lower = msg == null ? "" : msg.toLowerCase();
+        if (lower.contains("quota") || lower.contains("limit") || lower.contains("额度")
+                || lower.contains("次数") || lower.contains("频率")) {
+            return new BusinessException("TRANSLATE_QUOTA_EXHAUSTED", "本月免费额度已用尽，次月自动恢复", 429);
+        }
+        if (lower.contains("sign") || lower.contains("signature")
+                || lower.contains("auth") || lower.contains("鉴权") || lower.contains("密钥")) {
+            return new BusinessException("TRANSLATE_AUTH_FAILED", "翻译服务鉴权失败，请联系管理员", 502);
+        }
+        return new BusinessException("TRANSLATE_FAILED", "语音翻译失败：" + (msg == null ? "未知错误" : msg), 502);
+    }
+
+    /**
      * 解析图片翻译结果。百度实测响应将 content/sumSrc/sumDst/pasteImg 置于 {@code data} 对象内；
      * 兼容 content 位于根节点（部分文档形态）。
      */
@@ -471,5 +609,9 @@ public class BaiduTranslateClient {
 
     /** 文本块多边形顶点（百度 points 数组） */
     public record ImagePoint(int x, int y) {
+    }
+
+    /** 语音翻译结果（识别原文 + 译文） */
+    public record SpeechTranslateResult(String source, String target) {
     }
 }

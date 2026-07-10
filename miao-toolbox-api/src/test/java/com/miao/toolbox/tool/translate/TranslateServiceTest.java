@@ -5,6 +5,8 @@ import com.miao.toolbox.proxy.client.BaiduTranslateClient;
 import com.miao.toolbox.tool.translate.dto.DetectRequest;
 import com.miao.toolbox.tool.translate.dto.DetectResponse;
 import com.miao.toolbox.tool.translate.dto.ImageTranslateResponse;
+import com.miao.toolbox.tool.translate.dto.SpeechTranslateRequest;
+import com.miao.toolbox.tool.translate.dto.SpeechTranslateResponse;
 import com.miao.toolbox.tool.translate.dto.TranslateRequest;
 import com.miao.toolbox.tool.translate.dto.TranslateResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -178,5 +180,94 @@ class TranslateServiceTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.imageTranslate(file, "auto", "en"));
         assertEquals(400, ex.getHttpStatus());
+    }
+
+    @Test
+    @DisplayName("speechTranslate 映射为前端响应（source/target/from/to）")
+    void speechTranslate_mapsResponse() throws IOException {
+        byte[] bytes = "audio".getBytes(StandardCharsets.UTF_8);
+        when(baiduTranslateClient.speechTranslate(eq(bytes), eq("wav"), eq("auto"), eq("en")))
+                .thenReturn(new BaiduTranslateClient.SpeechTranslateResult("Hello", "你好"));
+
+        MockMultipartFile file = new MockMultipartFile("voice", "rec.wav", "audio/wav", bytes);
+        SpeechTranslateRequest req = new SpeechTranslateRequest();
+        req.setVoice(file);
+        req.setFrom("auto");
+        req.setTo("en");
+        req.setFormat("wav");
+
+        SpeechTranslateResponse resp = service.speechTranslate(req);
+
+        assertEquals("auto", resp.getFrom());
+        assertEquals("en", resp.getTo());
+        assertEquals("Hello", resp.getSourceText());
+        assertEquals("你好", resp.getTranslatedText());
+    }
+
+    @Test
+    @DisplayName("speechTranslate 录音为空 → 400")
+    void speechTranslate_empty_throws() {
+        MockMultipartFile file = new MockMultipartFile("voice", "", "audio/wav", new byte[0]);
+        SpeechTranslateRequest req = new SpeechTranslateRequest();
+        req.setVoice(file);
+        req.setTo("en");
+        req.setFormat("wav");
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.speechTranslate(req));
+        assertEquals(400, ex.getHttpStatus());
+    }
+
+    @Test
+    @DisplayName("speechTranslate 目标语言为空 → 400")
+    void speechTranslate_emptyTo_throws() {
+        MockMultipartFile file = new MockMultipartFile("voice", "rec.wav", "audio/wav", "x".getBytes());
+        SpeechTranslateRequest req = new SpeechTranslateRequest();
+        req.setVoice(file);
+        req.setTo("  ");
+        req.setFormat("wav");
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.speechTranslate(req));
+        assertEquals(400, ex.getHttpStatus());
+    }
+
+    @Test
+    @DisplayName("speechTranslate 超过 2MB → 400")
+    void speechTranslate_tooLarge_throws() {
+        byte[] big = new byte[2 * 1024 * 1024 + 1];
+        MockMultipartFile file = new MockMultipartFile("voice", "rec.wav", "audio/wav", big);
+        SpeechTranslateRequest req = new SpeechTranslateRequest();
+        req.setVoice(file);
+        req.setTo("en");
+        req.setFormat("wav");
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.speechTranslate(req));
+        assertEquals(400, ex.getHttpStatus());
+    }
+
+    @Test
+    @DisplayName("speechTranslate 格式非法（webm）→ 400 友好提示")
+    void speechTranslate_unsupportedFormat_throws() {
+        byte[] bytes = "audio".getBytes(StandardCharsets.UTF_8);
+        MockMultipartFile file = new MockMultipartFile("voice", "rec.webm", "audio/webm", bytes);
+        SpeechTranslateRequest req = new SpeechTranslateRequest();
+        req.setVoice(file);
+        req.setTo("en");
+        req.setFormat("webm");
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.speechTranslate(req));
+        assertEquals(400, ex.getHttpStatus());
+    }
+
+    @Test
+    @DisplayName("speechTranslate 缺省 format 从文件名扩展名推断为 wav")
+    void speechTranslate_resolvesFormatFromFilename() throws IOException {
+        byte[] bytes = "audio".getBytes(StandardCharsets.UTF_8);
+        when(baiduTranslateClient.speechTranslate(eq(bytes), eq("wav"), eq("auto"), eq("en")))
+                .thenReturn(new BaiduTranslateClient.SpeechTranslateResult("Hello", "你好"));
+
+        MockMultipartFile file = new MockMultipartFile("voice", "rec.wav", "audio/wav", bytes);
+        SpeechTranslateRequest req = new SpeechTranslateRequest();
+        req.setVoice(file);
+        req.setFrom("auto");
+        req.setTo("en");
+
+        SpeechTranslateResponse resp = service.speechTranslate(req);
+        assertEquals("你好", resp.getTranslatedText());
     }
 }
