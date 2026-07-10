@@ -46,7 +46,7 @@ const CopyButton: React.FC<{ value: string }> = ({ value }) => {
     setTimeout(() => setCopied(false), 2000);
   };
   return (
-    <button className="crypto-copy-btn" onClick={handleCopy} style={{ color: copied ? '#4ade80' : undefined }}>
+    <button className="crypto-copy-btn" onClick={handleCopy} style={{ color: copied ? 'var(--miao-success)' : undefined }}>
       {copied ? <CheckOutlined /> : <CopyOutlined />}
     </button>
   );

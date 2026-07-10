@@ -43,7 +43,7 @@ const KeyBlock: React.FC<{
         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--crypto-text-secondary)', textTransform: 'uppercase', letterSpacing: 1 }}>
           {label}
         </span>
-        <button className="crypto-copy-btn" onClick={handleCopy} style={{ color: copied ? '#4ade80' : undefined }}>
+        <button className="crypto-copy-btn" onClick={handleCopy} style={{ color: copied ? 'var(--miao-success)' : undefined }}>
           {copied ? <><CheckOutlined /> 已复制</> : <><CopyOutlined /> 复制</>}
         </button>
       </div>

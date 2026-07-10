@@ -1,17 +1,17 @@
 /* Text Compare - focused side-by-side workbench */
 
 :root {
-  /* Warm World (Left/Original) */
-  --tc-warm-primary: #d97706;
-  --tc-warm-glow: rgba(217, 119, 6, 0.22);
-  --tc-warm-bg: rgba(217, 119, 6, 0.08);
-  --tc-warm-border: rgba(217, 119, 6, 0.32);
+  /* Warm World (Left/Original) — 统一为工具点缀色 */
+  --tc-warm-primary: var(--tool-accent);
+  --tc-warm-glow: color-mix(in srgb, var(--tool-accent) 22%, transparent);
+  --tc-warm-bg: color-mix(in srgb, var(--tool-accent) 8%, transparent);
+  --tc-warm-border: color-mix(in srgb, var(--tool-accent) 32%, transparent);
   
-  /* Cool World (Right/Modified) */
-  --tc-cool-primary: #0284c7;
-  --tc-cool-glow: rgba(2, 132, 199, 0.2);
-  --tc-cool-bg: rgba(2, 132, 199, 0.08);
-  --tc-cool-border: rgba(2, 132, 199, 0.28);
+  /* Cool World (Right/Modified) — 统一为信息色 */
+  --tc-cool-primary: var(--miao-info);
+  --tc-cool-glow: color-mix(in srgb, var(--miao-info) 20%, transparent);
+  --tc-cool-bg: color-mix(in srgb, var(--miao-info) 8%, transparent);
+  --tc-cool-border: color-mix(in srgb, var(--miao-info) 28%, transparent);
   
   /* Neutral/Base */
   --tc-bg: #0d1117;
@@ -27,10 +27,10 @@
   --tc-text-secondary: #a6b0bf;
   --tc-text-tertiary: #788395;
   
-  /* Accents */
-  --tc-accent-added: #16a34a;
-  --tc-accent-removed: #ef4444;
-  --tc-accent-modified: #0284c7;
+  /* Accents — 统一语义色 */
+  --tc-accent-added: var(--miao-success);
+  --tc-accent-removed: var(--miao-error);
+  --tc-accent-modified: var(--miao-info);
   
   /* Typography */
   --tc-font-display: 'Noto Sans SC', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -55,13 +55,13 @@
   --tc-text: #172033;
   --tc-text-secondary: #4f5d73;
   --tc-text-tertiary: #6f7c8f;
-  --tc-warm-bg: rgba(217, 119, 6, 0.1);
-  --tc-cool-bg: rgba(2, 132, 199, 0.1);
-  --tc-warm-border: rgba(217, 119, 6, 0.34);
-  --tc-cool-border: rgba(2, 132, 199, 0.3);
-  --tc-accent-added: #15803d;
-  --tc-accent-removed: #dc2626;
-  --tc-accent-modified: #0369a1;
+  --tc-warm-bg: color-mix(in srgb, var(--tool-accent) 10%, transparent);
+  --tc-cool-bg: color-mix(in srgb, var(--miao-info) 10%, transparent);
+  --tc-warm-border: color-mix(in srgb, var(--tool-accent) 34%, transparent);
+  --tc-cool-border: color-mix(in srgb, var(--miao-info) 30%, transparent);
+  --tc-accent-added: var(--miao-success);
+  --tc-accent-removed: var(--miao-error);
+  --tc-accent-modified: var(--miao-info);
 }
 
 :root[data-theme='light'] .tc-bg-gradient-left {
@@ -85,6 +85,7 @@
 
 /* Page Container */
 .tc-page {
+  --tool-accent: var(--miao-accent-tool-teal);
   position: relative;
   width: 100%;
   min-height: calc(100vh - 36px);
@@ -110,7 +111,7 @@
   left: -10%;
   width: 60%;
   height: 80%;
-  background: radial-gradient(circle, rgba(245, 158, 11, 0.4), transparent 40%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--tool-accent) 40%, transparent), transparent 40%);
   opacity: 0.14;
   filter: blur(100px);
   animation: tc-float-warm 14s ease-in-out infinite;
@@ -122,7 +123,7 @@
   right: -10%;
   width: 60%;
   height: 80%;
-  background: radial-gradient(circle, rgba(6, 182, 212, 0.4), transparent 40%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--miao-info) 40%, transparent), transparent 40%);
   opacity: 0.14;
   filter: blur(100px);
   animation: tc-float-cool 16s ease-in-out infinite;
@@ -239,8 +240,8 @@
 }
 
 .tc-pill.is-active {
-  background: var(--ant-color-primary);
-  color: var(--ant-color-bg-container);
+  background: var(--miao-brand);
+  color: var(--miao-on-brand);
   font-weight: 600;
 }
 
@@ -254,8 +255,8 @@
 }
 
 :root[data-theme='light'] .tc-pill.is-active {
-  color: var(--ant-color-bg-container);
-  background: var(--ant-color-primary);
+  color: var(--miao-on-brand);
+  background: var(--miao-brand);
 }
 
 .tc-pill.is-icon-only .tc-pill-label {
@@ -267,19 +268,19 @@
 }
 
 .tc-compare-btn {
-  background: var(--ant-color-primary);
-  color: var(--ant-color-bg-container) !important;
+  background: var(--miao-brand);
+  color: var(--miao-on-brand) !important;
   font-weight: 600;
-  border-color: var(--ant-color-primary);
-  box-shadow: 0 4px 14px var(--ant-color-primary-bg);
+  border-color: var(--miao-brand);
+  box-shadow: 0 4px 14px var(--miao-brand-bg);
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
 }
 
 .tc-compare-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  background: var(--ant-color-primary-hover);
-  border-color: var(--ant-color-primary-hover);
-  box-shadow: 0 6px 18px var(--ant-color-primary-bg);
+  background: var(--miao-brand-hover);
+  border-color: var(--miao-brand-hover);
+  box-shadow: 0 6px 18px var(--miao-brand-bg);
 }
 
 .tc-compare-btn:disabled {
@@ -315,9 +316,9 @@
   font-weight: 600;
 }
 
-.tc-stat-num.added { color: var(--tc-accent-added); }
-.tc-stat-num.removed { color: var(--tc-accent-removed); }
-.tc-stat-num.modified { color: var(--tc-cool-primary); }
+.tc-stat-num.added { color: var(--miao-success); }
+.tc-stat-num.removed { color: var(--miao-error); }
+.tc-stat-num.modified { color: var(--miao-info); }
 
 .tc-stat-label {
   font-size: 12px;
@@ -425,13 +426,13 @@
 
 .tc-panel-left .tc-panel-tag {
   background: var(--tc-warm-bg);
-  color: var(--tc-warm-primary);
+  color: var(--tool-accent);
   border: 1px solid var(--tc-warm-border);
 }
 
 .tc-panel-right .tc-panel-tag {
   background: var(--tc-cool-bg);
-  color: var(--tc-cool-primary);
+  color: var(--miao-info);
   border: 1px solid var(--tc-cool-border);
 }
 
@@ -503,10 +504,10 @@
 }
 
 .tc-select-compact:hover .ant-select-selector {
-  border-color: var(--ant-color-primary) !important;
+  border-color: var(--miao-brand) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 0 0 3px var(--ant-color-primary-bg),
+    0 0 0 3px var(--miao-brand-bg),
     0 4px 10px rgba(0, 0, 0, 0.3) !important;
 }
 
@@ -538,19 +539,19 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, transparent 0%, var(--ant-color-primary-bg) 100%);
+  background: linear-gradient(180deg, transparent 0%, var(--miao-brand-bg) 100%);
   opacity: 0;
   transition: opacity 0.2s ease;
   pointer-events: none;
 }
 
 .tc-btn:hover {
-  border-color: var(--ant-color-primary);
+  border-color: var(--miao-brand);
   color: #e8f1fa;
   transform: translateY(-1px);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 0 0 3px var(--ant-color-primary-bg),
+    0 0 0 3px var(--miao-brand-bg),
     0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
@@ -562,7 +563,7 @@
   transform: translateY(0);
   box-shadow:
     inset 0 1px 2px rgba(0, 0, 0, 0.3),
-    0 0 0 2px var(--ant-color-primary-bg);
+    0 0 0 2px var(--miao-brand-bg);
 }
 
 .tc-btn:disabled,
@@ -606,11 +607,11 @@
 }
 
 :root[data-theme='light'] .tc-btn:hover {
-  border-color: var(--ant-color-primary);
-  color: var(--ant-color-primary);
+  border-color: var(--miao-brand);
+  color: var(--miao-brand);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 1),
-    0 0 0 3px var(--ant-color-primary-bg),
+    0 0 0 3px var(--miao-brand-bg),
     0 4px 10px rgba(15, 23, 42, 0.08);
 }
 
@@ -723,11 +724,11 @@
 }
 
 .tc-panel .cm-editor.cm-focused .cm-cursor {
-  border-left: 2px solid var(--ant-color-primary);
+  border-left: 2px solid var(--miao-brand);
 }
 
 .tc-panel .cm-editor .cm-selectionBackground {
-  background: var(--ant-color-primary-bg);
+  background: var(--miao-brand-bg);
 }
 
 /* Diff Viewer */
@@ -804,19 +805,19 @@
 }
 
 .tc-diff-line.added {
-  background: rgba(16, 185, 129, 0.1);
+  background: color-mix(in srgb, var(--miao-success) 10%, transparent);
 }
 
 .tc-diff-line.added .tc-diff-marker {
-  color: #10b981;
+  color: var(--miao-success);
 }
 
 .tc-diff-line.removed {
-  background: rgba(239, 68, 68, 0.1);
+  background: color-mix(in srgb, var(--miao-error) 10%, transparent);
 }
 
 .tc-diff-line.removed .tc-diff-marker {
-  color: var(--tc-accent-removed);
+  color: var(--miao-error);
 }
 
 .tc-diff-line.modified {
@@ -824,7 +825,7 @@
 }
 
 .tc-diff-line.modified .tc-diff-marker {
-  color: var(--tc-cool-primary);
+  color: var(--miao-info);
 }
 
 .tc-diff-marker {
@@ -852,11 +853,11 @@
 }
 
 .tc-diff-old-line .tc-diff-marker-inline {
-  color: var(--tc-accent-removed);
+  color: var(--miao-error);
 }
 
 .tc-diff-new-line .tc-diff-marker-inline {
-  color: #10b981;
+  color: var(--miao-success);
 }
 
 .tc-diff-old-text {
@@ -870,14 +871,14 @@
 }
 
 .tc-diff-del {
-  background: rgba(239, 68, 68, 0.2);
+  background: color-mix(in srgb, var(--miao-error) 20%, transparent);
   border-radius: 2px;
   padding: 0 2px;
   text-decoration: line-through;
 }
 
 .tc-diff-add {
-  background: rgba(16, 185, 129, 0.2);
+  background: color-mix(in srgb, var(--miao-success) 20%, transparent);
   border-radius: 2px;
   padding: 0 2px;
 }
@@ -892,18 +893,18 @@
 }
 
 .tc-diff-type.added {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
+  background: color-mix(in srgb, var(--miao-success) 15%, transparent);
+  color: var(--miao-success);
 }
 
 .tc-diff-type.removed {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--tc-accent-removed);
+  background: color-mix(in srgb, var(--miao-error) 10%, transparent);
+  color: var(--miao-error);
 }
 
 .tc-diff-type.modified {
   background: var(--tc-cool-bg);
-  color: var(--tc-cool-primary);
+  color: var(--miao-info);
 }
 
 .tc-lang-tag {
@@ -940,8 +941,8 @@
     height: 2px;
     background: linear-gradient(90deg, 
       transparent 0%,
-      var(--tc-warm-primary) 20%,
-      var(--tc-cool-primary) 80%,
+      var(--tool-accent) 20%,
+      var(--miao-info) 80%,
       transparent 100%
     );
   }
@@ -1009,12 +1010,12 @@
   --tc-text: #eef3f8;
   --tc-text-secondary: #aab7c4;
   --tc-text-tertiary: #748395;
-  --tc-warm-primary: #c96822;
-  --tc-cool-primary: #168aad;
-  --tc-warm-bg: rgba(201, 104, 34, 0.08);
-  --tc-cool-bg: rgba(22, 138, 173, 0.08);
-  --tc-warm-border: rgba(201, 104, 34, 0.36);
-  --tc-cool-border: rgba(22, 138, 173, 0.34);
+  --tc-warm-primary: var(--tool-accent);
+  --tc-cool-primary: var(--miao-info);
+  --tc-warm-bg: color-mix(in srgb, var(--tool-accent) 8%, transparent);
+  --tc-cool-bg: color-mix(in srgb, var(--miao-info) 8%, transparent);
+  --tc-warm-border: color-mix(in srgb, var(--tool-accent) 36%, transparent);
+  --tc-cool-border: color-mix(in srgb, var(--miao-info) 34%, transparent);
   --tc-radius-sm: 6px;
   --tc-radius-md: 8px;
   --tc-radius-lg: 10px;
@@ -1032,8 +1033,8 @@
   --tc-text: #162233;
   --tc-text-secondary: #526274;
   --tc-text-tertiary: #8290a1;
-  --tc-warm-bg: rgba(201, 104, 34, 0.08);
-  --tc-cool-bg: rgba(22, 138, 173, 0.08);
+  --tc-warm-bg: color-mix(in srgb, var(--tool-accent) 8%, transparent);
+  --tc-cool-bg: color-mix(in srgb, var(--miao-info) 8%, transparent);
 }
 
 .miao-shell:has(.tc-page) {
@@ -1183,28 +1184,28 @@
 }
 
 .tc-pill.is-active {
-  background: var(--ant-color-primary);
-  color: var(--ant-color-bg-container);
+  background: var(--miao-brand);
+  color: var(--miao-on-brand);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 .tc-pill.is-active:hover {
-  background: var(--ant-color-primary-hover);
-  color: var(--ant-color-bg-container);
+  background: var(--miao-brand-hover);
+  color: var(--miao-on-brand);
 }
 
 .tc-compare-btn {
-  background: var(--ant-color-primary);
-  border-color: var(--ant-color-primary);
-  color: var(--ant-color-bg-container);
-  box-shadow: 0 8px 18px var(--ant-color-primary-bg);
+  background: var(--miao-brand);
+  border-color: var(--miao-brand);
+  color: var(--miao-on-brand);
+  box-shadow: 0 8px 18px var(--miao-brand-bg);
 }
 
 .tc-compare-btn:hover:not(:disabled) {
-  background: var(--ant-color-primary-hover);
-  border-color: var(--ant-color-primary-hover);
-  color: var(--ant-color-bg-container);
-  box-shadow: 0 10px 22px var(--ant-color-primary-bg);
+  background: var(--miao-brand-hover);
+  border-color: var(--miao-brand-hover);
+  color: var(--miao-on-brand);
+  box-shadow: 0 10px 22px var(--miao-brand-bg);
 }
 
 .tc-stat-card {
@@ -1266,13 +1267,13 @@
 
 .tc-panel-left {
   background:
-    linear-gradient(90deg, rgba(201, 104, 34, 0.12), transparent 120px),
+    linear-gradient(90deg, color-mix(in srgb, var(--tool-accent) 12%, transparent), transparent 120px),
     var(--tc-surface);
 }
 
 .tc-panel-right {
   background:
-    linear-gradient(90deg, rgba(22, 138, 173, 0.12), transparent 120px),
+    linear-gradient(90deg, color-mix(in srgb, var(--miao-info) 12%, transparent), transparent 120px),
     var(--tc-surface);
 }
 
@@ -1463,7 +1464,7 @@
 }
 
 .ai-analysis-icon {
-  color: #7c3aed;
+  color: var(--tool-accent);
   font-size: 14px;
 }
 
@@ -1477,13 +1478,13 @@
   font-size: 11px;
   padding: 1px 8px;
   border-radius: 10px;
-  background: rgba(124, 58, 237, 0.1);
-  color: #7c3aed;
+  background: color-mix(in srgb, var(--tool-accent) 10%, transparent);
+  color: var(--tool-accent);
   font-weight: 500;
 }
 
 .ai-analysis-badge.streaming {
-  background: rgba(124, 58, 237, 0.15);
+  background: color-mix(in srgb, var(--tool-accent) 15%, transparent);
   animation: ai-pulse 1.5s infinite;
 }
 
@@ -1503,7 +1504,7 @@
   padding: 4px 12px;
   border-radius: 6px;
   border: none;
-  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  background: linear-gradient(135deg, var(--tool-accent), var(--tool-accent));
   color: white;
   cursor: pointer;
   font-weight: 500;
@@ -1550,7 +1551,7 @@
   display: inline-block;
   width: 2px;
   height: 1em;
-  background: #7c3aed;
+  background: var(--tool-accent);
   margin-left: 1px;
   vertical-align: text-bottom;
   animation: ai-blink 0.8s step-end infinite;
@@ -1576,7 +1577,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #7c3aed;
+  background: var(--tool-accent);
   animation: ai-dot-bounce 1.4s infinite ease-in-out both;
 }
 
@@ -1590,7 +1591,7 @@
 }
 
 .ai-analysis-error {
-  color: #dc2626;
+  color: var(--miao-error);
   font-size: 13px;
   padding: 8px 0;
 }
@@ -1617,7 +1618,7 @@
 .ai-analysis-section h4 {
   font-size: 12px;
   font-weight: 600;
-  color: #7c3aed;
+  color: var(--tool-accent);
   margin: 0 0 4px 0;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -1649,8 +1650,8 @@
 .ai-hunk-badge {
   font-size: 10px;
   font-weight: 600;
-  color: #7c3aed;
-  background: rgba(124, 58, 237, 0.1);
+  color: var(--tool-accent);
+  background: color-mix(in srgb, var(--tool-accent) 10%, transparent);
   padding: 1px 5px;
   border-radius: 4px;
   flex-shrink: 0;
@@ -1671,12 +1672,12 @@
    ============================================================ */
 
 :root {
-  /* AI 渐变 — 与 warm/cool 主色统一（取代纯紫） */
-  --ai-primary: #f59e0b;
-  --ai-secondary: #06b6d4;
-  --ai-gradient: linear-gradient(135deg, #f59e0b 0%, #06b6d4 100%);
-  --ai-gradient-soft: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(6, 182, 212, 0.12) 100%);
-  --ai-glow: 0 0 28px rgba(245, 158, 11, 0.25);
+  /* AI 渐变 — 与工具点缀色 / 信息色统一 */
+  --ai-primary: var(--tool-accent);
+  --ai-secondary: var(--miao-info);
+  --ai-gradient: linear-gradient(135deg, var(--tool-accent) 0%, var(--miao-info) 100%);
+  --ai-gradient-soft: linear-gradient(135deg, color-mix(in srgb, var(--tool-accent) 12%, transparent) 0%, color-mix(in srgb, var(--miao-info) 12%, transparent) 100%);
+  --ai-glow: 0 0 28px color-mix(in srgb, var(--tool-accent) 25%, transparent);
 }
 
 /* ---- Floating Dock Button (右下角) ---- */
@@ -1702,7 +1703,7 @@
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.06) inset,
     0 10px 32px rgba(0, 0, 0, 0.4),
-    0 0 32px rgba(245, 158, 11, 0.35);
+    0 0 32px color-mix(in srgb, var(--tool-accent) 35%, transparent);
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
   user-select: none;
 }
@@ -1712,7 +1713,7 @@
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.1) inset,
     0 14px 40px rgba(0, 0, 0, 0.5),
-    0 0 48px rgba(6, 182, 212, 0.5);
+    0 0 48px color-mix(in srgb, var(--miao-info) 50%, transparent);
 }
 
 .ai-dock-btn:active {
@@ -1795,8 +1796,8 @@
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at top right, rgba(245, 158, 11, 0.12), transparent 60%),
-    radial-gradient(circle at bottom left, rgba(6, 182, 212, 0.10), transparent 60%);
+    radial-gradient(circle at top right, color-mix(in srgb, var(--tool-accent) 12%, transparent), transparent 60%),
+    radial-gradient(circle at bottom left, color-mix(in srgb, var(--miao-info) 10%, transparent), transparent 60%);
   z-index: 0;
 }
 
@@ -1833,7 +1834,7 @@
   background: var(--ai-gradient);
   color: #050810;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--tool-accent) 30%, transparent);
 }
 
 .ai-drawer-title-block {
@@ -1893,14 +1894,14 @@
 }
 
 .ai-drawer-icon-btn.cancel {
-  background: rgba(239, 68, 68, 0.12);
-  color: #fca5a5;
-  border-color: rgba(239, 68, 68, 0.3);
+  background: color-mix(in srgb, var(--miao-error) 12%, transparent);
+  color: var(--miao-error);
+  border-color: color-mix(in srgb, var(--miao-error) 30%, transparent);
 }
 
 .ai-drawer-icon-btn.cancel:hover {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fecaca;
+  background: color-mix(in srgb, var(--miao-error) 20%, transparent);
+  color: var(--miao-error);
 }
 
 /* Status Bar */
@@ -1929,21 +1930,21 @@
 }
 
 .ai-status-pill.streaming {
-  background: rgba(245, 158, 11, 0.12);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.25);
+  background: color-mix(in srgb, var(--tool-accent) 12%, transparent);
+  color: var(--miao-warning);
+  border: 1px solid color-mix(in srgb, var(--tool-accent) 25%, transparent);
 }
 
 .ai-status-pill.success {
-  background: rgba(16, 185, 129, 0.12);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  background: color-mix(in srgb, var(--miao-success) 12%, transparent);
+  color: var(--miao-success);
+  border: 1px solid color-mix(in srgb, var(--miao-success) 25%, transparent);
 }
 
 .ai-status-pill.error {
-  background: rgba(239, 68, 68, 0.12);
-  color: #fca5a5;
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: color-mix(in srgb, var(--miao-error) 12%, transparent);
+  color: var(--miao-error);
+  border: 1px solid color-mix(in srgb, var(--miao-error) 25%, transparent);
 }
 
 .ai-status-dot {
@@ -2008,7 +2009,7 @@
   display: inline-block;
   width: 2px;
   height: 1.05em;
-  background: linear-gradient(180deg, #f59e0b, #06b6d4);
+  background: linear-gradient(180deg, var(--tool-accent), var(--miao-info));
   margin-left: 2px;
   vertical-align: text-bottom;
   animation: ai-cursor-blink 0.9s step-end infinite;
@@ -2040,8 +2041,8 @@
   height: 64px;
   border-radius: 18px;
   background: var(--ai-gradient-soft);
-  border: 1px solid rgba(245, 158, 11, 0.2);
-  color: #f59e0b;
+  border: 1px solid color-mix(in srgb, var(--tool-accent) 20%, transparent);
+  color: var(--tool-accent);
   margin-bottom: 18px;
   box-shadow: var(--ai-glow);
 }
@@ -2073,13 +2074,13 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--tool-accent) 30%, transparent);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .ai-drawer-cta-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.45);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--tool-accent) 45%, transparent);
 }
 
 /* Loading state */
@@ -2105,7 +2106,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #f59e0b, #06b6d4);
+  background: linear-gradient(135deg, var(--tool-accent), var(--miao-info));
   animation: ai-dot-bounce 1.4s ease-in-out infinite;
 }
 
@@ -2132,7 +2133,7 @@
   align-items: center;
   text-align: center;
   padding: 40px 20px;
-  color: #fca5a5;
+  color: var(--miao-error);
 }
 
 .ai-drawer-error p {
@@ -2145,10 +2146,10 @@
   align-items: center;
   height: 32px;
   padding: 0 16px;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  border: 1px solid color-mix(in srgb, var(--miao-error) 30%, transparent);
   border-radius: 8px;
-  background: rgba(239, 68, 68, 0.1);
-  color: #fca5a5;
+  background: color-mix(in srgb, var(--miao-error) 10%, transparent);
+  color: var(--miao-error);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -2156,7 +2157,7 @@
 }
 
 .ai-drawer-retry-btn:hover {
-  background: rgba(239, 68, 68, 0.2);
+  background: color-mix(in srgb, var(--miao-error) 20%, transparent);
 }
 
 /* Structured output */
@@ -2171,7 +2172,7 @@
   font-family: var(--tc-font-mono);
   font-size: 10px;
   font-weight: 700;
-  color: #f59e0b;
+  color: var(--tool-accent);
   text-transform: uppercase;
   letter-spacing: 0.12em;
 }
@@ -2214,7 +2215,7 @@
   padding: 1px 6px;
   border-radius: 4px;
   background: var(--ai-gradient-soft);
-  color: #f59e0b;
+  color: var(--tool-accent);
   font-family: var(--tc-font-mono);
   font-size: 10px;
   font-weight: 700;
@@ -2300,8 +2301,8 @@
 
 :root[data-theme='light'] .ai-drawer::before {
   background:
-    radial-gradient(circle at top right, rgba(245, 158, 11, 0.18), transparent 60%),
-    radial-gradient(circle at bottom left, rgba(6, 182, 212, 0.15), transparent 60%);
+    radial-gradient(circle at top right, color-mix(in srgb, var(--tool-accent) 18%, transparent), transparent 60%),
+    radial-gradient(circle at bottom left, color-mix(in srgb, var(--miao-info) 15%, transparent), transparent 60%);
 }
 
 :root[data-theme='light'] .ai-drawer-title {

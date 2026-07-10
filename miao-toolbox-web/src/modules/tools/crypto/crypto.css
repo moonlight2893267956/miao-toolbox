@@ -12,17 +12,17 @@
    ============================================================ */
 
 :root {
-  --crypto-accent: #8b5cf6;
-  --crypto-accent-rgb: 139, 92, 246;
-  --crypto-accent-hover: #7c3aed;
-  --crypto-accent-deep: #6d28d9;
-  --crypto-accent-light: rgba(139, 92, 246, 0.10);
-  --crypto-accent-medium: rgba(139, 92, 246, 0.20);
-  --crypto-accent-glow: rgba(139, 92, 246, 0.40);
+  --crypto-accent: var(--miao-brand);
+  --crypto-accent-rgb: 92, 79, 208;
+  --crypto-accent-hover: var(--miao-brand-hover);
+  --crypto-accent-deep: var(--miao-brand-active);
+  --crypto-accent-light: var(--miao-brand-bg);
+  --crypto-accent-medium: var(--miao-brand-bg-hover);
+  --crypto-accent-glow: color-mix(in srgb, var(--miao-brand) 40%, transparent);
 
   --crypto-cyan: #22d3ee;
   --crypto-cyan-rgb: 34, 211, 238;
-  --crypto-green: #4ade80;
+  --crypto-green: var(--miao-success);
   --crypto-amber: #fbbf24;
 
   --crypto-bg: #0c0c14;
@@ -32,19 +32,19 @@
 
   --crypto-terminal-bg: #08080e;
   --crypto-terminal-text: #c9d1d9;
-  --crypto-terminal-green: #4ade80;
-  --crypto-terminal-prompt: #8b5cf6;
+  --crypto-terminal-green: var(--miao-success);
+  --crypto-terminal-prompt: var(--tool-accent);
 
-  --crypto-border: rgba(139, 92, 246, 0.12);
-  --crypto-border-hover: rgba(139, 92, 246, 0.30);
-  --crypto-border-strong: rgba(139, 92, 246, 0.50);
+  --crypto-border: color-mix(in srgb, var(--miao-brand) 12%, transparent);
+  --crypto-border-hover: color-mix(in srgb, var(--miao-brand) 30%, transparent);
+  --crypto-border-strong: color-mix(in srgb, var(--miao-brand) 50%, transparent);
 
   --crypto-text: #e8e4f0;
   --crypto-text-secondary: rgba(232, 228, 240, 0.55);
   --crypto-text-tertiary: rgba(232, 228, 240, 0.30);
 
   --crypto-glass-bg: rgba(20, 20, 36, 0.65);
-  --crypto-glass-border: rgba(139, 92, 246, 0.10);
+  --crypto-glass-border: color-mix(in srgb, var(--miao-brand) 10%, transparent);
   --crypto-glass-blur: 16px;
 
   --crypto-radius-sm: 8px;
@@ -55,8 +55,8 @@
   --crypto-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
   --crypto-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
   --crypto-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
-  --crypto-shadow-glow: 0 0 20px rgba(139, 92, 246, 0.15);
-  --crypto-shadow-glow-strong: 0 0 40px rgba(139, 92, 246, 0.25);
+  --crypto-shadow-glow: 0 0 20px color-mix(in srgb, var(--tool-accent) 15%, transparent);
+  --crypto-shadow-glow-strong: 0 0 40px color-mix(in srgb, var(--tool-accent) 25%, transparent);
 
   --crypto-font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
   --crypto-font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -75,31 +75,31 @@
 
   --crypto-terminal-bg: #f8f6ff;
   --crypto-terminal-text: #171421;
-  --crypto-terminal-green: #16a34a;
-  --crypto-terminal-prompt: #8b5cf6;
+  --crypto-terminal-green: var(--miao-success);
+  --crypto-terminal-prompt: var(--tool-accent);
 
-  --crypto-border: rgba(139, 92, 246, 0.15);
-  --crypto-border-hover: rgba(139, 92, 246, 0.35);
-  --crypto-border-strong: rgba(139, 92, 246, 0.60);
+  --crypto-border: color-mix(in srgb, var(--miao-brand) 15%, transparent);
+  --crypto-border-hover: color-mix(in srgb, var(--miao-brand) 35%, transparent);
+  --crypto-border-strong: color-mix(in srgb, var(--miao-brand) 60%, transparent);
 
   --crypto-text: #171421;
   --crypto-text-secondary: #51475f;
   --crypto-text-tertiary: #746a82;
 
   --crypto-glass-bg: rgba(255, 255, 255, 0.70);
-  --crypto-glass-border: rgba(139, 92, 246, 0.12);
+  --crypto-glass-border: color-mix(in srgb, var(--miao-brand) 12%, transparent);
 
   --crypto-shadow-sm: 0 2px 4px rgba(30, 27, 46, 0.06);
   --crypto-shadow-md: 0 4px 16px rgba(30, 27, 46, 0.08);
   --crypto-shadow-lg: 0 8px 32px rgba(30, 27, 46, 0.10);
-  --crypto-shadow-glow: 0 0 20px rgba(139, 92, 246, 0.08);
-  --crypto-shadow-glow-strong: 0 0 40px rgba(139, 92, 246, 0.12);
+  --crypto-shadow-glow: 0 0 20px color-mix(in srgb, var(--miao-brand) 8%, transparent);
+  --crypto-shadow-glow-strong: 0 0 40px color-mix(in srgb, var(--miao-brand) 12%, transparent);
 }
 
 /* Light theme overrides for output panel */
 :root[data-theme='light'] .crypto-codec-output {
-  border: 1px solid rgba(139, 92, 246, 0.12);
-  box-shadow: var(--crypto-shadow-sm), inset 0 1px 0 rgba(139, 92, 246, 0.03);
+  border: 1px solid color-mix(in srgb, var(--miao-brand) 12%, transparent);
+  box-shadow: var(--crypto-shadow-sm), inset 0 1px 0 color-mix(in srgb, var(--miao-brand) 3%, transparent);
 }
 
 :root[data-theme='light'] .crypto-codec-output::after {
@@ -107,47 +107,47 @@
     0deg,
     transparent,
     transparent 2px,
-    rgba(139, 92, 246, 0.02) 2px,
-    rgba(139, 92, 246, 0.02) 4px
+    color-mix(in srgb, var(--miao-brand) 2%, transparent) 2px,
+    color-mix(in srgb, var(--miao-brand) 2%, transparent) 4px
   );
 }
 
 :root[data-theme='light'] .crypto-codec-output .crypto-panel-header {
-  border-bottom-color: rgba(139, 92, 246, 0.08);
-  background: rgba(139, 92, 246, 0.04);
+  border-bottom-color: color-mix(in srgb, var(--miao-brand) 8%, transparent);
+  background: color-mix(in srgb, var(--miao-brand) 4%, transparent);
 }
 
 :root[data-theme='light'] .crypto-codec-output .crypto-panel-label {
-  color: #8b5cf6;
+  color: var(--tool-accent);
 }
 
 :root[data-theme='light'] .crypto-codec-output .crypto-panel-meta {
-  color: rgba(139, 92, 246, 0.55);
+  color: color-mix(in srgb, var(--tool-accent) 56%, transparent);
 }
 
 :root[data-theme='light'] .crypto-output-empty {
-  color: rgba(139, 92, 246, 0.35);
+  color: color-mix(in srgb, var(--tool-accent) 62%, transparent);
 }
 
 :root[data-theme='light'] .crypto-output-empty::before {
-  color: #8b5cf6;
+  color: var(--tool-accent);
   opacity: 0.5;
 }
 
 :root[data-theme='light'] .crypto-copy-btn {
-  color: #8b5cf6;
-  background: rgba(139, 92, 246, 0.08);
-  border-color: rgba(139, 92, 246, 0.12);
+  color: var(--miao-brand);
+  background: color-mix(in srgb, var(--miao-brand) 8%, transparent);
+  border-color: color-mix(in srgb, var(--miao-brand) 12%, transparent);
 }
 
 :root[data-theme='light'] .crypto-copy-btn:hover {
-  background: rgba(139, 92, 246, 0.15);
-  border-color: rgba(139, 92, 246, 0.25);
+  background: color-mix(in srgb, var(--miao-brand) 15%, transparent);
+  border-color: color-mix(in srgb, var(--miao-brand) 25%, transparent);
 }
 
 :root[data-theme='light'] .crypto-copy-btn.copied {
-  color: #16a34a;
-  border-color: rgba(74, 222, 128, 0.30);
+  color: var(--miao-success);
+  border-color: color-mix(in srgb, var(--miao-success) 30%, transparent);
 }
 
 /* ============================================================
@@ -184,6 +184,7 @@
 }
 
 .crypto-page {
+  --tool-accent: var(--miao-accent-tool-purple);
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -233,13 +234,13 @@
   width: 48px;
   height: 48px;
   border-radius: var(--crypto-radius-md);
-  background: linear-gradient(135deg, #8b5cf6, #6d28d9, #4f46e5);
+  background: linear-gradient(135deg, var(--tool-accent), color-mix(in srgb, var(--tool-accent) 72%, #000), var(--tool-accent));
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
   font-size: 22px;
-  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--tool-accent) 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.15);
   flex-shrink: 0;
   position: relative;
 }
@@ -282,12 +283,12 @@
   background: var(--crypto-terminal-green);
   display: inline-block;
   animation: crypto-pulse 2s ease-in-out infinite;
-  box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--miao-success) 50%, transparent);
 }
 
 @keyframes crypto-pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(74, 222, 128, 0.5); }
-  50% { opacity: 0.5; box-shadow: 0 0 3px rgba(74, 222, 128, 0.2); }
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px color-mix(in srgb, var(--miao-success) 50%, transparent); }
+  50% { opacity: 0.5; box-shadow: 0 0 3px color-mix(in srgb, var(--miao-success) 20%, transparent); }
 }
 
 /* ============================================================
@@ -342,13 +343,13 @@
 
 .crypto-nav-item:hover {
   color: var(--crypto-text);
-  background: rgba(139, 92, 246, 0.08);
+  background: color-mix(in srgb, var(--miao-brand) 8%, transparent);
 }
 
 .crypto-nav-item.active {
   color: #fff;
   background: linear-gradient(135deg, var(--crypto-accent), var(--crypto-accent-deep));
-  box-shadow: 0 2px 12px rgba(139, 92, 246, 0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--miao-brand) 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.1);
 }
 
 .crypto-nav-item.active:hover {
@@ -415,8 +416,8 @@
 
 .crypto-codec-output {
   background: var(--crypto-terminal-bg);
-  border: 1px solid rgba(139, 92, 246, 0.08);
-  box-shadow: var(--crypto-shadow-md), inset 0 1px 0 rgba(139, 92, 246, 0.06);
+  border: 1px solid color-mix(in srgb, var(--miao-brand) 8%, transparent);
+  box-shadow: var(--crypto-shadow-md), inset 0 1px 0 color-mix(in srgb, var(--miao-brand) 6%, transparent);
   position: relative;
 }
 
@@ -447,8 +448,8 @@
 }
 
 .crypto-codec-output .crypto-panel-header {
-  border-bottom-color: rgba(139, 92, 246, 0.08);
-  background: rgba(139, 92, 246, 0.03);
+  border-bottom-color: color-mix(in srgb, var(--miao-brand) 8%, transparent);
+  background: color-mix(in srgb, var(--miao-brand) 3%, transparent);
 }
 
 .crypto-panel-label {
@@ -461,7 +462,7 @@
 }
 
 .crypto-codec-output .crypto-panel-label {
-  color: rgba(196, 181, 253, 0.9);
+  color: color-mix(in srgb, var(--tool-accent) 90%, transparent);
 }
 
 .crypto-mode-inline {
@@ -506,7 +507,7 @@
 }
 
 .crypto-codec-output .crypto-panel-meta {
-  color: rgba(196, 181, 253, 0.56);
+  color: color-mix(in srgb, var(--tool-accent) 56%, transparent);
 }
 
 .crypto-codec-input textarea {
@@ -554,7 +555,7 @@
 }
 
 .crypto-output-empty {
-  color: rgba(196, 181, 253, 0.62);
+  color: color-mix(in srgb, var(--tool-accent) 62%, transparent);
   font-style: italic;
   display: flex;
   align-items: center;
@@ -564,7 +565,7 @@
 
 .crypto-output-empty::before {
   content: '>';
-  color: #c4b5fd;
+  color: var(--tool-accent);
   opacity: 0.72;
   font-weight: 700;
 }
@@ -626,7 +627,7 @@
 }
 
 .crypto-codec-output .crypto-output-header {
-  border-bottom-color: rgba(139, 92, 246, 0.08);
+  border-bottom-color: color-mix(in srgb, var(--miao-brand) 8%, transparent);
 }
 
 .crypto-hash-toolbar {
@@ -673,7 +674,7 @@
 
 .crypto-key-input-field:focus {
   border-color: var(--crypto-border-strong);
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.10);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--miao-brand) 10%, transparent);
 }
 
 /* 输出面板内部的底部工具栏 */
@@ -778,13 +779,13 @@
   background: var(--crypto-accent-light);
   color: var(--crypto-accent);
   font-weight: 600;
-  border: 1px solid rgba(139, 92, 246, 0.15);
+  border: 1px solid color-mix(in srgb, var(--miao-brand) 15%, transparent);
 }
 
 .crypto-chip.success {
-  background: rgba(74, 222, 128, 0.08);
+  background: color-mix(in srgb, var(--miao-success) 8%, transparent);
   color: var(--crypto-green);
-  border-color: rgba(74, 222, 128, 0.15);
+  border-color: color-mix(in srgb, var(--miao-success) 15%, transparent);
 }
 
 .crypto-chip.clickable {
@@ -793,13 +794,13 @@
 }
 
 .crypto-chip.clickable:hover {
-  background: rgba(139, 92, 246, 0.15);
-  border-color: rgba(139, 92, 246, 0.25);
+  background: color-mix(in srgb, var(--miao-brand) 15%, transparent);
+  border-color: color-mix(in srgb, var(--miao-brand) 25%, transparent);
 }
 
 .crypto-chip.success.clickable:hover {
-  background: rgba(74, 222, 128, 0.15);
-  border-color: rgba(74, 222, 128, 0.25);
+  background: color-mix(in srgb, var(--miao-success) 15%, transparent);
+  border-color: color-mix(in srgb, var(--miao-success) 25%, transparent);
 }
 
 /* ============================================================
@@ -994,7 +995,7 @@
 
 .crypto-sym-key-input:focus {
   border-color: var(--crypto-border-strong);
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.10);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--miao-brand) 10%, transparent);
 }
 
 .crypto-sym-action-btn {
@@ -1009,11 +1010,11 @@
   font-weight: 700;
   font-family: var(--crypto-font-body);
   transition: all var(--crypto-transition-fast);
-  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--miao-brand) 30%, transparent);
 }
 
 .crypto-sym-action-btn:hover {
-  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--miao-brand) 40%, transparent);
   background: linear-gradient(135deg, var(--crypto-accent-hover), var(--crypto-accent-deep));
 }
 
@@ -1038,7 +1039,7 @@
 
 .crypto-key-display {
   background: var(--crypto-terminal-bg);
-  border: 1px solid rgba(139, 92, 246, 0.08);
+  border: 1px solid color-mix(in srgb, var(--miao-brand) 8%, transparent);
   border-radius: var(--crypto-radius-md);
   padding: 14px 16px;
   font-family: var(--crypto-font-mono);
@@ -1147,9 +1148,9 @@
   gap: 4px;
   padding: 5px 10px;
   border-radius: 6px;
-  border: 1px solid rgba(139, 92, 246, 0.10);
-  background: rgba(139, 92, 246, 0.05);
-  color: rgba(139, 92, 246, 0.45);
+  border: 1px solid color-mix(in srgb, var(--miao-brand) 10%, transparent);
+  background: color-mix(in srgb, var(--miao-brand) 5%, transparent);
+  color: color-mix(in srgb, var(--miao-brand) 45%, transparent);
   cursor: pointer;
   font-size: 12px;
   font-family: var(--crypto-font-mono);
@@ -1157,15 +1158,15 @@
 }
 
 .crypto-copy-btn:hover {
-  background: rgba(139, 92, 246, 0.12);
-  color: rgba(139, 92, 246, 0.80);
-  border-color: rgba(139, 92, 246, 0.25);
+  background: color-mix(in srgb, var(--miao-brand) 12%, transparent);
+  color: color-mix(in srgb, var(--miao-brand) 80%, transparent);
+  border-color: color-mix(in srgb, var(--miao-brand) 25%, transparent);
 }
 
 .crypto-copy-btn.copied {
   color: var(--crypto-green);
-  border-color: rgba(74, 222, 128, 0.25);
-  background: rgba(74, 222, 128, 0.08);
+  border-color: color-mix(in srgb, var(--miao-success) 25%, transparent);
+  background: color-mix(in srgb, var(--miao-success) 8%, transparent);
 }
 
 /* ============================================================

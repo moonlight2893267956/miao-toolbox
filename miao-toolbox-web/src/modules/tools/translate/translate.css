@@ -4,52 +4,22 @@
  */
 
 .tt-page {
-  --tt-primary: var(--ant-color-primary);
-  --tt-primary-hover: var(--ant-color-primary-hover);
-  --tt-primary-soft: var(--ant-color-primary-bg);
-  --tt-primary-contrast: var(--ant-color-bg-container);
-  --tt-source: #c46a2d;
-  --tt-source-soft: rgba(196, 106, 45, 0.1);
-  --tt-signal: #158a74;
-  --tt-signal-soft: rgba(21, 138, 116, 0.1);
-  --tt-bg: #f4f3f8;
-  --tt-surface: rgba(255, 255, 255, 0.92);
-  --tt-surface-strong: #ffffff;
-  --tt-surface-muted: #f7f6fb;
-  --tt-control-bg: rgba(92, 79, 208, 0.06);
-  --tt-border: rgba(43, 38, 58, 0.11);
-  --tt-border-strong: rgba(43, 38, 58, 0.18);
-  --tt-text: var(--ant-color-text);
-  --tt-text-secondary: var(--ant-color-text-secondary);
-  --tt-text-tertiary: var(--ant-color-text-tertiary);
-  --tt-progress-trail: rgba(43, 38, 58, 0.1);
-  --tt-shadow: 0 18px 48px rgba(37, 31, 58, 0.1);
-  --tt-shadow-soft: 0 10px 28px rgba(37, 31, 58, 0.08);
-  --tt-radius: 8px;
+  --tool-accent: var(--miao-accent-tool-indigo);
+  --tool-accent-soft: color-mix(in srgb, var(--tool-accent) 12%, transparent);
+  --tool-accent-soft-2: color-mix(in srgb, var(--tool-accent) 13%, transparent);
+  --tt-radius: var(--miao-radius-md);
 
   position: relative;
   width: min(100%, 1480px);
   min-height: calc(100vh - 112px);
   margin: 0 auto;
-  color: var(--tt-text);
+  color: var(--miao-text-primary);
   overflow: hidden;
 }
 
 :root[data-theme='dark'] .tt-page {
-  --tt-source: #d2874d;
-  --tt-source-soft: rgba(210, 135, 77, 0.13);
-  --tt-signal: #2bbf9d;
-  --tt-signal-soft: rgba(43, 191, 157, 0.13);
-  --tt-bg: #171522;
-  --tt-surface: rgba(33, 31, 46, 0.86);
-  --tt-surface-strong: #211f2e;
-  --tt-surface-muted: #29263a;
-  --tt-control-bg: rgba(255, 255, 255, 0.07);
-  --tt-border: rgba(255, 255, 255, 0.1);
-  --tt-border-strong: rgba(255, 255, 255, 0.16);
-  --tt-progress-trail: rgba(255, 255, 255, 0.08);
-  --tt-shadow: 0 24px 54px rgba(0, 0, 0, 0.28);
-  --tt-shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.22);
+  --tool-accent-soft: color-mix(in srgb, var(--tool-accent) 14%, transparent);
+  --tool-accent-soft-2: color-mix(in srgb, var(--tool-accent) 15%, transparent);
 }
 
 .tt-page::before {
@@ -60,15 +30,15 @@
   pointer-events: none;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.54), transparent 220px),
-    linear-gradient(135deg, rgba(196, 106, 45, 0.08), transparent 34%),
-    linear-gradient(315deg, rgba(21, 138, 116, 0.08), transparent 30%);
+    linear-gradient(135deg, var(--miao-brand-bg), transparent 34%),
+    linear-gradient(315deg, var(--miao-success-bg), transparent 30%);
 }
 
 :root[data-theme='dark'] .tt-page::before {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 220px),
-    linear-gradient(135deg, rgba(210, 135, 77, 0.08), transparent 34%),
-    linear-gradient(315deg, rgba(43, 191, 157, 0.08), transparent 30%);
+    linear-gradient(135deg, var(--miao-brand-bg), transparent 34%),
+    linear-gradient(315deg, var(--miao-success-bg), transparent 30%);
 }
 
 .tt-bg-effects {
@@ -88,8 +58,8 @@
   inset: 0;
   opacity: 0.45;
   background-image:
-    linear-gradient(rgba(92, 79, 208, 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(92, 79, 208, 0.055) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--miao-brand) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--miao-brand) 6%, transparent) 1px, transparent 1px);
   background-size: 34px 34px;
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.84), transparent 76%);
 }
@@ -119,10 +89,10 @@
   gap: 12px;
   min-height: 64px;
   padding: 10px 12px;
-  border: 1px solid var(--tt-border);
-  border-radius: var(--tt-radius);
-  background: var(--tt-surface);
-  box-shadow: var(--tt-shadow-soft);
+  border: 1px solid var(--miao-border);
+  border-radius: var(--miao-radius-md);
+  background: var(--miao-bg-elevated);
+  box-shadow: var(--miao-shadow-soft);
   backdrop-filter: blur(18px);
 }
 
@@ -133,11 +103,11 @@
   align-items: center;
   justify-content: center;
   border-radius: 7px;
-  color: var(--tt-primary);
+  color: var(--tool-accent);
   background:
-    linear-gradient(135deg, var(--tt-primary-soft), transparent),
-    var(--tt-surface-strong);
-  border: 1px solid var(--tt-border);
+    linear-gradient(135deg, var(--tool-accent-soft), transparent),
+    var(--miao-bg-elevated);
+  border: 1px solid var(--miao-border);
   font-size: 20px;
 }
 
@@ -147,7 +117,7 @@
 
 .tt-header-text h2 {
   margin: 0;
-  color: var(--tt-text);
+  color: var(--miao-text-primary);
   font-family: var(--miao-font-display);
   font-size: 23px;
   font-weight: 700;
@@ -160,7 +130,7 @@
   align-items: center;
   gap: 8px;
   margin: 4px 0 0;
-  color: var(--tt-text-secondary);
+  color: var(--miao-text-secondary);
   font-size: 13px;
   line-height: 1.4;
   letter-spacing: 0;
@@ -171,8 +141,8 @@
   height: 7px;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: var(--tt-signal);
-  box-shadow: 0 0 0 4px var(--tt-signal-soft);
+  background: var(--miao-success);
+  box-shadow: 0 0 0 4px var(--miao-success-bg);
 }
 
 .tt-nav {
@@ -184,10 +154,10 @@
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
   padding: 4px;
-  border: 1px solid var(--tt-border);
-  border-radius: var(--tt-radius);
-  background: var(--tt-surface);
-  box-shadow: var(--tt-shadow-soft);
+  border: 1px solid var(--miao-border);
+  border-radius: var(--miao-radius-md);
+  background: var(--miao-bg-elevated);
+  box-shadow: var(--miao-shadow-soft);
   backdrop-filter: blur(18px);
 }
 
@@ -203,7 +173,7 @@
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--tt-text-secondary);
+  color: var(--miao-text-secondary);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0;
@@ -217,18 +187,18 @@
 }
 
 .tt-nav-item:hover {
-  color: var(--tt-text);
-  background: var(--tt-control-bg);
+  color: var(--miao-text-primary);
+  background: var(--miao-brand-bg);
 }
 
 .tt-nav-item.active {
-  color: var(--tt-primary-contrast);
-  background: var(--tt-primary);
-  box-shadow: 0 8px 18px var(--tt-primary-soft);
+  color: var(--miao-on-brand);
+  background: var(--miao-brand);
+  box-shadow: 0 8px 18px var(--miao-brand-bg);
 }
 
 .tt-nav-item.soon {
-  color: var(--tt-text-tertiary);
+  color: var(--miao-text-tertiary);
 }
 
 .tt-nav-icon {
@@ -242,8 +212,8 @@
   height: 16px;
   padding: 0 5px;
   border-radius: 5px;
-  background: var(--tt-control-bg);
-  color: var(--tt-text-tertiary);
+  background: var(--miao-brand-bg);
+  color: var(--miao-text-tertiary);
   font-size: 10px;
   font-weight: 700;
   line-height: 1;
@@ -272,7 +242,7 @@
 }
 
 .tt-panel-notice {
-  border-radius: var(--tt-radius);
+  border-radius: var(--miao-radius-md);
 }
 
 .tt-command-bar {
@@ -281,10 +251,10 @@
   align-items: center;
   gap: 10px;
   padding: 10px;
-  border: 1px solid var(--tt-border);
-  border-radius: var(--tt-radius);
-  background: var(--tt-surface);
-  box-shadow: var(--tt-shadow-soft);
+  border: 1px solid var(--miao-border);
+  border-radius: var(--miao-radius-md);
+  background: var(--miao-bg-elevated);
+  box-shadow: var(--miao-shadow-soft);
   backdrop-filter: blur(18px);
 }
 
@@ -301,12 +271,12 @@
 
 .tt-command-meta {
   gap: 8px;
-  color: var(--tt-text-secondary);
+  color: var(--miao-text-secondary);
   font-size: 13px;
 }
 
 .tt-command-meta .anticon {
-  color: var(--tt-primary);
+  color: var(--miao-brand);
 }
 
 .tt-command-actions {
@@ -321,21 +291,21 @@
 }
 
 .tt-segmented.ant-segmented {
-  background: var(--tt-control-bg);
-  border: 1px solid var(--tt-border);
+  background: var(--miao-brand-bg);
+  border: 1px solid var(--miao-border);
   border-radius: 7px;
 }
 
 .tt-segmented .ant-segmented-item {
   border-radius: 5px;
-  color: var(--tt-text-secondary);
+  color: var(--miao-text-secondary);
   font-size: 12px;
   font-weight: 600;
 }
 
 .tt-segmented .ant-segmented-item-selected {
-  background: var(--tt-surface-strong);
-  color: var(--tt-text);
+  background: var(--miao-bg-elevated);
+  color: var(--miao-text-primary);
   box-shadow: 0 3px 8px rgba(34, 29, 48, 0.08);
 }
 
@@ -347,25 +317,25 @@
 }
 
 .tt-primary-action.ant-btn-primary {
-  background: var(--tt-primary);
-  border-color: var(--tt-primary);
-  color: var(--tt-primary-contrast);
-  box-shadow: 0 8px 18px var(--tt-primary-soft);
+  background: var(--miao-brand);
+  border-color: var(--miao-brand);
+  color: var(--miao-on-brand);
+  box-shadow: 0 8px 18px var(--miao-brand-bg);
 }
 
 .tt-primary-action.ant-btn-primary:hover,
 .tt-primary-action.ant-btn-primary:focus-visible {
-  background: var(--tt-primary-hover);
-  border-color: var(--tt-primary-hover);
-  color: var(--tt-primary-contrast);
+  background: var(--miao-brand-hover);
+  border-color: var(--miao-brand-hover);
+  color: var(--miao-on-brand);
 }
 
 .tt-page .ant-btn-primary {
-  color: var(--tt-primary-contrast);
+  color: var(--miao-on-brand);
 }
 
 .tt-page .ant-btn-primary:not(:disabled):hover {
-  color: var(--tt-primary-contrast);
+  color: var(--miao-on-brand);
 }
 
 .tt-lang-bar {
@@ -383,42 +353,42 @@
 .tt-lang-select .ant-select-selector {
   height: 34px !important;
   border-radius: 6px !important;
-  border-color: var(--tt-border-strong) !important;
-  background: var(--tt-surface-strong) !important;
+  border-color: var(--miao-border-strong) !important;
+  background: var(--miao-bg-elevated) !important;
   box-shadow: none !important;
 }
 
 .tt-lang-select .ant-select-selection-item,
 .tt-lang-select .ant-select-selection-placeholder {
-  color: var(--tt-text) !important;
+  color: var(--miao-text-primary) !important;
   font-weight: 600 !important;
   line-height: 32px !important;
 }
 
 .tt-lang-select:hover .ant-select-selector,
 .tt-lang-select.ant-select-focused .ant-select-selector {
-  border-color: var(--tt-primary) !important;
-  box-shadow: 0 0 0 3px var(--tt-primary-soft) !important;
+  border-color: var(--miao-brand) !important;
+  box-shadow: 0 0 0 3px var(--miao-brand-bg) !important;
 }
 
 .tt-lang-swap.ant-btn {
   width: 34px;
   height: 34px;
   border-radius: 6px;
-  color: var(--tt-primary);
-  background: var(--tt-control-bg);
-  border: 1px solid var(--tt-border);
+  color: var(--miao-brand);
+  background: var(--miao-brand-bg);
+  border: 1px solid var(--miao-border);
 }
 
 .tt-lang-swap.ant-btn:not(:disabled):hover {
-  color: var(--tt-primary-hover);
-  border-color: var(--tt-primary);
-  background: var(--tt-primary-soft);
+  color: var(--miao-brand-hover);
+  border-color: var(--miao-brand);
+  background: var(--miao-brand-bg);
 }
 
 .tt-lang-swap.ant-btn:disabled {
-  color: var(--tt-text-tertiary);
-  background: var(--tt-surface-muted);
+  color: var(--miao-text-tertiary);
+  background: var(--miao-bg-muted);
 }
 
 .tt-split {
@@ -439,10 +409,10 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--tt-border);
-  border-radius: var(--tt-radius);
-  background: var(--tt-surface);
-  box-shadow: var(--tt-shadow);
+  border: 1px solid var(--miao-border);
+  border-radius: var(--miao-radius-md);
+  background: var(--miao-bg-elevated);
+  box-shadow: var(--miao-shadow);
   backdrop-filter: blur(18px);
 }
 
@@ -453,11 +423,11 @@
   right: 0;
   left: 0;
   height: 3px;
-  background: var(--tt-source);
+  background: var(--miao-brand);
 }
 
 .tt-pane--result::before {
-  background: var(--tt-signal);
+  background: var(--miao-success);
 }
 
 .tt-pane-head {
@@ -468,16 +438,16 @@
   gap: 12px;
   margin: 0;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--tt-border);
+  border-bottom: 1px solid var(--miao-border);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.48), transparent),
-    var(--tt-surface);
+    var(--miao-bg-elevated);
 }
 
 :root[data-theme='dark'] .tt-pane-head {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent),
-    var(--tt-surface);
+    var(--miao-bg-elevated);
 }
 
 .tt-pane-label {
@@ -485,7 +455,7 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  color: var(--tt-text);
+  color: var(--miao-text-primary);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0;
@@ -497,19 +467,19 @@
   height: 7px;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: var(--tt-source);
-  box-shadow: 0 0 0 4px var(--tt-source-soft);
+  background: var(--miao-brand);
+  box-shadow: 0 0 0 4px var(--miao-brand-bg);
 }
 
 .tt-pane--result .tt-pane-label::before {
-  background: var(--tt-signal);
-  box-shadow: 0 0 0 4px var(--tt-signal-soft);
+  background: var(--miao-success);
+  box-shadow: 0 0 0 4px var(--miao-success-bg);
 }
 
 .tt-pane-count,
 .tt-char-hint {
   flex: 0 0 auto;
-  color: var(--tt-text-tertiary);
+  color: var(--miao-text-tertiary);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -525,12 +495,12 @@
   width: 28px;
   height: 28px;
   border-radius: 6px;
-  color: var(--tt-text-secondary);
+  color: var(--miao-text-secondary);
 }
 
 .tt-pane-tools .ant-btn:hover:not(:disabled) {
-  color: var(--tt-primary);
-  background: var(--tt-primary-soft);
+  color: var(--miao-brand);
+  background: var(--miao-brand-bg);
 }
 
 .tt-textarea.ant-input {
@@ -540,9 +510,9 @@
   border: 0 !important;
   border-radius: 0 !important;
   background:
-    linear-gradient(180deg, rgba(196, 106, 45, 0.035), transparent 120px),
-    var(--tt-surface-strong) !important;
-  color: var(--tt-text) !important;
+    linear-gradient(180deg, var(--miao-brand-bg), transparent 120px),
+    var(--miao-bg-elevated) !important;
+  color: var(--miao-text-primary) !important;
   box-shadow: none !important;
   resize: vertical;
   line-height: 1.75;
@@ -550,11 +520,11 @@
 
 .tt-textarea.ant-input:hover,
 .tt-textarea.ant-input:focus {
-  box-shadow: inset 0 0 0 1px var(--tt-primary) !important;
+  box-shadow: inset 0 0 0 1px var(--miao-brand) !important;
 }
 
 .tt-textarea.ant-input::placeholder {
-  color: var(--tt-text-tertiary);
+  color: var(--miao-text-tertiary);
 }
 
 .tt-output {
@@ -568,9 +538,9 @@
   border: 0;
   border-radius: 0;
   background:
-    linear-gradient(180deg, rgba(21, 138, 116, 0.04), transparent 120px),
-    var(--tt-surface-strong);
-  color: var(--tt-text);
+    linear-gradient(180deg, var(--miao-success-bg), transparent 120px),
+    var(--miao-bg-elevated);
+  color: var(--miao-text-primary);
   text-align: left;
 }
 
@@ -578,21 +548,21 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: var(--tt-text-tertiary);
+  color: var(--miao-text-tertiary);
   background:
-    linear-gradient(180deg, rgba(21, 138, 116, 0.035), transparent 130px),
+    linear-gradient(180deg, var(--miao-success-bg), transparent 130px),
     repeating-linear-gradient(
       135deg,
       transparent 0,
       transparent 12px,
-      rgba(92, 79, 208, 0.035) 12px,
-      rgba(92, 79, 208, 0.035) 13px
+      color-mix(in srgb, var(--miao-brand) 4%, transparent) 12px,
+      color-mix(in srgb, var(--miao-brand) 4%, transparent) 13px
     ),
-    var(--tt-surface-strong);
+    var(--miao-bg-elevated);
 }
 
 .tt-output-icon {
-  color: var(--tt-primary);
+  color: var(--miao-brand);
   font-size: 26px;
   opacity: 0.72;
 }
@@ -604,7 +574,7 @@
 }
 
 .tt-output--loading span {
-  color: var(--tt-text-secondary);
+  color: var(--miao-text-secondary);
   font-size: 13px;
 }
 
@@ -619,14 +589,14 @@
   flex-wrap: wrap;
   gap: 8px;
   padding-bottom: 10px;
-  border-bottom: 1px solid var(--tt-border);
-  color: var(--tt-text-secondary);
+  border-bottom: 1px solid var(--miao-border);
+  color: var(--miao-text-secondary);
   font-size: 12px;
 }
 
 .tt-translation-text {
   flex: 1;
-  color: var(--tt-text);
+  color: var(--miao-text-primary);
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.75;
@@ -642,18 +612,18 @@
   align-items: baseline;
   gap: 12px;
   padding: 4px 0 14px;
-  border-bottom: 1px solid var(--tt-border);
+  border-bottom: 1px solid var(--miao-border);
 }
 
 .tt-detect-dominant-label {
-  color: var(--tt-text-secondary);
+  color: var(--miao-text-secondary);
   font-size: 12px;
   font-weight: 700;
 }
 
 .tt-detect-dominant-value {
   min-width: 0;
-  color: var(--tt-signal);
+  color: var(--miao-success);
   font-family: var(--miao-font-display);
   font-size: 28px;
   font-weight: 700;
@@ -666,13 +636,13 @@
   justify-content: space-between;
   gap: 10px;
   padding: 10px 0 14px;
-  border-bottom: 1px solid var(--tt-border);
-  color: var(--tt-text);
+  border-bottom: 1px solid var(--miao-border);
+  color: var(--miao-text-primary);
   font-size: 14px;
 }
 
 .tt-detect-recommend strong {
-  color: var(--tt-primary);
+  color: var(--miao-brand);
 }
 
 .tt-detect-recommend .ant-btn {
@@ -706,10 +676,10 @@
   align-items: center;
   justify-content: center;
   padding: 48px 18px;
-  border: 1px solid var(--tt-border);
-  border-radius: var(--tt-radius);
-  background: var(--tt-surface);
-  box-shadow: var(--tt-shadow-soft);
+  border: 1px solid var(--miao-border);
+  border-radius: var(--miao-radius-md);
+  background: var(--miao-bg-elevated);
+  box-shadow: var(--miao-shadow-soft);
 }
 
 .tt-coming-soon-text {
@@ -719,13 +689,13 @@
 
 .tt-coming-soon-title {
   margin-bottom: 6px;
-  color: var(--tt-text);
+  color: var(--miao-text-primary);
   font-size: 15px;
   font-weight: 700;
 }
 
 .tt-coming-soon-desc {
-  color: var(--tt-text-secondary);
+  color: var(--miao-text-secondary);
   font-size: 13px;
   line-height: 1.6;
 }
@@ -742,12 +712,12 @@
 .tt-page ::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-radius: 5px;
-  background: var(--tt-border-strong);
+  background: var(--miao-border-strong);
   background-clip: padding-box;
 }
 
 .tt-page ::-webkit-scrollbar-thumb:hover {
-  background: var(--tt-text-tertiary);
+  background: var(--miao-text-tertiary);
   background-clip: padding-box;
 }
 
@@ -854,7 +824,7 @@
 }
 
 .tt-history-count {
-  color: var(--tt-text-secondary);
+  color: var(--miao-text-secondary);
   font-size: 12px;
 }
 
@@ -882,7 +852,7 @@
 }
 
 .tt-history-item:hover {
-  border-color: var(--tt-primary);
+  border-color: var(--miao-brand);
   transform: translateY(-1px);
 }
 
@@ -894,19 +864,19 @@
 }
 
 .tt-history-lang {
-  color: var(--tt-primary);
+  color: var(--miao-brand);
   font-weight: 600;
   font-size: 12px;
 }
 
 .tt-history-time {
-  color: var(--tt-text-secondary);
+  color: var(--miao-text-secondary);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 
 .tt-history-src {
-  color: var(--tt-text);
+  color: var(--miao-text-primary);
   font-size: 13px;
   line-height: 1.5;
   display: -webkit-box;
@@ -916,7 +886,7 @@
 }
 
 .tt-history-dst {
-  color: var(--tt-text-secondary);
+  color: var(--miao-text-secondary);
   font-size: 13px;
   line-height: 1.5;
   display: -webkit-box;
@@ -940,5 +910,5 @@
 }
 
 .tt-star-active {
-  color: #f5b301;
+  color: var(--miao-warning);
 }

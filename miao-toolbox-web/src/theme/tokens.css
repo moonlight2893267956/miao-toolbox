@@ -1,0 +1,106 @@
+/**
+ * 工具箱统一配色源（单一事实来源）
+ * ============================================================
+ * 所有工具的内部组件（按钮 / 面板 / 输入框 / 状态条 / diff / 编辑器光标）
+ * 统一引用这里的「品牌主色」与「语义色」以及 index.css 的「中性表面」。
+ *
+ * 规则：
+ *  - 品牌主色 `--miao-brand` 与 AntD `colorPrimary` 保持同一组 hex（见 contexts/ThemeContext.tsx）。
+ *  - 语义色与 AntD `colorSuccess/Error/Warning/Info` 保持同一组 hex。
+ *  - 工具专属点缀色只在「图标背景 / 光晕 / 状态点」使用，定义在下方
+ *    `--miao-accent-tool-*`，由各工具页面用 `--tool-accent` 引用（见各工具 CSS）。
+ *
+ * 注意：不依赖 AntD 注入的 `--ant-color-*`（未开启 cssVar），全部显式定义。
+ */
+
+:root {
+  /* ── Brand (与 AntD colorPrimary 对齐) ── */
+  --miao-brand: #5c4fd0;
+  --miao-brand-hover: #6f63d6;
+  --miao-brand-active: #4e42b8;
+  --miao-brand-bg: rgba(92, 79, 208, 0.1);
+  --miao-brand-bg-hover: rgba(92, 79, 208, 0.18);
+
+  /* ── Semantic: Success ── */
+  --miao-success: #52c41a;
+  --miao-success-bg: rgba(82, 196, 26, 0.12);
+  --miao-success-text: #237a55;
+
+  /* ── Semantic: Warning ── */
+  --miao-warning: #faad14;
+  --miao-warning-bg: rgba(250, 173, 20, 0.12);
+  --miao-warning-text: #d48806;
+
+  /* ── Semantic: Error ── */
+  --miao-error: #ff4d4f;
+  --miao-error-bg: rgba(255, 77, 79, 0.1);
+  --miao-error-text: #cf1322;
+
+  /* ── Semantic: Info ── */
+  --miao-info: #1677ff;
+  --miao-info-bg: rgba(22, 119, 255, 0.1);
+  --miao-info-text: #0958d9;
+
+  /* ── Text on brand (激活态/主按钮上的文字色) ── */
+  --miao-on-brand: #ffffff;
+
+  /* ── Shadows (品牌色调，统一观感) ── */
+  --miao-shadow: 0 18px 48px rgba(92, 79, 208, 0.1);
+  --miao-shadow-soft: 0 10px 28px rgba(92, 79, 208, 0.08);
+
+  /* ── Tool accent palette (与 registry.ts accentColor 对齐；仅作身份点缀) ── */
+  --miao-accent-tool-teal: #00d4aa;
+  --miao-accent-tool-purple: #8b5cf6;
+  --miao-accent-tool-indigo: #6366f1;
+  --miao-accent-tool-amber: #f59e0b;
+  --miao-accent-tool-pink: #ec4899;
+
+  /* 各工具页面用 --tool-accent 覆盖此默认值（见各工具 CSS） */
+  --tool-accent: var(--miao-accent-tool-teal);
+}
+
+:root[data-theme='dark'] {
+  /* ── Brand (与 AntD colorPrimary 暗色对齐) ── */
+  --miao-brand: #a29bfe;
+  --miao-brand-hover: #b4aef9;
+  --miao-brand-active: #8b83f0;
+  --miao-brand-bg: rgba(162, 155, 254, 0.16);
+  --miao-brand-bg-hover: rgba(162, 155, 254, 0.24);
+
+  /* ── Semantic: Success ── */
+  --miao-success: #49aa19;
+  --miao-success-bg: rgba(73, 170, 25, 0.16);
+  --miao-success-text: #73d9ad;
+
+  /* ── Semantic: Warning ── */
+  --miao-warning: #d89614;
+  --miao-warning-bg: rgba(216, 150, 20, 0.16);
+  --miao-warning-text: #ffc53d;
+
+  /* ── Semantic: Error ── */
+  --miao-error: #ff7875;
+  --miao-error-bg: rgba(255, 120, 117, 0.16);
+  --miao-error-text: #ff9c98;
+
+  /* ── Semantic: Info ── */
+  --miao-info: #4096ff;
+  --miao-info-bg: rgba(64, 150, 255, 0.16);
+  --miao-info-text: #69b1ff;
+
+  /* ── Text on brand (暗色下品牌色变浅，文字用深色保证对比) ── */
+  --miao-on-brand: #15131f;
+
+  /* ── Shadows (暗色) ── */
+  --miao-shadow: 0 24px 54px rgba(0, 0, 0, 0.28);
+  --miao-shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.22);
+
+  /* ── Tool accent palette (暗色下略提亮，保持辨识度) ── */
+  --miao-accent-tool-teal: #00d4aa;
+  --miao-accent-tool-purple: #a78bfa;
+  --miao-accent-tool-indigo: #818cf8;
+  --miao-accent-tool-amber: #fbbf24;
+  --miao-accent-tool-pink: #f472b6;
+
+  /* 各工具页面用 --tool-accent 覆盖此默认值（见各工具 CSS） */
+  --tool-accent: var(--miao-accent-tool-teal);
+}

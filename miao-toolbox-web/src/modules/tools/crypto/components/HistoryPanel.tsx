@@ -47,7 +47,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ history, onClear, onSelect 
           <button
             className="crypto-mode-btn"
             onClick={onClear}
-            style={{ width: 'auto', padding: '4px 12px', fontSize: 12, color: '#ef4444', borderColor: '#fca5a5' }}
+            style={{ width: 'auto', padding: '4px 12px', fontSize: 12, color: 'var(--miao-error)', borderColor: 'var(--miao-error)' }}
           >
             <DeleteOutlined style={{ marginRight: 4 }} />
             清空

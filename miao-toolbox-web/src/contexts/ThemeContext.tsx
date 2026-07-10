@@ -13,10 +13,21 @@ const ThemeContext = createContext<ThemeContextType>({
 
 export const useTheme = () => useContext(ThemeContext);
 
-// #11: 品牌主色 #5C4FD0，强调色 #D97020
+// 统一配色：与 src/theme/tokens.css 保持同一组 hex（见该文件注释）。
+// 品牌主色（= tokens.css --miao-brand）
 const BRAND_PRIMARY = '#5C4FD0';
 const BRAND_PRIMARY_DARK = '#A29BFE';
 const BRAND_PRIMARY_DARK_ACTIVE = '#8B83F0';
+// 语义色（= tokens.css --miao-success/error/warning/info，亮色）
+const SEMANTIC_SUCCESS = '#52c41a';
+const SEMANTIC_ERROR = '#ff4d4f';
+const SEMANTIC_WARNING = '#faad14';
+const SEMANTIC_INFO = '#1677ff';
+// 语义色（暗色）
+const SEMANTIC_SUCCESS_DARK = '#49aa19';
+const SEMANTIC_ERROR_DARK = '#ff7875';
+const SEMANTIC_WARNING_DARK = '#d89614';
+const SEMANTIC_INFO_DARK = '#4096ff';
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isDark, setIsDark] = useState(() => {
@@ -73,6 +84,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const themeConfig = {
     token: {
       colorPrimary: isDark ? BRAND_PRIMARY_DARK : BRAND_PRIMARY,
+      colorSuccess: isDark ? SEMANTIC_SUCCESS_DARK : SEMANTIC_SUCCESS,
+      colorError: isDark ? SEMANTIC_ERROR_DARK : SEMANTIC_ERROR,
+      colorWarning: isDark ? SEMANTIC_WARNING_DARK : SEMANTIC_WARNING,
+      colorInfo: isDark ? SEMANTIC_INFO_DARK : SEMANTIC_INFO,
       colorBgLayout: isDark ? '#171522' : '#F7F6FB',
       colorBgContainer: isDark ? '#211F2E' : '#FFFFFF',
       colorBgElevated: isDark ? '#29263A' : '#FFFFFF',

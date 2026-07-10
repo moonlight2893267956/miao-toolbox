@@ -41,18 +41,18 @@ function getThemeExtensions(): Extension {
     },
     '.cm-content': {
       padding: '8px 0',
-      caretColor: isDark ? '#60a5fa' : '#2563eb',
+      caretColor: 'var(--tool-accent)',
     },
     '.cm-cursor': {
       borderLeft: '3px solid',
-      borderLeftColor: isDark ? '#60a5fa' : '#2563eb',
+      borderLeftColor: 'var(--tool-accent)',
     },
     '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
-      backgroundColor: isDark ? 'rgba(99, 102, 241, 0.3)' : 'rgba(99, 102, 241, 0.15)',
+      backgroundColor: isDark ? 'color-mix(in srgb, var(--tool-accent) 30%, transparent)' : 'color-mix(in srgb, var(--tool-accent) 15%, transparent)',
     },
     '.cm-gutters': {
       backgroundColor: 'transparent',
-      color: isDark ? '#6b7280' : '#9ca3af',
+      color: 'var(--miao-text-tertiary)',
       border: 'none',
       paddingRight: '4px',
     },
@@ -63,11 +63,11 @@ function getThemeExtensions(): Extension {
       backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
     },
     '.cm-foldGutter .cm-gutterElement': {
-      color: isDark ? '#6b7280' : '#9ca3af',
+      color: 'var(--miao-text-tertiary)',
       cursor: 'pointer',
     },
     '.cm-lint-marker-error': {
-      color: '#ff4d4f',
+      color: 'var(--miao-error)',
     },
   }, { dark: isDark });
 }

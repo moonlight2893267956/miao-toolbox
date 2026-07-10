@@ -92,8 +92,8 @@ export const toolsRegistry: ToolMeta[] = [
     routeCode: 'TOOL_JSON_WORKBENCH',
     category: 'available',
     available: true,
-    accentColor: '#5C4FD0',
-    iconBg: 'rgba(92,79,208,0.12)',
+    accentColor: '#6366f1',
+    iconBg: 'rgba(99,102,241,0.12)',
   },
   {
     key: 'translate',

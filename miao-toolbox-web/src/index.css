@@ -1,3 +1,5 @@
+@import './theme/tokens.css';
+
 :root {
   /* ── Core Brand ── */
   --miao-primary: #1a1a3e;
@@ -88,7 +90,7 @@ select,
 
 html {
   min-width: 320px;
-  background: var(--ant-color-bg-layout, #f7f6fb);
+  background: var(--miao-bg);
 }
 
 body {
@@ -131,7 +133,7 @@ a {
   min-height: 100vh;
   display: grid;
   grid-template-columns: minmax(360px, 0.95fr) minmax(420px, 1.05fr);
-  background: var(--ant-color-bg-layout);
+  background: var(--miao-bg);
 }
 
 :root[data-theme='dark'] .miao-auth-page {
@@ -360,13 +362,13 @@ a {
 
 .miao-shell {
   min-height: 100vh;
-  background: var(--ant-color-bg-layout);
+  background: var(--miao-bg);
 }
 
 :root[data-theme='dark'] .miao-shell {
   background:
     linear-gradient(180deg, rgba(162, 155, 254, 0.045), transparent 280px),
-    var(--ant-color-bg-layout);
+    var(--miao-bg);
 }
 
 .miao-content {
