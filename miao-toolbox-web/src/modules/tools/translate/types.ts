@@ -100,3 +100,44 @@ export interface DetectResponse {
   /** 推荐目标语言（FR-7 映射规则） */
   recommendedTarget: LanguageCode;
 }
+
+/* ============================================================
+   图片翻译（FR-8 / FR-9 预留 / FR-10 预留）
+   对齐后端 ImageTranslateResponse（story-2.1）
+   ============================================================ */
+
+/** 文本块多边形顶点（百度 points，可选） */
+export interface ImagePoint {
+  x: number;
+  y: number;
+}
+
+/** 单块 OCR 文本 + 逐块译文（FR-8 核心） */
+export interface ImageTextBlock {
+  /** 原文本 */
+  src: string;
+  /** 译文 */
+  dst: string;
+  /** 文本区域像素坐标（百度 rect，原样透传） */
+  rect?: string;
+  /** 文本多边形顶点（可选） */
+  points?: ImagePoint[];
+  /** 该块贴合渲染图（data URL，可选，FR-9 可复用） */
+  blockImage?: string;
+}
+
+/** 图片翻译响应（FR-8） */
+export interface ImageTranslateResponse {
+  /** 实际检测到的源语言（来自百度） */
+  from: LanguageCode;
+  /** 目标语言 */
+  to: LanguageCode;
+  /** OCR 文本块与逐块译文（FR-8） */
+  blocks: ImageTextBlock[];
+  /** 整图原文汇总（sumSrc，FR-10 复用） */
+  sourceText?: string;
+  /** 整图译文汇总（sumDst，FR-10 复用） */
+  translatedText?: string;
+  /** 译文渲染图（data URL，FR-9 预览复用） */
+  renderedImage?: string;
+}

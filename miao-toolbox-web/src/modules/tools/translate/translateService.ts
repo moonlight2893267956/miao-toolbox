@@ -1,5 +1,12 @@
 import axiosInstance from '../../../services/axiosInstance';
-import type { TranslateRequest, TranslateResponse, DetectRequest, DetectResponse } from './types';
+import type {
+  TranslateRequest,
+  TranslateResponse,
+  DetectRequest,
+  DetectResponse,
+  ImageTranslateResponse,
+  LanguageCode,
+} from './types';
 
 /**
  * 翻译工具服务层（脚手架）。
@@ -23,5 +30,29 @@ export async function translateText(req: TranslateRequest): Promise<TranslateRes
 /** 语种识别 */
 export async function detectLanguage(req: DetectRequest): Promise<DetectResponse> {
   const resp = await axiosInstance.post<{ data: DetectResponse }>(`${BASE}/detect`, req);
+  return resp.data.data;
+}
+
+/**
+ * 图片翻译（FR-8）
+ *
+ * 以 `multipart/form-data` 调用 story-2.1 提供的新端点。
+ * `from` 默认 `auto`（与后端 `@RequestParam(defaultValue="auto")` 对齐），
+ * `to` 必填。复用 axios 拦截器（HMAC 签名 + token 刷新），密钥仅存于服务端。
+ */
+export async function imageTranslate(
+  file: File,
+  from: LanguageCode,
+  to: LanguageCode,
+): Promise<ImageTranslateResponse> {
+  const form = new FormData();
+  form.append('image', file);
+  form.append('from', from);
+  form.append('to', to);
+  const resp = await axiosInstance.post<{ data: ImageTranslateResponse }>(
+    `${BASE}/image`,
+    form,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
   return resp.data.data;
 }
