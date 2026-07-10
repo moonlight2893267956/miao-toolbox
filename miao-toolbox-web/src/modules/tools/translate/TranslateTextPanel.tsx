@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Select, Input, Button, Alert, Space, Segmented, Tooltip, Spin } from 'antd';
+import { Select, Input, Button, Alert, Space, Segmented, Tooltip } from 'antd';
 import { TranslationOutlined, SwapOutlined, CopyOutlined, DownloadOutlined } from '@ant-design/icons';
 import { message } from 'antd';
 import { LANGUAGE_OPTIONS, type LanguageCode, type TranslateResponse } from './types';
@@ -310,7 +310,11 @@ const TranslateTextPanel: React.FC = () => {
           </div>
           {loading ? (
             <div className="tt-output tt-output--loading">
-              <Spin />
+              <span className="tt-loader" aria-label="翻译中">
+                <i />
+                <i />
+                <i />
+              </span>
               <span>翻译中…</span>
             </div>
           ) : result ? (

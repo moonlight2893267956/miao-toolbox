@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Input, Button, Alert, Space, Tooltip, Spin, Segmented } from 'antd';
+import { Input, Button, Alert, Space, Tooltip, Segmented } from 'antd';
 import {
   ApartmentOutlined,
   CopyOutlined,
@@ -198,7 +198,11 @@ const TranslateDetectPanel: React.FC = () => {
 
           {loading ? (
             <div className="tt-output tt-output--loading">
-              <Spin />
+              <span className="tt-loader" aria-label="识别中">
+                <i />
+                <i />
+                <i />
+              </span>
               <span>识别中…</span>
             </div>
           ) : result ? (

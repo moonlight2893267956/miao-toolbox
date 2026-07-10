@@ -105,9 +105,9 @@ const TranslateContent: React.FC = () => {
         <motion.div
           className="tt-tab-panel"
           key={state.activeTab}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
+          initial={{ opacity: 0, y: 10, scale: 0.985 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
         >
           {renderPanel()}
         </motion.div>
