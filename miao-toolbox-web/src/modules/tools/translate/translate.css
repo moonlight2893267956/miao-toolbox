@@ -581,10 +581,8 @@
   color: var(--miao-text-tertiary);
 }
 
-/* 聚焦态：在 .tt-pane 上给一圈克制的品牌紫内描边，替代 AntD 的蓝色发光 */
-.tt-pane:focus-within {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--miao-brand) 45%, transparent) !important;
-}
+/* 聚焦态：不绘制描边/光晕（被面板头遮住会形成半截框，反而怪异）。
+   反馈交给 textarea 自身 + 字符计数与光标，避免视觉噪音。 */
 
 .tt-output {
   flex: 1 1 auto;
