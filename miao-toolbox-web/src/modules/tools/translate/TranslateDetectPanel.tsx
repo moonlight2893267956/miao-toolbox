@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Input, Button, Alert, Space, Tooltip, Spin, Progress, Segmented } from 'antd';
+import { Input, Button, Alert, Space, Tooltip, Spin, Segmented } from 'antd';
 import {
   ApartmentOutlined,
   CopyOutlined,
@@ -14,9 +14,11 @@ import { useTranslateContext } from './useTranslateContext';
 /**
  * 语种识别 Tab —— 实现 FR-5/FR-6/FR-7。
  *
- * - FR-5 单段/批量语种检测：调用 `/api/translate/detect`，渲染识别到的语种集合（language + confidence）；
- *   超出 7 语种子集的语种回退提示「未知/未在支持列表」。
- * - FR-6 混合语种识别与主语种提示：渲染字符占比最大的主语种（dominant）为高亮卡片。
+ * - FR-5 单段语种检测：调用 `/api/translate/detect`，渲染识别到的单一语种（限 7 语种子集）；
+ *   超出范围的语种回退提示「未知/未在支持列表」。
+ *   （注：百度语种识别 API 仅返回最可能的单一语种代码，不返回置信度与多语种分布，
+ *   因此页面不展示置信度/进度条。）
+ * - FR-6 主语种提示：渲染识别到的单一主语种（dominant）为高亮卡片。
  * - FR-7 推荐目标语言：渲染推荐目标语言（recommendedTarget），并提供「使用推荐语言翻译」入口，
  *   通过 TranslateContext 的 prefill 跨面板联动带入文本翻译 Tab。
  */
@@ -41,35 +43,24 @@ function downloadFile(filename: string, content: string, mime: string) {
 /** 纯文本摘要（FR-7 复制/导出） */
 function buildPlain(result: DetectResponse, text: string): string {
   const excerpt = text.length > 200 ? `${text.slice(0, 200)}…` : text;
-  const lines = [
+  return [
     `待识别文本：${excerpt}`,
-    `主语种：${languageLabel(result.dominant)}`,
+    `识别语种：${languageLabel(result.dominant)}`,
     `推荐目标语言：${languageLabel(result.recommendedTarget)}`,
-    '识别结果：',
-    ...result.results.map(
-      (r) => `  - ${languageLabel(r.language)} ${(r.confidence * 100).toFixed(0)}%`,
-    ),
-  ];
-  return lines.join('\n');
+  ].join('\n');
 }
 
-/** Markdown 对照（FR-7 导出） */
+/** Markdown（FR-7 导出） */
 function buildMarkdown(result: DetectResponse, text: string): string {
   const excerpt = text.length > 200 ? `${text.slice(0, 200)}…` : text;
-  const list = result.results
-    .map((r) => `- **${languageLabel(r.language)}** — ${(r.confidence * 100).toFixed(0)}%`)
-    .join('\n');
   return [
     '# 语种识别结果',
     '',
     `> 待识别文本：${excerpt}`,
     '',
-    `**主语种**：${languageLabel(result.dominant)}`,
+    `**识别语种**：${languageLabel(result.dominant)}`,
     '',
     `**推荐目标语言**：${languageLabel(result.recommendedTarget)}`,
-    '',
-    '## 识别到的语种',
-    list,
   ].join('\n');
 }
 
@@ -114,23 +105,11 @@ const TranslateDetectPanel: React.FC = () => {
     dispatch({ type: 'SET_ACTIVE_TAB', payload: 'text' });
   };
 
-  const handleCopyPlain = async () => {
+  const handleCopy = async () => {
     if (!result) return;
     try {
       await navigator.clipboard.writeText(buildPlain(result, text));
       message.success('已复制识别结果');
-    } catch {
-      message.error('复制失败，请检查浏览器权限');
-    }
-  };
-
-  const handleCopyStructured = async () => {
-    if (!result) return;
-    try {
-      await navigator.clipboard.writeText(
-        result.results.map((r) => `${r.language}:${r.confidence.toFixed(3)}`).join('\n'),
-      );
-      message.success('已复制结构化结果');
     } catch {
       message.error('复制失败，请检查浏览器权限');
     }
@@ -158,9 +137,15 @@ const TranslateDetectPanel: React.FC = () => {
         />
       )}
 
-      <div className="tt-toolbar">
-        <Space>
+      <div className="tt-command-bar tt-command-bar--detect">
+        <div className="tt-command-meta">
+          <ApartmentOutlined />
+          <span>{text.length.toLocaleString()} 字符</span>
+        </div>
+
+        <div className="tt-command-actions">
           <Segmented
+            className="tt-segmented"
             value={layout}
             onChange={(v) => setLayout(v as 'split' | 'stack')}
             options={[
@@ -168,12 +153,24 @@ const TranslateDetectPanel: React.FC = () => {
               { label: '上下', value: 'stack' },
             ]}
           />
-        </Space>
+          <Button
+            className="tt-primary-action"
+            type="primary"
+            icon={<ApartmentOutlined />}
+            onClick={handleDetect}
+            loading={loading}
+          >
+            识别语种
+          </Button>
+        </div>
       </div>
 
       <div className={`tt-split ${layout === 'stack' ? 'tt-split--stack' : ''}`}>
-        <div className="tt-pane">
-          <div className="tt-pane-label">待识别文本</div>
+        <div className="tt-pane tt-pane--source">
+          <div className="tt-pane-head">
+            <span className="tt-pane-label">待识别文本</span>
+            <span className="tt-pane-count">{text.length.toLocaleString()} 字符</span>
+          </div>
           <Input.TextArea
             className="tt-textarea"
             value={text}
@@ -183,15 +180,12 @@ const TranslateDetectPanel: React.FC = () => {
           />
         </div>
 
-        <div className="tt-pane">
+        <div className="tt-pane tt-pane--result">
           <div className="tt-pane-head">
             <span className="tt-pane-label">识别结果</span>
             <Space size={2} className="tt-pane-tools">
-              <Tooltip title="复制纯文本摘要">
-                <Button size="small" type="text" icon={<CopyOutlined />} onClick={handleCopyPlain} disabled={!result} />
-              </Tooltip>
-              <Tooltip title="复制结构化结果（语言码:置信度）">
-                <Button size="small" type="text" icon={<CopyOutlined />} onClick={handleCopyStructured} disabled={!result} />
+              <Tooltip title="复制识别结果">
+                <Button size="small" type="text" icon={<CopyOutlined />} onClick={handleCopy} disabled={!result} />
               </Tooltip>
               <Tooltip title="导出 TXT">
                 <Button size="small" type="text" icon={<DownloadOutlined />} onClick={() => handleExport('txt')} disabled={!result} />
@@ -227,38 +221,14 @@ const TranslateDetectPanel: React.FC = () => {
                   使用推荐语言翻译
                 </Button>
               </div>
-
-              <div className="tt-detect-list">
-                {result.results.map((r) => (
-                  <div className="tt-detect-item" key={r.language}>
-                    <div className="tt-detect-item-main">
-                      <span className="tt-detect-item-label">{languageLabel(r.language)}</span>
-                      <span className="tt-detect-item-pct">{(r.confidence * 100).toFixed(0)}%</span>
-                    </div>
-                    <Progress
-                      percent={Math.round(r.confidence * 100)}
-                      showInfo={false}
-                      strokeColor="var(--tt-accent)"
-                      trailColor="rgba(255,255,255,0.08)"
-                      size="small"
-                    />
-                  </div>
-                ))}
-              </div>
             </div>
           ) : (
             <div className="tt-output tt-output--placeholder tt-output--detect">
               <ApartmentOutlined className="tt-output-icon" />
-              <span>识别结果将显示在这里（语种集合 / 主语种 / 推荐目标语言）</span>
+              <span>识别结果将显示在这里（主语种 / 推荐目标语言）</span>
             </div>
           )}
         </div>
-      </div>
-
-      <div className="tt-actions">
-        <Button type="primary" icon={<ApartmentOutlined />} onClick={handleDetect} loading={loading}>
-          识别语种
-        </Button>
       </div>
     </div>
   );

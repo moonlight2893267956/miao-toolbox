@@ -80,10 +80,14 @@ export interface DetectRequest {
   text: string;
 }
 
-/** 单段识别结果 */
+/**
+ * 单段识别结果
+ * 注意：百度语种识别 API（`/api/trans/vip/language`）仅返回单一语种代码 `data.src`，
+ * 不返回置信度，故 `confidence` 恒为 1.0 且前端不展示（见 PRD FR-5/FR-6 约束）。
+ */
 export interface DetectResultItem {
   language: LanguageCode;
-  /** 置信度 0~1（百度语种识别 API 返回） */
+  /** 置信度 0~1；百度不返回真实置信度，恒为 1.0，前端不展示 */
   confidence: number;
 }
 
