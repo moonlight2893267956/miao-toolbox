@@ -61,8 +61,8 @@ const OAuthCallback: React.FC = () => {
       window.history.replaceState(null, '', window.location.pathname);
 
       if (mustChangePassword) {
-        message.warning('首次登录请修改密码');
-        navigate('/change-password', { replace: true });
+        message.warning('首次登录，请设置密码');
+        navigate('/welcome-setup', { replace: true });
         return;
       }
 

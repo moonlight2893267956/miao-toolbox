@@ -209,7 +209,7 @@ public class BaiduTranslateClient {
         String voiceBase64 = Base64.getEncoder().encodeToString(audio);
         String timestamp = String.valueOf(System.currentTimeMillis() / 1000);
         String sign = BaiduSignUtil.signVoice(
-                properties.getAppId(), properties.getSecretKey(), timestamp, voiceBase64);
+                properties.getAppId(), resolveVoiceSecretKey(), timestamp, voiceBase64);
 
         Map<String, String> headers = new HashMap<>();
         headers.put("X-Appid", properties.getAppId());
@@ -235,6 +235,21 @@ public class BaiduTranslateClient {
     }
 
     // ========== 私有方法 ==========
+
+    /**
+     * 解析语音翻译 HMAC 密钥。
+     *
+     * <p>百度多数账号语音翻译与通用翻译共用同一 {@code secret}，因此当 {@code secretKey}
+     * 未配置（为空/空白），或误留了未被 Spring 解析的 {@code ${...}} 占位符字面量时，
+     * 自动回退复用 {@code secret}，避免因配置遗漏导致签名鉴权失败（TRANSLATE_AUTH_FAILED）。
+     */
+    private String resolveVoiceSecretKey() {
+        String sk = properties.getSecretKey();
+        if (sk == null || sk.isBlank() || sk.startsWith("${")) {
+            return properties.getSecret();
+        }
+        return sk;
+    }
 
     private void ensureEnabled() {
         if (!properties.isEnabled()) {

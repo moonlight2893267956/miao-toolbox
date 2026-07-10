@@ -170,12 +170,18 @@ public class TranslateService {
         if (voice.getSize() > MAX_VOICE_BYTES) {
             throw new BusinessException("TRANSLATE_INVALID_REQUEST", "录音文件过大（上限 2MB）", 400);
         }
+        // 百度语音翻译 v2 接口不支持 auto 自动检测源语言，必须明确指定说话语种，
+        // 否则接口返回 "Language is not supported."。此处提前拦截，给出友好提示。
+        String from = request.getFrom();
+        if (from == null || from.isBlank() || "auto".equalsIgnoreCase(from)) {
+            throw new BusinessException("TRANSLATE_INVALID_REQUEST",
+                    "语音翻译暂不支持自动检测源语言，请先选择您说话的语言", 400);
+        }
         String format = resolveVoiceFormat(request.getFormat(), voice.getOriginalFilename());
         if (!SUPPORTED_VOICE_FORMATS.contains(format)) {
             throw new BusinessException("TRANSLATE_INVALID_REQUEST",
                     "百度语音翻译仅支持 pcm/wav/amr/m4a 格式", 400);
         }
-        String from = request.getFrom();
         try {
             BaiduTranslateClient.SpeechTranslateResult result =
                     baiduTranslateClient.speechTranslate(voice.getBytes(), format, from, to);

@@ -117,4 +117,12 @@ public class User {
                 .map(r -> RoleBrief.builder().id(r.getId()).code(r.getCode()).name(r.getName()).build())
                 .collect(Collectors.toList());
     }
+
+    /**
+     * 判断用户是否需要设置密码。
+     * 两种情况返回 true：管理员强制改密（mustChangePassword=true），或 OAuth 用户从未设置过密码（passwordHash=null）。
+     */
+    public boolean needsPasswordSetup() {
+        return Boolean.TRUE.equals(mustChangePassword) || passwordHash == null;
+    }
 }

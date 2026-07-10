@@ -191,8 +191,10 @@ class GoogleOAuthServiceTest {
             LoginResponse result = googleOAuthService.handleCallback("code", state, response);
 
             assertThat(result.getAccessToken()).isEqualTo("mock-access-token");
+            assertThat(result.getMustChangePassword()).isTrue();
             verify(userRepository, atLeastOnce()).save(argThat(user ->
                     "999999".equals(user.getGoogleId()) && "NewUser".equals(user.getGoogleUsername())
+                            && Boolean.TRUE.equals(user.getMustChangePassword())
             ));
         }
 

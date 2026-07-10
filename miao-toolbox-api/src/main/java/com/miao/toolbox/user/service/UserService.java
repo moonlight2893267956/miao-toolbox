@@ -34,7 +34,7 @@ public class UserService {
                 .githubUsername(user.getGithubUsername())
                 .googleId(user.getGoogleId())
                 .googleUsername(user.getGoogleUsername())
-                .mustChangePassword(Boolean.TRUE.equals(user.getMustChangePassword()))
+                .mustChangePassword(user.needsPasswordSetup())
                 .build();
     }
 

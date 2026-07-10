@@ -165,4 +165,47 @@ class GitHubOAuthServiceTest {
             // 这些需要更复杂的 mock，此处仅验证逻辑存在
         }
     }
+
+    @Nested
+    @DisplayName("createOAuthUser 新用户创建")
+    class CreateOAuthUserTests {
+
+        @Test
+        @DisplayName("首次 GitHub 登录创建的用户 mustChangePassword = true")
+        void firstLogin_mustChangePasswordIsTrue() {
+            when(jwtService.generateSigningKey())
+                    .thenReturn("state-for-new-user")
+                    .thenReturn("new-signing-key");
+            when(jwtService.generateAccessToken(anyLong(), anyString(), anyList())).thenReturn("mock-access-token");
+            when(jwtService.generateRefreshToken(anyLong())).thenReturn("mock-refresh-token");
+            gitHubOAuthService.buildAuthorizationUrl();
+
+            // mock exchangeCodeForToken
+            when(restTemplate.postForEntity(contains("github.com/login/oauth/access_token"), any(), eq(Map.class)))
+                    .thenReturn(ResponseEntity.ok(Map.of("access_token", "gh-token")));
+
+            // mock fetchGitHubUser
+            GitHubUser githubUser = new GitHubUser();
+            githubUser.setId(99999L);
+            githubUser.setLogin("newghuser");
+            when(restTemplate.exchange(contains("api.github.com/user"), any(), any(), eq(GitHubUser.class)))
+                    .thenReturn(ResponseEntity.ok(githubUser));
+
+            // 首次登录：数据库中无此用户
+            when(userRepository.findByGithubId("99999")).thenReturn(Optional.empty());
+            when(userRepository.existsByUsername(anyString())).thenReturn(false);
+            when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+                User u = inv.getArgument(0);
+                u.setId(100L);
+                return u;
+            });
+
+            LoginResponse result = gitHubOAuthService.handleCallback("code", "state-for-new-user", response);
+
+            assertThat(result.getMustChangePassword()).isTrue();
+            verify(userRepository, atLeastOnce()).save(argThat(user ->
+                    Boolean.TRUE.equals(user.getMustChangePassword())
+            ));
+        }
+    }
 }

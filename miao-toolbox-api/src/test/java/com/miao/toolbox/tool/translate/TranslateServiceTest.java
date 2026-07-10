@@ -186,22 +186,36 @@ class TranslateServiceTest {
     @DisplayName("speechTranslate 映射为前端响应（source/target/from/to）")
     void speechTranslate_mapsResponse() throws IOException {
         byte[] bytes = "audio".getBytes(StandardCharsets.UTF_8);
-        when(baiduTranslateClient.speechTranslate(eq(bytes), eq("wav"), eq("auto"), eq("en")))
-                .thenReturn(new BaiduTranslateClient.SpeechTranslateResult("Hello", "你好"));
+        when(baiduTranslateClient.speechTranslate(eq(bytes), eq("pcm"), eq("zh"), eq("en")))
+                .thenReturn(new BaiduTranslateClient.SpeechTranslateResult("你好", "Hello"));
 
-        MockMultipartFile file = new MockMultipartFile("voice", "rec.wav", "audio/wav", bytes);
+        MockMultipartFile file = new MockMultipartFile("voice", "rec.pcm", "audio/L16", bytes);
+        SpeechTranslateRequest req = new SpeechTranslateRequest();
+        req.setVoice(file);
+        req.setFrom("zh");
+        req.setTo("en");
+        req.setFormat("pcm");
+
+        SpeechTranslateResponse resp = service.speechTranslate(req);
+
+        assertEquals("zh", resp.getFrom());
+        assertEquals("en", resp.getTo());
+        assertEquals("你好", resp.getSourceText());
+        assertEquals("Hello", resp.getTranslatedText());
+    }
+
+    @Test
+    @DisplayName("speechTranslate 源语言为 auto → 400（百度语音不支持自动检测）")
+    void speechTranslate_autoFrom_throws() {
+        byte[] bytes = "audio".getBytes(StandardCharsets.UTF_8);
+        MockMultipartFile file = new MockMultipartFile("voice", "rec.pcm", "audio/L16", bytes);
         SpeechTranslateRequest req = new SpeechTranslateRequest();
         req.setVoice(file);
         req.setFrom("auto");
         req.setTo("en");
-        req.setFormat("wav");
-
-        SpeechTranslateResponse resp = service.speechTranslate(req);
-
-        assertEquals("auto", resp.getFrom());
-        assertEquals("en", resp.getTo());
-        assertEquals("Hello", resp.getSourceText());
-        assertEquals("你好", resp.getTranslatedText());
+        req.setFormat("pcm");
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.speechTranslate(req));
+        assertEquals(400, ex.getHttpStatus());
     }
 
     @Test

@@ -18,7 +18,7 @@ const ChangePasswordPage: React.FC = () => {
   const [loading, setLoading] = React.useState(false);
   const [password, setPassword] = React.useState('');
   const navigate = useNavigate();
-  const { state } = useAuth();
+  const { state, refreshToken } = useAuth();
 
   const hasLength = password.length >= 8 && password.length <= 128;
   const hasLetter = /[a-zA-Z]/.test(password);
@@ -37,6 +37,7 @@ const ChangePasswordPage: React.FC = () => {
         newPassword: values.newPassword,
       });
       message.success('密码已更新，欢迎使用阿渺工具箱');
+      await refreshToken();
       navigate('/tools', { replace: true });
     } catch {
       message.error('密码修改失败，请重试');

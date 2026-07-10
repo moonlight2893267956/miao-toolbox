@@ -135,10 +135,16 @@ export interface JsonWorkbenchState {
 
 // ─── Actions ──────────────────────────────────────────
 
+/** 解析完成后如何合并 UI 状态 */
+export interface JsonParseStateOptions {
+  /** true = 保留仍然存在的展开节点，适用于树内编辑、格式化等同一份数据的重解析 */
+  preserveExpandedIds?: boolean;
+}
+
 /** JSON 工作台 Action 联合类型（JSON_WB_ 前缀） */
 export type JsonWbAction =
   | { type: 'JSON_WB_SET_RAW'; payload: string }
-  | { type: 'JSON_WB_PARSE_SUCCESS'; payload: { parsed: unknown; flatNodes: JsonNode[] } }
+  | { type: 'JSON_WB_PARSE_SUCCESS'; payload: { parsed: unknown; flatNodes: JsonNode[] } & JsonParseStateOptions }
   | { type: 'JSON_WB_PARSE_ERROR'; payload: ParseError }
   | { type: 'JSON_WB_TOGGLE_NODE'; payload: string }
   | { type: 'JSON_WB_SELECT_NODE'; payload: string | null }

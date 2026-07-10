@@ -3,6 +3,7 @@ import { CopyOutlined, SwapOutlined, UploadOutlined, EditOutlined, ThunderboltOu
 import { message, Tooltip, Dropdown, Modal, Input } from 'antd';
 import type { MenuProps } from 'antd';
 import type {
+  JsonNode,
   JsonWorkbenchState,
   JsonWbAction,
   ViewMode,
@@ -51,11 +52,30 @@ const initialState: JsonWorkbenchState = {
 
 // ─── Reducer ───────────────────────────────────────────
 
+function getDefaultExpandedIds(flatNodes: JsonNode[]): Set<string> {
+  return new Set(
+    flatNodes
+      .filter((n) => n.isExpanded && (n.type === 'object' || n.type === 'array'))
+      .map((n) => n.id),
+  );
+}
+
+function preserveExistingExpandedIds(expandedIds: Set<string>, flatNodes: JsonNode[]): Set<string> {
+  const expandableIds = new Set(
+    flatNodes
+      .filter((n) => n.type === 'object' || n.type === 'array')
+      .map((n) => n.id),
+  );
+
+  return new Set([...expandedIds].filter((id) => expandableIds.has(id)));
+}
+
 function jsonWbReducer(state: JsonWorkbenchState, action: JsonWbAction): JsonWorkbenchState {
   switch (action.type) {
     case 'JSON_WB_SET_RAW':
       return { ...state, rawJson: action.payload };
-    case 'JSON_WB_PARSE_SUCCESS':
+    case 'JSON_WB_PARSE_SUCCESS': {
+      const nodeIds = new Set(action.payload.flatNodes.map((n) => n.id));
       return {
         ...state,
         parsedJson: action.payload.parsed,
@@ -63,12 +83,14 @@ function jsonWbReducer(state: JsonWorkbenchState, action: JsonWbAction): JsonWor
         parseError: null,
         parseProgress: 0,
         isLargeFile: false,
-        expandedIds: new Set(
-          action.payload.flatNodes
-            .filter((n) => n.isExpanded)
-            .map((n) => n.id),
-        ),
+        expandedIds: action.payload.preserveExpandedIds && state.flatNodeList.length > 0
+          ? preserveExistingExpandedIds(state.expandedIds, action.payload.flatNodes)
+          : getDefaultExpandedIds(action.payload.flatNodes),
+        selectedNodeId: state.selectedNodeId && nodeIds.has(state.selectedNodeId)
+          ? state.selectedNodeId
+          : null,
       };
+    }
     case 'JSON_WB_PARSE_ERROR':
       return { ...state, parseError: action.payload, parseProgress: 0, isLargeFile: false };
     case 'JSON_WB_TOGGLE_NODE': {
@@ -504,7 +526,7 @@ export default function JsonWorkbenchPage() {
         const next = new Set(expandedArrayPaths);
         for (const a of collapsedArrays) next.add(a);
         setExpandedArrayPaths(next);
-        parse(state.rawJson, 1, next).catch(() => {});
+        parse(state.rawJson, 1, next, { preserveExpandedIds: true }).catch(() => {});
       } else {
         // 理论上不应到这里，兜底
         dispatch({ type: 'JSON_WB_SELECT_NODE', payload: nodeId });
@@ -546,7 +568,7 @@ export default function JsonWorkbenchPage() {
       const next = new Set(expandedArrayPaths);
       next.add(nodeId);
       setExpandedArrayPaths(next);
-      parse(state.rawJson, 1, next).catch(() => {});
+      parse(state.rawJson, 1, next, { preserveExpandedIds: true }).catch(() => {});
     } else {
       // 普通节点：直接展开
       dispatch({ type: 'JSON_WB_EXPAND_ALL', payload: nodeId });
@@ -620,7 +642,7 @@ export default function JsonWorkbenchPage() {
     if (!state.parsedJson) return;
     const formatted = JSON.stringify(state.parsedJson, null, state.indentSize);
     dispatch({ type: 'JSON_WB_SET_RAW', payload: formatted });
-    debouncedParse(formatted, 1, expandedArrayPaths);
+    debouncedParse(formatted, 1, expandedArrayPaths, { preserveExpandedIds: true });
   }, [state.parsedJson, state.indentSize, debouncedParse, expandedArrayPaths]);
 
   // 压缩
@@ -628,7 +650,7 @@ export default function JsonWorkbenchPage() {
     if (!state.parsedJson) return;
     const compressed = JSON.stringify(state.parsedJson);
     dispatch({ type: 'JSON_WB_SET_RAW', payload: compressed });
-    debouncedParse(compressed, 1, expandedArrayPaths);
+    debouncedParse(compressed, 1, expandedArrayPaths, { preserveExpandedIds: true });
   }, [state.parsedJson, debouncedParse, expandedArrayPaths]);
 
   // 压缩转义
@@ -684,7 +706,7 @@ export default function JsonWorkbenchPage() {
 
     const raw = JSON.stringify(modified, null, 2);
     dispatch({ type: 'JSON_WB_SET_RAW', payload: raw });
-    debouncedParse(raw, 1, expandedArrayPaths);
+    debouncedParse(raw, 1, expandedArrayPaths, { preserveExpandedIds: true });
   }, [state.parsedJson, debouncedParse, expandedArrayPaths]);
 
   // ─── 树视图 key 编辑 ────────────────────────────────
@@ -700,7 +722,7 @@ export default function JsonWorkbenchPage() {
 
     const raw = JSON.stringify(modified, null, 2);
     dispatch({ type: 'JSON_WB_SET_RAW', payload: raw });
-    debouncedParse(raw, 1, expandedArrayPaths);
+    debouncedParse(raw, 1, expandedArrayPaths, { preserveExpandedIds: true });
   }, [state.parsedJson, debouncedParse, expandedArrayPaths]);
 
   // ─── 复制 ─────────────────────────────────────────────

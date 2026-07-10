@@ -247,8 +247,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const response = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
         const data = response.data.data;
-        // 如果 OAuth 登录已在刷新期间完成，保留 OAuth 的 token
-        if (_accessToken) return _accessToken;
         setTokens(data.accessToken, data.signingKey);
         localStorage.setItem('user', JSON.stringify(data.user));
         if (data.mustChangePassword) {

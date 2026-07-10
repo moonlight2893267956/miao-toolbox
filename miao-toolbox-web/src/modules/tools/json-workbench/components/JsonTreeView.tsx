@@ -649,6 +649,7 @@ export default function JsonTreeView({
         style={{
           height: `${virtualizer.getTotalSize()}px`,
           width: '100%',
+          minWidth: '100%',
           position: 'relative',
         }}
       >
@@ -663,7 +664,8 @@ export default function JsonTreeView({
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                width: '100%',
+                width: 'max-content',
+                minWidth: '100%',
                 transform: `translateY(${virtualRow.start}px)`,
               }}
             >

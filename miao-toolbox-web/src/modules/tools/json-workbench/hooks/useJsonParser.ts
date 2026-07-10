@@ -1,6 +1,6 @@
 import { useCallback, useRef, useEffect } from 'react';
 import * as Comlink from 'comlink';
-import type { JsonWbAction } from '../types';
+import type { JsonParseStateOptions, JsonWbAction } from '../types';
 import { parseAndFlatten } from '../utils/parseAndFlatten';
 import { jsonRepair } from '../utils/jsonRepair';
 import type { WorkerApi } from '../workers/jsonParser.worker';
@@ -69,7 +69,12 @@ export function useJsonParser(dispatch: React.Dispatch<JsonWbAction>) {
    * - >500KB: Web Worker 后台解析 + 进度上报
    */
   const parse = useCallback(
-    async (raw: string, expandDepth: number = 1, expandedArrayPaths: Set<string> = new Set()) => {
+    async (
+      raw: string,
+      expandDepth: number = 1,
+      expandedArrayPaths: Set<string> = new Set(),
+      options: JsonParseStateOptions = {},
+    ) => {
       // 递增版本号，用于丢弃过期结果
       parseVersionRef.current++;
       const currentVersion = parseVersionRef.current;
@@ -110,7 +115,11 @@ export function useJsonParser(dispatch: React.Dispatch<JsonWbAction>) {
           } else {
             dispatch({
               type: 'JSON_WB_PARSE_SUCCESS',
-              payload: { parsed: result.parsed, flatNodes: result.flatNodes },
+              payload: {
+                parsed: result.parsed,
+                flatNodes: result.flatNodes,
+                preserveExpandedIds: options.preserveExpandedIds,
+              },
             });
           }
           // 双重保险：显式重置进度和大文件标志，确保即使在 React 批量更新
@@ -141,7 +150,11 @@ export function useJsonParser(dispatch: React.Dispatch<JsonWbAction>) {
       } else {
         dispatch({
           type: 'JSON_WB_PARSE_SUCCESS',
-          payload: { parsed: result.parsed, flatNodes: result.flatNodes },
+          payload: {
+            parsed: result.parsed,
+            flatNodes: result.flatNodes,
+            preserveExpandedIds: options.preserveExpandedIds,
+          },
         });
       }
     },
@@ -152,12 +165,17 @@ export function useJsonParser(dispatch: React.Dispatch<JsonWbAction>) {
    * 防抖解析（用于 Raw 编辑器输入，500ms 防抖）
    */
   const debouncedParse = useCallback(
-    (raw: string, expandDepth: number = 1, expandedArrayPaths: Set<string> = new Set()) => {
+    (
+      raw: string,
+      expandDepth: number = 1,
+      expandedArrayPaths: Set<string> = new Set(),
+      options: JsonParseStateOptions = {},
+    ) => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
       timerRef.current = setTimeout(() => {
-        parse(raw, expandDepth, expandedArrayPaths).catch(() => {
+        parse(raw, expandDepth, expandedArrayPaths, options).catch(() => {
           // parse 内部已通过 try/catch dispatch 错误，此处仅防止 unhandled rejection
         });
         timerRef.current = null;

@@ -13,6 +13,7 @@ const LoginPage = lazy(() => import('./modules/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./modules/auth/RegisterPage'));
 const OAuthCallback = lazy(() => import('./modules/auth/OAuthCallback'));
 const ChangePasswordPage = lazy(() => import('./modules/auth/ChangePasswordPage'));
+const WelcomeSetupPage = lazy(() => import('./modules/auth/WelcomeSetupPage'));
 const SettingsPage = lazy(() => import('./modules/settings/SettingsPage'));
 const ToolsPage = lazy(() => import('./modules/tools/ToolsPage'));
 const TextComparePage = lazy(() => import('./modules/tools/text-compare'));
@@ -54,6 +55,14 @@ function AppRoutes() {
         element={
           <RequireAuth>
             <ChangePasswordPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/welcome-setup"
+        element={
+          <RequireAuth>
+            <WelcomeSetupPage />
           </RequireAuth>
         }
       />

@@ -44,8 +44,8 @@ const LoginPage: React.FC = () => {
       login(result.accessToken, result.signingKey, result.user, result.mustChangePassword);
 
       if (result.mustChangePassword) {
-        message.warning('首次登录请修改密码');
-        navigate('/change-password', { replace: true });
+        message.warning('首次登录，请设置密码');
+        navigate('/welcome-setup', { replace: true });
       } else {
         message.success(`欢迎回来，${result.user.username}`);
         // 显示与 OAuth2 一致的成功动画界面

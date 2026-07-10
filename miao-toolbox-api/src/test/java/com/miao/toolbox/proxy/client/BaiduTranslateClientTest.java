@@ -326,6 +326,68 @@ class BaiduTranslateClientTest {
     }
 
     @Test
+    @DisplayName("speechTranslate secretKey 未配置时回退复用 secret 计算签名")
+    void speechTranslate_secretKeyFallbackToSecret() {
+        // 模拟线上 bug 场景：secret-key 未在 yml 配置，字段留空
+        properties.setSecretKey("");
+        BaiduTranslateClient fallbackClient = new BaiduTranslateClient(restTemplate, properties, recorder);
+        byte[] audio = "fake-audio-bytes".getBytes();
+        String voiceB64 = Base64.getEncoder().encodeToString(audio);
+        when(restTemplate.postForEntity(eq(VOICE_URL), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok("{\"code\":0,\"data\":{\"source\":\"a\",\"target\":\"b\"}}"));
+
+        fallbackClient.speechTranslate(audio, "wav", "en", "zh");
+
+        ArgumentCaptor<HttpEntity<?>> captor = ArgumentCaptor.forClass(HttpEntity.class);
+        verify(restTemplate).postForEntity(eq(VOICE_URL), captor.capture(), eq(String.class));
+        HttpHeaders headers = captor.getValue().getHeaders();
+        // 回退使用 secret("sec1") 而非空串或占位符
+        String expectedSign = BaiduSignUtil.signVoice("app1", "sec1",
+                headers.getFirst("X-Timestamp"), voiceB64);
+        assertEquals(expectedSign, headers.getFirst("X-Sign"));
+    }
+
+    @Test
+    @DisplayName("speechTranslate secretKey 残留占位符字面量时回退复用 secret")
+    void speechTranslate_secretKeyPlaceholderFallbackToSecret() {
+        // 模拟 Java 字段默认占位符未被 Spring 解析的情况
+        properties.setSecretKey("${BAIDU_VOICE_SECRET_KEY:${BAIDU_SECRET}}");
+        BaiduTranslateClient fallbackClient = new BaiduTranslateClient(restTemplate, properties, recorder);
+        byte[] audio = "fake-audio-bytes".getBytes();
+        String voiceB64 = Base64.getEncoder().encodeToString(audio);
+        when(restTemplate.postForEntity(eq(VOICE_URL), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok("{\"code\":0,\"data\":{\"source\":\"a\",\"target\":\"b\"}}"));
+
+        fallbackClient.speechTranslate(audio, "wav", "en", "zh");
+
+        ArgumentCaptor<HttpEntity<?>> captor = ArgumentCaptor.forClass(HttpEntity.class);
+        verify(restTemplate).postForEntity(eq(VOICE_URL), captor.capture(), eq(String.class));
+        HttpHeaders headers = captor.getValue().getHeaders();
+        String expectedSign = BaiduSignUtil.signVoice("app1", "sec1",
+                headers.getFirst("X-Timestamp"), voiceB64);
+        assertEquals(expectedSign, headers.getFirst("X-Sign"));
+    }
+
+    @Test
+    @DisplayName("speechTranslate secretKey 已配置独立值时优先使用该值")
+    void speechTranslate_usesDedicatedSecretKeyWhenSet() {
+        byte[] audio = "fake-audio-bytes".getBytes();
+        String voiceB64 = Base64.getEncoder().encodeToString(audio);
+        when(restTemplate.postForEntity(eq(VOICE_URL), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok("{\"code\":0,\"data\":{\"source\":\"a\",\"target\":\"b\"}}"));
+
+        // setUp 中 secretKey="vsec1"，应优先使用而非回退 secret("sec1")
+        client.speechTranslate(audio, "wav", "en", "zh");
+
+        ArgumentCaptor<HttpEntity<?>> captor = ArgumentCaptor.forClass(HttpEntity.class);
+        verify(restTemplate).postForEntity(eq(VOICE_URL), captor.capture(), eq(String.class));
+        HttpHeaders headers = captor.getValue().getHeaders();
+        String expectedSign = BaiduSignUtil.signVoice("app1", "vsec1",
+                headers.getFirst("X-Timestamp"), voiceB64);
+        assertEquals(expectedSign, headers.getFirst("X-Sign"));
+    }
+
+    @Test
     @DisplayName("speechTranslate 百度返回 code!=0 → 友好异常（不暴露内部码）")
     void speechTranslate_baiduError() {
         String body = "{\"code\":6,\"msg\":\"signature error\"}";

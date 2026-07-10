@@ -57,9 +57,12 @@ public class BaiduTranslateProperties {
     /**
      * 语音翻译密钥（HMAC-SHA256）。
      * 百度语音翻译 v2 接口使用独立的 {@code secretKey}，不同于通用/图片翻译的 MD5 {@code secret}。
-     * 默认复用 {@code secret}，若后台二者不同，请在 local 配置单独覆盖。
+     * 默认留空；未配置时由 {@link com.miao.toolbox.proxy.client.BaiduTranslateClient} 自动回退复用 {@code secret}。
+     *
+     * <p>注意：此处不能写 {@code ${...}} 占位符作为字段默认值，Spring 不会解析 Java 字段字面量中的占位符，
+     * 占位符必须写在 application.yml（{@code secret-key: ${BAIDU_VOICE_SECRET_KEY:${BAIDU_SECRET:}}}）中。
      */
-    private String secretKey = "${BAIDU_VOICE_SECRET_KEY:${BAIDU_SECRET}}";
+    private String secretKey = "";
 
     /** HTTP 连接超时（毫秒） */
     private int connectTimeout = 5000;

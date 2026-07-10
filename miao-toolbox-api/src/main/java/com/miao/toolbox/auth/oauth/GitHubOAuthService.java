@@ -166,7 +166,7 @@ public class GitHubOAuthService {
             return LoginResponse.builder()
                     .accessToken(jwtAccessToken)
                     .signingKey(signingKey)
-                    .mustChangePassword(Boolean.TRUE.equals(user.getMustChangePassword()))
+                    .mustChangePassword(user.needsPasswordSetup())
                     .user(LoginResponse.UserInfo.builder()
                             .id(user.getId())
                             .username(user.getUsername())
@@ -211,10 +211,12 @@ public class GitHubOAuthService {
         // Set refresh token cookie
         authService.addRefreshTokenCookie(response, refreshToken);
 
+        boolean needsSetup = user.needsPasswordSetup();
+
         return LoginResponse.builder()
                 .accessToken(jwtAccessToken)
                 .signingKey(signingKey)
-                .mustChangePassword(Boolean.TRUE.equals(user.getMustChangePassword()))
+                .mustChangePassword(needsSetup)
                 .user(LoginResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
@@ -321,7 +323,7 @@ public class GitHubOAuthService {
                 .email(githubUser.getEmail())
                 .roles(Set.of(userRole))
                 .isEnabled(true)
-                .mustChangePassword(false)
+                .mustChangePassword(true)
                 .loginFailCount(0)
                 .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 .updatedAt(LocalDateTime.now(ZoneOffset.UTC))

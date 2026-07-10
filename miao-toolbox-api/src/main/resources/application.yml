@@ -84,6 +84,9 @@ miao:
       translate-url: ${BAIDU_TRANSLATE_URL:https://fanyi-api.baidu.com/api/trans/vip/translate}
       detect-url: ${BAIDU_DETECT_URL:https://fanyi-api.baidu.com/api/trans/vip/language}
       image-url: ${BAIDU_IMAGE_URL:https://fanyi-api.baidu.com/api/trans/sdk/picture}
+      voice-url: ${BAIDU_VOICE_URL:https://fanyi-api.baidu.com/api/trans/v2/voicetrans}
+      # 语音翻译 HMAC 密钥：默认复用 BAIDU_SECRET；仅当百度后台语音翻译使用独立 secretKey 时才配置 BAIDU_VOICE_SECRET_KEY
+      secret-key: ${BAIDU_VOICE_SECRET_KEY:${BAIDU_SECRET:}}
       connect-timeout: ${BAIDU_CONNECT_TIMEOUT:5000}
       read-timeout: ${BAIDU_READ_TIMEOUT:60000}
       max-concurrency: ${BAIDU_MAX_CONCURRENCY:10}

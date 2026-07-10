@@ -24,6 +24,10 @@ const RequireAuth: React.FC<RequireAuthProps> = ({ children }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  if (state.mustChangePassword && location.pathname !== '/welcome-setup') {
+    return <Navigate to="/welcome-setup" replace />;
+  }
+
   return <>{children}</>;
 };
 
