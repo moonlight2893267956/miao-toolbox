@@ -11,6 +11,8 @@ import {
   ZoomInOutlined,
   ZoomOutOutlined,
   CloseOutlined,
+  DownloadOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import {
   LANGUAGE_OPTIONS,
@@ -136,6 +138,75 @@ const TranslateImagePanel: React.FC = () => {
       message.error('复制失败，请检查浏览器权限');
     }
   };
+
+  // 纯文本译文复制 / 导出（FR-10）：以整图译文 translatedText 为准，
+  // 缺省回退为逐块 dst 拼接，保证任意成功响应都有可用纯文本。
+  const hasPlainText = !!(
+    (result?.translatedText && result.translatedText.trim()) ||
+    (result?.blocks && result.blocks.some((b) => b.dst && b.dst.trim()))
+  );
+
+  const getPlainTranslated = useCallback((): string => {
+    if (result?.translatedText && result.translatedText.trim()) {
+      return result.translatedText;
+    }
+    return (result?.blocks ?? []).map((b) => b.dst).join('\n');
+  }, [result]);
+
+  const getPlainSource = useCallback((): string => {
+    if (result?.sourceText && result.sourceText.trim()) {
+      return result.sourceText;
+    }
+    return (result?.blocks ?? []).map((b) => b.src).join('\n');
+  }, [result]);
+
+  const handleCopyTranslated = useCallback(async () => {
+    const text = getPlainTranslated();
+    if (!text.trim()) {
+      message.warning('没有可复制的译文');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      message.success('已复制译文');
+    } catch {
+      message.error('复制失败，请检查浏览器权限');
+    }
+  }, [getPlainTranslated]);
+
+  const handleExportTranslated = useCallback(() => {
+    const text = getPlainTranslated();
+    if (!text.trim()) {
+      message.warning('没有可导出的译文');
+      return;
+    }
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `翻译-${result?.from ?? 'auto'}-${result?.to ?? 'zh'}-${Date.now()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    message.success('已导出译文文件');
+  }, [getPlainTranslated, result?.from, result?.to]);
+
+  const handleCopyBilingual = useCallback(async () => {
+    const src = getPlainSource();
+    const dst = getPlainTranslated();
+    if (!src.trim() && !dst.trim()) {
+      message.warning('没有可复制的内容');
+      return;
+    }
+    const text = `【原文】\n${src}\n\n【译文】\n${dst}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      message.success('已复制双语对照');
+    } catch {
+      message.error('复制失败，请检查浏览器权限');
+    }
+  }, [getPlainSource, getPlainTranslated]);
 
   // 灯箱与缩放（FR-9）
   const handleOpenLightbox = () => {
@@ -350,25 +421,58 @@ const TranslateImagePanel: React.FC = () => {
                 </div>
               </div>
             ) : result.blocks && result.blocks.length > 0 ? (
-              <div className="tt-output tt-output--blocks">
-                {result.blocks.map((block, i) => (
-                  <div className="tt-ocr-block" key={i}>
-                    <div className="tt-ocr-block-src">{block.src}</div>
-                    <div className="tt-ocr-block-dst">
-                      <span className="tt-ocr-block-dst-text">{block.dst}</span>
-                      <Tooltip title="复制该块译文">
-                        <Button
-                          size="small"
-                          type="text"
-                          icon={<CopyOutlined />}
-                          onClick={() => handleCopyBlock(block)}
-                          aria-label="复制该块译文"
-                        />
-                      </Tooltip>
+              <>
+                <div className="tt-text-actions">
+                  <Button
+                    size="small"
+                    type="text"
+                    icon={<CopyOutlined />}
+                    onClick={handleCopyTranslated}
+                    disabled={!hasPlainText}
+                  >
+                    复制译文
+                  </Button>
+                  <Button
+                    size="small"
+                    type="text"
+                    icon={<DownloadOutlined />}
+                    onClick={handleExportTranslated}
+                    disabled={!hasPlainText}
+                  >
+                    导出译文
+                  </Button>
+                  <Tooltip title="复制原文 / 译文对照">
+                    <Button
+                      size="small"
+                      type="text"
+                      icon={<FileTextOutlined />}
+                      onClick={handleCopyBilingual}
+                      disabled={!hasPlainText}
+                    >
+                      复制双语
+                    </Button>
+                  </Tooltip>
+                </div>
+                <div className="tt-output tt-output--blocks">
+                  {result.blocks.map((block, i) => (
+                    <div className="tt-ocr-block" key={i}>
+                      <div className="tt-ocr-block-src">{block.src}</div>
+                      <div className="tt-ocr-block-dst">
+                        <span className="tt-ocr-block-dst-text">{block.dst}</span>
+                        <Tooltip title="复制该块译文">
+                          <Button
+                            size="small"
+                            type="text"
+                            icon={<CopyOutlined />}
+                            onClick={() => handleCopyBlock(block)}
+                            aria-label="复制该块译文"
+                          />
+                        </Tooltip>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </>
             ) : (
               <div className="tt-output tt-output--placeholder">
                 <PictureOutlined className="tt-output-icon" />

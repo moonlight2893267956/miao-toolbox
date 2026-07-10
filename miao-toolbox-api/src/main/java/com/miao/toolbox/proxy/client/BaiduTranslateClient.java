@@ -168,6 +168,8 @@ public class BaiduTranslateClient {
         body.add("cuid", CUID);
         body.add("mac", MAC);
         body.add("version", "3");
+        // 高级版：请求百度返回译文渲染图（整图贴合）。paste=1 整图贴合 / 2 块区贴合
+        body.add("paste", "1");
         body.add("sign", sign);
 
         AiInvocationRecorder.InvocationHandle handle =
@@ -387,7 +389,14 @@ public class BaiduTranslateClient {
         String to = data.path("to").asText("");
         String sumSrc = data.path("sumSrc").asText("");
         String sumDst = data.path("sumDst").asText("");
-        String pasteImg = normalizeImage(data.path("pasteImg").asText(null));
+        String rawPasteImg = data.path("pasteImg").asText(null);
+        String pasteImg = normalizeImage(rawPasteImg);
+
+        log.info("Baidu image fields: from={}, to={}, blocks={}, sumSrcLen={}, sumDstLen={}, pasteImgLen={}",
+                from, to,
+                data.has("content") && data.get("content").isArray() ? data.get("content").size() : 0,
+                sumSrc.length(), sumDst.length(),
+                rawPasteImg != null ? rawPasteImg.length() : 0);
 
         List<ImageTextBlock> blocks = new ArrayList<>();
         JsonNode content = data.get("content");

@@ -1003,6 +1003,28 @@
   display: none;
 }
 
+/* 纯文本译文操作条（FR-10） */
+.tt-text-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--miao-border);
+  background: var(--miao-bg-elevated);
+}
+
+.tt-text-actions .ant-btn {
+  color: var(--miao-text-secondary);
+  font-weight: 600;
+}
+
+.tt-text-actions .ant-btn:not(:disabled):hover {
+  color: var(--miao-brand);
+  background: var(--miao-brand-bg);
+}
+
 /* OCR 结果：逐块列表 */
 .tt-output--blocks {
   flex-direction: column;
