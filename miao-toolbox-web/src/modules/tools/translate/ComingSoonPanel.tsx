@@ -3,7 +3,10 @@ import { Empty } from 'antd';
 import type { TranslateTabKey } from './types';
 
 /** 各占位 Tab 的"即将上线"描述 */
-const COMING_SOON_INFO: Record<Exclude<TranslateTabKey, 'text' | 'detect'>, { title: string; desc: string }> = {
+const COMING_SOON_INFO: Record<
+  Exclude<TranslateTabKey, 'text' | 'detect' | 'history'>,
+  { title: string; desc: string }
+> = {
   image: {
     title: '图片翻译',
     desc: '上传图片或粘贴截图，OCR 识别并保留版式译文。计划于 P1 上线。',
@@ -19,10 +22,12 @@ const COMING_SOON_INFO: Record<Exclude<TranslateTabKey, 'text' | 'detect'>, { ti
 };
 
 /**
- * P1/P2 占位面板（FR-21 框架预留挂载点）。
+ * P1/P2 占位面板（框架预留挂载点）。
  * 点击 Tab 可切换且不报错，提示对应能力"即将上线"。
  */
-const ComingSoonPanel: React.FC<{ tab: Exclude<TranslateTabKey, 'text' | 'detect'> }> = ({ tab }) => {
+const ComingSoonPanel: React.FC<{
+  tab: Exclude<TranslateTabKey, 'text' | 'detect' | 'history'>;
+}> = ({ tab }) => {
   const info = COMING_SOON_INFO[tab];
   return (
     <div className="tt-panel">

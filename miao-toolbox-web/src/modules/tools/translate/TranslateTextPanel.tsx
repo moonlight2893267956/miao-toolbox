@@ -5,6 +5,7 @@ import { message } from 'antd';
 import { LANGUAGE_OPTIONS, type LanguageCode, type TranslateResponse } from './types';
 import { translateText } from './translateService';
 import { useTranslateContext } from './useTranslateContext';
+import { useTranslateHistory } from './useTranslateHistory';
 
 /**
  * 文本翻译 Tab —— 实现 FR-1/2/3/4。
@@ -109,6 +110,7 @@ function downloadFile(filename: string, content: string, mime: string) {
 
 const TranslateTextPanel: React.FC = () => {
   const { state: ttState, dispatch: ttDispatch } = useTranslateContext();
+  const { add: addHistory } = useTranslateHistory();
   const [from, setFrom] = useState<LanguageCode>(ttState.prefill?.from ?? 'auto');
   const [to, setTo] = useState<LanguageCode>(ttState.prefill?.to ?? 'en');
   const [source, setSource] = useState(ttState.prefill?.text ?? '');
@@ -153,6 +155,7 @@ const TranslateTextPanel: React.FC = () => {
       const r = await translateChunks(text, from, to);
       setResult(r);
       setSegments(r.segments);
+      addHistory({ source: text, target: r.translatedText, from: r.from, to });
       if (from === 'auto' && r.from === 'auto') {
         message.warning('未能自动识别语种，请手动选择源语言');
       } else {
@@ -165,7 +168,7 @@ const TranslateTextPanel: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [source, from, to]);
+  }, [source, from, to, addHistory]);
 
   const handleCopyTranslation = async () => {
     if (!result) return;
@@ -211,9 +214,38 @@ const TranslateTextPanel: React.FC = () => {
         />
       )}
 
-      <div className="tt-toolbar">
-        <Space>
+      <div className="tt-command-bar">
+        <div className="tt-lang-bar">
+          <Select<LanguageCode>
+            className="tt-lang-select"
+            value={from}
+            onChange={setFrom}
+            options={LANGUAGE_OPTIONS.map((l) => ({ value: l.code, label: l.label }))}
+          />
+          <Tooltip title={from === 'auto' ? '自动检测时不可交换' : '交换语言'}>
+            <Button
+              type="text"
+              className="tt-lang-swap"
+              icon={<SwapOutlined />}
+              onClick={handleSwap}
+              disabled={from === 'auto'}
+              aria-label="交换语言"
+            />
+          </Tooltip>
+          <Select<LanguageCode>
+            className="tt-lang-select"
+            value={to}
+            onChange={setTo}
+            options={LANGUAGE_OPTIONS.filter((l) => l.code !== 'auto').map((l) => ({
+              value: l.code,
+              label: l.label,
+            }))}
+          />
+        </div>
+
+        <div className="tt-command-actions">
           <Segmented
+            className="tt-segmented"
             value={layout}
             onChange={(v) => setLayout(v as 'split' | 'stack')}
             options={[
@@ -222,6 +254,7 @@ const TranslateTextPanel: React.FC = () => {
             ]}
           />
           <Segmented
+            className="tt-segmented"
             value={fontSize}
             onChange={(v) => setFontSize(v as 'sm' | 'md' | 'lg')}
             options={[
@@ -230,40 +263,24 @@ const TranslateTextPanel: React.FC = () => {
               { label: '大', value: 'lg' },
             ]}
           />
-        </Space>
-      </div>
-
-      <div className="tt-lang-bar">
-        <Select<LanguageCode>
-          className="tt-lang-select"
-          value={from}
-          onChange={setFrom}
-          options={LANGUAGE_OPTIONS.map((l) => ({ value: l.code, label: l.label }))}
-        />
-        <Tooltip title={from === 'auto' ? '自动检测时不可交换' : '交换语言'}>
           <Button
-            type="text"
-            className="tt-lang-swap"
-            icon={<SwapOutlined />}
-            onClick={handleSwap}
-            disabled={from === 'auto'}
-            aria-label="交换语言"
-          />
-        </Tooltip>
-        <Select<LanguageCode>
-          className="tt-lang-select"
-          value={to}
-          onChange={setTo}
-          options={LANGUAGE_OPTIONS.filter((l) => l.code !== 'auto').map((l) => ({
-            value: l.code,
-            label: l.label,
-          }))}
-        />
+            className="tt-primary-action"
+            type="primary"
+            icon={<TranslationOutlined />}
+            onClick={handleTranslate}
+            loading={loading}
+          >
+            翻译
+          </Button>
+        </div>
       </div>
 
       <div className={`tt-split ${layout === 'stack' ? 'tt-split--stack' : ''}`}>
-        <div className="tt-pane">
-          <div className="tt-pane-label">原文</div>
+        <div className="tt-pane tt-pane--source">
+          <div className="tt-pane-head">
+            <span className="tt-pane-label">原文</span>
+            <span className="tt-pane-count">{source.length.toLocaleString()} 字符</span>
+          </div>
           <Input.TextArea
             className="tt-textarea"
             value={source}
@@ -273,7 +290,7 @@ const TranslateTextPanel: React.FC = () => {
           />
         </div>
 
-        <div className="tt-pane">
+        <div className="tt-pane tt-pane--result">
           <div className="tt-pane-head">
             <span className="tt-pane-label">译文</span>
             <Space size={2} className="tt-pane-tools">
@@ -312,14 +329,7 @@ const TranslateTextPanel: React.FC = () => {
         </div>
       </div>
 
-      <div className="tt-actions">
-        <Space>
-          {result && !loading && <span className="tt-char-hint">已翻译 {result.charCount} 字符</span>}
-          <Button type="primary" icon={<TranslationOutlined />} onClick={handleTranslate} loading={loading}>
-            翻译
-          </Button>
-        </Space>
-      </div>
+      {result && !loading && <div className="tt-char-hint tt-char-hint--footer">已翻译 {result.charCount} 字符</div>}
     </div>
   );
 };

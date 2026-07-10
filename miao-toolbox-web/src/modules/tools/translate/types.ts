@@ -53,7 +53,7 @@ export const LANGUAGE_OPTIONS: LanguageOption[] = [
 ];
 
 /** 页面 Tab 键 */
-export type TranslateTabKey = 'text' | 'detect' | 'image' | 'voice' | 'ai';
+export type TranslateTabKey = 'text' | 'detect' | 'history' | 'image' | 'voice' | 'ai';
 
 /** 文本翻译请求（FR-1） */
 export interface TranslateRequest {

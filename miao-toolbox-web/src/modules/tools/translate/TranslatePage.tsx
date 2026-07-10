@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import {
   TranslationOutlined,
   ApartmentOutlined,
+  HistoryOutlined,
   PictureOutlined,
   AudioOutlined,
   ThunderboltOutlined,
@@ -11,6 +12,7 @@ import TranslateProvider from './TranslateProvider';
 import { useTranslateContext } from './useTranslateContext';
 import TranslateTextPanel from './TranslateTextPanel';
 import TranslateDetectPanel from './TranslateDetectPanel';
+import TranslateHistoryPanel from './TranslateHistoryPanel';
 import ComingSoonPanel from './ComingSoonPanel';
 import type { TranslateTabKey } from './types';
 import './translate.css';
@@ -24,6 +26,7 @@ const TABS: {
 }[] = [
   { key: 'text', label: '文本翻译', icon: <TranslationOutlined />, ready: true },
   { key: 'detect', label: '语种识别', icon: <ApartmentOutlined />, ready: true },
+  { key: 'history', label: '历史记录', icon: <HistoryOutlined />, ready: true },
   { key: 'image', label: '图片翻译', icon: <PictureOutlined />, ready: false },
   { key: 'voice', label: '语音翻译', icon: <AudioOutlined />, ready: false },
   { key: 'ai', label: 'AI 增强', icon: <ThunderboltOutlined />, ready: false },
@@ -38,6 +41,8 @@ const TranslateContent: React.FC = () => {
         return <TranslateTextPanel />;
       case 'detect':
         return <TranslateDetectPanel />;
+      case 'history':
+        return <TranslateHistoryPanel />;
       case 'image':
       case 'voice':
       case 'ai':
