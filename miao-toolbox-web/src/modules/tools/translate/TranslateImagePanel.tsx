@@ -47,7 +47,7 @@ function pickImage(files: FileList | null | undefined): File | null {
 const TranslateImagePanel: React.FC = () => {
   const { add: addHistory } = useTranslateHistory();
   const [from, setFrom] = useState<LanguageCode>('auto');
-  const [to, setTo] = useState<LanguageCode>('en');
+  const [to, setTo] = useState<LanguageCode>('zh');
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [result, setResult] = useState<ImageTranslateResponse | null>(null);
