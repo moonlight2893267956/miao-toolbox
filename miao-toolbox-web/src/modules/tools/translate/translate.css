@@ -1106,6 +1106,257 @@
 }
 
 /* ============================================================
+   语音翻译（FR-12 前端，story-3.2）
+   ============================================================ */
+.tt-pane--record {
+  min-height: 0;
+}
+
+/* 录音区通用居中容器（空闲 / 请求 / 处理 / 错误 复用） */
+.tt-voice-state {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px 18px;
+  text-align: center;
+}
+
+.tt-voice-state-icon {
+  font-size: 38px;
+  color: var(--miao-brand);
+  opacity: 0.85;
+}
+
+.tt-voice-state-icon--warn {
+  color: var(--miao-warning, #fa8c16);
+}
+
+.tt-voice-state-title {
+  color: var(--miao-text-primary);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.tt-voice-state-desc {
+  max-width: 320px;
+  color: var(--miao-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* 大麦克风按钮（空闲态入口） */
+.tt-voice-mic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  margin-bottom: 4px;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 34px;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--miao-brand), var(--miao-brand-active));
+  box-shadow: 0 8px 24px var(--miao-brand-bg);
+  transition:
+    transform 200ms var(--tt-ease),
+    box-shadow 240ms var(--tt-ease);
+}
+
+.tt-voice-mic:hover {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 14px 32px var(--miao-brand-bg);
+}
+
+.tt-voice-mic:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* 录音中 */
+.tt-voice-rec {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 24px 18px;
+}
+
+.tt-voice-rec-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--miao-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.tt-voice-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--miao-error, #ff4d4f);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--miao-error, #ff4d4f) 24%, transparent);
+  animation: tt-rec-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes tt-rec-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--miao-error, #ff4d4f) 24%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--miao-error, #ff4d4f) 10%, transparent);
+  }
+}
+
+.tt-voice-timer {
+  color: var(--miao-text-primary);
+  font-family: var(--miao-font-display);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.tt-voice-maxtip {
+  color: var(--miao-text-tertiary);
+  font-size: 13px;
+}
+
+/* 实时波形 */
+.tt-wave {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  max-width: 360px;
+  height: 72px;
+  padding: 0 6px;
+}
+
+.tt-wave--active {
+  filter: drop-shadow(0 4px 10px var(--miao-brand-bg));
+}
+
+.tt-wave-bar {
+  flex: 1 1 0;
+  min-width: 2px;
+  max-width: 9px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    var(--miao-brand-active),
+    var(--miao-brand)
+  );
+  transition: height 90ms var(--tt-ease);
+}
+
+/* 处理中旋转 */
+.tt-voice-spinner {
+  font-size: 30px;
+  color: var(--miao-brand);
+}
+
+/* 停止录音（红色主按钮） */
+.tt-voice-stop.ant-btn {
+  min-width: 120px;
+  height: 38px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+/* 已录：回放 + 格式说明 */
+.tt-voice-done {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px 18px;
+}
+
+.tt-voice-audio {
+  width: 100%;
+  max-width: 420px;
+}
+
+.tt-voice-format-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--miao-brand-bg);
+  color: var(--miao-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* 结果：双语文本（字幕式滚动归 story-3.3） */
+.tt-output--voice {
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.tt-voice-result {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tt-result-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tt-result-tag {
+  align-self: flex-start;
+  padding: 1px 10px;
+  border-radius: 7px;
+  background: var(--miao-brand-bg);
+  color: var(--miao-brand);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tt-result-tag--dst {
+  background: var(--miao-success-bg);
+  color: var(--miao-success);
+}
+
+.tt-result-src {
+  min-width: 0;
+  color: var(--miao-text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.75;
+  font-size: 14px;
+}
+
+.tt-result-dst {
+  min-width: 0;
+  color: var(--miao-text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.8;
+  font-size: 16px;
+  font-weight: 600;
+  padding-left: 12px;
+  border-left: 2px solid var(--miao-success);
+}
+
+/* ============================================================
    占位（即将上线）
    ============================================================ */
 .tt-coming-soon {

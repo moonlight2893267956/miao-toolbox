@@ -141,3 +141,20 @@ export interface ImageTranslateResponse {
   /** 译文渲染图（data URL，FR-9 预览复用） */
   renderedImage?: string;
 }
+
+/* ============================================================
+   语音翻译（FR-12 前端，story-3.2）
+   对齐后端 SpeechTranslateResponse（story-3.1）
+   ============================================================ */
+
+/** 语音翻译响应（FR-12）：识别原文 + 译文 */
+export interface SpeechTranslateResponse {
+  /** 实际检测到的源语言（来自百度） */
+  from: LanguageCode;
+  /** 目标语言 */
+  to: LanguageCode;
+  /** 语音识别原文 */
+  sourceText: string;
+  /** 译文文本 */
+  translatedText: string;
+}

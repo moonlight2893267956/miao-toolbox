@@ -25,8 +25,8 @@ export interface TranslateHistoryEntry {
   to: string;
   /** 是否收藏 */
   favorite: boolean;
-  /** 来源：文本翻译 / 图片翻译（FR-8 兼容，旧记录缺省视为 text） */
-  mode?: 'text' | 'image';
+  /** 来源：文本翻译 / 图片翻译 / 语音翻译（旧记录缺省视为 text） */
+  mode?: 'text' | 'image' | 'voice';
 }
 
 const STORAGE_KEY = 'translate-history';
@@ -55,7 +55,7 @@ export function useTranslateHistory() {
         target: string;
         from: string;
         to: string;
-        mode?: 'text' | 'image';
+        mode?: 'text' | 'image' | 'voice';
       },
     ) => {
       const full: TranslateHistoryEntry = {
