@@ -272,13 +272,13 @@ class TranslateServiceTest {
     @DisplayName("speechTranslate 缺省 format 从文件名扩展名推断为 wav")
     void speechTranslate_resolvesFormatFromFilename() throws IOException {
         byte[] bytes = "audio".getBytes(StandardCharsets.UTF_8);
-        when(baiduTranslateClient.speechTranslate(eq(bytes), eq("wav"), eq("auto"), eq("en")))
+        when(baiduTranslateClient.speechTranslate(eq(bytes), eq("wav"), eq("zh"), eq("en")))
                 .thenReturn(new BaiduTranslateClient.SpeechTranslateResult("Hello", "你好"));
 
         MockMultipartFile file = new MockMultipartFile("voice", "rec.wav", "audio/wav", bytes);
         SpeechTranslateRequest req = new SpeechTranslateRequest();
         req.setVoice(file);
-        req.setFrom("auto");
+        req.setFrom("zh");
         req.setTo("en");
 
         SpeechTranslateResponse resp = service.speechTranslate(req);
