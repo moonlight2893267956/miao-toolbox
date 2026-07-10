@@ -177,7 +177,7 @@ const TranslateImagePanel: React.FC = () => {
       )}
 
       <div className="tt-command-bar tt-command-bar--image">
-        <div className="tt-lang-bar">
+        <div className="tt-lang-bar tt-lang-bar--image">
           <Select<LanguageCode>
             className="tt-lang-select"
             value={from}

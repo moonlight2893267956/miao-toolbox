@@ -386,6 +386,16 @@
   color: var(--miao-on-brand);
 }
 
+.tt-lang-bar--image {
+  grid-template-columns: minmax(132px, 1fr) minmax(132px, 1fr);
+}
+
+@media (max-width: 640px) {
+  .tt-lang-bar--image {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ============================================================
    语言选择条
    ============================================================ */
