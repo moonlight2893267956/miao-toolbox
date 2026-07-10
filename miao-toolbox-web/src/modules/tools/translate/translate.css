@@ -482,6 +482,19 @@
   background: var(--miao-bg-elevated);
   box-shadow: var(--miao-shadow);
   transition: border-color 240ms var(--tt-ease);
+  isolation: isolate;
+}
+
+/* 压制 AntD Input 在聚焦时给 wrap 容器加的蓝色外发光/外描边 */
+.tt-pane .ant-input,
+.tt-pane .ant-input-affix-wrapper,
+.tt-pane .ant-input:focus,
+.tt-pane .ant-input-focused,
+.tt-pane .ant-input-affix-wrapper:focus,
+.tt-pane .ant-input-affix-wrapper-focused {
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
 
 .tt-pane-head {
@@ -564,21 +577,13 @@
   transition: box-shadow 200ms var(--tt-ease);
 }
 
-.tt-textarea.ant-input:hover {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--miao-brand) 30%, transparent) !important;
-  outline: none !important;
-}
-
-.tt-textarea.ant-input:focus,
-.tt-textarea.ant-input:focus-within,
-.tt-textarea.ant-input-focused {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--miao-brand) 55%, transparent) !important;
-  outline: none !important;
-  border-color: transparent !important;
-}
-
 .tt-textarea.ant-input::placeholder {
   color: var(--miao-text-tertiary);
+}
+
+/* 聚焦态：在 .tt-pane 上给一圈克制的品牌紫内描边，替代 AntD 的蓝色发光 */
+.tt-pane:focus-within {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--miao-brand) 45%, transparent) !important;
 }
 
 .tt-output {
