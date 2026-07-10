@@ -50,6 +50,7 @@ AGENTS.md
 CLAUDE.md
 
 # === AI 助手的临时 / scratch 文件（memory/ 仍要追踪以便团队共享） ===
+.codebuddy/
 .codebuddy/scratch/
 .workbuddy/scratch/
 
