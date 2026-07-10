@@ -409,6 +409,7 @@
 
 .tt-lang-select {
   min-width: 0;
+  width: 100%;
 }
 
 .tt-lang-select .ant-select-selector {
