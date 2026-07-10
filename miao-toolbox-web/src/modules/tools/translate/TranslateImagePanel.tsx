@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Select, Button, Alert, Space, Tooltip, Empty, message } from 'antd';
+import { Select, Button, Alert, Space, Tooltip, Empty, Segmented, message } from 'antd';
 import {
   PictureOutlined,
   TranslationOutlined,
@@ -7,6 +7,10 @@ import {
   UploadOutlined,
   ReloadOutlined,
   InboxOutlined,
+  FullscreenOutlined,
+  ZoomInOutlined,
+  ZoomOutOutlined,
+  CloseOutlined,
 } from '@ant-design/icons';
 import {
   LANGUAGE_OPTIONS,
@@ -54,6 +58,9 @@ const TranslateImagePanel: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [viewMode, setViewMode] = useState<'text' | 'render'>('text');
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [zoomScale, setZoomScale] = useState(1);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const dragDepth = useRef(0);
 
@@ -118,8 +125,37 @@ const TranslateImagePanel: React.FC = () => {
     setFile(null);
     setResult(null);
     setError(null);
+    setViewMode('text');
   };
 
+  const handleCopyBlock = async (block: ImageTextBlock) => {
+    try {
+      await navigator.clipboard.writeText(block.dst);
+      message.success('已复制该块译文');
+    } catch {
+      message.error('复制失败，请检查浏览器权限');
+    }
+  };
+
+  // 灯箱与缩放（FR-9）
+  const handleOpenLightbox = () => {
+    setZoomScale(1);
+    setLightboxOpen(true);
+  };
+
+  const handleCloseLightbox = () => setLightboxOpen(false);
+
+  const handleZoom = (delta: number) => {
+    setZoomScale((s) => Math.max(0.5, Math.min(3, +(s + delta).toFixed(2))));
+  };
+
+  const handleWheelZoom = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.1 : -0.1;
+    setZoomScale((s) => Math.max(0.5, Math.min(3, +(s + delta).toFixed(2))));
+  };
+
+  // 翻译复用时重置 viewMode 到文本
   const handleTranslate = useCallback(async () => {
     if (!file) {
       message.warning('请先选择或粘贴图片');
@@ -131,6 +167,7 @@ const TranslateImagePanel: React.FC = () => {
     }
     setLoading(true);
     setError(null);
+    setViewMode('text');
     try {
       const r = await imageTranslate(file, from, to);
       setResult(r);
@@ -154,15 +191,6 @@ const TranslateImagePanel: React.FC = () => {
       setLoading(false);
     }
   }, [file, from, to, addHistory]);
-
-  const handleCopyBlock = async (block: ImageTextBlock) => {
-    try {
-      await navigator.clipboard.writeText(block.dst);
-      message.success('已复制该块译文');
-    } catch {
-      message.error('复制失败，请检查浏览器权限');
-    }
-  };
 
   return (
     <div className="tt-panel">
@@ -278,14 +306,25 @@ const TranslateImagePanel: React.FC = () => {
           />
         </div>
 
-        {/* 右：OCR 结果 */}
+        {/* 右：OCR 结果 + 渲染图切换 */}
         <div className="tt-pane tt-pane--result">
           <div className="tt-pane-head">
-            <span className="tt-pane-label">OCR 结果</span>
+            <span className="tt-pane-label">结果</span>
             {result && (
-              <span className="tt-pane-count">
-                检测到 {languageLabel(result.from)} · {result.blocks?.length ?? 0} 个文本块
-              </span>
+              <>
+                <Segmented
+                  className="tt-segmented"
+                  value={viewMode}
+                  onChange={(v) => setViewMode(v as 'text' | 'render')}
+                  options={[
+                    { label: 'OCR 文本', value: 'text' },
+                    { label: '渲染图', value: 'render', disabled: !result.renderedImage },
+                  ]}
+                />
+                <span className="tt-pane-count">
+                  {languageLabel(result.from)} · {result.blocks?.length ?? 0} 块
+                </span>
+              </>
             )}
           </div>
 
@@ -299,7 +338,18 @@ const TranslateImagePanel: React.FC = () => {
               <span>识别并翻译中…</span>
             </div>
           ) : result ? (
-            result.blocks && result.blocks.length > 0 ? (
+            viewMode === 'render' && result.renderedImage ? (
+              <div className="tt-render-preview" onClick={handleOpenLightbox}>
+                <img
+                  src={result.renderedImage}
+                  alt="译文渲染图"
+                  className="tt-render-preview-img"
+                />
+                <div className="tt-render-zoom-hint">
+                  <FullscreenOutlined /> 点击放大查看
+                </div>
+              </div>
+            ) : result.blocks && result.blocks.length > 0 ? (
               <div className="tt-output tt-output--blocks">
                 {result.blocks.map((block, i) => (
                   <div className="tt-ocr-block" key={i}>
@@ -331,7 +381,7 @@ const TranslateImagePanel: React.FC = () => {
                 image={Empty.PRESENTED_IMAGE_DEFAULT}
                 description={
                   <Space direction="vertical" size={2}>
-                    <span>译文将按文本块逐条展示在这里</span>
+                    <span>译文将逐块展示在这里</span>
                     <span className="tt-placeholder-hint">先上传或粘贴一张图片吧</span>
                   </Space>
                 }
@@ -340,8 +390,72 @@ const TranslateImagePanel: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* 灯箱：渲染图放大预览 */}
+      {lightboxOpen && result?.renderedImage && (
+        <div
+          className="tt-lightbox"
+          onClick={handleCloseLightbox}
+          role="dialog"
+          aria-label="译文渲染图全屏预览"
+        >
+          <div className="tt-lightbox-toolbar" onClick={(e) => e.stopPropagation()}>
+            <Tooltip title="缩小">
+              <Button
+                size="small"
+                type="text"
+                icon={<ZoomOutOutlined />}
+                onClick={() => handleZoom(-0.25)}
+                disabled={zoomScale <= 0.5}
+              />
+            </Tooltip>
+            <span className="tt-lightbox-scale">{Math.round(zoomScale * 100)}%</span>
+            <Tooltip title="放大">
+              <Button
+                size="small"
+                type="text"
+                icon={<ZoomInOutlined />}
+                onClick={() => handleZoom(0.25)}
+                disabled={zoomScale >= 3}
+              />
+            </Tooltip>
+            <Tooltip title="关闭">
+              <Button
+                size="small"
+                type="text"
+                icon={<CloseOutlined />}
+                onClick={handleCloseLightbox}
+              />
+            </Tooltip>
+          </div>
+          <img
+            src={result.renderedImage}
+            alt="译文渲染图全屏预览"
+            className="tt-lightbox-img"
+            style={{ transform: `scale(${zoomScale})` }}
+            onClick={(e) => e.stopPropagation()}
+            onWheel={handleWheelZoom}
+          />
+        </div>
+      )}
+
+      {/* Esc 关闭灯箱 */}
+      {lightboxOpen && <EscHandler onEsc={handleCloseLightbox} />}
     </div>
   );
+};
+
+/** 监听 Esc 关闭灯箱（组件仅在 lightboxOpen 时挂载，自动卸载清理） */
+const EscHandler: React.FC<{ onEsc: () => void }> = ({ onEsc }) => {
+  useEffect(() => {
+    const cb = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onEsc();
+    };
+    window.addEventListener('keydown', cb);
+    return () => window.removeEventListener('keydown', cb);
+  }, [onEsc]);
+
+  return null;
 };
 
 export default TranslateImagePanel;

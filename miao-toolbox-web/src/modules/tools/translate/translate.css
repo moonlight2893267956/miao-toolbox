@@ -826,6 +826,127 @@
   object-fit: contain;
 }
 
+/* 渲染图预览（FR-9） */
+.tt-render-preview {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 12px;
+  overflow: hidden;
+  cursor: zoom-in;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      color-mix(in srgb, var(--miao-brand) 2%, transparent) 0,
+      color-mix(in srgb, var(--miao-brand) 2%, transparent) 8px,
+      transparent 8px,
+      transparent 16px
+    ),
+    var(--miao-bg-elevated);
+  border-radius: var(--tt-radius-lg);
+  transition: background-color 200ms var(--tt-ease);
+}
+
+.tt-render-preview:hover {
+  background-color: var(--miao-brand-bg);
+}
+
+.tt-render-preview-img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(34, 29, 48, 0.15);
+  object-fit: contain;
+  transition: transform 200ms var(--tt-ease);
+}
+
+.tt-render-preview:hover .tt-render-preview-img {
+  transform: scale(1.04);
+}
+
+.tt-render-zoom-hint {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: rgba(34, 29, 48, 0.78);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
+
+/* 灯箱：全屏渲染图放大预览 */
+.tt-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  background: rgba(12, 10, 20, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  animation: tt-fade-in 180ms var(--tt-ease);
+}
+
+@keyframes tt-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.tt-lightbox-toolbar {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  z-index: 1;
+}
+
+.tt-lightbox-toolbar .ant-btn {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.tt-lightbox-toolbar .ant-btn:hover:not(:disabled) {
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.16) !important;
+}
+
+.tt-lightbox-scale {
+  min-width: 44px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.85);
+  user-select: none;
+}
+
+.tt-lightbox-img {
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 10px;
+  box-shadow: 0 0 60px rgba(60, 120, 255, 0.12);
+  object-fit: contain;
+  transition: transform 120ms var(--tt-ease);
+  cursor: default;
+}
+
 /* 拖拽上传区 */
 .tt-dropzone {
   flex: 1 1 auto;
