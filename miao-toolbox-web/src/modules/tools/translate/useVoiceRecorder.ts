@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { transcodeToWav, MAX_RECORD_SECONDS } from './audioTranscode';
+import { transcodeToWav, getAudioDuration, MAX_RECORD_SECONDS } from './audioTranscode';
 
 /**
  * 语音录音 Hook（FR-12，story-3.2）
@@ -41,9 +41,15 @@ interface VoiceRecorder {
   error: string | null;
   /** 单次最长录音秒数 */
   maxSeconds: number;
+  /** 当前音频来源：麦克风录音 / 导入文件 / 无 */
+  sourceType: 'mic' | 'file' | null;
+  /** 导入的文件名（sourceType='file' 时展示用） */
+  fileName: string | null;
   start: () => void;
   stop: () => void;
   reset: () => void;
+  /** 导入本地音频文件（FR-12b）：校验时长→转码→就绪，复用录音态音频字段 */
+  importFile: (file: File) => Promise<void>;
 }
 
 function pickMime(): string | undefined {
@@ -84,6 +90,8 @@ export function useVoiceRecorder(): VoiceRecorder {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sourceType, setSourceType] = useState<'mic' | 'file' | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
 
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -220,6 +228,7 @@ export function useVoiceRecorder(): VoiceRecorder {
               urlRef.current = URL.createObjectURL(wav);
               setAudioBlob(wav);
               setAudioUrl(urlRef.current);
+              setSourceType('mic');
               setStatus('recorded');
             })
             .catch(() => {
@@ -259,6 +268,56 @@ export function useVoiceRecorder(): VoiceRecorder {
     }
   }, []);
 
+  /**
+   * 导入本地音频文件（FR-12b）：先校验时长，再转码，最后进入「已就绪」态。
+   * 复用录音态的 audioBlob/audioUrl/elapsed 字段，使后续翻译链路完全一致。
+   */
+  const importFile = useCallback(async (file: File) => {
+    setError(null);
+    // 清理既有状态（无论来源），避免导入态与录音态串味
+    if (urlRef.current) {
+      URL.revokeObjectURL(urlRef.current);
+      urlRef.current = null;
+    }
+    setAudioBlob(null);
+    setAudioUrl(null);
+    setElapsed(0);
+    setSourceType(null);
+    setFileName(null);
+    setStatus('processing');
+
+    try {
+      // 1. 时长校验（≤60s），解码失败直接走 DECODE_FAILED 友好提示
+      const duration = await getAudioDuration(file);
+      if (duration > MAX_RECORD_SECONDS + 0.5) {
+        setFileName(file.name);
+        setStatus('error');
+        setError(
+          `音频过长（约 ${Math.round(duration)} 秒），请裁剪至 ${MAX_RECORD_SECONDS} 秒以内再导入`,
+        );
+        return;
+      }
+      // 2. 转码为 WAV(16k/单声道)
+      const wav = await transcodeToWav(file);
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      urlRef.current = URL.createObjectURL(wav);
+      setAudioBlob(wav);
+      setAudioUrl(urlRef.current);
+      setElapsed(duration);
+      setFileName(file.name);
+      setSourceType('file');
+      setStatus('recorded');
+    } catch (e: unknown) {
+      const msg = (e as { message?: string })?.message;
+      setStatus('error');
+      setError(
+        msg === 'DECODE_FAILED'
+          ? '无法读取该音频文件，请确认格式受浏览器支持且文件未损坏'
+          : '音频处理失败，请重试',
+      );
+    }
+  }, []);
+
   const reset = useCallback(() => {
     stopTimer();
     stopLevelLoop();
@@ -271,6 +330,8 @@ export function useVoiceRecorder(): VoiceRecorder {
     setAudioBlob(null);
     setAudioUrl(null);
     setElapsed(0);
+    setSourceType(null);
+    setFileName(null);
     setStatus('idle');
     setError(null);
   }, [stopTimer, stopLevelLoop, teardownMedia]);
@@ -294,8 +355,11 @@ export function useVoiceRecorder(): VoiceRecorder {
     audioUrl,
     error,
     maxSeconds: MAX_RECORD_SECONDS,
+    sourceType,
+    fileName,
     start,
     stop,
     reset,
+    importFile,
   };
 }

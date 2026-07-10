@@ -1299,6 +1299,27 @@
   color: var(--miao-text-secondary);
   font-size: 12px;
   font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 导入本地音频文件（FR-12b） */
+.tt-voice-import-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px 4px;
+  border-top: 1px dashed var(--miao-border, #e5e7eb);
+  margin-top: 8px;
+}
+
+.tt-voice-import-hint {
+  color: var(--miao-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 /* 结果：双语文本（字幕式滚动归 story-3.3） */
@@ -1354,6 +1375,94 @@
   font-weight: 600;
   padding-left: 12px;
   border-left: 2px solid var(--miao-success);
+}
+
+/* ============================================================
+   语音翻译：字幕式滚动展示（FR-13，story-3.3）
+   ============================================================ */
+.tt-subtitle {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 2px;
+  scroll-behavior: smooth;
+}
+
+.tt-subtitle-line {
+  position: relative;
+  padding: 12px 14px;
+  border-radius: var(--tt-radius);
+  background: var(--miao-bg-elevated);
+  border: 1px solid var(--miao-border);
+  border-left: 3px solid var(--miao-brand);
+  box-shadow: var(--miao-shadow-soft);
+  opacity: 0;
+  transform: translateY(8px);
+  animation: tt-subtitle-in 420ms var(--tt-ease) forwards;
+}
+
+@keyframes tt-subtitle-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tt-subtitle-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.tt-subtitle-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--miao-brand);
+  background: var(--miao-brand-bg);
+  padding: 1px 8px;
+  border-radius: 6px;
+}
+
+.tt-subtitle-index {
+  font-size: 12px;
+  color: var(--miao-text-tertiary);
+}
+
+.tt-subtitle-copy {
+  margin-left: auto;
+  color: var(--miao-text-secondary);
+}
+
+.tt-subtitle-src {
+  min-width: 0;
+  color: var(--miao-text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.7;
+  font-size: 14px;
+}
+
+.tt-subtitle-dst {
+  margin-top: 4px;
+  color: var(--miao-text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.8;
+  font-size: 16px;
+  font-weight: 600;
+  padding-left: 10px;
+  border-left: 2px solid var(--miao-success);
+}
+
+.tt-subtitle-empty {
+  color: var(--miao-text-tertiary);
+  text-align: center;
+  padding: 32px 12px;
 }
 
 /* ============================================================

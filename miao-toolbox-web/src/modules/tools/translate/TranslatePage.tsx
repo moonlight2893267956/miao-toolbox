@@ -28,10 +28,10 @@ const TABS: {
 }[] = [
   { key: 'text', label: '文本翻译', icon: <TranslationOutlined />, ready: true },
   { key: 'detect', label: '语种识别', icon: <ApartmentOutlined />, ready: true },
-  { key: 'history', label: '历史记录', icon: <HistoryOutlined />, ready: true },
   { key: 'image', label: '图片翻译', icon: <PictureOutlined />, ready: true },
   { key: 'voice', label: '语音翻译', icon: <AudioOutlined />, ready: true },
   { key: 'ai', label: 'AI 增强', icon: <ThunderboltOutlined />, ready: false },
+  { key: 'history', label: '历史记录', icon: <HistoryOutlined />, ready: true },
 ];
 
 const TranslateContent: React.FC = () => {

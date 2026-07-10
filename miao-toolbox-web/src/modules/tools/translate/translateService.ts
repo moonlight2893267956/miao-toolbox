@@ -62,20 +62,22 @@ export async function imageTranslate(
  * 语音翻译（FR-12，story-3.2）
  *
  * 以 `multipart/form-data` 调用 story-3.1 提供的新端点。
- * 前端已把浏览器录音(webm/opus)转码为 WAV(16k/单声道)，故固定 `format=wav`，
- * `from` 默认 `auto`（与后端 `@RequestParam(defaultValue="auto")` 对齐），`to` 必填。
+ * 前端把录音转码为 16kHz/单声道/16bit 后，默认以裸 `pcm` 上传：
+ * 百度语音翻译仅「中文/粤语」支持 wav，英语等其他语种只接受 pcm，而 pcm 对所有语种通用。
+ * `from` 必须为具体语种（百度语音翻译不支持 `auto` 自动检测），`to` 必填。
  * 复用 axios 拦截器（HMAC 签名 + token 刷新），密钥仅存于服务端。
  */
 export async function speechTranslate(
   file: Blob,
   from: LanguageCode,
   to: LanguageCode,
+  format: 'pcm' | 'wav' = 'pcm',
 ): Promise<SpeechTranslateResponse> {
   const form = new FormData();
   form.append('voice', file);
   form.append('from', from);
   form.append('to', to);
-  form.append('format', 'wav');
+  form.append('format', format);
   const resp = await axiosInstance.post<{ data: SpeechTranslateResponse }>(
     `${BASE}/voice`,
     form,

@@ -52,6 +52,29 @@ export const LANGUAGE_OPTIONS: LanguageOption[] = [
   { code: 'hi', label: '印地语' },
 ];
 
+/**
+ * 语音翻译语言选项（子集）。
+ *
+ * 百度语音翻译 v2 接口与文本翻译不同：
+ * 1. 不支持 `auto` 自动检测源语言，必须明确指定说话语种；
+ * 2. 仅支持有限语种（中文/粤语/英/日/韩/俄/德/法/泰/葡/西/阿），
+ *    文本翻译里的意大利语/越南语/印尼语/马来语/印地语等语音接口不支持。
+ * 因此源/目标语言下拉都使用本列表，且不含 `auto`。
+ */
+export const VOICE_LANGUAGE_OPTIONS: LanguageOption[] = [
+  { code: 'zh', label: '中文' },
+  { code: 'en', label: '英语' },
+  { code: 'jp', label: '日语' },
+  { code: 'kor', label: '韩语' },
+  { code: 'fra', label: '法语' },
+  { code: 'spa', label: '西班牙语' },
+  { code: 'ru', label: '俄语' },
+  { code: 'de', label: '德语' },
+  { code: 'pt', label: '葡萄牙语' },
+  { code: 'th', label: '泰语' },
+  { code: 'ar', label: '阿拉伯语' },
+];
+
 /** 页面 Tab 键 */
 export type TranslateTabKey = 'text' | 'detect' | 'history' | 'image' | 'voice' | 'ai';
 

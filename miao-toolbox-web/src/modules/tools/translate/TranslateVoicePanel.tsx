@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Select, Button, Alert, Space, Tooltip, Empty, message } from 'antd';
 import {
   AudioOutlined,
@@ -9,13 +9,17 @@ import {
   LoadingOutlined,
   StopOutlined,
   ExclamationCircleOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import {
-  LANGUAGE_OPTIONS,
+  VOICE_LANGUAGE_OPTIONS,
   type LanguageCode,
   type SpeechTranslateResponse,
 } from './types';
 import { speechTranslate } from './translateService';
+import { wavBlobToPcm } from './audioTranscode';
+import { formatTime } from './subtitle';
+import SubtitleView from './SubtitleView';
 import { useTranslateHistory } from './useTranslateHistory';
 import { useVoiceRecorder } from './useVoiceRecorder';
 
@@ -25,23 +29,15 @@ import { useVoiceRecorder } from './useVoiceRecorder';
  * - 录音：点击申请麦克风权限 → MediaRecorder 采集 → 停止后自动转码为 WAV(16k/单声道)。
  * - 权限/设备异常：`useVoiceRecorder` 已映射为友好中文提示，可重试。
  * - 调用：复用 `speechTranslate`（multipart 调 `POST /api/translate/voice`）。
- * - 展示：成功后以基础双语文本展示识别原文与译文（字幕式滚动归 story-3.3）。
+ * - 展示：成功后以字幕式滚动呈现「原文 → 译文」对照（FR-13，story-3.3）。
  *
- * 说明：本 story 仅消费 `sourceText`/`translatedText`；朗读(TTS/P2)、字幕动画(story-3.3)
- * 由后续 story 复用同一端点/结果结构实现，本面板不渲染这两类能力。
+ * 说明：朗读(TTS/P2) 由后续 story 复用同一端点/结果结构实现，本面板不渲染该能力。
  */
 
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024; // 后端 2MB 上限
 
 const languageLabel = (code: LanguageCode): string =>
-  LANGUAGE_OPTIONS.find((l) => l.code === code)?.label ?? code;
-
-function formatTime(sec: number): string {
-  const s = Math.floor(sec);
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
-}
+  VOICE_LANGUAGE_OPTIONS.find((l) => l.code === code)?.label ?? code;
 
 /** 实时波形：由 recorder.levels 驱动，无需 React 状态重算 */
 const Waveform: React.FC<{ levels: number[]; active: boolean }> = ({ levels, active }) => (
@@ -59,11 +55,30 @@ const Waveform: React.FC<{ levels: number[]; active: boolean }> = ({ levels, act
 const TranslateVoicePanel: React.FC = () => {
   const { add: addHistory } = useTranslateHistory();
   const rec = useVoiceRecorder();
-  const [from, setFrom] = useState<LanguageCode>('auto');
-  const [to, setTo] = useState<LanguageCode>('zh');
+  // 百度语音翻译不支持 auto 自动检测，源语言必须为具体语种，默认中译英
+  const [from, setFrom] = useState<LanguageCode>('zh');
+  const [to, setTo] = useState<LanguageCode>('en');
   const [result, setResult] = useState<SpeechTranslateResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleImportClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      // 清空 value，保证同一文件再次选择也能触发 change
+      e.target.value = '';
+      if (file) {
+        void rec.importFile(file);
+      }
+    },
+    [rec],
+  );
 
   const showRecorded = rec.status === 'recorded' && rec.audioBlob;
   const busy = rec.status === 'requesting' || rec.status === 'processing' || loading;
@@ -84,7 +99,10 @@ const TranslateVoicePanel: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const r = await speechTranslate(rec.audioBlob, from, to);
+      // 录音为 WAV，百度语音翻译仅中文/粤语支持 wav，其他语种只接受 pcm；
+      // 统一转裸 PCM（16k/单声道/16bit）对所有语种通用，format 固定 pcm。
+      const pcm = await wavBlobToPcm(rec.audioBlob);
+      const r = await speechTranslate(pcm, from, to, 'pcm');
       setResult(r);
       addHistory({
         source: r.sourceText && r.sourceText.trim() ? r.sourceText : '[语音]',
@@ -186,7 +204,13 @@ const TranslateVoicePanel: React.FC = () => {
           <div className="tt-voice-done">
             <audio className="tt-voice-audio" src={rec.audioUrl ?? undefined} controls />
             <div className="tt-voice-format-note">
-              已转码为 WAV（16kHz · 单声道），可直接翻译
+              {rec.sourceType === 'file' && rec.fileName ? (
+                <>
+                  {rec.fileName} · 已转码为 WAV（16kHz · 单声道）
+                </>
+              ) : (
+                '已转码为 WAV（16kHz · 单声道），可直接翻译'
+              )}
             </div>
           </div>
         );
@@ -230,13 +254,13 @@ const TranslateVoicePanel: React.FC = () => {
             className="tt-lang-select"
             value={from}
             onChange={setFrom}
-            options={LANGUAGE_OPTIONS.map((l) => ({ value: l.code, label: l.label }))}
+            options={VOICE_LANGUAGE_OPTIONS.map((l) => ({ value: l.code, label: l.label }))}
           />
           <Select<LanguageCode>
             className="tt-lang-select"
             value={to}
             onChange={setTo}
-            options={LANGUAGE_OPTIONS.filter((l) => l.code !== 'auto').map((l) => ({
+            options={VOICE_LANGUAGE_OPTIONS.map((l) => ({
               value: l.code,
               label: l.label,
             }))}
@@ -279,6 +303,25 @@ const TranslateVoicePanel: React.FC = () => {
             )}
           </div>
           {renderRecordPane()}
+          <div className="tt-voice-import-row">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*"
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+            />
+            <Button
+              icon={<UploadOutlined />}
+              onClick={handleImportClick}
+              disabled={busy}
+            >
+              导入音频文件
+            </Button>
+            <span className="tt-voice-import-hint">
+              支持 mp3 / m4a / wav / webm 等，时长 ≤ {rec.maxSeconds} 秒
+            </span>
+          </div>
         </div>
 
         {/* 右：译文结果 */}
@@ -339,24 +382,12 @@ const TranslateVoicePanel: React.FC = () => {
                   </Button>
                 </Tooltip>
               </div>
-              <div className="tt-voice-result">
-                <div className="tt-result-block">
-                  <div className="tt-result-tag">原文</div>
-                  <div className="tt-result-src">
-                    {result.sourceText && result.sourceText.trim()
-                      ? result.sourceText
-                      : '（未识别到文本）'}
-                  </div>
-                </div>
-                <div className="tt-result-block tt-result-block--dst">
-                  <div className="tt-result-tag tt-result-tag--dst">译文</div>
-                  <div className="tt-result-dst">
-                    {result.translatedText && result.translatedText.trim()
-                      ? result.translatedText
-                      : '（无译文）'}
-                  </div>
-                </div>
-              </div>
+              <SubtitleView
+                source={result.sourceText ?? ''}
+                target={result.translatedText ?? ''}
+                durationSec={rec.elapsed}
+                onCopySegment={(text) => handleCopy(text, '本句')}
+              />
             </div>
           ) : (
             <div className="tt-output tt-output--placeholder">

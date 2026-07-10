@@ -83,6 +83,51 @@ export async function transcodeToWav(
 }
 
 /**
+ * 解码音频 Blob 取总时长（秒）。
+ *
+ * 供导入本地音频文件前的时长校验（PRD FR-12b 边界：≤60s）复用，
+ * 与 {@link transcodeToWav} 共用同一套解码逻辑。解码失败（损坏/罕见编码）
+ * 抛出语义化 `DECODE_FAILED`，由调用方映射为友好中文提示。
+ *
+ * @param blob 任意浏览器可解码的音频 Blob（mp3/m4a/wav/webm…）
+ * @returns 音频总时长（秒）
+ * @throws 解码失败时抛出 `Error('DECODE_FAILED')`
+ */
+export async function getAudioDuration(blob: Blob): Promise<number> {
+  const arrayBuffer = await blob.arrayBuffer();
+  const Ctor = getAudioContextCtor();
+  const ctx = new Ctor();
+  try {
+    if (ctx.state === 'suspended') {
+      await ctx.resume().catch(() => undefined);
+    }
+    const buffer = await ctx.decodeAudioData(arrayBuffer);
+    return buffer.duration;
+  } catch {
+    throw new Error('DECODE_FAILED');
+  } finally {
+    ctx.close().catch(() => undefined);
+  }
+}
+
+/**
+ * 从本模块产出的 WAV Blob 提取裸 PCM（去掉 44 字节标准头）。
+ *
+ * 百度语音翻译对格式有语种限制：仅「中文/粤语」支持 wav，英语等其他语种**只接受 pcm**。
+ * 而 pcm（16kHz/单声道/16bit 小端）对**所有**支持语种通用，因此上传统一用 pcm 更稳妥。
+ * 本函数仅用于处理 {@link transcodeToWav} 产出的标准 44 字节头 WAV，直接切头即得裸 PCM。
+ *
+ * @param wav 由 transcodeToWav 生成的 WAV Blob
+ * @returns 裸 PCM Blob（16kHz/单声道/16bit LE）
+ */
+export async function wavBlobToPcm(wav: Blob): Promise<Blob> {
+  const buffer = await wav.arrayBuffer();
+  // 标准 PCM WAV 头为 44 字节；本模块自产 WAV 恒为该结构，安全切头即可
+  const pcm = buffer.byteLength > 44 ? buffer.slice(44) : buffer;
+  return new Blob([pcm], { type: 'audio/L16' });
+}
+
+/**
  * 将 Float32 PCM 样本编码为 16-bit PCM WAV（标准 44 字节头）。
  */
 function encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffer {
