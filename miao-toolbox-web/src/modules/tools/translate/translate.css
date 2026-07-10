@@ -386,12 +386,13 @@
   color: var(--miao-on-brand);
 }
 
-.tt-lang-bar--image {
+/* 图片面板语言选择条：无 swap 按钮，仅两列 */
+.tt-lang-bar.tt-lang-bar--image {
   grid-template-columns: minmax(132px, 1fr) minmax(132px, 1fr);
 }
 
 @media (max-width: 640px) {
-  .tt-lang-bar--image {
+  .tt-lang-bar.tt-lang-bar--image {
     grid-template-columns: 1fr;
   }
 }
