@@ -286,7 +286,6 @@ const TranslateTextPanel: React.FC = () => {
             value={source}
             onChange={(e) => setSource(e.target.value)}
             placeholder="在此粘贴或输入待翻译文本…（单段上限约 6000 字符，超出将自动分段翻译）"
-            autoSize={{ minRows: 10, maxRows: 20 }}
           />
         </div>
 

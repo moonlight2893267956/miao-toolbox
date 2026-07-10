@@ -176,7 +176,6 @@ const TranslateDetectPanel: React.FC = () => {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="输入或粘贴文本，系统将识别其语种（限中/英/日/韩/泰/越/俄 7 语种子集）…"
-            autoSize={{ minRows: 10, maxRows: 20 }}
           />
         </div>
 

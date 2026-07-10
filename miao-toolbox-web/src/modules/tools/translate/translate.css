@@ -572,7 +572,7 @@
   color: var(--miao-text-primary) !important;
   box-shadow: none !important;
   outline: none !important;
-  resize: vertical;
+  resize: none;
   line-height: 1.75;
   transition: box-shadow 200ms var(--tt-ease);
 }
