@@ -54,12 +54,6 @@ const TranslateContent: React.FC = () => {
 
   return (
     <div className="tt-page">
-      <div className="tt-bg-effects" aria-hidden="true">
-        <div className="tt-bg-gradient-left" />
-        <div className="tt-bg-gradient-right" />
-        <div className="tt-bg-noise" />
-      </div>
-
       <header className="tt-header">
         <motion.div
           className="tt-header-inner"

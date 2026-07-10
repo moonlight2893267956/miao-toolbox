@@ -1,30 +1,69 @@
 /**
- * 智能翻译工具 - translation workbench redesign
- * 目标：高频工具台，安静、紧凑、输入输出层级清晰。
+ * 智能翻译工具 — 样式 v2（"工作台"范式，与加解密工具对齐）
+ *
+ * 设计语言：
+ *  - 全屏铺满（不再居中卡片文档）
+ *  - 页头极简、不做卡片包裹
+ *  - 导航条左对齐玻璃轨道，激活态品牌紫渐变填充
+ *  - 双栏占满可用高度，输入/输出左右并排
+ *  - 面板头统一（主色点 + 标题 + 元信息），规范、克制
  */
 
-.tt-page {
-  --tool-accent: var(--miao-brand);
-  --tool-accent-soft: color-mix(in srgb, var(--tool-accent) 12%, transparent);
-  --tool-accent-soft-2: color-mix(in srgb, var(--tool-accent) 13%, transparent);
-  --tt-radius: var(--miao-radius-md);
-  --tt-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --tt-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
-
-  position: relative;
-  width: min(100%, 1480px);
-  min-height: calc(100vh - 112px);
-  margin: 0 auto;
-  color: var(--miao-text-primary);
+/* ============================================================
+   外壳：让翻译页铺满整屏（与 crypto 一致）
+   ============================================================ */
+.miao-shell:has(.tt-page) {
+  height: 100vh;
+  min-height: 0;
   overflow: hidden;
 }
 
-:root[data-theme='dark'] .tt-page {
-  --tool-accent-soft: color-mix(in srgb, var(--tool-accent) 14%, transparent);
-  --tool-accent-soft-2: color-mix(in srgb, var(--tool-accent) 15%, transparent);
+.miao-shell:has(.tt-page) > .ant-layout {
+  min-height: 0;
 }
 
-/* 收敛为两角柔和径向光晕（品牌紫 + 成功绿，低强度），更通透 */
+.miao-content:has(.tt-page) {
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  min-height: 0;
+  margin: 0;
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.miao-content:has(.tt-page) > div {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================
+   页面容器
+   ============================================================ */
+.tt-page {
+  --tool-accent: var(--miao-brand);
+  --tt-radius: var(--miao-radius-md);
+  --tt-radius-lg: 16px;
+  --tt-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --tt-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  padding: 0 !important;
+  max-width: none !important;
+  overflow: hidden;
+  position: relative;
+  color: var(--miao-text-primary);
+}
+
+/* 极轻的两角光晕，作为页面底纹，保持通透 */
 .tt-page::before {
   content: '';
   position: absolute;
@@ -32,84 +71,57 @@
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(130% 90% at 0% 0%, var(--miao-brand-bg), transparent 52%),
-    radial-gradient(130% 90% at 100% 100%, var(--miao-success-bg), transparent 50%);
+    radial-gradient(120% 80% at 0% 0%, var(--miao-brand-bg), transparent 55%),
+    radial-gradient(120% 80% at 100% 100%, var(--miao-success-bg), transparent 52%);
 }
 
-:root[data-theme='dark'] .tt-page::before {
-  background:
-    radial-gradient(130% 90% at 0% 0%, var(--miao-brand-bg), transparent 58%),
-    radial-gradient(130% 90% at 100% 100%, var(--miao-success-bg), transparent 54%);
-}
-
-.tt-bg-effects {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-}
-
-.tt-bg-gradient-left,
-.tt-bg-gradient-right {
-  display: none;
-}
-
-.tt-bg-noise {
-  position: absolute;
-  inset: 0;
-  opacity: 0.15;
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--miao-brand) 5%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--miao-brand) 5%, transparent) 1px, transparent 1px);
-  background-size: 38px 38px;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.7), transparent 70%);
-}
-
-:root[data-theme='dark'] .tt-bg-noise {
-  opacity: 0.1;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
-}
-
-.tt-header,
-.tt-nav,
-.tt-content {
+.tt-page > * {
   position: relative;
   z-index: 1;
 }
 
+/* ============================================================
+   页头（极简，无卡片包裹）
+   ============================================================ */
 .tt-header {
-  margin-bottom: 12px;
+  padding: 4px 4px 0;
+  flex-shrink: 0;
 }
 
 .tt-header-inner {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 64px;
-  padding: 10px 12px;
-  border: 1px solid var(--miao-border);
-  border-radius: var(--miao-radius-md);
-  background: var(--miao-bg-elevated);
-  box-shadow: var(--miao-shadow-soft);
-  backdrop-filter: blur(18px);
+  gap: 14px;
 }
 
 .tt-header-icon {
-  width: 42px;
-  height: 42px;
+  position: relative;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 7px;
-  color: var(--tool-accent);
-  background:
-    linear-gradient(135deg, var(--tool-accent-soft), transparent),
-    var(--miao-bg-elevated);
-  border: 1px solid var(--miao-border);
-  font-size: 20px;
+  border-radius: var(--tt-radius);
+  color: #fff;
+  font-size: 22px;
+  background: linear-gradient(135deg, var(--miao-brand), var(--miao-brand-active));
+  box-shadow: 0 4px 16px var(--miao-brand-bg);
+}
+
+.tt-header-icon::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+  border-radius: calc(var(--tt-radius) + 2px);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--miao-brand) 50%, transparent),
+    color-mix(in srgb, var(--miao-brand-active) 50%, transparent)
+  );
+  filter: blur(8px);
+  opacity: 0.45;
 }
 
 .tt-header-text {
@@ -121,8 +133,8 @@
   color: var(--miao-text-primary);
   font-family: var(--miao-font-display);
   font-size: 23px;
-  font-weight: 700;
-  line-height: 1.2;
+  font-weight: 800;
+  line-height: 1.3;
   letter-spacing: 0;
 }
 
@@ -133,6 +145,7 @@
   margin: 4px 0 0;
   color: var(--miao-text-secondary);
   font-size: 13px;
+  font-weight: 600;
   line-height: 1.4;
   letter-spacing: 0;
 }
@@ -144,69 +157,73 @@
   border-radius: 50%;
   background: var(--miao-success);
   box-shadow: 0 0 0 4px var(--miao-success-bg);
+  animation: tt-pulse 2s ease-in-out infinite;
 }
 
+@keyframes tt-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px var(--miao-success-bg);
+  }
+  50% {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--miao-success) 20%, transparent);
+  }
+}
+
+/* ============================================================
+   导航条（左对齐玻璃轨道）
+   ============================================================ */
 .tt-nav {
-  margin-bottom: 12px;
-  display: flex;
-  justify-content: center;
+  padding: 14px 4px 0;
+  flex-shrink: 0;
 }
 
 .tt-nav-track {
-  display: inline-flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  width: auto;
-  max-width: 100%;
+  display: flex;
   gap: 4px;
   padding: 5px;
   border: 1px solid var(--miao-border);
-  border-radius: 999px;
+  border-radius: var(--tt-radius);
   background: var(--miao-bg-elevated);
   box-shadow: var(--miao-shadow-soft);
-  backdrop-filter: blur(18px);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tt-nav-track::-webkit-scrollbar {
+  display: none;
 }
 
 .tt-nav-item {
-  position: relative;
-  min-width: 0;
-  min-height: 36px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 0 14px;
+  gap: 8px;
+  padding: 10px 16px;
   border: 0;
-  border-radius: 999px;
+  border-radius: calc(var(--tt-radius) - 4px);
   background: transparent;
   color: var(--miao-text-secondary);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0;
   white-space: nowrap;
   cursor: pointer;
+  flex-shrink: 0;
   transition:
-    background-color 200ms var(--tt-ease),
     color 200ms var(--tt-ease),
-    box-shadow 240ms var(--tt-ease),
-    transform 200ms var(--tt-ease);
+    background-color 200ms var(--tt-ease),
+    box-shadow 240ms var(--tt-ease);
 }
 
 .tt-nav-item:hover {
   color: var(--miao-text-primary);
   background: var(--miao-brand-bg);
-  transform: translateY(-1px);
 }
 
 .tt-nav-item.active {
   color: var(--miao-on-brand);
-  background: var(--miao-brand);
-  box-shadow: 0 8px 18px var(--miao-brand-bg);
-}
-
-.tt-nav-item.active:hover {
-  transform: translateY(-1px);
-  background: var(--miao-brand-hover);
+  background: linear-gradient(135deg, var(--miao-brand), var(--miao-brand-active));
+  box-shadow: 0 2px 12px var(--miao-brand-bg);
 }
 
 .tt-nav-item.soon {
@@ -232,42 +249,50 @@
   letter-spacing: 0;
 }
 
+/* ============================================================
+   内容区（可滚动）
+   ============================================================ */
+.tt-content {
+  flex: 1;
+  min-height: 0;
+  padding: 8px 4px 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
 .tt-tab-panel {
-  animation: tt-fade-in 220ms ease;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
-@keyframes tt-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
+/* ============================================================
+   面板容器与命令条
+   ============================================================ */
 .tt-panel {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .tt-panel-notice {
-  border-radius: var(--miao-radius-md);
+  border-radius: var(--tt-radius);
 }
 
 .tt-command-bar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  padding: 10px;
+  gap: 12px;
+  padding: 12px 14px;
   border: 1px solid var(--miao-border);
-  border-radius: var(--miao-radius-md);
+  border-radius: var(--tt-radius);
   background: var(--miao-bg-elevated);
   box-shadow: var(--miao-shadow-soft);
-  backdrop-filter: blur(18px);
 }
 
 .tt-command-bar--detect {
@@ -361,6 +386,9 @@
   color: var(--miao-on-brand);
 }
 
+/* ============================================================
+   语言选择条
+   ============================================================ */
 .tt-lang-bar {
   width: min(100%, 620px);
   display: grid;
@@ -427,11 +455,16 @@
   background: var(--miao-bg-muted);
 }
 
+/* ============================================================
+   双栏（占满高度）
+   ============================================================ */
 .tt-split {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   gap: 14px;
   align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 400px;
 }
 
 .tt-split.tt-split--stack {
@@ -441,61 +474,33 @@
 .tt-pane {
   position: relative;
   min-width: 0;
-  min-height: 430px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--miao-border);
-  border-radius: var(--miao-radius-md);
+  border-radius: var(--tt-radius-lg);
   background: var(--miao-bg-elevated);
   box-shadow: var(--miao-shadow);
-  backdrop-filter: blur(18px);
   transition:
     border-color 240ms var(--tt-ease),
-    box-shadow 240ms var(--tt-ease),
-    transform 240ms var(--tt-ease);
+    box-shadow 240ms var(--tt-ease);
 }
 
-.tt-pane::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: 2px;
-  background: color-mix(in srgb, var(--miao-brand) 55%, transparent);
-  opacity: 0.7;
-  transition: opacity 240ms var(--tt-ease), background-color 240ms var(--tt-ease);
-}
-
-.tt-pane:hover {
+.tt-pane:focus-within {
   border-color: color-mix(in srgb, var(--miao-brand) 45%, var(--miao-border));
-  box-shadow: var(--miao-shadow), 0 14px 34px var(--miao-brand-bg);
-  transform: translateY(-2px);
-}
-
-.tt-pane:hover::before {
-  opacity: 1;
+  box-shadow: 0 0 0 3px var(--miao-brand-bg), var(--miao-shadow);
 }
 
 .tt-pane-head {
-  min-height: 44px;
+  min-height: 56px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin: 0;
-  padding: 10px 12px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--miao-border);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.48), transparent),
-    var(--miao-bg-elevated);
-}
-
-:root[data-theme='dark'] .tt-pane-head {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent),
-    var(--miao-bg-elevated);
+  background: transparent;
 }
 
 .tt-pane-label {
@@ -506,7 +511,7 @@
   color: var(--miao-text-primary);
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0;
+  letter-spacing: 0.02em;
 }
 
 .tt-pane-label::before {
@@ -557,9 +562,7 @@
   padding: 18px !important;
   border: 0 !important;
   border-radius: 0 !important;
-  background:
-    linear-gradient(180deg, var(--miao-brand-bg), transparent 120px),
-    var(--miao-bg-elevated) !important;
+  background: var(--miao-bg-elevated) !important;
   color: var(--miao-text-primary) !important;
   box-shadow: none !important;
   resize: vertical;
@@ -568,7 +571,7 @@
 
 .tt-textarea.ant-input:hover,
 .tt-textarea.ant-input:focus {
-  box-shadow: inset 0 0 0 1px var(--miao-brand) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--miao-brand) 40%, transparent) !important;
 }
 
 .tt-textarea.ant-input::placeholder {
@@ -585,9 +588,7 @@
   overflow: auto;
   border: 0;
   border-radius: 0;
-  background:
-    linear-gradient(180deg, var(--miao-success-bg), transparent 120px),
-    var(--miao-bg-elevated);
+  background: var(--miao-bg-elevated);
   color: var(--miao-text-primary);
   text-align: left;
 }
@@ -755,6 +756,9 @@
   font-size: 20px;
 }
 
+/* ============================================================
+   占位（即将上线）
+   ============================================================ */
 .tt-coming-soon {
   min-height: 420px;
   display: flex;
@@ -762,7 +766,7 @@
   justify-content: center;
   padding: 48px 18px;
   border: 1px solid var(--miao-border);
-  border-radius: var(--miao-radius-md);
+  border-radius: var(--tt-radius-lg);
   background: var(--miao-bg-elevated);
   box-shadow: var(--miao-shadow-soft);
 }
@@ -785,6 +789,9 @@
   line-height: 1.6;
 }
 
+/* ============================================================
+   滚动条
+   ============================================================ */
 .tt-page ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -806,96 +813,9 @@
   background-clip: padding-box;
 }
 
-@media (max-width: 1180px) {
-  .tt-command-bar {
-    grid-template-columns: 1fr;
-  }
-
-  .tt-command-actions {
-    justify-content: flex-start;
-  }
-
-  .tt-lang-bar {
-    width: 100%;
-  }
-}
-
-@media (max-width: 920px) {
-  .tt-nav {
-    justify-content: flex-start;
-  }
-
-  .tt-nav-track {
-    flex-wrap: wrap;
-    justify-content: flex-start;
-  }
-
-  .tt-split {
-    grid-template-columns: 1fr;
-  }
-
-  .tt-pane {
-    min-height: 360px;
-  }
-
-  .tt-textarea.ant-input,
-  .tt-output,
-  .tt-output--detect {
-    min-height: 300px !important;
-  }
-}
-
-@media (max-width: 640px) {
-  .tt-page {
-    min-height: auto;
-  }
-
-  .tt-header-inner {
-    min-height: 58px;
-  }
-
-  .tt-header-subtitle {
-    display: none;
-  }
-
-  .tt-command-actions {
-    width: 100%;
-  }
-
-  .tt-command-actions .tt-primary-action {
-    flex: 1 1 100%;
-  }
-
-  .tt-lang-bar {
-    grid-template-columns: 1fr 34px;
-  }
-
-  .tt-lang-bar .tt-lang-select:last-child {
-    grid-column: 1 / -1;
-  }
-
-  .tt-pane-head {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .tt-pane-tools {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .tt-detect-dominant,
-  .tt-detect-recommend {
-    grid-template-columns: 1fr;
-  }
-
-  .tt-detect-recommend {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-}
-
-/* ===== 历史记录（FR-21） ===== */
+/* ============================================================
+   历史记录（FR-21）
+   ============================================================ */
 .tt-history-panel {
   display: flex;
   flex-direction: column;
@@ -929,9 +849,9 @@
   flex-direction: column;
   gap: 6px;
   padding: 14px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--miao-border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--miao-bg-elevated);
   cursor: pointer;
   transition:
     border-color 240ms var(--tt-ease),
@@ -1000,4 +920,121 @@
 
 .tt-star-active {
   color: var(--miao-warning);
+}
+
+/* ============================================================
+   响应式
+   ============================================================ */
+@media (max-width: 1180px) {
+  .tt-command-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .tt-command-actions {
+    justify-content: flex-start;
+  }
+
+  .tt-lang-bar {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .miao-shell:has(.tt-page) {
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+  }
+
+  .miao-content:has(.tt-page) {
+    height: auto;
+    min-height: 100vh;
+    padding: 14px;
+    overflow: visible;
+  }
+
+  .tt-content {
+    padding: 10px 0 0;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 920px) {
+  .tt-split {
+    grid-template-columns: 1fr;
+  }
+
+  .tt-pane {
+    min-height: 360px;
+  }
+
+  .tt-textarea.ant-input,
+  .tt-output,
+  .tt-output--detect {
+    min-height: 300px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .tt-header-inner {
+    min-height: auto;
+  }
+
+  .tt-header-subtitle {
+    display: none;
+  }
+
+  .tt-command-actions {
+    width: 100%;
+  }
+
+  .tt-command-actions .tt-primary-action {
+    flex: 1 1 100%;
+  }
+
+  .tt-lang-bar {
+    grid-template-columns: 1fr 34px;
+  }
+
+  .tt-lang-bar .tt-lang-select:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .tt-pane-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .tt-pane-tools {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .tt-detect-dominant,
+  .tt-detect-recommend {
+    grid-template-columns: 1fr;
+  }
+
+  .tt-detect-recommend {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* ============================================================
+   减弱动效
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .tt-header-icon,
+  .tt-nav-item,
+  .tt-pane,
+  .tt-lang-swap,
+  .tt-primary-action.ant-btn,
+  .tt-history-item {
+    transition-duration: 0.01ms !important;
+  }
+
+  .tt-dot {
+    animation: none;
+  }
 }
