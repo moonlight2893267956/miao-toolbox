@@ -558,16 +558,23 @@
   background: var(--miao-bg-elevated) !important;
   color: var(--miao-text-primary) !important;
   box-shadow: none !important;
+  outline: none !important;
   resize: vertical;
   line-height: 1.75;
+  transition: box-shadow 200ms var(--tt-ease);
 }
 
 .tt-textarea.ant-input:hover {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--miao-brand) 30%, transparent) !important;
+  outline: none !important;
 }
 
-.tt-textarea.ant-input:focus {
+.tt-textarea.ant-input:focus,
+.tt-textarea.ant-input:focus-within,
+.tt-textarea.ant-input-focused {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--miao-brand) 55%, transparent) !important;
+  outline: none !important;
+  border-color: transparent !important;
 }
 
 .tt-textarea.ant-input::placeholder {
