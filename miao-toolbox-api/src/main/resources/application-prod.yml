@@ -75,6 +75,7 @@ miao:
       secret: ${BAIDU_SECRET}
       translate-url: ${BAIDU_TRANSLATE_URL:https://fanyi-api.baidu.com/api/trans/vip/translate}
       detect-url: ${BAIDU_DETECT_URL:https://fanyi-api.baidu.com/api/trans/vip/language}
+      image-url: ${BAIDU_IMAGE_URL:https://fanyi-api.baidu.com/api/trans/sdk/picture}
       connect-timeout: ${BAIDU_CONNECT_TIMEOUT:5000}
       read-timeout: ${BAIDU_READ_TIMEOUT:60000}
       max-concurrency: ${BAIDU_MAX_CONCURRENCY:10}

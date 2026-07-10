@@ -33,3 +33,4 @@ miao:
       enabled: true
       app-id: your-baidu-appid
       secret: your-baidu-secret
+      image-url: https://fanyi-api.baidu.com/api/trans/sdk/picture

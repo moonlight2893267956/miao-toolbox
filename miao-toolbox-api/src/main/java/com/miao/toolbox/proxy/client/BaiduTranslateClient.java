@@ -11,6 +11,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -43,6 +44,11 @@ public class BaiduTranslateClient {
     private final AiInvocationRecorder recorder;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Semaphore semaphore;
+
+    /** 图片翻译调用方标识（服务端代理固定值，仅用于百度签名/请求） */
+    static final String CUID = "miao-toolbox";
+    /** 图片翻译设备 MAC 标识（服务端代理固定值） */
+    static final String MAC = "00:00:00:00:00:00";
 
     public BaiduTranslateClient(RestTemplate restTemplate,
                                 BaiduTranslateProperties properties,
@@ -122,6 +128,61 @@ public class BaiduTranslateClient {
         } catch (Exception e) {
             handle.recordFailure("TRANSLATE_PARSE_ERROR", truncate(e.getMessage()));
             throw new BusinessException("TRANSLATE_FAILED", "解析识别结果失败", 502);
+        }
+    }
+
+    /**
+     * 图片翻译（OCR + 逐块译文）。
+     *
+     * <p>调用百度图片翻译 API（开放平台，{@code /api/trans/sdk/picture}），以
+     * {@code multipart/form-data} 上传图片，签名规则与文本翻译不同：
+     * {@code MD5(appid + MD5(imageBytes) + salt + cuid + mac + secret)}。
+     *
+     * @param image 图片原始字节（jpg/png）
+     * @param from  源语言（百度码，{@code auto} 由百度识别）
+     * @param to    目标语言（百度码）
+     * @return 图片翻译结果（源/目标语言 + 文本块 + 整图全文 + 译文渲染图）
+     */
+    public ImageTranslateResult imageTranslate(byte[] image, String from, String to) {
+        ensureEnabled();
+        String salt = BaiduSignUtil.randomSalt();
+        String imageMd5 = BaiduSignUtil.md5Hex(image);
+        String sign = BaiduSignUtil.signImage(properties.getAppId(), imageMd5, salt, CUID, MAC, properties.getSecret());
+
+        ByteArrayResource imageResource = new ByteArrayResource(image) {
+            @Override
+            public String getFilename() {
+                return "image.png";
+            }
+        };
+        HttpHeaders imageHeaders = new HttpHeaders();
+        imageHeaders.setContentType(MediaType.IMAGE_PNG);
+        HttpEntity<ByteArrayResource> imagePart = new HttpEntity<>(imageResource, imageHeaders);
+
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("image", imagePart);
+        body.add("from", from);
+        body.add("to", to);
+        body.add("appid", properties.getAppId());
+        body.add("salt", salt);
+        body.add("cuid", CUID);
+        body.add("mac", MAC);
+        body.add("version", "3");
+        body.add("sign", sign);
+
+        AiInvocationRecorder.InvocationHandle handle =
+                startRecord("baidu-image", "<image " + image.length + " bytes>");
+        try {
+            String json = doPostMultipart(properties.getImageUrl(), body);
+            ImageTranslateResult result = parseImageTranslate(parseAndCheck(json));
+            handle.recordSuccess(null, "image-translate", null, 0, 0, 0, "blocks=" + result.blocks().size());
+            return result;
+        } catch (BusinessException e) {
+            handle.recordFailure(e.getErrorCode(), truncate(e.getMessage()));
+            throw e;
+        } catch (Exception e) {
+            handle.recordFailure("TRANSLATE_PARSE_ERROR", truncate(e.getMessage()));
+            throw new BusinessException("TRANSLATE_FAILED", "解析图片翻译结果失败", 502);
         }
     }
 
@@ -283,6 +344,94 @@ public class BaiduTranslateClient {
         }
     }
 
+    /**
+     * 发送 multipart/form-data POST（图片翻译专用），受信号量守护；
+     * 网络异常统一映射为友好错误。
+     */
+    private String doPostMultipart(String url, MultiValueMap<String, Object> body) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(body, headers);
+
+        try {
+            semaphore.acquire();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BusinessException("TRANSLATE_INTERRUPTED", "请求被中断", 503);
+        }
+        try {
+            ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return response.getBody();
+            }
+            throw new BusinessException("TRANSLATE_FAILED",
+                    "百度图片翻译返回异常状态: " + response.getStatusCode(), 502);
+        } catch (RestClientException e) {
+            log.warn("Baidu image translate HTTP error: {}", e.getMessage());
+            throw new BusinessException("TRANSLATE_SERVICE_UNAVAILABLE", "翻译服务暂时不可用，请稍后重试", 503);
+        } finally {
+            semaphore.release();
+        }
+    }
+
+    /**
+     * 解析图片翻译结果。百度实测响应将 content/sumSrc/sumDst/pasteImg 置于 {@code data} 对象内；
+     * 兼容 content 位于根节点（部分文档形态）。
+     */
+    private ImageTranslateResult parseImageTranslate(JsonNode root) {
+        JsonNode data = root.get("data");
+        if (data == null) {
+            data = root;
+        }
+        String from = data.path("from").asText("");
+        String to = data.path("to").asText("");
+        String sumSrc = data.path("sumSrc").asText("");
+        String sumDst = data.path("sumDst").asText("");
+        String pasteImg = normalizeImage(data.path("pasteImg").asText(null));
+
+        List<ImageTextBlock> blocks = new ArrayList<>();
+        JsonNode content = data.get("content");
+        if (content == null) {
+            content = root.get("content");
+        }
+        if (content != null && content.isArray()) {
+            for (JsonNode node : content) {
+                blocks.add(new ImageTextBlock(
+                        node.path("src").asText(""),
+                        node.path("dst").asText(""),
+                        node.path("rect").asText(null),
+                        parsePoints(node.get("points")),
+                        normalizeImage(node.path("pasteImg").asText(null))
+                ));
+            }
+        }
+        return new ImageTranslateResult(from, to, blocks, sumSrc, sumDst, pasteImg);
+    }
+
+    private List<ImagePoint> parsePoints(JsonNode points) {
+        List<ImagePoint> result = new ArrayList<>();
+        if (points != null && points.isArray()) {
+            for (JsonNode p : points) {
+                result.add(new ImagePoint(p.path("x").asInt(0), p.path("y").asInt(0)));
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 将百度返回的纯 base64 渲染图补全为可直接渲染的 data URL；
+     * 若已带 data: 前缀或为空则原样返回。
+     */
+    private String normalizeImage(String base64) {
+        if (base64 == null || base64.isBlank()) {
+            return null;
+        }
+        if (base64.startsWith("data:")) {
+            return base64;
+        }
+        return "data:image/png;base64," + base64;
+    }
+
     // ========== 结果类型 ==========
 
     /** 文本翻译结果 */
@@ -299,5 +448,19 @@ public class BaiduTranslateClient {
 
     /** 单个识别语种及置信度 */
     public record DetectedLanguage(String language, double confidence) {
+    }
+
+    /** 图片翻译结果 */
+    public record ImageTranslateResult(String from, String to, List<ImageTextBlock> blocks,
+                                       String sumSrc, String sumDst, String pasteImg) {
+    }
+
+    /** 单块 OCR 文本 + 逐块译文 */
+    public record ImageTextBlock(String src, String dst, String rect,
+                                 List<ImagePoint> points, String blockImage) {
+    }
+
+    /** 文本块多边形顶点（百度 points 数组） */
+    public record ImagePoint(int x, int y) {
     }
 }

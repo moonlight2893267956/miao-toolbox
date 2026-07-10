@@ -28,6 +28,7 @@ class BaiduTranslateClientTest {
 
     private static final String TRANSLATE_URL = "https://translate";
     private static final String DETECT_URL = "https://detect";
+    private static final String IMAGE_URL = "https://image";
 
     @Mock
     private RestTemplate restTemplate;
@@ -47,6 +48,7 @@ class BaiduTranslateClientTest {
         properties.setSecret("sec1");
         properties.setTranslateUrl(TRANSLATE_URL);
         properties.setDetectUrl(DETECT_URL);
+        properties.setImageUrl(IMAGE_URL);
         properties.setMaxConcurrency(10);
 
         lenient().when(recorder.recordStart(any(), any(), any(), any(), any())).thenReturn(handle);
@@ -184,5 +186,98 @@ class BaiduTranslateClientTest {
         properties.setMaxConcurrency(2);
         BaiduTranslateClient limited = new BaiduTranslateClient(restTemplate, properties, recorder);
         assertEquals(2, limited.availablePermits());
+    }
+
+    @Test
+    @DisplayName("imageTranslate 成功解析 content/sumSrc/sumDst/pasteImg 并补全 data URL")
+    void imageTranslate_success() {
+        String body = "{\"error_code\":\"0\",\"data\":{"
+                + "\"from\":\"zh\",\"to\":\"en\","
+                + "\"content\":[{\"src\":\"你好\",\"dst\":\"Hello\",\"rect\":\"79 23 246 43\","
+                + "\"points\":[{\"x\":254,\"y\":280},{\"x\":506,\"y\":278}]}],"
+                + "\"sumSrc\":\"你好\",\"sumDst\":\"Hello\",\"pasteImg\":\"BASE64AAAA\"}}";
+        when(restTemplate.postForEntity(eq(IMAGE_URL), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(body));
+
+        BaiduTranslateClient.ImageTranslateResult result = client.imageTranslate("img".getBytes(), "auto", "en");
+
+        assertEquals("zh", result.from());
+        assertEquals("en", result.to());
+        assertEquals(1, result.blocks().size());
+        assertEquals("你好", result.blocks().get(0).src());
+        assertEquals("Hello", result.blocks().get(0).dst());
+        assertEquals("79 23 246 43", result.blocks().get(0).rect());
+        assertEquals(254, result.blocks().get(0).points().get(0).x());
+        assertEquals(280, result.blocks().get(0).points().get(0).y());
+        assertEquals("你好", result.sumSrc());
+        assertEquals("Hello", result.sumDst());
+        assertEquals("data:image/png;base64,BASE64AAAA", result.pasteImg());
+        verify(handle).recordSuccess(isNull(), eq("image-translate"), isNull(), eq(0), eq(0), eq(0), any());
+    }
+
+    @Test
+    @DisplayName("imageTranslate 兼容 content 位于根节点（非 data 内）")
+    void imageTranslate_contentAtRoot() {
+        String body = "{\"error_code\":\"0\",\"from\":\"en\",\"to\":\"zh\","
+                + "\"content\":[{\"src\":\"a\",\"dst\":\"b\"}],"
+                + "\"sumSrc\":\"a\",\"sumDst\":\"b\",\"pasteImg\":\"IMG\"}";
+        when(restTemplate.postForEntity(eq(IMAGE_URL), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(body));
+
+        BaiduTranslateClient.ImageTranslateResult result = client.imageTranslate("img".getBytes(), "auto", "zh");
+
+        assertEquals(1, result.blocks().size());
+        assertEquals("a", result.blocks().get(0).src());
+        assertEquals("data:image/png;base64,IMG", result.pasteImg());
+    }
+
+    @Test
+    @DisplayName("imageTranslate 实际计算并携带正确图片签名")
+    void imageTranslate_computesSignature() {
+        String img = "fake-image-bytes";
+        byte[] imgBytes = img.getBytes();
+        String imgMd5 = BaiduSignUtil.md5Hex(imgBytes);
+        when(restTemplate.postForEntity(eq(IMAGE_URL), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok("{\"error_code\":\"0\",\"data\":{\"content\":[]}}"));
+
+        client.imageTranslate(imgBytes, "auto", "en");
+
+        ArgumentCaptor<HttpEntity<?>> captor = ArgumentCaptor.forClass(HttpEntity.class);
+        verify(restTemplate).postForEntity(eq(IMAGE_URL), captor.capture(), eq(String.class));
+
+        @SuppressWarnings("unchecked")
+        MultiValueMap<String, Object> map = (MultiValueMap<String, Object>) captor.getValue().getBody();
+        String salt = (String) map.getFirst("salt");
+        String sign = (String) map.getFirst("sign");
+        assertEquals("app1", map.getFirst("appid"));
+        assertEquals("3", map.getFirst("version"));
+        assertEquals(BaiduSignUtil.signImage("app1", imgMd5, salt,
+                BaiduTranslateClient.CUID, BaiduTranslateClient.MAC, "sec1"), sign);
+    }
+
+    @Test
+    @DisplayName("imageTranslate 百度额度耗尽错误码映射为友好提示")
+    void imageTranslate_quotaExhausted() {
+        String body = "{\"error_code\":\"54004\",\"error_msg\":\"balance\"}";
+        when(restTemplate.postForEntity(eq(IMAGE_URL), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(body));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> client.imageTranslate("img".getBytes(), "auto", "zh"));
+        assertEquals("TRANSLATE_QUOTA_EXHAUSTED", ex.getErrorCode());
+        assertEquals(429, ex.getHttpStatus());
+    }
+
+    @Test
+    @DisplayName("imageTranslate 未启用时返回 503，且不发起 HTTP 请求")
+    void imageTranslate_disabled_throwsWithoutCall() {
+        properties.setEnabled(false);
+        BaiduTranslateClient disabled = new BaiduTranslateClient(restTemplate, properties, recorder);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> disabled.imageTranslate("img".getBytes(), "auto", "zh"));
+        assertEquals("TRANSLATE_DISABLED", ex.getErrorCode());
+        assertEquals(503, ex.getHttpStatus());
+        verifyNoInteractions(restTemplate);
     }
 }

@@ -45,6 +45,9 @@ public class BaiduTranslateProperties {
     /** 语种识别 API 地址 */
     private String detectUrl = "https://fanyi-api.baidu.com/langid/v1/detect";
 
+    /** 图片翻译 API 地址（multipart/form-data） */
+    private String imageUrl = "https://fanyi-api.baidu.com/api/trans/sdk/picture";
+
     /** HTTP 连接超时（毫秒） */
     private int connectTimeout = 5000;
 

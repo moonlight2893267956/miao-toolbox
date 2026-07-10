@@ -2,6 +2,7 @@ package com.miao.toolbox.tool.translate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miao.toolbox.tool.translate.dto.DetectResponse;
+import com.miao.toolbox.tool.translate.dto.ImageTranslateResponse;
 import com.miao.toolbox.tool.translate.dto.TranslateResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -11,6 +12,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -18,6 +20,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -73,5 +76,33 @@ class TranslateControllerTest {
                 .andExpect(jsonPath("$.code").value("SUCCESS"))
                 .andExpect(jsonPath("$.data.dominant").value("en"))
                 .andExpect(jsonPath("$.data.recommendedTarget").value("zh"));
+    }
+
+    @Test
+    @DisplayName("POST /api/translate/image 返回图片翻译结果")
+    void imageTranslate_returnsOk() throws Exception {
+        when(translateService.imageTranslate(any(), any(), any())).thenReturn(
+                ImageTranslateResponse.builder()
+                        .from("zh")
+                        .to("en")
+                        .blocks(List.of())
+                        .sourceText("你好")
+                        .translatedText("Hello")
+                        .renderedImage("data:image/png;base64,xxx")
+                        .build());
+
+        MockMultipartFile file = new MockMultipartFile(
+                "image", "img.png", "image/png", "x".getBytes());
+
+        mockMvc.perform(multipart("/api/translate/image")
+                        .file(file)
+                        .param("from", "auto")
+                        .param("to", "en"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.from").value("zh"))
+                .andExpect(jsonPath("$.data.to").value("en"))
+                .andExpect(jsonPath("$.data.translatedText").value("Hello"))
+                .andExpect(jsonPath("$.data.renderedImage").value("data:image/png;base64,xxx"));
     }
 }

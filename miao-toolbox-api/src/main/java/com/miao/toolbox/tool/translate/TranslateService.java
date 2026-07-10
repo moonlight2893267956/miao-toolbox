@@ -4,12 +4,15 @@ import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.proxy.client.BaiduTranslateClient;
 import com.miao.toolbox.tool.translate.dto.DetectRequest;
 import com.miao.toolbox.tool.translate.dto.DetectResponse;
+import com.miao.toolbox.tool.translate.dto.ImageTranslateResponse;
 import com.miao.toolbox.tool.translate.dto.TranslateRequest;
 import com.miao.toolbox.tool.translate.dto.TranslateResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,6 +27,9 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class TranslateService {
+
+    /** 图片大小上限（百度图片翻译 ≤ 4MB） */
+    private static final long MAX_IMAGE_BYTES = 4L * 1024 * 1024;
 
     private final BaiduTranslateClient baiduTranslateClient;
 
@@ -87,5 +93,52 @@ public class TranslateService {
             return "en";
         }
         return "zh";
+    }
+
+    /**
+     * 图片翻译（FR-8）。
+     *
+     * <p>校验图片非空、目标语言非空、大小 ≤ 4MB，委托 {@link BaiduTranslateClient#imageTranslate}，
+     * 映射为前端契约 DTO（含整图全文与渲染图，供后续 FR-9/FR-10 复用）。
+     */
+    public ImageTranslateResponse imageTranslate(MultipartFile image, String from, String to) {
+        if (image == null || image.isEmpty()) {
+            throw new BusinessException("TRANSLATE_INVALID_REQUEST", "图片不能为空", 400);
+        }
+        if (to == null || to.isBlank()) {
+            throw new BusinessException("TRANSLATE_INVALID_REQUEST", "目标语言不能为空", 400);
+        }
+        if (image.getSize() > MAX_IMAGE_BYTES) {
+            throw new BusinessException("TRANSLATE_INVALID_REQUEST", "图片大小不能超过 4MB", 400);
+        }
+        String fromLang = (from == null || from.isBlank()) ? "auto" : from;
+        try {
+            BaiduTranslateClient.ImageTranslateResult result =
+                    baiduTranslateClient.imageTranslate(image.getBytes(), fromLang, to);
+            List<ImageTranslateResponse.ImageTextBlock> blocks = result.blocks().stream()
+                    .map(b -> ImageTranslateResponse.ImageTextBlock.builder()
+                            .src(b.src())
+                            .dst(b.dst())
+                            .rect(b.rect())
+                            .points(b.points().stream()
+                                    .map(p -> ImageTranslateResponse.Point.builder()
+                                            .x(p.x())
+                                            .y(p.y())
+                                            .build())
+                                    .collect(Collectors.toList()))
+                            .blockImage(b.blockImage())
+                            .build())
+                    .collect(Collectors.toList());
+            return ImageTranslateResponse.builder()
+                    .from(result.from())
+                    .to(result.to())
+                    .blocks(blocks)
+                    .sourceText(result.sumSrc())
+                    .translatedText(result.sumDst())
+                    .renderedImage(result.pasteImg())
+                    .build();
+        } catch (IOException e) {
+            throw new BusinessException("TRANSLATE_INVALID_REQUEST", "读取图片失败", 400);
+        }
     }
 }
