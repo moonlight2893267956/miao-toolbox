@@ -481,14 +481,7 @@
   border-radius: var(--tt-radius-lg);
   background: var(--miao-bg-elevated);
   box-shadow: var(--miao-shadow);
-  transition:
-    border-color 240ms var(--tt-ease),
-    box-shadow 240ms var(--tt-ease);
-}
-
-.tt-pane:focus-within {
-  border-color: color-mix(in srgb, var(--miao-brand) 45%, var(--miao-border));
-  box-shadow: 0 0 0 3px var(--miao-brand-bg), var(--miao-shadow);
+  transition: border-color 240ms var(--tt-ease);
 }
 
 .tt-pane-head {
@@ -569,9 +562,12 @@
   line-height: 1.75;
 }
 
-.tt-textarea.ant-input:hover,
+.tt-textarea.ant-input:hover {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--miao-brand) 30%, transparent) !important;
+}
+
 .tt-textarea.ant-input:focus {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--miao-brand) 40%, transparent) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--miao-brand) 55%, transparent) !important;
 }
 
 .tt-textarea.ant-input::placeholder {
