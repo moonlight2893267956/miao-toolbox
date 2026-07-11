@@ -2,6 +2,13 @@ spring:
   autoconfigure:
     exclude:
       - org.springframework.boot.data.redis.autoconfigure.health.DataRedisReactiveHealthContributorAutoConfiguration
+  cloud:
+    nacos:
+      config:
+        # story-n2~n3 期间 Nacos 服务端/配置项尚未就绪，临时关闭 import 强校验避免启动失败
+        # story-n4 接入 spring.config.import=nacos: 后可移除本段
+        import-check:
+          enabled: false
   docker:
     compose:
       enabled: false

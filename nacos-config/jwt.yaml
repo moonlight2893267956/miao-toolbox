@@ -1,0 +1,7 @@
+# SECRET_GROUP / jwt.yaml — JWT 密钥（引用环境变量，不写明文）
+miao:
+  jwt:
+    secret: "${JWT_SECRET}"
+    refresh-secret: "${JWT_REFRESH_SECRET}"
+    access-token-expiry-minutes: "${JWT_ACCESS_EXPIRY_MINUTES:15}"
+    refresh-token-expiry-days: "${JWT_REFRESH_EXPIRY_DAYS:7}"

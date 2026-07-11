@@ -121,6 +121,12 @@
 		<version>5.6.227</version>
 	</dependency>
 
+	<!-- Nacos 配置中心 (epic-nacos-config, story-n2) -->
+	<dependency>
+		<groupId>com.alibaba.cloud</groupId>
+		<artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+	</dependency>
+
 	<!-- Test dependencies -->
 		<dependency>
 			<groupId>com.h2database</groupId>
@@ -163,6 +169,18 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.alibaba.cloud</groupId>
+				<artifactId>spring-cloud-alibaba-dependencies</artifactId>
+				<version>2025.1.0.0</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<build>
 		<plugins>
