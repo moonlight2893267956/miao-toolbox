@@ -318,8 +318,46 @@
 
 .tt-command-actions {
   justify-content: flex-end;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
+}
+
+/* 模式/风格选择器与主按钮间距统一、高度一致 */
+.tt-mode-segmented.ant-segmented,
+.tt-tone-segmented.ant-segmented {
+  background: var(--miao-brand-bg);
+  border: 1px solid var(--miao-border);
+  border-radius: 8px;
+  min-height: 34px;
+}
+
+.tt-mode-segmented .ant-segmented-item,
+.tt-tone-segmented .ant-segmented-item {
+  border-radius: 6px;
+  color: var(--miao-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 14px;
+  line-height: 32px;
+}
+
+.tt-mode-segmented .ant-segmented-item-selected,
+.tt-tone-segmented .ant-segmented-item-selected {
+  background: var(--miao-bg-elevated);
+  color: var(--miao-text-primary);
+  box-shadow: 0 2px 8px rgba(34, 29, 48, 0.08);
+}
+
+.tt-tone-segmented.ant-segmented {
+  border-radius: 7px;
+  min-height: 30px;
+}
+
+.tt-tone-segmented .ant-segmented-item {
+  border-radius: 5px;
+  font-size: 12px;
+  padding: 0 11px;
+  line-height: 28px;
 }
 
 .tt-toolbar {
@@ -347,7 +385,7 @@
 }
 
 .tt-primary-action.ant-btn {
-  min-width: 88px;
+  min-width: 104px;
   height: 34px;
   border-radius: 8px;
   font-weight: 700;
@@ -1753,19 +1791,180 @@
 }
 
 /* ============================================================
-   减弱动效
+   AI 润色区块（FR-16 / story-4.2）
    ============================================================ */
-@media (prefers-reduced-motion: reduce) {
-  .tt-header-icon,
-  .tt-nav-item,
-  .tt-pane,
-  .tt-lang-swap,
-  .tt-primary-action.ant-btn,
-  .tt-history-item {
-    transition-duration: 0.01ms !important;
-  }
+.tt-polish {
+  margin-top: 8px;
+}
 
-  .tt-dot {
+.tt-polish-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-height: 40px;
+}
+
+.tt-polish-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--miao-text-primary);
+}
+
+.tt-polish-title .anticon {
+  color: var(--miao-accent, var(--miao-brand));
+}
+
+.tt-polish-badge {
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: var(--miao-brand-bg);
+  color: var(--miao-brand);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.tt-polish-body {
+  padding: 14px 16px 16px;
+  border: 1px solid var(--miao-border);
+  border-radius: var(--tt-radius-lg);
+  background: var(--miao-bg-elevated);
+  box-shadow: var(--miao-shadow-soft);
+}
+
+/* 译文面板头部的风格选择器 —— 当前已合并到命令栏，保留但隐藏 */
+.tt-pane-tools .tt-polish-segmented.ant-segmented {
+  display: none;
+}
+
+.tt-pane-tools .tt-head-divider.ant-divider-vertical {
+  display: none;
+}
+
+.tt-polish-text {
+  min-height: 64px;
+  padding: 14px 0;
+  font-size: var(--tt-fs, 16px);
+  line-height: 1.75;
+  color: var(--miao-text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tt-output-meta-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: var(--miao-brand-bg);
+  color: var(--miao-brand);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* 减弱动效 */
+@media (prefers-reduced-motion: reduce) {
+  .tt-stream-cursor {
     animation: none;
   }
 }
+
+/* ============================================================
+   减弱动效
+   ============================================================ */
+.tt-polish-compare {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px 0;
+}
+
+.tt-polish-compare-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: var(--tt-radius);
+  background: var(--miao-bg-muted);
+  border: 1px solid var(--miao-border);
+}
+
+.tt-polish-compare-col--polished {
+  background: var(--miao-brand-bg);
+  border-color: color-mix(in srgb, var(--miao-brand) 30%, transparent);
+}
+
+.tt-polish-compare-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--miao-text-secondary);
+}
+
+.tt-polish-compare-col--polished .tt-polish-compare-label {
+  color: var(--miao-brand);
+}
+
+.tt-polish-compare-text {
+  font-size: var(--tt-fs, 16px);
+  line-height: 1.75;
+  color: var(--miao-text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tt-polish-hint {
+  padding: 12px 16px;
+  border-radius: var(--tt-radius);
+  border: 1px dashed var(--miao-border-strong);
+  background: var(--miao-bg-elevated);
+  color: var(--miao-text-secondary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.tt-polish-notes {
+  margin-top: 10px;
+}
+
+@media (max-width: 920px) {
+  .tt-polish-compare {
+    grid-template-columns: 1fr;
+  }
+
+  .tt-pane-tools .tt-polish-segmented {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .tt-polish-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .tt-polish-head .tt-pane-tools {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .tt-polish-body {
+    padding: 12px;
+  }
+}
+
+/* 减弱动效 */
+@media (prefers-reduced-motion: reduce) {
+  .tt-stream-cursor {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   减弱动效
+   ============================================================ */

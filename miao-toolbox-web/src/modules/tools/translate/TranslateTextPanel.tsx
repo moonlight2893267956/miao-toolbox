@@ -1,9 +1,21 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Select, Input, Button, Alert, Space, Segmented, Tooltip } from 'antd';
-import { TranslationOutlined, SwapOutlined, CopyOutlined, DownloadOutlined } from '@ant-design/icons';
+import {
+  TranslationOutlined,
+  SwapOutlined,
+  CopyOutlined,
+  DownloadOutlined,
+  ThunderboltOutlined,
+  RobotOutlined,
+} from '@ant-design/icons';
 import { message } from 'antd';
-import { LANGUAGE_OPTIONS, type LanguageCode, type TranslateResponse } from './types';
-import { translateText } from './translateService';
+import {
+  LANGUAGE_OPTIONS,
+  type LanguageCode,
+  type TranslateResponse,
+  type AiEnhanceTone,
+} from './types';
+import { translateText, enhanceTranslate } from './translateService';
 import { useTranslateContext } from './useTranslateContext';
 import { useTranslateHistory } from './useTranslateHistory';
 
@@ -118,8 +130,10 @@ const TranslateTextPanel: React.FC = () => {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [layout, setLayout] = useState<'split' | 'stack'>('split');
-  const [fontSize, setFontSize] = useState<'sm' | 'md' | 'lg'>('md');
+
+  // AI 翻译模式（FR-16 / story-4.2 迭代：默认一键 AI 翻译，结果直接进译文栏）
+  const [aiMode, setAiMode] = useState(true);
+  const [polishTone, setPolishTone] = useState<AiEnhanceTone>('formal');
 
   // 挂载后清空跨面板联动预填（FR-7），避免重复应用；
   // 用 requestAnimationFrame 延迟 dispatch，规避 effect 内同步 setState 的 lint 告警
@@ -170,6 +184,60 @@ const TranslateTextPanel: React.FC = () => {
     }
   }, [source, from, to, addHistory]);
 
+  const handleAiTranslate = useCallback(async () => {
+    const text = source.trim();
+    if (!text) {
+      message.warning('请先输入待翻译文本');
+      return;
+    }
+    if (to === from) {
+      message.warning('源语言与目标语言不能相同');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await enhanceTranslate({
+        text,
+        sourceLang: from,
+        targetLang: to,
+        tone: polishTone,
+      });
+      // 用增强结果构造与普通翻译兼容的响应
+      const normalized: TranslateResponse & { segments: Segment[] } = {
+        translatedText: r.translated,
+        // 后端暂未返回自动检测到的具体语种，auto 时先展示为 auto
+        from,
+        charCount: text.length,
+        segments: [{ src: text, dst: r.translated }],
+      };
+      setResult(normalized);
+      setSegments(normalized.segments);
+      addHistory({ source: text, target: r.translated, from, to });
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      const msg = err.response?.data?.message || 'AI 翻译失败，请稍后重试';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [source, from, to, polishTone, addHistory]);
+
+  const handleSubmit = useCallback(() => {
+    if (aiMode) {
+      handleAiTranslate();
+    } else {
+      handleTranslate();
+    }
+  }, [aiMode, handleAiTranslate, handleTranslate]);
+
+  const handleModeChange = (mode: boolean) => {
+    setAiMode(mode);
+    // 切换模式后清空旧结果，避免数据错配
+    setResult(null);
+    setSegments([]);
+  };
+
   const handleCopyTranslation = async () => {
     if (!result) return;
     try {
@@ -201,8 +269,24 @@ const TranslateTextPanel: React.FC = () => {
     message.success(`已导出 ${kind.toUpperCase()}`);
   };
 
+  // ===== AI 翻译风格（FR-16）=====
+
+  const POLISH_TONES: { label: string; value: AiEnhanceTone }[] = [
+    { label: '正式', value: 'formal' },
+    { label: '口语', value: 'casual' },
+    { label: '营销', value: 'marketing' },
+    { label: '学术', value: 'academic' },
+  ];
+
+  const handleToneChange = (v: AiEnhanceTone) => {
+    setPolishTone(v);
+    // 切换风格不自动触发，需用户重新点击翻译
+  };
+
+
+
   return (
-    <div className={`tt-panel tt-fs-${fontSize}`}>
+    <div className="tt-panel">
       {error && (
         <Alert
           type="error"
@@ -244,38 +328,37 @@ const TranslateTextPanel: React.FC = () => {
         </div>
 
         <div className="tt-command-actions">
+          {aiMode && (
+            <Segmented
+              className="tt-segmented tt-tone-segmented"
+              size="small"
+              value={polishTone}
+              onChange={(v) => handleToneChange(v as AiEnhanceTone)}
+              options={POLISH_TONES}
+            />
+          )}
           <Segmented
-            className="tt-segmented"
-            value={layout}
-            onChange={(v) => setLayout(v as 'split' | 'stack')}
+            className="tt-segmented tt-mode-segmented"
+            value={aiMode}
+            onChange={(v) => handleModeChange(v as boolean)}
             options={[
-              { label: '左右', value: 'split' },
-              { label: '上下', value: 'stack' },
-            ]}
-          />
-          <Segmented
-            className="tt-segmented"
-            value={fontSize}
-            onChange={(v) => setFontSize(v as 'sm' | 'md' | 'lg')}
-            options={[
-              { label: '小', value: 'sm' },
-              { label: '中', value: 'md' },
-              { label: '大', value: 'lg' },
+              { label: 'AI 翻译', value: true },
+              { label: '普通翻译', value: false },
             ]}
           />
           <Button
             className="tt-primary-action"
             type="primary"
-            icon={<TranslationOutlined />}
-            onClick={handleTranslate}
+            icon={aiMode ? <ThunderboltOutlined /> : <TranslationOutlined />}
+            onClick={handleSubmit}
             loading={loading}
           >
-            翻译
+            {aiMode ? 'AI 翻译' : '翻译'}
           </Button>
         </div>
       </div>
 
-      <div className={`tt-split ${layout === 'stack' ? 'tt-split--stack' : ''}`}>
+      <div className="tt-split">
         <div className="tt-pane tt-pane--source">
           <div className="tt-pane-head">
             <span className="tt-pane-label">原文</span>
@@ -293,7 +376,7 @@ const TranslateTextPanel: React.FC = () => {
           <div className="tt-pane-head">
             <span className="tt-pane-label">译文</span>
             <Space size={2} className="tt-pane-tools">
-              <Tooltip title="复制纯译文">
+              <Tooltip title="复制译文">
                 <Button size="small" type="text" icon={<CopyOutlined />} onClick={handleCopyTranslation} disabled={!result} />
               </Tooltip>
               <Tooltip title="复制双语文本">
@@ -314,12 +397,17 @@ const TranslateTextPanel: React.FC = () => {
                 <i />
                 <i />
               </span>
-              <span>翻译中…</span>
+              <span>{aiMode ? 'AI 翻译中…' : '翻译中…'}</span>
             </div>
           ) : result ? (
             <div className="tt-output tt-output--text">
               <div className="tt-output-meta">
                 检测到：{languageLabel(result.from)} · 消耗 {result.charCount} 字符
+                {aiMode && (
+                  <span className="tt-output-meta-badge">
+                    <RobotOutlined /> {POLISH_TONES.find((t) => t.value === polishTone)?.label}
+                  </span>
+                )}
               </div>
               <div className="tt-translation-text">{result.translatedText}</div>
             </div>

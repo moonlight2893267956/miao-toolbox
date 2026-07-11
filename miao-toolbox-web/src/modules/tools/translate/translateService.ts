@@ -7,6 +7,8 @@ import type {
   ImageTranslateResponse,
   SpeechTranslateResponse,
   LanguageCode,
+  AiEnhanceRequest,
+  AiEnhanceResponse,
 } from './types';
 
 /**
@@ -82,6 +84,23 @@ export async function speechTranslate(
     `${BASE}/voice`,
     form,
     { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return resp.data.data;
+}
+
+/**
+ * AI 增强翻译（FR-16，story-4.2）
+ *
+ * 调用 story-4.1 提供的 `POST /api/translate/enhance`，后端经 miao-agent 翻译通用 Agent
+ * 完成「百度打底 + LLM 润色/风格化」，返回增强译文。前端只传原文 + 语种 + 风格，
+ * 不持有百度密钥。复用 axios 拦截器（HMAC 签名 + token 刷新）。
+ */
+export async function enhanceTranslate(
+  req: AiEnhanceRequest,
+): Promise<AiEnhanceResponse> {
+  const resp = await axiosInstance.post<{ data: AiEnhanceResponse }>(
+    `${BASE}/enhance`,
+    req,
   );
   return resp.data.data;
 }

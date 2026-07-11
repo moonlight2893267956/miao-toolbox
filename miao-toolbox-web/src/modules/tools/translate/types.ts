@@ -181,3 +181,37 @@ export interface SpeechTranslateResponse {
   /** 译文文本 */
   translatedText: string;
 }
+
+/* ============================================================
+   AI 增强翻译（FR-16 / story-4.2）
+   对齐后端 AiEnhanceRequest / AiEnhanceResponse（story-4.1）
+   ============================================================ */
+
+/** 润色风格（对齐 FR-16：正式/口语/营销/学术；marketing 由 story-4.1 在 agent 侧登记） */
+export type AiEnhanceTone = 'formal' | 'casual' | 'marketing' | 'academic';
+
+/** AI 增强翻译请求（FR-16）：后端 agent 内部完成百度打底 + LLM 润色，前端传原文即可 */
+export interface AiEnhanceRequest {
+  /** 待增强文本（原文） */
+  text: string;
+  /** 源语言；`auto` 由 agent 内部识别 */
+  sourceLang: LanguageCode;
+  /** 目标语言 */
+  targetLang: LanguageCode;
+  /** 风格：formal/casual/marketing/academic，可空（agent 不强制） */
+  tone?: AiEnhanceTone;
+}
+
+/** AI 增强翻译响应（对齐 translate-agent 的 output 字段） */
+export interface AiEnhanceResponse {
+  /** 实际执行的任务 */
+  task?: string;
+  /** 最终增强译文 */
+  translated: string;
+  /** 百度原始直译（agent 打底返回） */
+  mtDraft?: string;
+  /** 双语对照 [{src, tgt}] */
+  bilingual?: Array<{ src: string; tgt: string }>;
+  /** 润色/降级说明 */
+  notes?: string;
+}
