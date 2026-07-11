@@ -1,54 +1,23 @@
+# 测试专用 Nacos 配置
+# 供 @SpringBootTest（@ActiveProfiles("test")）从 Nacos 加载配置。
+# 注意：激活 test profile 时，主 application.yml 的 spring.config.import 不会被 Nacos import-check
+# 识别（Spring Cloud 对主文件 config.import 在 non-default profile 下的已知隔离行为），
+# 故在此显式重复完整 dataId 导入清单 + 连接信息（连接信息从环境变量读取，不写明文密钥）。
 spring:
-  application:
-    name: miao-toolbox-api-test
-  datasource:
-    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1
-    username: sa
-    password:
-    driver-class-name: org.h2.Driver
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-    open-in-view: false
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
-  flyway:
-    enabled: false
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
-      - org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration
-  jackson:
-    date-format: "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"
-    time-zone: UTC
-    default-property-inclusion: non_null
-
-server:
-  port: 0
-
-miao:
-  jwt:
-    secret: test-secret-key-that-is-at-least-256-bits-long-for-testing-purposes
-    access-token-expiry-minutes: 15
-    refresh-token-expiry-days: 7
-  rate-limit:
-    authenticated:
-      max-requests: 60
-      window-seconds: 60
-    public:
-      max-requests: 10
-      window-seconds: 60
-  anti-replay:
-    timestamp-tolerance-minutes: 5
-    nonce-ttl-seconds: 300
-  cors:
-    allowed-origins: http://localhost:5173
-  oauth:
-    github:
-      client-id: test-github-client-id
-      client-secret: test-github-client-secret
-      redirect-uri: http://localhost:8080/api/auth/oauth/github/callback
-      frontend-callback-url: http://localhost:5173/oauth/callback
-      scope: read:user user:email
+  config:
+    import:
+      - nacos:application.yaml?refreshEnabled=true&group=DEFAULT_GROUP
+      - nacos:db-and-cache.yaml?refreshEnabled=false&group=SECRET_GROUP
+      - nacos:jwt.yaml?refreshEnabled=false&group=SECRET_GROUP
+      - nacos:oauth.yaml?refreshEnabled=false&group=SECRET_GROUP
+      - nacos:cos.yaml?refreshEnabled=false&group=SECRET_GROUP
+      - nacos:miao-ai.yaml?refreshEnabled=true&group=SECRET_GROUP
+      - nacos:baidu-translate.yaml?refreshEnabled=true&group=SECRET_GROUP
+  cloud:
+    nacos:
+      config:
+        serverAddr: ${NACOS_ADDR:nacos.yunmiao.site:38848}
+        namespace: ${NACOS_NAMESPACE:miao-toolbox-dev}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+        fileExtension: yaml
