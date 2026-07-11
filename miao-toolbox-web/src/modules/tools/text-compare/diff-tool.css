@@ -6,21 +6,21 @@
   --tc-warm-glow: color-mix(in srgb, var(--tool-accent) 22%, transparent);
   --tc-warm-bg: color-mix(in srgb, var(--tool-accent) 8%, transparent);
   --tc-warm-border: color-mix(in srgb, var(--tool-accent) 32%, transparent);
-  
+
   /* Cool World (Right/Modified) — 统一为信息色 */
   --tc-cool-primary: var(--miao-info);
   --tc-cool-glow: color-mix(in srgb, var(--miao-info) 20%, transparent);
   --tc-cool-bg: color-mix(in srgb, var(--miao-info) 8%, transparent);
   --tc-cool-border: color-mix(in srgb, var(--miao-info) 28%, transparent);
-  
-  /* Neutral/Base */
+
+  /* Neutral/Base — 暗色下拉大面板与底色/编辑器的明度差，呈现层次 */
   --tc-bg: #0d1117;
-  --tc-surface: #121720;
-  --tc-surface-elevated: #18202b;
-  --tc-editor-bg: #0f141d;
-  --tc-editor-gutter-bg: #101620;
-  --tc-border: #293241;
-  --tc-border-light: #3a4657;
+  --tc-surface: #1a2230;
+  --tc-surface-elevated: #1f2839;
+  --tc-editor-bg: #141b26;
+  --tc-editor-gutter-bg: #161e2a;
+  --tc-border: rgba(255, 255, 255, 0.08);
+  --tc-border-light: rgba(255, 255, 255, 0.14);
   
   /* Text */
   --tc-text: #f2f5f8;
@@ -1252,10 +1252,11 @@
   min-height: 0;
   border-radius: var(--tc-radius-lg);
   background: var(--tc-surface);
-  border-color: rgba(128, 146, 166, 0.34);
+  border: 1px solid var(--tc-border);
   box-shadow:
-    0 18px 48px rgba(4, 9, 15, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+    0 18px 48px rgba(4, 9, 15, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.02),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 :root[data-theme='light'] .tc-panel-zone {
@@ -1289,7 +1290,7 @@
   padding: 6px 12px;
   gap: 8px;
   border-bottom: 1px solid var(--tc-border);
-  background: rgba(27, 39, 51, 0.78);
+  background: rgba(255, 255, 255, 0.025);
 }
 
 :root[data-theme='light'] .tc-panel-header {
