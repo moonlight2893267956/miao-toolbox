@@ -331,7 +331,6 @@ const TranslateTextPanel: React.FC = () => {
           {aiMode && (
             <Segmented
               className="tt-segmented tt-tone-segmented"
-              size="small"
               value={polishTone}
               onChange={(v) => handleToneChange(v as AiEnhanceTone)}
               options={POLISH_TONES}

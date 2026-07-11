@@ -322,13 +322,14 @@
   flex-wrap: wrap;
 }
 
-/* 模式/风格选择器与主按钮间距统一、高度一致 */
+/* 模式/风格选择器与主按钮高度一致、样式统一 */
 .tt-mode-segmented.ant-segmented,
 .tt-tone-segmented.ant-segmented {
-  background: var(--miao-brand-bg);
+  background: var(--miao-bg-muted);
   border: 1px solid var(--miao-border);
   border-radius: 8px;
   min-height: 34px;
+  padding: 2px;
 }
 
 .tt-mode-segmented .ant-segmented-item,
@@ -338,26 +339,23 @@
   font-size: 13px;
   font-weight: 700;
   padding: 0 14px;
-  line-height: 32px;
+  line-height: 30px;
+  transition:
+    color 200ms var(--tt-ease),
+    background-color 200ms var(--tt-ease);
+}
+
+.tt-mode-segmented .ant-segmented-item:hover:not(.ant-segmented-item-selected),
+.tt-tone-segmented .ant-segmented-item:hover:not(.ant-segmented-item-selected) {
+  color: var(--miao-text-primary);
+  background: var(--miao-brand-bg);
 }
 
 .tt-mode-segmented .ant-segmented-item-selected,
 .tt-tone-segmented .ant-segmented-item-selected {
   background: var(--miao-bg-elevated);
-  color: var(--miao-text-primary);
-  box-shadow: 0 2px 8px rgba(34, 29, 48, 0.08);
-}
-
-.tt-tone-segmented.ant-segmented {
-  border-radius: 7px;
-  min-height: 30px;
-}
-
-.tt-tone-segmented .ant-segmented-item {
-  border-radius: 5px;
-  font-size: 12px;
-  padding: 0 11px;
-  line-height: 28px;
+  color: var(--miao-brand);
+  box-shadow: 0 1px 4px rgba(34, 29, 48, 0.08);
 }
 
 .tt-toolbar {
