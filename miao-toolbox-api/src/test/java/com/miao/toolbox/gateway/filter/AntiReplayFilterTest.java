@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -34,6 +35,10 @@ class AntiReplayFilterTest {
     @BeforeEach
     void setUp() {
         filter = new AntiReplayFilter(redisTemplate, objectMapper, userRepository);
+        // 单元测试不经 Spring 注入 @Value，手动设定与生产一致的容差，
+        // 否则 timestampToleranceMinutes 默认 0，now 比请求头时间戳大 >0ms 即误判为过期（偶发 flake）
+        ReflectionTestUtils.setField(filter, "timestampToleranceMinutes", 5);
+        ReflectionTestUtils.setField(filter, "nonceTtlSeconds", 300);
     }
 
     @Nested
