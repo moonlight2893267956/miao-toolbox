@@ -1,0 +1,13 @@
+# SECRET_GROUP / oauth.yaml — prod 密钥引用环境变量
+miao:
+  oauth:
+    github:
+      client-id: "${MIAO_OAUTH_GITHUB_CLIENT_ID}"
+      client-secret: "${MIAO_OAUTH_GITHUB_CLIENT_SECRET}"
+      redirect-uri: "${MIAO_OAUTH_GITHUB_REDIRECT_URI}"
+      frontend-callback-url: "${MIAO_OAUTH_GITHUB_FRONTEND_CALLBACK_URL}"
+    google:
+      client-id: "${MIAO_OAUTH_GOOGLE_CLIENT_ID}"
+      client-secret: "${MIAO_OAUTH_GOOGLE_CLIENT_SECRET}"
+      redirect-uri: "${MIAO_OAUTH_GOOGLE_REDIRECT_URI}"
+      frontend-callback-url: "${MIAO_OAUTH_GOOGLE_FRONTEND_CALLBACK_URL}"

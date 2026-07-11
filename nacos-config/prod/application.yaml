@@ -1,10 +1,13 @@
-# DEFAULT_GROUP / application.yaml — 公共共享默认值（非敏感）
-# 内容对齐当前 application.yml 的非密钥部分，键名以真实 @ConfigurationProperties 为准
+# DEFAULT_GROUP / application.yaml — miao-toolbox-prod 完整公共配置（非敏感，prod 值）
+# 键名以真实 @ConfigurationProperties / @Value 为准
+# 与 dev 的差异：cookie-secure=true；cors.allowed-origins 取环境变量
 server:
   port: 8080
   forward-headers-strategy: framework
 
 spring:
+  application:
+    name: miao-toolbox-api
   servlet:
     multipart:
       max-file-size: 100MB
@@ -41,6 +44,9 @@ miao:
   anti-replay:
     timestamp-tolerance-minutes: 5
     nonce-ttl-seconds: 300
+  cos:
+    base-path: text-compare
+    max-file-size: 104857600
   ai:
     invocation:
       retention-days: 90
@@ -79,9 +85,6 @@ miao:
       read-timeout: 60000
       max-concurrency: 10
   security:
-    cookie-secure: false
+    cookie-secure: true
   cors:
-    allowed-origins: "http://localhost:5173"
-  cos:
-    base-path: text-compare
-    max-file-size: 104857600
+    allowed-origins: "${CORS_ALLOWED_ORIGINS}"

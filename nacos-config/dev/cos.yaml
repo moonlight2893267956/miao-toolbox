@@ -1,0 +1,10 @@
+# SECRET_GROUP / cos.yaml — dev 直接写 dev 占位值
+miao:
+  cos:
+    secret-id: "dev-cos-secret-id"
+    secret-key: "dev-cos-secret-key"
+    bucket: "dev-bucket"
+    region: "ap-guangzhou"
+    base-path: "text-compare"
+    max-file-size: 104857600
+    max-download-size: 104857600

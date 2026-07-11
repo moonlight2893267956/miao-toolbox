@@ -1,0 +1,6 @@
+# SECRET_GROUP / baidu-translate.yaml — dev 直接写 dev 占位值
+miao:
+  baidu:
+    translate:
+      app-id: "dev-baidu-appid"
+      secret: "dev-baidu-secret"

@@ -1,8 +1,0 @@
-# SECRET_GROUP / baidu-translate.yaml — 百度翻译密钥（引用环境变量，不写明文）
-# 语音翻译 secret-key 缺省复用 BAIDU_SECRET（与现有 application.yml 语义一致）
-miao:
-  baidu:
-    translate:
-      app-id: "${BAIDU_APPID}"
-      secret: "${BAIDU_SECRET}"
-      secret-key: "${BAIDU_VOICE_SECRET_KEY:${BAIDU_SECRET:}}"

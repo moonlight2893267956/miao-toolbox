@@ -1,6 +1,0 @@
-# DEFAULT_GROUP / application-prod.yaml — 生产环境差异覆盖（非敏感）
-miao:
-  security:
-    cookie-secure: true
-  cors:
-    allowed-origins: "${CORS_ALLOWED_ORIGINS}"

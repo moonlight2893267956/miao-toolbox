@@ -1,0 +1,16 @@
+# SECRET_GROUP / miao-ai.yaml — dev 直接写 dev 占位值（base-url/name/api-key）
+miao:
+  ai:
+    agents:
+      diff-explainer:
+        base-url: "http://localhost:11434"
+        agent-name: "diff-explainer"
+        api-key: "dev-api-key-placeholder"
+      json-repairer:
+        base-url: "http://localhost:11434"
+        agent-name: "json-repairer"
+        api-key: "dev-api-key-placeholder"
+      translate-agent:
+        base-url: "http://localhost:11434"
+        agent-name: "translate-agent"
+        api-key: "dev-api-key-placeholder"

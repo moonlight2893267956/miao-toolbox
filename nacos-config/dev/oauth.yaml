@@ -1,0 +1,13 @@
+# SECRET_GROUP / oauth.yaml — dev 直接写 dev 占位值
+miao:
+  oauth:
+    github:
+      client-id: "dev-github-client-id"
+      client-secret: "dev-github-client-secret"
+      redirect-uri: "http://localhost:8080/api/auth/oauth/github/callback"
+      frontend-callback-url: "http://localhost:5173/oauth/callback"
+    google:
+      client-id: "dev-google-client-id"
+      client-secret: "dev-google-client-secret"
+      redirect-uri: "http://localhost:8080/api/auth/oauth/google/callback"
+      frontend-callback-url: "http://localhost:5173/oauth/callback"

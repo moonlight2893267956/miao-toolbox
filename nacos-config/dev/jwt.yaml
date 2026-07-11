@@ -1,0 +1,7 @@
+# SECRET_GROUP / jwt.yaml — dev 直接写 dev 占位密钥
+miao:
+  jwt:
+    secret: "dev-jwt-secret-placeholder"
+    refresh-secret: "dev-jwt-refresh-secret-placeholder"
+    access-token-expiry-minutes: 15
+    refresh-token-expiry-days: 7

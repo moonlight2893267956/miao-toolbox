@@ -1,0 +1,7 @@
+# SECRET_GROUP / jwt.yaml — prod 密钥引用环境变量
+miao:
+  jwt:
+    secret: "${JWT_SECRET}"
+    refresh-secret: "${JWT_REFRESH_SECRET}"
+    access-token-expiry-minutes: 15
+    refresh-token-expiry-days: 7
