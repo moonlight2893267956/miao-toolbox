@@ -11,6 +11,8 @@ export interface TranslatePrefill {
   from: LanguageCode;
   /** 预填目标语言（来自推荐目标语言） */
   to: LanguageCode;
+  /** 历史记录回填的译文 */
+  target?: string;
 }
 
 export interface TranslateState {

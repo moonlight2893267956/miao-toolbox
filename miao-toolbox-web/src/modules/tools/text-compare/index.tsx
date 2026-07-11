@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { DiffOutlined } from '@ant-design/icons';
 import { DiffProvider } from './DiffProvider';
 import { useDiffContext } from './useDiffContext';
 import Toolbar from './Toolbar';
@@ -7,6 +8,7 @@ import DiffPanel from './DiffPanel';
 import StatCard from './StatCard';
 import DiffViewer from './DiffViewer';
 import AIAnalysisDock from './AIAnalysisDock';
+import ToolPageHeader from '../../../components/shared/ToolPageHeader';
 import './diff-tool.css';
 
 const DiffContent: React.FC = () => {
@@ -29,6 +31,11 @@ const DiffContent: React.FC = () => {
 
   return (
     <>
+      <ToolPageHeader
+        icon={<DiffOutlined />}
+        title="文本对照"
+        subtitle="差异对比 · 编辑同步 · AI 智能分析"
+      />
       <motion.div
         className="tc-command-bar"
         initial={{ y: -20, opacity: 0 }}

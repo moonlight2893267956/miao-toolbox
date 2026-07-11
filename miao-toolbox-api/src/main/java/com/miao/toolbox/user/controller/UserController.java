@@ -1,9 +1,9 @@
 package com.miao.toolbox.user.controller;
 
-import com.miao.toolbox.auth.dto.ChangePasswordRequest;
 import com.miao.toolbox.auth.entity.User;
 import com.miao.toolbox.common.response.ApiResponse;
 import com.miao.toolbox.user.dto.UpdatePasswordRequest;
+import com.miao.toolbox.user.dto.UpdateProfileRequest;
 import com.miao.toolbox.user.dto.UserInfoResponse;
 import com.miao.toolbox.user.service.UserService;
 import jakarta.validation.Valid;
@@ -27,6 +27,17 @@ public class UserController {
                     .body(ApiResponse.error("AUTH_UNAUTHORIZED", "未认证", null));
         }
         return ResponseEntity.ok(ApiResponse.success(userService.getCurrentUser(user.getId())));
+    }
+
+    @PutMapping("/me/profile")
+    public ResponseEntity<ApiResponse<UserInfoResponse>> updateProfile(
+            @Valid @RequestBody UpdateProfileRequest request,
+            @AuthenticationPrincipal Object principal) {
+        if (!(principal instanceof User user)) {
+            return ResponseEntity.status(401)
+                    .body(ApiResponse.error("AUTH_UNAUTHORIZED", "未认证", null));
+        }
+        return ResponseEntity.ok(ApiResponse.success(userService.updateProfile(user.getId(), request.getUsername())));
     }
 
     @PutMapping("/me/password")

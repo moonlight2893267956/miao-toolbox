@@ -342,6 +342,10 @@ const JsonNodeRow = memo(function JsonNodeRow({
   const badgeLabel = node.type === 'array' && node.childrenCount > 0
     ? `arr[${node.childrenCount}]`
     : badge?.label;
+  const isRootNode = node.id === '$';
+  const rootSummary = node.type === 'array'
+    ? `${node.childrenCount} 项`
+    : `${node.childrenCount} 个键`;
 
   const handleRowClick = useCallback(() => {
     onSelect(node.id);
@@ -404,6 +408,7 @@ const JsonNodeRow = memo(function JsonNodeRow({
           'jw-node-row',
           isSelected && 'jw-node-row--selected',
           isSearchMatch && 'jw-node-row--search-match',
+          badge && 'jw-node-row--with-type-badge',
         ]
           .filter(Boolean)
           .join(' ')}
@@ -433,8 +438,18 @@ const JsonNodeRow = memo(function JsonNodeRow({
           </Tooltip>
         )}
 
+        {/* 根节点说明 */}
+        {isRootNode && node.type !== 'array-ellipsis' && (
+          <span className="jw-node-row__root">
+            <span className="jw-node-row__root-title">JSON 根节点</span>
+            {(node.type === 'object' || node.type === 'array') && (
+              <span className="jw-node-row__root-summary">{rootSummary}</span>
+            )}
+          </span>
+        )}
+
         {/* Key */}
-        {node.id !== '$' && node.type !== 'array-ellipsis' && (
+        {!isRootNode && node.type !== 'array-ellipsis' && (
           editingKey ? (
             <Input
               ref={editKeyInputRef as React.Ref<any>}
@@ -458,7 +473,7 @@ const JsonNodeRow = memo(function JsonNodeRow({
         )}
 
         {/* 冒号 */}
-        {node.id !== '$' && node.type !== 'array-ellipsis' && <span className="jw-node-row__colon">: </span>}
+        {!isRootNode && node.type !== 'array-ellipsis' && <span className="jw-node-row__colon">: </span>}
 
         {/* 值（可双击编辑原始值） */}
         {editing ? (
@@ -497,7 +512,11 @@ const JsonNodeRow = memo(function JsonNodeRow({
         )}
 
         {/* 类型徽标 */}
-        {badge && <span className={badge.className}>{badgeLabel}</span>}
+        {badge && (
+          <span className={`${badge.className} jw-badge--floating`} aria-label={`类型：${badgeLabel}`}>
+            {badgeLabel}
+          </span>
+        )}
       </div>
     </Dropdown>
   );
@@ -559,9 +578,9 @@ export default function JsonTreeView({
   const virtualizer = useVirtualizer({
     count: visibleNodes.length,
     getScrollElement: () => scrollRef.current,
-    // 行高估算：CSS .jw-node-row line-height:22px + padding ≈ 28px
+    // 行高估算：CSS .jw-node-row min-height:28px + 视觉留白 ≈ 30px
     // 配合 measureElement 动态测量实际高度
-    estimateSize: () => 28,
+    estimateSize: () => 30,
     overscan: 10,
   });
 
@@ -664,7 +683,7 @@ export default function JsonTreeView({
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                width: 'max-content',
+                width: '100%',
                 minWidth: '100%',
                 transform: `translateY(${virtualRow.start}px)`,
               }}

@@ -6,7 +6,6 @@ import {
   HistoryOutlined,
   PictureOutlined,
   AudioOutlined,
-  ThunderboltOutlined,
 } from '@ant-design/icons';
 import TranslateProvider from './TranslateProvider';
 import { useTranslateContext } from './useTranslateContext';
@@ -15,7 +14,6 @@ import TranslateDetectPanel from './TranslateDetectPanel';
 import TranslateHistoryPanel from './TranslateHistoryPanel';
 import TranslateImagePanel from './TranslateImagePanel';
 import TranslateVoicePanel from './TranslateVoicePanel';
-import ComingSoonPanel from './ComingSoonPanel';
 import type { TranslateTabKey } from './types';
 import './translate.css';
 
@@ -30,7 +28,6 @@ const TABS: {
   { key: 'detect', label: '语种识别', icon: <ApartmentOutlined />, ready: true },
   { key: 'image', label: '图片翻译', icon: <PictureOutlined />, ready: true },
   { key: 'voice', label: '语音翻译', icon: <AudioOutlined />, ready: true },
-  { key: 'ai', label: 'AI 增强', icon: <ThunderboltOutlined />, ready: false },
   { key: 'history', label: '历史记录', icon: <HistoryOutlined />, ready: true },
 ];
 
@@ -49,8 +46,6 @@ const TranslateContent: React.FC = () => {
         return <TranslateImagePanel />;
       case 'voice':
         return <TranslateVoicePanel />;
-      case 'ai':
-        return <ComingSoonPanel tab="ai" />;
       default:
         return null;
     }

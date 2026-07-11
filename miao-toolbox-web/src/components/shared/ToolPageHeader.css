@@ -1,0 +1,286 @@
+/* ============================================================
+   ToolPageHeader — Refined Codex
+   玻璃质感图标 · 衬线标题 · 脉冲状态徽标 · 渐变分割线
+   ============================================================ */
+
+.tph {
+  padding: 6px 2px 0;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+/* ── 内部容器 ── */
+
+.tph-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* ============================================================
+   Icon — 多层玻璃质感
+   ============================================================ */
+
+.tph-icon {
+  position: relative;
+  width: 50px;
+  height: 50px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  isolation: isolate;
+  cursor: default;
+  transition: transform 300ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.tph-icon:hover {
+  transform: scale(1.06);
+}
+
+/* 主体渐变 */
+.tph-icon-body {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: linear-gradient(145deg, var(--miao-brand), var(--miao-brand-active));
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.13) inset,
+    0 6px 24px color-mix(in srgb, var(--miao-brand) 32%, transparent),
+    0 1px 4px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+/* 顶部高光条 */
+.tph-icon-body::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 38%;
+  border-radius: 0 0 10px 10px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  pointer-events: none;
+}
+
+/* 对角微光 */
+.tph-icon-body::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    200deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+/* 图标内容 */
+.tph-icon-inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  color: #fff;
+  font-size: 22px;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.15));
+}
+
+/* 环境光晕 */
+.tph-icon-glow {
+  position: absolute;
+  inset: -7px;
+  z-index: -1;
+  border-radius: 18px;
+  background: radial-gradient(
+    circle at center,
+    color-mix(in srgb, var(--miao-brand) 28%, transparent) 0%,
+    transparent 70%
+  );
+  animation: tph-glow-breath 3.5s ease-in-out infinite;
+}
+
+@keyframes tph-glow-breath {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.72;
+    transform: scale(1.05);
+  }
+}
+
+/* 减弱动效 */
+@media (prefers-reduced-motion: reduce) {
+  .tph-icon-glow {
+    animation: none;
+    opacity: 0.55;
+  }
+
+  .tph-dot {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   Text — 衬线标题 + 状态徽标
+   ============================================================ */
+
+.tph-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tph-title {
+  margin: 0;
+  font-family: var(--miao-font-display), 'Noto Serif SC', Georgia, serif;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  background: linear-gradient(
+    135deg,
+    var(--miao-text-primary) 0%,
+    color-mix(in srgb, var(--miao-brand) 45%, var(--miao-text-primary)) 60%,
+    var(--miao-text-primary) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* 为不支持 background-clip: text 的场景兜底 */
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .tph-title {
+    color: var(--miao-text-primary);
+  }
+}
+
+/* ── 元信息行 ── */
+
+.tph-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* 状态徽标 */
+.tph-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 23px;
+  padding: 0 10px;
+  border-radius: 7px;
+  background: var(--miao-success-bg);
+  border: 1px solid color-mix(in srgb, var(--miao-success) 18%, transparent);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--miao-success-text);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  transition: box-shadow 300ms ease;
+}
+
+.tph-status:hover {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--miao-success) 10%, transparent);
+}
+
+/* 状态脉冲点 */
+.tph-status-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--miao-success);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--miao-success) 45%, transparent);
+  animation: tph-dot-ring 2.2s ease-in-out infinite;
+}
+
+@keyframes tph-dot-ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--miao-success) 45%, transparent);
+  }
+  60% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+/* 描述文字 */
+.tph-desc {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--miao-text-secondary);
+  letter-spacing: 0;
+  opacity: 0.82;
+}
+
+/* ============================================================
+   Rule — 底部渐变装饰线
+   ============================================================ */
+
+.tph-rule {
+  height: 1px;
+  margin-top: 10px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--miao-brand) 28%, transparent),
+    color-mix(in srgb, var(--miao-brand) 8%, transparent) 60%,
+    transparent
+  );
+  transform-origin: left;
+  border-radius: 1px;
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+
+@media (max-width: 640px) {
+  .tph {
+    padding: 2px 2px 0;
+  }
+
+  .tph-inner {
+    gap: 12px;
+  }
+
+  .tph-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .tph-icon-body {
+    border-radius: 12px;
+  }
+
+  .tph-icon-inner {
+    font-size: 18px;
+  }
+
+  .tph-title {
+    font-size: 20px;
+  }
+
+  .tph-desc {
+    display: none;
+  }
+}

@@ -20,9 +20,18 @@ export interface UpdatePasswordData {
   newPassword: string;
 }
 
+export interface UpdateProfileData {
+  username: string;
+}
+
 export const userService = {
   async getCurrentUser(): Promise<UserInfoData> {
     const response = await axiosInstance.get('/api/users/me');
+    return response.data.data;
+  },
+
+  async updateProfile(data: UpdateProfileData): Promise<UserInfoData> {
+    const response = await axiosInstance.put('/api/users/me/profile', data);
     return response.data.data;
   },
 

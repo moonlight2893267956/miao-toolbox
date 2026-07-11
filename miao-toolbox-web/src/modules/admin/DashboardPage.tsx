@@ -193,18 +193,13 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Agent 调用分布 */}
+      {/* 第三方调用分布 */}
       <div style={{ marginTop: 16 }}>
         <AgentBarChart
           data={aiStats?.agentDistribution.map((a) => ({ label: a.agentName, value: a.count })) ?? []}
           maxItems={5}
-          title="Agent 调用量分布"
+          title="第三方调用量分布"
           subtitle="近 7 天 · Top 5"
-          action={
-            <button className="miao-admin-btn-ghost">
-              展开全部 →
-            </button>
-          }
         />
       </div>
     </div>

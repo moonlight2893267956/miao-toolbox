@@ -671,20 +671,29 @@
 .jw-tree-rows {
   font-family: var(--miao-font-mono);
   font-size: 13px;
-  line-height: 22px;
+  line-height: 24px;
   min-width: 100%;
 }
 
 .jw-node-row {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 28px;
   min-width: 100%;
+  padding-top: 2px;
+  padding-bottom: 2px;
   padding-right: 12px;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s;
   user-select: none;
   position: relative;
+}
+
+.jw-node-row--with-type-badge {
+  padding-right: 88px;
 }
 
 .jw-node-row::before {
@@ -743,7 +752,7 @@
   align-items: center;
   justify-content: center;
   width: 18px;
-  height: 22px;
+  height: 24px;
   flex-shrink: 0;
   font-size: 10px;
   color: var(--miao-text-tertiary);
@@ -776,6 +785,35 @@
   text-decoration: underline;
   text-decoration-color: var(--tool-accent);
   text-underline-offset: 3px;
+}
+
+.jw-node-row__root {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.jw-node-row__root-title {
+  color: var(--miao-text-secondary);
+  font-weight: 600;
+}
+
+.jw-node-row__root-summary {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--tool-accent-7);
+  color: var(--tool-accent);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+:root[data-theme='dark'] .jw-node-row__root-summary {
+  background: var(--tool-accent-11);
 }
 
 /* 冒号 */
@@ -964,8 +1002,25 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.05em;
-  line-height: 18px;
+  line-height: 20px;
   flex-shrink: 0;
+}
+
+.jw-badge--floating {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  z-index: 2;
+  margin-left: 0;
+  transform: translateY(-50%);
+  border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+
+:root[data-theme='dark'] .jw-badge--floating {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
 }
 
 .jw-badge--object {

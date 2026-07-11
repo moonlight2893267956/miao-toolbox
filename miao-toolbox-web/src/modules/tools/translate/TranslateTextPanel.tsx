@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Select, Input, Button, Alert, Space, Segmented, Tooltip } from 'antd';
+import { Select, Input, Button, Alert, Space, Segmented, Tooltip, Switch } from 'antd';
 import {
   TranslationOutlined,
   SwapOutlined,
@@ -7,6 +7,8 @@ import {
   DownloadOutlined,
   ThunderboltOutlined,
   RobotOutlined,
+  LinkOutlined,
+  ClearOutlined,
 } from '@ant-design/icons';
 import { message } from 'antd';
 import {
@@ -30,10 +32,28 @@ import { useTranslateHistory } from './useTranslateHistory';
 
 const MAX_CHUNK = 5900;
 const MAX_CONCURRENCY = 4;
+/** 上下文连贯（FR-17）拼接前文的字符上限，超出按最新往回滑窗截断，防止请求超长 / agent 超时。 */
+const MAX_CONTEXT_CHARS = 4000;
 
 interface Segment {
   src: string;
   dst: string;
+}
+
+/**
+ * 上下文连贯翻译（FR-17）：把已累积的「原文→译文」对拼成前文字符串。
+ * 从最新一轮往回累加，总长不超过 MAX_CONTEXT_CHARS。
+ */
+function buildContext(turns: Segment[]): string {
+  const blocks: string[] = [];
+  let total = 0;
+  for (let i = turns.length - 1; i >= 0; i -= 1) {
+    const block = `原文：${turns[i].src}\n译文：${turns[i].dst}`;
+    if (total + block.length > MAX_CONTEXT_CHARS && blocks.length > 0) break;
+    blocks.unshift(block);
+    total += block.length + 2;
+  }
+  return blocks.join('\n\n');
 }
 
 /** 按段落优先切分，单段不超过 MAX_CHUNK；单段超长则硬切。 */
@@ -126,14 +146,30 @@ const TranslateTextPanel: React.FC = () => {
   const [from, setFrom] = useState<LanguageCode>(ttState.prefill?.from ?? 'auto');
   const [to, setTo] = useState<LanguageCode>(ttState.prefill?.to ?? 'en');
   const [source, setSource] = useState(ttState.prefill?.text ?? '');
-  const [result, setResult] = useState<TranslateResponse | null>(null);
-  const [segments, setSegments] = useState<Segment[]>([]);
+  const [result, setResult] = useState<TranslateResponse | null>(
+    ttState.prefill?.target
+      ? {
+          translatedText: ttState.prefill.target,
+          from: ttState.prefill.from,
+          charCount: ttState.prefill.text.length,
+        }
+      : null,
+  );
+  const [segments, setSegments] = useState<Segment[]>(
+    ttState.prefill?.target
+      ? [{ src: ttState.prefill.text, dst: ttState.prefill.target }]
+      : [],
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // AI 翻译模式（FR-16 / story-4.2 迭代：默认一键 AI 翻译，结果直接进译文栏）
   const [aiMode, setAiMode] = useState(true);
   const [polishTone, setPolishTone] = useState<AiEnhanceTone>('formal');
+
+  // 上下文连贯翻译（FR-17）：开关默认关；contextTurns 为本会话累积的「原文→译文」对（内存态，刷新即清空）
+  const [contextMode, setContextMode] = useState(false);
+  const [contextTurns, setContextTurns] = useState<Segment[]>([]);
 
   // 挂载后清空跨面板联动预填（FR-7），避免重复应用；
   // 用 requestAnimationFrame 延迟 dispatch，规避 effect 内同步 setState 的 lint 告警
@@ -147,10 +183,21 @@ const TranslateTextPanel: React.FC = () => {
   const languageLabel = (code: LanguageCode) =>
     LANGUAGE_OPTIONS.find((l) => l.code === code)?.label ?? code;
 
+  // 切换语言会使已累积前文跨语言错配，需清空上下文（FR-17 决策 4）
+  const handleFromChange = (v: LanguageCode) => {
+    setFrom(v);
+    setContextTurns([]);
+  };
+  const handleToChange = (v: LanguageCode) => {
+    setTo(v);
+    setContextTurns([]);
+  };
+
   const handleSwap = () => {
     if (from === 'auto') return;
     setFrom(to);
     setTo(from);
+    setContextTurns([]);
   };
 
   const handleTranslate = useCallback(async () => {
@@ -202,6 +249,10 @@ const TranslateTextPanel: React.FC = () => {
         sourceLang: from,
         targetLang: to,
         tone: polishTone,
+        // 上下文连贯（FR-17）：开启时以 context 任务附带累积前文
+        ...(contextMode
+          ? { task: 'context' as const, context: buildContext(contextTurns) }
+          : {}),
       });
       // 用增强结果构造与普通翻译兼容的响应
       const normalized: TranslateResponse & { segments: Segment[] } = {
@@ -214,6 +265,10 @@ const TranslateTextPanel: React.FC = () => {
       setResult(normalized);
       setSegments(normalized.segments);
       addHistory({ source: text, target: r.translated, from, to });
+      // 仅成功后追加上下文；失败轮不污染后续连贯性（AC7）
+      if (contextMode) {
+        setContextTurns((prev) => [...prev, { src: text, dst: r.translated }]);
+      }
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string } } };
       const msg = err.response?.data?.message || 'AI 翻译失败，请稍后重试';
@@ -221,7 +276,7 @@ const TranslateTextPanel: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [source, from, to, polishTone, addHistory]);
+  }, [source, from, to, polishTone, contextMode, contextTurns, addHistory]);
 
   const handleSubmit = useCallback(() => {
     if (aiMode) {
@@ -236,6 +291,13 @@ const TranslateTextPanel: React.FC = () => {
     // 切换模式后清空旧结果，避免数据错配
     setResult(null);
     setSegments([]);
+    // 切换 AI/普通模式时上下文失效，清空（FR-17 决策 4）
+    setContextTurns([]);
+  };
+
+  const handleClearContext = () => {
+    setContextTurns([]);
+    message.success('已清空上下文');
   };
 
   const handleCopyTranslation = async () => {
@@ -280,7 +342,8 @@ const TranslateTextPanel: React.FC = () => {
 
   const handleToneChange = (v: AiEnhanceTone) => {
     setPolishTone(v);
-    // 切换风格不自动触发，需用户重新点击翻译
+    // 切换风格不自动触发，需用户重新点击翻译；风格变化会破坏前文语气连贯，清空上下文（FR-17 决策 4）
+    setContextTurns([]);
   };
 
 
@@ -303,7 +366,7 @@ const TranslateTextPanel: React.FC = () => {
           <Select<LanguageCode>
             className="tt-lang-select"
             value={from}
-            onChange={setFrom}
+            onChange={handleFromChange}
             options={LANGUAGE_OPTIONS.map((l) => ({ value: l.code, label: l.label }))}
           />
           <Tooltip title={from === 'auto' ? '自动检测时不可交换' : '交换语言'}>
@@ -319,7 +382,7 @@ const TranslateTextPanel: React.FC = () => {
           <Select<LanguageCode>
             className="tt-lang-select"
             value={to}
-            onChange={setTo}
+            onChange={handleToChange}
             options={LANGUAGE_OPTIONS.filter((l) => l.code !== 'auto').map((l) => ({
               value: l.code,
               label: l.label,
@@ -328,6 +391,30 @@ const TranslateTextPanel: React.FC = () => {
         </div>
 
         <div className="tt-command-actions">
+          {aiMode && (
+            <div className="tt-context-toggle">
+              <Tooltip title="开启后，每段翻译会参考前文已译内容，保证术语、语气、指代前后一致">
+                <span className="tt-context-toggle-label">
+                  <LinkOutlined /> 上下文连贯
+                </span>
+              </Tooltip>
+              <Switch size="small" checked={contextMode} onChange={setContextMode} />
+              {contextMode && contextTurns.length > 0 && (
+                <>
+                  <span className="tt-context-badge">已连贯 {contextTurns.length} 段</span>
+                  <Tooltip title="清空已累积的上下文">
+                    <Button
+                      size="small"
+                      type="text"
+                      icon={<ClearOutlined />}
+                      onClick={handleClearContext}
+                      aria-label="清空上下文"
+                    />
+                  </Tooltip>
+                </>
+              )}
+            </div>
+          )}
           {aiMode && (
             <Segmented
               className="tt-segmented tt-tone-segmented"
@@ -405,6 +492,11 @@ const TranslateTextPanel: React.FC = () => {
                 {aiMode && (
                   <span className="tt-output-meta-badge">
                     <RobotOutlined /> {POLISH_TONES.find((t) => t.value === polishTone)?.label}
+                  </span>
+                )}
+                {aiMode && contextMode && (
+                  <span className="tt-output-meta-badge tt-output-meta-badge--context">
+                    <LinkOutlined /> 上下文连贯
                   </span>
                 )}
               </div>

@@ -351,6 +351,85 @@
   background: var(--miao-brand-bg);
 }
 
+/* 上下文连贯开关（FR-17） */
+.tt-context-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  min-height: 34px;
+  padding: 2px 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--miao-border);
+  border-radius: 8px;
+  background: var(--miao-bg-muted);
+}
+
+.tt-context-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  line-height: 30px;
+  color: var(--miao-text-secondary);
+  cursor: default;
+  white-space: nowrap;
+}
+
+.tt-context-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--miao-brand-bg);
+  color: var(--miao-brand);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 22px;
+  white-space: nowrap;
+}
+
+.tt-context-toggle .ant-btn.ant-btn-text.ant-btn-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 6px;
+  color: var(--miao-text-secondary);
+  transition: color 200ms var(--tt-ease), background-color 200ms var(--tt-ease);
+}
+
+.tt-context-toggle .ant-btn.ant-btn-text.ant-btn-sm:hover {
+  color: var(--miao-text-primary);
+  background: var(--miao-brand-bg);
+}
+
+.tt-context-toggle .ant-switch {
+  min-width: 34px;
+  height: 18px;
+  line-height: 18px;
+}
+
+.tt-context-toggle .ant-switch .ant-switch-handle {
+  width: 14px;
+  height: 14px;
+  inset-block-start: 1px;
+  inset-inline-start: 2px;
+}
+
+.tt-context-toggle .ant-switch-checked .ant-switch-handle {
+  inset-inline-start: calc(100% - 16px);
+}
+
+.tt-output-meta-badge--context {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
 .tt-mode-segmented .ant-segmented-item-selected,
 .tt-tone-segmented .ant-segmented-item-selected {
   background: var(--miao-bg-elevated);
@@ -1499,39 +1578,6 @@
   color: var(--miao-text-tertiary);
   text-align: center;
   padding: 32px 12px;
-}
-
-/* ============================================================
-   占位（即将上线）
-   ============================================================ */
-.tt-coming-soon {
-  min-height: 420px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 18px;
-  border: 1px solid var(--miao-border);
-  border-radius: var(--tt-radius-lg);
-  background: var(--miao-bg-elevated);
-  box-shadow: var(--miao-shadow-soft);
-}
-
-.tt-coming-soon-text {
-  max-width: 360px;
-  margin: 0 auto;
-}
-
-.tt-coming-soon-title {
-  margin-bottom: 6px;
-  color: var(--miao-text-primary);
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.tt-coming-soon-desc {
-  color: var(--miao-text-secondary);
-  font-size: 13px;
-  line-height: 1.6;
 }
 
 /* ============================================================

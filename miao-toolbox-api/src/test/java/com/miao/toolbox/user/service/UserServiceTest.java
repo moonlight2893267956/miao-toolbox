@@ -2,6 +2,7 @@ package com.miao.toolbox.user.service;
 
 import com.miao.toolbox.auth.entity.User;
 import com.miao.toolbox.auth.oauth.GitHubOAuthService;
+import com.miao.toolbox.auth.oauth.GoogleOAuthService;
 import com.miao.toolbox.auth.repository.UserRepository;
 import com.miao.toolbox.common.exception.BusinessException;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +33,9 @@ class UserServiceTest {
 
     @Mock
     private GitHubOAuthService gitHubOAuthService;
+
+    @Mock
+    private GoogleOAuthService googleOAuthService;
 
     @InjectMocks
     private UserService userService;
@@ -156,6 +160,57 @@ class UserServiceTest {
 
             assertThatThrownBy(() -> userService.changePassword(1L, "password123", "12345678"))
                     .isInstanceOf(BusinessException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("更新基本信息")
+    class UpdateProfileTests {
+
+        @Test
+        @DisplayName("用户名合法且未被占用时更新成功")
+        void updateUsernameSuccess() {
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+            when(userRepository.findByUsername("new_user")).thenReturn(Optional.empty());
+            when(userRepository.saveAndFlush(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+            var result = userService.updateProfile(1L, "new_user");
+
+            assertThat(result.getUsername()).isEqualTo("new_user");
+            verify(userRepository).saveAndFlush(argThat(user -> "new_user".equals(user.getUsername())));
+        }
+
+        @Test
+        @DisplayName("用户名未变化时直接返回当前用户信息")
+        void updateUsernameNoChange() {
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+
+            var result = userService.updateProfile(1L, "testuser");
+
+            assertThat(result.getUsername()).isEqualTo("testuser");
+            verify(userRepository, never()).saveAndFlush(any(User.class));
+        }
+
+        @Test
+        @DisplayName("用户名已存在时抛出异常")
+        void updateUsernameAlreadyExists() {
+            User otherUser = User.builder().id(2L).username("new_user").build();
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+            when(userRepository.findByUsername("new_user")).thenReturn(Optional.of(otherUser));
+
+            assertThatThrownBy(() -> userService.updateProfile(1L, "new_user"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("用户名已存在");
+        }
+
+        @Test
+        @DisplayName("用户名格式非法时抛出异常")
+        void updateUsernameInvalidFormat() {
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+
+            assertThatThrownBy(() -> userService.updateProfile(1L, "bad-name"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("用户名只能包含");
         }
     }
 

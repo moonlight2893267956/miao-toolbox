@@ -28,6 +28,10 @@ miao:
         enabled: true
         base-url: http://localhost:8000
         api-key: your-json-repairer-api-key
+      translate-agent:
+        enabled: true
+        base-url: http://localhost:8000
+        api-key: your-translate-agent-api-key
   baidu:
     translate:
       enabled: true

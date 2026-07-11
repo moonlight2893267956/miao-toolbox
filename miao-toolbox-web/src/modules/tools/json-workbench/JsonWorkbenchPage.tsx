@@ -1,5 +1,13 @@
 import { useReducer, useCallback, useRef, useState, useEffect, useMemo } from 'react';
-import { CopyOutlined, SwapOutlined, UploadOutlined, EditOutlined, ThunderboltOutlined, BulbOutlined } from '@ant-design/icons';
+import {
+  CopyOutlined,
+  SwapOutlined,
+  UploadOutlined,
+  EditOutlined,
+  ThunderboltOutlined,
+  BulbOutlined,
+  CodeOutlined,
+} from '@ant-design/icons';
 import { message, Tooltip, Dropdown, Modal, Input } from 'antd';
 import type { MenuProps } from 'antd';
 import type {
@@ -23,6 +31,7 @@ import SearchBar from './components/SearchBar';
 import RepairPreviewModal from './components/RepairPreviewModal';
 import AiRepairModal from './components/AiRepairModal';
 import { useAiRepair } from './hooks/useAiRepair';
+import ToolPageHeader from '../../../components/shared/ToolPageHeader';
 import './json-workbench.css';
 
 // ─── 初始状态 ──────────────────────────────────────────
@@ -225,7 +234,6 @@ function Toolbar({ viewMode, onViewModeChange, hasData, hasRawInput, canFormat, 
   return (
     <div className="jw-toolbar">
       <div className="jw-toolbar__left">
-        <span className="jw-toolbar__title">JSON 工作台</span>
         {hasData && !showError && parseProgress === 0 && (
           <span className="jw-toolbar__status">已解析</span>
         )}
@@ -997,6 +1005,11 @@ export default function JsonWorkbenchPage() {
 
   return (
     <div className="jw-page">
+      <ToolPageHeader
+        icon={<CodeOutlined />}
+        title="JSON 工作台"
+        subtitle="可视化解析 · 智能修复 · Schema 校验"
+      />
       <Toolbar
         viewMode={state.viewMode}
         onViewModeChange={handleViewModeChange}

@@ -69,6 +69,15 @@ miao:
         read-timeout: ${MIAO_AI_AGENT_JSON_REPAIR_READ_TIMEOUT:60000}
         retry-count: ${MIAO_AI_AGENT_JSON_REPAIR_RETRY_COUNT:0}
         retry-interval: ${MIAO_AI_AGENT_JSON_REPAIR_RETRY_INTERVAL:1000}
+      translate-agent:
+        enabled: ${MIAO_AI_AGENT_TRANSLATE_ENABLED:true}
+        base-url: ${MIAO_AI_AGENT_TRANSLATE_BASE_URL:}
+        agent-name: ${MIAO_AI_AGENT_TRANSLATE_NAME:translate-agent}
+        api-key: ${MIAO_AI_AGENT_TRANSLATE_API_KEY:}
+        connect-timeout: ${MIAO_AI_AGENT_TRANSLATE_CONNECT_TIMEOUT:5000}
+        read-timeout: ${MIAO_AI_AGENT_TRANSLATE_READ_TIMEOUT:120000}
+        retry-count: ${MIAO_AI_AGENT_TRANSLATE_RETRY_COUNT:2}
+        retry-interval: ${MIAO_AI_AGENT_TRANSLATE_RETRY_INTERVAL:1000}
     invocation:
       retention-days: ${MIAO_AI_INVOCATION_RETENTION_DAYS:90}
       retention-cron: ${MIAO_AI_INVOCATION_RETENTION_CRON:0 0 3 * * *}

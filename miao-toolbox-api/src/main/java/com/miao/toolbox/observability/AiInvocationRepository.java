@@ -47,7 +47,6 @@ public interface AiInvocationRepository extends JpaRepository<AiInvocation, Long
         WHERE created_at >= :since
         GROUP BY agent_name
         ORDER BY cnt DESC
-        LIMIT 5
         """, nativeQuery = true)
     List<Object[]> getAgentDistribution(@Param("since") LocalDateTime since);
 

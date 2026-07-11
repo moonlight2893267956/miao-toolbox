@@ -59,6 +59,7 @@ type AuthAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'TOKEN_REFRESHED'; payload: { userInfo: UserInfo; mustChangePassword: boolean; accessibleRoutes: string[] } }
   | { type: 'ROUTES_REFRESHED'; payload: string[] }
+  | { type: 'USER_INFO_UPDATED'; payload: UserInfo }
   | { type: 'REHYDRATED'; payload: { isAuthenticated: boolean; mustChangePassword: boolean; accessibleRoutes: string[] } };
 
 const initialState: AuthState = {
@@ -100,6 +101,8 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
       };
     case 'ROUTES_REFRESHED':
       return { ...state, accessibleRoutes: action.payload, routesLoading: false };
+    case 'USER_INFO_UPDATED':
+      return { ...state, userInfo: action.payload };
     case 'REHYDRATED':
       return {
         ...state,
@@ -120,6 +123,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshToken: () => Promise<string | null>;
   refreshRoutes: () => Promise<string[]>;
+  updateUserInfo: (userInfo: UserInfo) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -240,6 +244,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return routes;
   }, []);
 
+  const updateUserInfo = useCallback((userInfo: UserInfo) => {
+    localStorage.setItem('user', JSON.stringify(userInfo));
+    dispatch({ type: 'USER_INFO_UPDATED', payload: userInfo });
+  }, []);
+
   const refreshTokenFn = useCallback(async (): Promise<string | null> => {
     if (refreshPromiseRef.current) return refreshPromiseRef.current;
 
@@ -328,6 +337,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logout,
     refreshToken: refreshTokenFn,
     refreshRoutes,
+    updateUserInfo,
   };
 
   return (

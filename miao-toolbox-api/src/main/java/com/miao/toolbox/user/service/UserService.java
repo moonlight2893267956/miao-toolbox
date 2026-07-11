@@ -8,14 +8,20 @@ import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.user.dto.UserInfoResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Objects;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
+
+    /** 用户名格式：3-20 位字母、数字、下划线（与 UpdateProfileRequest @Pattern 保持一致） */
+    static final String USERNAME_PATTERN = "^[a-zA-Z0-9_]{3,20}$";
 
     private final UserRepository userRepository;
     private final GitHubOAuthService gitHubOAuthService;
@@ -26,6 +32,35 @@ public class UserService {
     public UserInfoResponse getCurrentUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在", 404));
+        return toUserInfoResponse(user);
+    }
+
+    @Transactional
+    public UserInfoResponse updateProfile(Long userId, String username) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在", 404));
+        String normalizedUsername = username == null ? "" : username.trim();
+        if (!normalizedUsername.matches(USERNAME_PATTERN)) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "用户名只能包含3-20位字母、数字和下划线", 400);
+        }
+        if (Objects.equals(user.getUsername(), normalizedUsername)) {
+            return toUserInfoResponse(user);
+        }
+        userRepository.findByUsername(normalizedUsername)
+                .filter(existing -> !Objects.equals(existing.getId(), userId))
+                .ifPresent(existing -> {
+                    throw new BusinessException(ErrorCode.USER_ALREADY_EXISTS, "用户名已存在", 409);
+                });
+        user.setUsername(normalizedUsername);
+        try {
+            userRepository.saveAndFlush(user);
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException(ErrorCode.USER_ALREADY_EXISTS, "用户名已存在", 409);
+        }
+        return toUserInfoResponse(user);
+    }
+
+    private UserInfoResponse toUserInfoResponse(User user) {
         return UserInfoResponse.builder()
                 .id(user.getId())
                 .username(user.getUsername())

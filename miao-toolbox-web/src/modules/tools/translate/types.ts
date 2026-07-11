@@ -76,7 +76,7 @@ export const VOICE_LANGUAGE_OPTIONS: LanguageOption[] = [
 ];
 
 /** 页面 Tab 键 */
-export type TranslateTabKey = 'text' | 'detect' | 'history' | 'image' | 'voice' | 'ai';
+export type TranslateTabKey = 'text' | 'detect' | 'history' | 'image' | 'voice';
 
 /** 文本翻译请求（FR-1） */
 export interface TranslateRequest {
@@ -190,7 +190,10 @@ export interface SpeechTranslateResponse {
 /** 润色风格（对齐 FR-16：正式/口语/营销/学术；marketing 由 story-4.1 在 agent 侧登记） */
 export type AiEnhanceTone = 'formal' | 'casual' | 'marketing' | 'academic';
 
-/** AI 增强翻译请求（FR-16）：后端 agent 内部完成百度打底 + LLM 润色，前端传原文即可 */
+/** AI 增强任务类型：translate（百度打底+润色）/ context（上下文连贯，FR-17） */
+export type AiEnhanceTask = 'translate' | 'context';
+
+/** AI 增强翻译请求（FR-16/FR-17）：后端 agent 内部完成百度打底 + LLM 润色，前端传原文即可 */
 export interface AiEnhanceRequest {
   /** 待增强文本（原文） */
   text: string;
@@ -200,6 +203,10 @@ export interface AiEnhanceRequest {
   targetLang: LanguageCode;
   /** 风格：formal/casual/marketing/academic，可空（agent 不强制） */
   tone?: AiEnhanceTone;
+  /** 任务类型，默认 translate；context 为上下文连贯翻译（FR-17） */
+  task?: AiEnhanceTask;
+  /** 前文上下文（FR-17，仅 task=context 时使用）：累积的「原文→译文」对 */
+  context?: string;
 }
 
 /** AI 增强翻译响应（对齐 translate-agent 的 output 字段） */

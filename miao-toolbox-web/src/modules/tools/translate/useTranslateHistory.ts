@@ -35,7 +35,13 @@ const MAX_ENTRIES = 50;
 function loadHistory(): TranslateHistoryEntry[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as TranslateHistoryEntry[]) : [];
+    const parsed = raw ? (JSON.parse(raw) as TranslateHistoryEntry[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    // 清洗旧脏数据：缺少 source/target 字符串的条目会导致渲染崩溃，直接丢弃
+    return parsed.filter(
+      (e): e is TranslateHistoryEntry =>
+        !!e && typeof e.source === 'string' && typeof e.target === 'string',
+    );
   } catch {
     return [];
   }
@@ -65,11 +71,13 @@ export function useTranslateHistory() {
         timestamp: Date.now(),
         favorite: false,
       };
-      setList((prev) => {
-        const next = [full, ...prev].slice(0, MAX_ENTRIES);
-        persist(next);
-        return next;
-      });
+      // 关键修复：先同步写 localStorage，再更新 React state。
+      // 旧写法把 persist 放在 setList 更新器内，React 18 批处理可能导致
+      // 切换 Tab 时 persist 尚未执行，历史面板读不到新记录。
+      const current = loadHistory();
+      const next = [full, ...current].slice(0, MAX_ENTRIES);
+      persist(next);
+      setList(next);
     },
     [],
   );
@@ -80,19 +88,17 @@ export function useTranslateHistory() {
   }, []);
 
   const remove = useCallback((id: string) => {
-    setList((prev) => {
-      const next = prev.filter((e) => e.id !== id);
-      persist(next);
-      return next;
-    });
+    const current = loadHistory();
+    const next = current.filter((e) => e.id !== id);
+    persist(next);
+    setList(next);
   }, []);
 
   const toggleFavorite = useCallback((id: string) => {
-    setList((prev) => {
-      const next = prev.map((e) => (e.id === id ? { ...e, favorite: !e.favorite } : e));
-      persist(next);
-      return next;
-    });
+    const current = loadHistory();
+    const next = current.map((e) => (e.id === id ? { ...e, favorite: !e.favorite } : e));
+    persist(next);
+    setList(next);
   }, []);
 
   return { list, add, clear, remove, toggleFavorite };

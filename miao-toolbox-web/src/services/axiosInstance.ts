@@ -165,8 +165,14 @@ axiosInstance.interceptors.response.use(
 
     const status = error.response?.status;
 
-    // 401 / 429 已被上游拦截器处理，不再额外弹 toast
-    if (status === 401 || status === 429) {
+    // 429 已在上游拦截器弹过 warning，不再兜底提示
+    if (status === 429) {
+      return Promise.reject(error);
+    }
+
+    // 其他 4xx 通常是业务错误，由调用方按场景展示更准确的提示。
+    // 这里仅兜底网络错误或 5xx，避免和表单自身的错误提示重复。
+    if (status && status < 500) {
       return Promise.reject(error);
     }
 

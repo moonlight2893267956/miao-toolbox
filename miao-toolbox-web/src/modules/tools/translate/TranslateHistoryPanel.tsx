@@ -31,7 +31,11 @@ function formatTime(ts: number): string {
   return `${d.getMonth() + 1}/${d.getDate()} ${time}`;
 }
 
-const truncate = (s: string, n = 80) => (s.length > n ? `${s.slice(0, n)}…` : s);
+// 容错：历史记录可能含旧的脏数据（target/source 缺失），避免 undefined.length 崩溃整列表
+const truncate = (s: string | undefined | null, n = 80) => {
+  const str = s ?? '';
+  return str.length > n ? `${str.slice(0, n)}…` : str;
+};
 
 const TranslateHistoryPanel: React.FC = () => {
   const { list, clear, remove, toggleFavorite } = useTranslateHistory();
@@ -51,7 +55,7 @@ const TranslateHistoryPanel: React.FC = () => {
     }
     dispatch({
       type: 'SET_PREFILL',
-      payload: { text: e.source, from: e.from as LanguageCode, to: e.to as LanguageCode },
+      payload: { text: e.source, target: e.target, from: e.from as LanguageCode, to: e.to as LanguageCode },
     });
     dispatch({ type: 'SET_ACTIVE_TAB', payload: 'text' });
   };
