@@ -98,9 +98,11 @@ export async function speechTranslate(
 export async function enhanceTranslate(
   req: AiEnhanceRequest,
 ): Promise<AiEnhanceResponse> {
+  // 后端 miao-ai translate-agent read-timeout 默认 120s，前端留出 130s 余量
   const resp = await axiosInstance.post<{ data: AiEnhanceResponse }>(
     `${BASE}/enhance`,
     req,
+    { timeout: 130000 },
   );
   return resp.data.data;
 }

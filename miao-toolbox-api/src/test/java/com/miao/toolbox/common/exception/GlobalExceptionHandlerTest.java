@@ -9,6 +9,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 
+import org.apache.catalina.connector.ClientAbortException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+
+import java.io.IOException;
+
 import static org.assertj.core.api.Assertions.*;
 
 @DisplayName("GlobalExceptionHandler 单元测试")
@@ -59,6 +64,24 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody().getCode()).isEqualTo("VALIDATION_FAILED");
         assertThat(response.getBody().getMessage()).contains("请求体格式错误");
+    }
+
+    @Test
+    @DisplayName("AsyncRequestNotUsableException / ClientAbortException → 503 + REQUEST_ABORTED，不记为未捕获 ERROR")
+    void handleClientAbortException() {
+        ResponseEntity<ApiResponse<Void>> asyncResp = handler.handleClientAbortException(
+                new AsyncRequestNotUsableException("ServletResponse failed to flushBuffer",
+                        new IOException("Broken pipe")));
+
+        assertThat(asyncResp.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(asyncResp.getBody()).isNotNull();
+        assertThat(asyncResp.getBody().getCode()).isEqualTo("REQUEST_ABORTED");
+
+        ResponseEntity<ApiResponse<Void>> clientResp = handler.handleClientAbortException(
+                new ClientAbortException(new IOException("Broken pipe")));
+
+        assertThat(clientResp.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(clientResp.getBody().getCode()).isEqualTo("REQUEST_ABORTED");
     }
 
     @Test

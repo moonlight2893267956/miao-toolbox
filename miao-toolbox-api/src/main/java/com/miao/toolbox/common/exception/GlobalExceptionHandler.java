@@ -3,6 +3,7 @@ package com.miao.toolbox.common.exception;
 import com.miao.toolbox.common.response.ApiResponse;
 import com.miao.toolbox.common.util.RequestIdFilter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.catalina.connector.ClientAbortException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
@@ -69,6 +71,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleNoResourceFoundException(NoResourceFoundException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error("NOT_FOUND", "资源不存在", null));
+    }
+
+    // 客户端在服务端写完响应前断开连接（如请求超时、关闭页面、切换路由），属于预期情况，不记 ERROR
+    @ExceptionHandler({AsyncRequestNotUsableException.class, ClientAbortException.class})
+    public ResponseEntity<ApiResponse<Void>> handleClientAbortException(Exception e) {
+        String requestId = RequestIdFilter.currentRequestId();
+        log.warn("Client aborted request or connection closed: {}, requestId={}", e.getMessage(), requestId);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error("REQUEST_ABORTED", "客户端已断开连接", requestId));
     }
 
     @ExceptionHandler(Exception.class)
