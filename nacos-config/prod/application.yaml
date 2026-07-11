@@ -63,9 +63,9 @@ miao:
         retry-count: 2
         retry-interval: 1000
       json-repairer:
-        enabled: false
+        enabled: true
         connect-timeout: 5000
-        read-timeout: 60000
+        read-timeout: 300000
         retry-count: 0
         retry-interval: 1000
       translate-agent:

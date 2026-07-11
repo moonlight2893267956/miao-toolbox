@@ -1,36 +1,100 @@
 #!/usr/bin/env bash
 # ===================================================================
-# story-n3: 将 nacos-config/{dev,prod} 下的配置推送到 Nacos 配置中心
+# story-n5: 将 nacos-config/{dev,prod} 下的配置【渲染真实值后】推送到 Nacos 配置中心
+#
+# 渐进式迁移（架构 Decision 4）：
+#   - 仓库内的 nacos-config/{dev,prod}/*.yaml 是「模板」，敏感值用 ${ENV_VAR} 占位符，
+#     不写明文（符合敏感信息红线，可进 git）。
+#   - 部署时本脚本从「值文件」（部署机的 .env，gitignored）读取真实值，把占位符渲染为
+#     真实值后再推送，使 Nacos 真正持有配置，docker-compose 仅需 4 个 NACOS_* 连接变量。
+#
 # 双 Namespace 模型：miao-toolbox-dev（开发）+ miao-toolbox-prod（生产）
 # 每环境 7 个 dataId：DEFAULT_GROUP/application.yaml + 6 个 SECRET_GROUP
-# 凭据从仓库根目录 .env 读取：NACOS_ADDR / NACOS_USERNAME / NACOS_PASSWORD
-# 注意：NACOS_ADDR 必须是 HTTP 端口（UI + OpenAPI 同在 :38848）；
-#       :39848 是 Nacos 2.x 的 gRPC 端口（= HTTP 端口 + 1000，由客户端自动派生），不提供 HTTP 接口。
-# 用法：bash scripts/push-nacos-config.sh
+#   (db-and-cache / jwt / oauth / cos / miao-ai / baidu-translate)
+#
+# 用法：
+#   # 本地开发：把 dev 命名空间推送（dev 模板多为直接写值，渲染为 no-op）
+#   bash scripts/push-nacos-config.sh                 # 默认 TARGET=dev
+#   TARGET=dev  bash scripts/push-nacos-config.sh
+#
+#   # 生产部署（只能在部署机上执行，值文件含生产真实值）：
+#   TARGET=prod VALUES_FILE=/opt/miao-toolbox/.env bash scripts/push-nacos-config.sh
+#
+# 安全护栏：
+#   - TARGET=prod 时，值文件必须显式提供（VALUES_FILE），且其中的 NACOS_NAMESPACE
+#     必须为 miao-toolbox-prod，否则中止，避免把 dev 值误推到 prod。
+#   - 渲染时若占位符 ${VAR} 无默认值且值文件未提供，则报错中止，避免推送空密钥。
 # ===================================================================
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ENV_FILE="${REPO_ROOT}/.env"
-CONFIG_DIR="${REPO_ROOT}/nacos-config"
+REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+TARGET="${TARGET:-dev}"
+VALUES_FILE="${VALUES_FILE:-${REPO_ROOT}/.env}"
+CONFIG_DIR="${CONFIG_DIR:-${REPO_ROOT}/nacos-config}"
 
-# 加载 .env（若存在）
-if [ -f "$ENV_FILE" ]; then
-  set -a
+# ---- 加载值文件（真实环境变量的来源，gitignored）----
+if [ -f "$VALUES_FILE" ]; then
   # shellcheck disable=SC1090
-  source "$ENV_FILE"
-  set +a
+  set -a; source "$VALUES_FILE"; set +a
+else
+  echo "警告：值文件 $VALUES_FILE 不存在，渲染占位符将只能使用模板内的默认值。" >&2
 fi
 
 NACOS_ADDR="${NACOS_ADDR:-nacos.yunmiao.site:38848}"
-NACOS_USERNAME="${NACOS_USERNAME:?NACOS_USERNAME 未设置}"
-NACOS_PASSWORD="${NACOS_PASSWORD:?NACOS_PASSWORD 未设置}"
+NACOS_USERNAME="${NACOS_USERNAME:?NACOS_USERNAME 未设置（应在值文件中提供）}"
+NACOS_PASSWORD="${NACOS_PASSWORD:?NACOS_PASSWORD 未设置（应在值文件中提供）}"
 
-# 双 Namespace（环境隔离由 Namespace 完成，不再用 Profile 覆盖）
-DEV_NS="miao-toolbox-dev"
-PROD_NS="miao-toolbox-prod"
+# ---- 目标 Namespace 选择 + 护栏 ----
+if [ "$TARGET" = "prod" ]; then
+  NS="${NACOS_NAMESPACE:-miao-toolbox-prod}"
+  if [ "$NS" != "miao-toolbox-prod" ]; then
+    echo "错误：TARGET=prod 但 NACOS_NAMESPACE=$NS（应为 miao-toolbox-prod），已中止以防误推。" >&2
+    exit 1
+  fi
+  echo "==> 目标：生产 Namespace=$NS（值文件: $VALUES_FILE）"
+elif [ "$TARGET" = "dev" ]; then
+  NS="${NACOS_NAMESPACE:-miao-toolbox-dev}"
+  echo "==> 目标：开发 Namespace=$NS（值文件: $VALUES_FILE）"
+else
+  echo "错误：TARGET 仅支持 dev | prod，收到 '$TARGET'" >&2
+  exit 1
+fi
 
 BASE="http://${NACOS_ADDR}/nacos"
+
+# ---- 渲染：${VAR} / ${VAR:default} -> 值文件中的真实值 ----
+render() {
+  local file="$1"
+  python3 - "$file" <<'PY'
+import os, re, sys
+path = sys.argv[1]
+missing = []
+def repl(m):
+    inner = m.group(1)
+    if ':' in inner:
+        name, default = inner.split(':', 1)
+    else:
+        name, default = inner, None
+    if name in os.environ:
+        return os.environ[name]
+    if default is not None:
+        return default
+    missing.append(name)
+    return ''
+out_lines = []
+for line in open(path, encoding='utf-8').read().splitlines():
+    # 跳过整行注释，避免注释中的 ${...} 被误当作占位符
+    if line.lstrip().startswith('#'):
+        out_lines.append(line)
+        continue
+    out_lines.append(re.sub(r'\$\{([^}]+)\}', repl, line))
+if missing:
+    sys.stderr.write("ERROR: 以下占位符在值文件中缺失且无默认值（文件 %s）: %s\n"
+                     % (path, ", ".join(missing)))
+    sys.exit(2)
+sys.stdout.write("\n".join(out_lines) + "\n")
+PY
+}
 
 echo "==> 登录 Nacos (${NACOS_ADDR})"
 LOGIN_RESP="$(curl -s --connect-timeout 10 --max-time 20 -X POST "${BASE}/v1/auth/login" \
@@ -49,37 +113,39 @@ ensure_namespace() {
     --data-urlencode "namespaceDesc=miao-toolbox config" || true
 }
 
-push() {
-  local file="$1" group="$2" ns="$3"
+push_rendered() {
+  local file="$1" group="$2"
   local dataId
   dataId="$(basename "$file")"
-  echo "==> 推送 ${ns}/${group}/${dataId}"
+  local tmp
+  tmp="$(mktemp)"
+  render "$file" > "$tmp"
+  # 渲染后不应残留未解析的占位符
+  if grep -q '\${' "$tmp"; then
+    echo "错误：渲染后 $ns/$group/$dataId 仍含未解析占位符，已中止。" >&2
+    cat "$tmp" >&2
+    rm -f "$tmp"
+    exit 1
+  fi
+  echo "==> 推送 ${NS}/${group}/${dataId}"
   curl -s --connect-timeout 10 --max-time 20 -X POST "${BASE}/v1/cs/configs?accessToken=${TOKEN}" \
     --data-urlencode "dataId=${dataId}" \
     --data-urlencode "group=${group}" \
-    --data-urlencode "tenant=${ns}" \
+    --data-urlencode "tenant=${NS}" \
     --data-urlencode "type=yaml" \
-    --data-urlencode "content@${file}"
+    --data-urlencode "content@${tmp}"
   echo
+  rm -f "$tmp"
 }
 
-ensure_namespace "$DEV_NS"
-ensure_namespace "$PROD_NS"
+ensure_namespace "$NS"
 
-# DEFAULT_GROUP（公共 / 非敏感）
-for env in dev prod; do
-  ns="$DEV_NS"; [ "$env" = "prod" ] && ns="$PROD_NS"
-  push "${CONFIG_DIR}/${env}/application.yaml" "DEFAULT_GROUP" "$ns"
+echo "==> 推送 DEFAULT_GROUP/application.yaml"
+push_rendered "${CONFIG_DIR}/${TARGET}/application.yaml" "DEFAULT_GROUP"
+
+echo "==> 推送 SECRET_GROUP（密钥类，渲染真实值）"
+for f in db-and-cache.yaml jwt.yaml oauth.yaml cos.yaml miao-ai.yaml baidu-translate.yaml; do
+  push_rendered "${CONFIG_DIR}/${TARGET}/$f" "SECRET_GROUP"
 done
 
-# SECRET_GROUP（密钥类）
-for env in dev prod; do
-  ns="$DEV_NS"; [ "$env" = "prod" ] && ns="$PROD_NS"
-  for f in db-and-cache.yaml jwt.yaml oauth.yaml cos.yaml miao-ai.yaml baidu-translate.yaml; do
-    push "${CONFIG_DIR}/${env}/$f" "SECRET_GROUP" "$ns"
-  done
-done
-
-echo "==> 完成：共推送 14 个 dataId（dev 7 + prod 7）到两个 Namespace。"
-echo "==> 注意：旧的单 Namespace 'miao-toolbox'（story-n3 初版误建）已成孤儿，可手动删除或执行下方清理："
-echo "    curl -X DELETE \"${BASE}/v1/console/namespaces?namespaceId=miao-toolbox&accessToken=${TOKEN}\""
+echo "==> 完成：已推送 ${TARGET} 命名空间（7 个 dataId）到 Nacos ${NACOS_ADDR}。"
