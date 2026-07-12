@@ -26,7 +26,21 @@ const OAuthCallback: React.FC = () => {
 
     const errorParam = params.get('error');
     if (errorParam) {
-      message.error('授权失败，请重试');
+      const reasonParam = params.get('reason');
+      const reason = reasonParam ? decodeURIComponent(reasonParam) : '';
+      const isBindMode = sessionStorage.getItem('oauth_bind_mode') === 'true';
+      sessionStorage.removeItem('oauth_bind_mode');
+      // 清除 hash，避免刷新时重复处理
+      window.history.replaceState(null, '', window.location.pathname);
+
+      if (isBindMode) {
+        // 绑定失败：展示具体原因并跳回设置页，而非跳到登录页
+        message.error(reason || '账号绑定失败，请重试');
+        navigate('/settings', { replace: true });
+        return;
+      }
+
+      message.error(reason || '授权失败，请重试');
       setPhase('error');
       return;
     }

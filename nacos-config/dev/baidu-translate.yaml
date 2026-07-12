@@ -1,0 +1,6 @@
+# SECRET_GROUP / baidu-translate.yaml — dev 真实百度翻译密钥占位符，由 application-local.yml 渲染
+miao:
+  baidu:
+    translate:
+      app-id: "${MIAO_BAIDU_TRANSLATE_APP_ID}"
+      secret: "${MIAO_BAIDU_TRANSLATE_SECRET}"

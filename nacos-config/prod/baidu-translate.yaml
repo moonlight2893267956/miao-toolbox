@@ -1,0 +1,6 @@
+# SECRET_GROUP / baidu-translate.yaml — prod 密钥引用环境变量
+miao:
+  baidu:
+    translate:
+      app-id: "${BAIDU_APPID}"
+      secret: "${BAIDU_SECRET}"

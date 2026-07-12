@@ -1,0 +1,16 @@
+# SECRET_GROUP / miao-ai.yaml — prod 引用环境变量
+miao:
+  ai:
+    agents:
+      diff-explainer:
+        base-url: "${MIAO_AI_AGENT_DIFF_BASE_URL}"
+        agent-name: "${MIAO_AI_AGENT_DIFF_NAME:diff-explainer}"
+        api-key: "${MIAO_AI_AGENT_DIFF_API_KEY}"
+      json-repairer:
+        base-url: "${MIAO_AI_AGENT_JSON_REPAIR_BASE_URL}"
+        agent-name: "${MIAO_AI_AGENT_JSON_REPAIR_NAME:json-repairer}"
+        api-key: "${MIAO_AI_AGENT_JSON_REPAIR_API_KEY}"
+      translate-agent:
+        base-url: "${MIAO_AI_AGENT_TRANSLATE_BASE_URL}"
+        agent-name: "${MIAO_AI_AGENT_TRANSLATE_NAME:translate-agent}"
+        api-key: "${MIAO_AI_AGENT_TRANSLATE_API_KEY}"

@@ -1,0 +1,16 @@
+# SECRET_GROUP / miao-ai.yaml — dev 真实 AI 代理地址/密钥占位符，由 application-local.yml 渲染
+miao:
+  ai:
+    agents:
+      diff-explainer:
+        base-url: "${MIAO_AI_AGENTS_DIFF_EXPLAINER_BASE_URL}"
+        agent-name: "diff-explainer"
+        api-key: "${MIAO_AI_AGENTS_DIFF_EXPLAINER_API_KEY}"
+      json-repairer:
+        base-url: "${MIAO_AI_AGENTS_JSON_REPAIRER_BASE_URL}"
+        agent-name: "json-repairer"
+        api-key: "${MIAO_AI_AGENTS_JSON_REPAIRER_API_KEY}"
+      translate-agent:
+        base-url: "${MIAO_AI_AGENTS_TRANSLATE_AGENT_BASE_URL}"
+        agent-name: "translate-agent"
+        api-key: "${MIAO_AI_AGENTS_TRANSLATE_AGENT_API_KEY}"

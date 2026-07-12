@@ -1,0 +1,7 @@
+# SECRET_GROUP / jwt.yaml — dev 真实密钥占位符，由 application-local.yml 渲染（不写明文，符合红线）
+miao:
+  jwt:
+    secret: "${MIAO_JWT_SECRET}"
+    refresh-secret: "${MIAO_JWT_REFRESH_SECRET}"
+    access-token-expiry-minutes: 15
+    refresh-token-expiry-days: 7

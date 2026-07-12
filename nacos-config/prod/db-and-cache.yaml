@@ -1,0 +1,15 @@
+# SECRET_GROUP / db-and-cache.yaml — prod 通过环境变量引用（渲染为真实值），Nacos 不存明文密钥
+# 注意：URL 由 MYSQL_HOST/MYSQL_PORT/MYSQL_DATABASE 拼接（与旧 prod compose 行为一致），
+# 不使用 MYSQL_URL（其为本地开发值），确保生产指向远端 ts.yunmiao.site。
+spring:
+  datasource:
+    url: "jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=true&trustServerCertificate=true"
+    username: "${MYSQL_USER}"
+    password: "${MYSQL_PASSWORD}"
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: "${REDIS_HOST}"
+      port: "${REDIS_PORT}"
+      username: "${REDIS_USERNAME:}"
+      password: "${REDIS_PASSWORD:}"

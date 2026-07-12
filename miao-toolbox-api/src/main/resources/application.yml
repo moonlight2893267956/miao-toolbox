@@ -1,101 +1,18 @@
 spring:
+  profiles:
+    default: local
   application:
     name: miao-toolbox-api
-  profiles:
-    active: dev,local
-  servlet:
-    multipart:
-      max-file-size: 100MB
-      max-request-size: 100MB
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    open-in-view: false
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-  jackson:
-    date-format: yyyy-MM-dd'T'HH:mm:ss.SSSXXX
-    time-zone: UTC
-    default-property-inclusion: non_null
-
-server:
-  port: 8080
-  forward-headers-strategy: framework
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info
-
-miao:
-  jwt:
-    access-token-expiry-minutes: ${JWT_ACCESS_EXPIRY_MINUTES:15}
-    refresh-token-expiry-days: ${JWT_REFRESH_EXPIRY_DAYS:7}
-  rate-limit:
-    authenticated:
-      max-requests: 60
-      window-seconds: 60
-    public:
-      max-requests: 10
-      window-seconds: 60
-  anti-replay:
-    timestamp-tolerance-minutes: 5
-    nonce-ttl-seconds: 300
-  cos:
-    base-path: text-compare
-    max-file-size: 104857600
-  ai:
-    agents:
-      diff-explainer:
-        enabled: ${MIAO_AI_AGENT_DIFF_ENABLED:true}
-        base-url: ${MIAO_AI_AGENT_DIFF_BASE_URL:}
-        agent-name: ${MIAO_AI_AGENT_DIFF_NAME:diff-explainer}
-        api-key: ${MIAO_AI_AGENT_DIFF_API_KEY:}
-        connect-timeout: ${MIAO_AI_AGENT_DIFF_CONNECT_TIMEOUT:5000}
-        read-timeout: ${MIAO_AI_AGENT_DIFF_READ_TIMEOUT:60000}
-        retry-count: ${MIAO_AI_AGENT_DIFF_RETRY_COUNT:2}
-        retry-interval: ${MIAO_AI_AGENT_DIFF_RETRY_INTERVAL:1000}
-      json-repairer:
-        enabled: ${MIAO_AI_AGENT_JSON_REPAIR_ENABLED:false}
-        base-url: ${MIAO_AI_AGENT_JSON_REPAIR_BASE_URL:}
-        agent-name: ${MIAO_AI_AGENT_JSON_REPAIR_NAME:json-repairer}
-        api-key: ${MIAO_AI_AGENT_JSON_REPAIR_API_KEY:}
-        connect-timeout: ${MIAO_AI_AGENT_JSON_REPAIR_CONNECT_TIMEOUT:5000}
-        read-timeout: ${MIAO_AI_AGENT_JSON_REPAIR_READ_TIMEOUT:60000}
-        retry-count: ${MIAO_AI_AGENT_JSON_REPAIR_RETRY_COUNT:0}
-        retry-interval: ${MIAO_AI_AGENT_JSON_REPAIR_RETRY_INTERVAL:1000}
-      translate-agent:
-        enabled: ${MIAO_AI_AGENT_TRANSLATE_ENABLED:true}
-        base-url: ${MIAO_AI_AGENT_TRANSLATE_BASE_URL:}
-        agent-name: ${MIAO_AI_AGENT_TRANSLATE_NAME:translate-agent}
-        api-key: ${MIAO_AI_AGENT_TRANSLATE_API_KEY:}
-        connect-timeout: ${MIAO_AI_AGENT_TRANSLATE_CONNECT_TIMEOUT:5000}
-        read-timeout: ${MIAO_AI_AGENT_TRANSLATE_READ_TIMEOUT:120000}
-        retry-count: ${MIAO_AI_AGENT_TRANSLATE_RETRY_COUNT:2}
-        retry-interval: ${MIAO_AI_AGENT_TRANSLATE_RETRY_INTERVAL:1000}
-    invocation:
-      retention-days: ${MIAO_AI_INVOCATION_RETENTION_DAYS:90}
-      retention-cron: ${MIAO_AI_INVOCATION_RETENTION_CRON:0 0 3 * * *}
-      async:
-        core-pool-size: ${MIAO_AI_INVOCATION_ASYNC_CORE_POOL_SIZE:2}
-        max-pool-size: ${MIAO_AI_INVOCATION_ASYNC_MAX_POOL_SIZE:8}
-        queue-capacity: ${MIAO_AI_INVOCATION_ASYNC_QUEUE_CAPACITY:100}
-  baidu:
-    translate:
-      enabled: ${BAIDU_TRANSLATE_ENABLED:false}
-      app-id: ${BAIDU_APPID:}
-      secret: ${BAIDU_SECRET:}
-      translate-url: ${BAIDU_TRANSLATE_URL:https://fanyi-api.baidu.com/api/trans/vip/translate}
-      detect-url: ${BAIDU_DETECT_URL:https://fanyi-api.baidu.com/api/trans/vip/language}
-      image-url: ${BAIDU_IMAGE_URL:https://fanyi-api.baidu.com/api/trans/sdk/picture}
-      voice-url: ${BAIDU_VOICE_URL:https://fanyi-api.baidu.com/api/trans/v2/voicetrans}
-      # 语音翻译 HMAC 密钥：默认复用 BAIDU_SECRET；仅当百度后台语音翻译使用独立 secretKey 时才配置 BAIDU_VOICE_SECRET_KEY
-      secret-key: ${BAIDU_VOICE_SECRET_KEY:${BAIDU_SECRET:}}
-      connect-timeout: ${BAIDU_CONNECT_TIMEOUT:5000}
-      read-timeout: ${BAIDU_READ_TIMEOUT:60000}
-      max-concurrency: ${BAIDU_MAX_CONCURRENCY:10}
+  # 关闭 Spring Boot 4.0 的 Docker Compose 自动探测/启动：
+  # 本项目的 MySQL/Redis 由外部 miao-infra 提供，模块内无 compose 文件。
+  docker:
+    compose:
+      enabled: false
+  cloud:
+    nacos:
+      config:
+        # 本地默认通过 Nacos 读取配置（见 application-local.yml 的 spring.config.import）。
+        # 启用 import-check：当 Nacos 不可达或缺少 import 条目时，启动快速失败并给出明确报错，
+        # 而不是静默返回空配置导致后续 bean 初始化失败。
+        import-check:
+          enabled: true
