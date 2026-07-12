@@ -6,13 +6,16 @@
 spring:
   config:
     import:
-      - nacos:application.yaml?refreshEnabled=true&group=DEFAULT_GROUP
-      - nacos:db-and-cache.yaml?refreshEnabled=false&group=SECRET_GROUP
-      - nacos:jwt.yaml?refreshEnabled=false&group=SECRET_GROUP
-      - nacos:oauth.yaml?refreshEnabled=false&group=SECRET_GROUP
-      - nacos:cos.yaml?refreshEnabled=false&group=SECRET_GROUP
-      - nacos:miao-ai.yaml?refreshEnabled=true&group=SECRET_GROUP
-      - nacos:baidu-translate.yaml?refreshEnabled=true&group=SECRET_GROUP
+      # 测试不依赖外部 Nacos：导入标记为 optional，CI（干净环境、默认 nacos/nacos 无 SECRET_GROUP 读权限）
+      # 或 Nacos 不可达时优雅跳过，使用 application-test.yml / 主 application.yml 的安全默认值启动上下文。
+      # 本地若导出 NACOS_USERNAME/NACOS_PASSWORD（具备读权限），仍会加载真实配置做富化。
+      - optional:nacos:application.yaml?refreshEnabled=true&group=DEFAULT_GROUP
+      - optional:nacos:db-and-cache.yaml?refreshEnabled=false&group=SECRET_GROUP
+      - optional:nacos:jwt.yaml?refreshEnabled=false&group=SECRET_GROUP
+      - optional:nacos:oauth.yaml?refreshEnabled=false&group=SECRET_GROUP
+      - optional:nacos:cos.yaml?refreshEnabled=false&group=SECRET_GROUP
+      - optional:nacos:miao-ai.yaml?refreshEnabled=true&group=SECRET_GROUP
+      - optional:nacos:baidu-translate.yaml?refreshEnabled=true&group=SECRET_GROUP
   cloud:
     nacos:
       config:
