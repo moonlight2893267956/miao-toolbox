@@ -1,13 +1,13 @@
-# SECRET_GROUP / oauth.yaml — dev 直接写 dev 占位值
+# SECRET_GROUP / oauth.yaml — dev 真实 OAuth 密钥占位符，由 application-local.yml 渲染
 miao:
   oauth:
     github:
-      client-id: "dev-github-client-id"
-      client-secret: "dev-github-client-secret"
+      client-id: "${MIAO_OAUTH_GITHUB_CLIENT_ID}"
+      client-secret: "${MIAO_OAUTH_GITHUB_CLIENT_SECRET}"
       redirect-uri: "http://localhost:8080/api/auth/oauth/github/callback"
       frontend-callback-url: "http://localhost:5173/oauth/callback"
     google:
-      client-id: "dev-google-client-id"
-      client-secret: "dev-google-client-secret"
+      client-id: "${MIAO_OAUTH_GOOGLE_CLIENT_ID}"
+      client-secret: "${MIAO_OAUTH_GOOGLE_CLIENT_SECRET}"
       redirect-uri: "http://localhost:8080/api/auth/oauth/google/callback"
       frontend-callback-url: "http://localhost:5173/oauth/callback"

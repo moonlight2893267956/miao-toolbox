@@ -1,22 +1,18 @@
 spring:
+  profiles:
+    default: local
   application:
     name: miao-toolbox-api
-  config:
-    import:
-      # 公共配置（非敏感，支持运行时刷新）
-      - nacos:application.yaml?refreshEnabled=true&group=DEFAULT_GROUP
-      # 敏感配置（密钥类，刷新需重启）
-      - nacos:db-and-cache.yaml?refreshEnabled=false&group=SECRET_GROUP
-      - nacos:jwt.yaml?refreshEnabled=false&group=SECRET_GROUP
-      - nacos:oauth.yaml?refreshEnabled=false&group=SECRET_GROUP
-      - nacos:cos.yaml?refreshEnabled=false&group=SECRET_GROUP
-      - nacos:miao-ai.yaml?refreshEnabled=true&group=SECRET_GROUP
-      - nacos:baidu-translate.yaml?refreshEnabled=true&group=SECRET_GROUP
+  # 关闭 Spring Boot 4.0 的 Docker Compose 自动探测/启动：
+  # 本项目的 MySQL/Redis 由外部 miao-infra 提供，模块内无 compose 文件。
+  docker:
+    compose:
+      enabled: false
   cloud:
     nacos:
       config:
-        serverAddr: ${NACOS_ADDR:127.0.0.1:8848}
-        namespace: ${NACOS_NAMESPACE:miao-toolbox-dev}
-        username: ${NACOS_USERNAME:nacos}
-        password: ${NACOS_PASSWORD:nacos}
-        fileExtension: yaml
+        # 本地默认通过 Nacos 读取配置（见 application-local.yml 的 spring.config.import）。
+        # 启用 import-check：当 Nacos 不可达或缺少 import 条目时，启动快速失败并给出明确报错，
+        # 而不是静默返回空配置导致后续 bean 初始化失败。
+        import-check:
+          enabled: true

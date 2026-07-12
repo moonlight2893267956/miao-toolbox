@@ -1,13 +1,13 @@
-# SECRET_GROUP / db-and-cache.yaml — dev 直接写 dev 占位值（不引用环境变量）
+# SECRET_GROUP / db-and-cache.yaml — dev 真实值由占位符从本地 .env 渲染（不写明文，符合红线）
 spring:
   datasource:
-    url: "jdbc:mysql://localhost:3306/miao_toolbox?useSSL=false&serverTimezone=Asia/Shanghai"
-    username: "root"
-    password: "root"
+    url: "${MYSQL_URL}"
+    username: "${MYSQL_USER}"
+    password: "${MYSQL_PASSWORD}"
     driver-class-name: com.mysql.cj.jdbc.Driver
   data:
     redis:
-      host: "localhost"
-      port: 6379
+      host: "${REDIS_HOST}"
+      port: ${REDIS_PORT}
       username: ""
-      password: ""
+      password: "${REDIS_PASSWORD}"

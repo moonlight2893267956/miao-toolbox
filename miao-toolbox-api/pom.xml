@@ -170,17 +170,26 @@
 		</dependency>
 	</dependencies>
 
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>com.alibaba.cloud</groupId>
-				<artifactId>spring-cloud-alibaba-dependencies</artifactId>
-				<version>2025.1.0.0</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
+		<dependencyManagement>
+			<dependencies>
+				<dependency>
+					<groupId>com.alibaba.cloud</groupId>
+					<artifactId>spring-cloud-alibaba-dependencies</artifactId>
+					<version>2025.1.0.0</version>
+					<type>pom</type>
+					<scope>import</scope>
+				</dependency>
+				<!-- 覆盖 nacos-client 版本，与 Nacos 服务器 3.2.2 对齐。
+				     原因：BOM 默认的 3.1.1 的 jar 缺失 shaded grpc-census 类
+				     (com.alibaba.nacos.shaded.io.grpc.census.InternalCensusTracingAccessor)，
+				     导致 gRPC 通道建立失败、读配置全空。3.2.2 已修复。 -->
+				<dependency>
+					<groupId>com.alibaba.nacos</groupId>
+					<artifactId>nacos-client</artifactId>
+					<version>3.2.2</version>
+				</dependency>
+			</dependencies>
+		</dependencyManagement>
 
 	<build>
 		<plugins>

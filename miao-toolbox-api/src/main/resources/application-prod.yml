@@ -1,0 +1,40 @@
+# ============================================================
+# 生产环境配置 — 通过 Nacos 读取配置
+# 激活：SPRING_PROFILES_ACTIVE=prod（docker-compose.prod.yml 注入）
+#
+# 与 application-local.yml 的区别：
+# - 本文件【入库、会打进 CI 镜像】，所有 Nacos 连接参数一律用【无默认值】的占位符，
+#   强制由部署机 .env 通过 docker-compose 注入为容器环境变量（敏感信息不落仓库红线）。
+# - namespace 也不给默认值，避免误连到 dev；生产 .env 必须显式设 NACOS_NAMESPACE=miao-toolbox-prod。
+#
+# .env 桥接链路（部署脚本已铺好）：
+#   /opt/miao-toolbox/.env
+#     → docker compose --env-file .env up
+#     → docker-compose.prod.yml environment: NACOS_ADDR/NACOS_NAMESPACE/NACOS_USERNAME/NACOS_PASSWORD (${...:?})
+#     → 容器环境变量
+#     → 本文件 import query 的 ${NACOS_*} 占位符
+# ============================================================
+spring:
+  cloud:
+    nacos:
+      # 全局连接参数（供客户端鉴权/命名空间使用）
+      namespace: ${NACOS_NAMESPACE}
+      username: ${NACOS_USERNAME}
+      password: ${NACOS_PASSWORD}
+      config:
+        serverAddr: ${NACOS_ADDR}
+        namespace: ${NACOS_NAMESPACE}
+        username: ${NACOS_USERNAME}
+        password: ${NACOS_PASSWORD}
+        fileExtension: yaml
+  config:
+    import:
+      # 公共配置（非敏感，支持运行时刷新）
+      - "nacos:application.yaml?serverAddr=${NACOS_ADDR}&namespace=${NACOS_NAMESPACE}&username=${NACOS_USERNAME}&password=${NACOS_PASSWORD}&group=DEFAULT_GROUP&refreshEnabled=true"
+      # 敏感配置（密钥类，刷新需重启）
+      - "nacos:db-and-cache.yaml?serverAddr=${NACOS_ADDR}&namespace=${NACOS_NAMESPACE}&username=${NACOS_USERNAME}&password=${NACOS_PASSWORD}&group=SECRET_GROUP&refreshEnabled=false"
+      - "nacos:jwt.yaml?serverAddr=${NACOS_ADDR}&namespace=${NACOS_NAMESPACE}&username=${NACOS_USERNAME}&password=${NACOS_PASSWORD}&group=SECRET_GROUP&refreshEnabled=false"
+      - "nacos:oauth.yaml?serverAddr=${NACOS_ADDR}&namespace=${NACOS_NAMESPACE}&username=${NACOS_USERNAME}&password=${NACOS_PASSWORD}&group=SECRET_GROUP&refreshEnabled=false"
+      - "nacos:cos.yaml?serverAddr=${NACOS_ADDR}&namespace=${NACOS_NAMESPACE}&username=${NACOS_USERNAME}&password=${NACOS_PASSWORD}&group=SECRET_GROUP&refreshEnabled=false"
+      - "nacos:miao-ai.yaml?serverAddr=${NACOS_ADDR}&namespace=${NACOS_NAMESPACE}&username=${NACOS_USERNAME}&password=${NACOS_PASSWORD}&group=SECRET_GROUP&refreshEnabled=true"
+      - "nacos:baidu-translate.yaml?serverAddr=${NACOS_ADDR}&namespace=${NACOS_NAMESPACE}&username=${NACOS_USERNAME}&password=${NACOS_PASSWORD}&group=SECRET_GROUP&refreshEnabled=true"

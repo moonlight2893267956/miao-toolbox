@@ -62,7 +62,7 @@ miao:
         retry-count: 2
         retry-interval: 1000
       json-repairer:
-        enabled: false
+        enabled: true
         connect-timeout: 5000
         read-timeout: 60000
         retry-count: 0
@@ -75,7 +75,7 @@ miao:
         retry-interval: 1000
   baidu:
     translate:
-      enabled: false
+      enabled: true
       translate-url: https://fanyi-api.baidu.com/api/trans/vip/translate
       detect-url: https://fanyi-api.baidu.com/api/trans/vip/language
       image-url: https://fanyi-api.baidu.com/api/trans/sdk/picture
@@ -86,4 +86,4 @@ miao:
   security:
     cookie-secure: false
   cors:
-    allowed-origins: "http://localhost:5173"
+    allowed-origins: "${CORS_ALLOWED_ORIGINS}"

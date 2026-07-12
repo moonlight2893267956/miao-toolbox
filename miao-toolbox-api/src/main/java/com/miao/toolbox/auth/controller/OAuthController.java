@@ -7,6 +7,8 @@ import com.miao.toolbox.auth.oauth.OAuthProperties;
 import com.miao.toolbox.auth.oauth.GoogleOAuthProperties;
 import com.miao.toolbox.auth.oauth.GitHubOAuthService;
 import com.miao.toolbox.auth.oauth.GoogleOAuthService;
+import com.miao.toolbox.common.exception.AuthException;
+import com.miao.toolbox.common.exception.BusinessException;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -66,9 +68,17 @@ public class OAuthController {
             String fragment = buildOAuthFragment(loginResponse);
             log.info("OAuth callback success: userId={}, username={}", loginResponse.getUser().getId(), loginResponse.getUser().getUsername());
             response.sendRedirect(oAuthProperties.getFrontendCallbackUrl() + "#" + fragment);
+        } catch (AuthException e) {
+            // 登录类失败（token 交换/state 校验等）：仅回传通用错误，不泄露内部信息
+            log.warn("GitHub OAuth callback auth error: {}", e.getMessage());
+            response.sendRedirect(buildErrorRedirect(oAuthProperties.getFrontendCallbackUrl(), null));
+        } catch (BusinessException e) {
+            // 业务类失败（如绑定冲突）：回传可读原因，前端据此提示并跳回对应页面
+            log.warn("GitHub OAuth callback business error: {}", e.getMessage());
+            response.sendRedirect(buildErrorRedirect(oAuthProperties.getFrontendCallbackUrl(), e.getMessage()));
         } catch (Exception e) {
-            log.error("OAuth callback failed", e);
-            response.sendRedirect(oAuthProperties.getFrontendCallbackUrl() + "#error=oauth_failed");
+            log.error("GitHub OAuth callback failed", e);
+            response.sendRedirect(buildErrorRedirect(oAuthProperties.getFrontendCallbackUrl(), null));
         }
     }
 
@@ -107,10 +117,31 @@ public class OAuthController {
             String fragment = buildOAuthFragment(loginResponse);
             log.info("Google OAuth callback success: userId={}, username={}", loginResponse.getUser().getId(), loginResponse.getUser().getUsername());
             response.sendRedirect(googleOAuthProperties.getFrontendCallbackUrl() + "#" + fragment);
+        } catch (AuthException e) {
+            log.warn("Google OAuth callback auth error: {}", e.getMessage());
+            response.sendRedirect(buildErrorRedirect(googleOAuthProperties.getFrontendCallbackUrl(), null));
+        } catch (BusinessException e) {
+            log.warn("Google OAuth callback business error: {}", e.getMessage());
+            response.sendRedirect(buildErrorRedirect(googleOAuthProperties.getFrontendCallbackUrl(), e.getMessage()));
         } catch (Exception e) {
             log.error("Google OAuth callback failed", e);
-            response.sendRedirect(googleOAuthProperties.getFrontendCallbackUrl() + "#error=oauth_failed");
+            response.sendRedirect(buildErrorRedirect(googleOAuthProperties.getFrontendCallbackUrl(), null));
         }
+    }
+
+    /**
+     * 构建 OAuth 失败重定向 URL。
+     * 统一使用 fragment 传递错误码；若有可读原因（业务异常），附带 reason 供前端精确提示。
+     *
+     * @param frontendCallbackUrl 前端回调地址
+     * @param reason              可展示的失败原因（为 null/空时仅回传通用错误码）
+     */
+    private String buildErrorRedirect(String frontendCallbackUrl, String reason) {
+        String url = frontendCallbackUrl + "#error=oauth_failed";
+        if (reason != null && !reason.isBlank()) {
+            url += "&reason=" + URLEncoder.encode(reason, StandardCharsets.UTF_8);
+        }
+        return url;
     }
 
     /**
