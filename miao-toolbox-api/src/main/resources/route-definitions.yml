@@ -31,6 +31,14 @@ routes:
     sortOrder: 4
     adminRoute: false
     enabled: true
+  - code: TOOL_REGEX_TESTER
+    name: 正则测试器
+    path: /tools/regex-tester
+    category: TOOL
+    icon: CodeSandboxOutlined
+    sortOrder: 5
+    adminRoute: false
+    enabled: true
   - code: PAGE_SETTINGS
     name: 个人设置
     path: /settings

@@ -20,6 +20,7 @@ const TextComparePage = lazy(() => import('./modules/tools/text-compare'));
 const JsonWorkbenchPage = lazy(() => import('./modules/tools/json-workbench/JsonWorkbenchPage'));
 const CryptoPage = lazy(() => import('./modules/tools/crypto/CryptoPage'));
 const TranslatePage = lazy(() => import('./modules/tools/translate'));
+const RegexTesterPage = lazy(() => import('./modules/tools/regex-tester'));
 const DashboardPage = lazy(() => import('./modules/admin/DashboardPage'));
 const UserManagePage = lazy(() => import('./modules/admin/UserManagePage'));
 const InvocationsPage = lazy(() => import('./modules/admin/InvocationsPage'));
@@ -80,6 +81,7 @@ function AppRoutes() {
         <Route path="tools/json-workbench" element={<RequireRoute code="TOOL_JSON_WORKBENCH"><JsonWorkbenchPage /></RequireRoute>} />
         <Route path="tools/crypto" element={<RequireRoute code="TOOL_CRYPTO"><CryptoPage /></RequireRoute>} />
         <Route path="tools/translate" element={<RequireRoute code="TOOL_TRANSLATE"><TranslatePage /></RequireRoute>} />
+        <Route path="tools/regex-tester" element={<RequireRoute code="TOOL_REGEX_TESTER"><RegexTesterPage /></RequireRoute>} />
         <Route path="admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="admin/dashboard" element={<RequireRoute code="ADMIN_DASHBOARD"><DashboardPage /></RequireRoute>} />
         <Route path="admin/invocations" element={<RequireRoute code="ADMIN_INVOCATIONS"><InvocationsPage /></RequireRoute>} />

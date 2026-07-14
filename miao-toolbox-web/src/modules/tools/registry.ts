@@ -6,6 +6,7 @@ import {
   LockOutlined,
   PictureOutlined,
   TranslationOutlined,
+  CodeSandboxOutlined,
 } from '@ant-design/icons';
 
 /**
@@ -108,6 +109,20 @@ export const toolsRegistry: ToolMeta[] = [
     available: true,
     accentColor: '#6366f1',
     iconBg: 'rgba(99,102,241,0.12)',
+  },
+  {
+    key: 'regex-tester',
+    title: '正则测试器',
+    description: '实时编写、调试和测试正则表达式，支持匹配高亮、分组详情、替换预览与多语言引擎对照。',
+    icon: CodeSandboxOutlined,
+    status: '可用',
+    tags: ['正则', '开发工具', '调试'],
+    path: '/tools/regex-tester',
+    routeCode: 'TOOL_REGEX_TESTER',
+    category: 'available',
+    available: true,
+    accentColor: '#ec4899',
+    iconBg: 'rgba(236,72,153,0.12)',
   },
   {
     key: 'image',
