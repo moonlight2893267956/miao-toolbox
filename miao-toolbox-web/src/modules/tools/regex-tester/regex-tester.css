@@ -60,7 +60,7 @@
   min-height: 0;
   padding: 0 !important;
   max-width: none !important;
-  overflow: hidden;
+  overflow: auto;
   position: relative;
   color: var(--miao-text-primary);
   background: var(--miao-bg);
@@ -359,12 +359,11 @@
    ============================================================ */
 .rt-workbench {
   flex: 1;
-  min-height: 0;
+  min-height: 540px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 14px;
   padding: 14px 20px 20px;
-  overflow: hidden;
 }
 
 .rt-panel {

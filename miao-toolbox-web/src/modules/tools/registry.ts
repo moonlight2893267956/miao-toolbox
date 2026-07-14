@@ -107,8 +107,8 @@ export const toolsRegistry: ToolMeta[] = [
     routeCode: 'TOOL_TRANSLATE',
     category: 'available',
     available: true,
-    accentColor: '#6366f1',
-    iconBg: 'rgba(99,102,241,0.12)',
+    accentColor: '#0ea5e9',
+    iconBg: 'rgba(14,165,233,0.12)',
   },
   {
     key: 'regex-tester',
@@ -134,8 +134,8 @@ export const toolsRegistry: ToolMeta[] = [
     path: null,
     category: 'coming-soon',
     available: false,
-    accentColor: '#f59e0b',
-    iconBg: 'rgba(245,158,11,0.12)',
+    accentColor: '#22d3ee',
+    iconBg: 'rgba(34,211,238,0.12)',
   },
   {
     key: 'voice',
@@ -147,8 +147,8 @@ export const toolsRegistry: ToolMeta[] = [
     path: null,
     category: 'coming-soon',
     available: false,
-    accentColor: '#ec4899',
-    iconBg: 'rgba(236,72,153,0.12)',
+    accentColor: '#10b981',
+    iconBg: 'rgba(16,185,129,0.12)',
   },
 ];
 

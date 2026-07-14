@@ -185,6 +185,14 @@
 
 .crypto-page {
   --tool-accent: var(--miao-accent-tool-purple);
+  /* 专属身份色：统一 crypto 整页强调色为紫 #8b5cf6（与 registry / 侧边栏 / logo 一致），
+     避免与全局品牌紫 #5c4fd0 混用；hover/active/bg 用 color-mix 自动适配亮暗 */
+  --miao-brand: var(--miao-accent-tool-purple);
+  --miao-brand-hover: color-mix(in srgb, var(--miao-accent-tool-purple) 82%, #ffffff);
+  --miao-brand-active: color-mix(in srgb, var(--miao-accent-tool-purple) 82%, #000000);
+  --miao-brand-bg: color-mix(in srgb, var(--miao-accent-tool-purple) 12%, transparent);
+  --miao-brand-bg-hover: color-mix(in srgb, var(--miao-accent-tool-purple) 18%, transparent);
+  --crypto-accent-rgb: 139, 92, 246;
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -192,9 +200,21 @@
   min-height: 0;
   padding: 0 !important;
   max-width: none !important;
-  overflow: hidden;
+  overflow: auto;
   position: relative;
   background: var(--crypto-bg);
+  /* 与正则测试器一致：四边圆角 + 1px 边框 + 极淡阴影（深色工坊特色保留） */
+  border-radius: var(--miao-radius-lg);
+  border: 1px solid var(--miao-border);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.03);
+}
+
+:root[data-theme='dark'] .crypto-page {
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .crypto-page::before {
@@ -220,7 +240,8 @@
    ============================================================ */
 
 .crypto-header {
-  padding: 4px 4px 0;
+  /* 与正则/JSON 页头对齐：16px 20px 0 横向栅格 */
+  padding: 16px 20px 0;
   flex-shrink: 0;
 }
 
@@ -296,7 +317,8 @@
    ============================================================ */
 
 .crypto-nav {
-  padding: 14px 4px 0;
+  /* 与页头一致的 20px 横向栅格 */
+  padding: 14px 20px 0;
   flex-shrink: 0;
 }
 
@@ -304,9 +326,8 @@
   display: flex;
   gap: 4px;
   padding: 5px;
-  background: var(--crypto-glass-bg);
-  backdrop-filter: blur(var(--crypto-glass-blur));
-  -webkit-backdrop-filter: blur(var(--crypto-glass-blur));
+  /* 与正则/JSON 一致：实色底，去掉毛玻璃 */
+  background: var(--crypto-bg-elevated);
   border: 1px solid var(--crypto-glass-border);
   border-radius: var(--crypto-radius-md);
   overflow-x: auto;
@@ -322,10 +343,10 @@
 .crypto-nav-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
+  gap: 6px;
+  padding: 6px 12px;
   border-radius: calc(var(--crypto-radius-md) - 4px);
-  font-size: 14px;
+  font-size: 12.5px;
   font-weight: 700;
   color: var(--crypto-text-secondary);
   cursor: pointer;
@@ -357,7 +378,7 @@
 }
 
 .crypto-nav-item .crypto-nav-icon {
-  font-size: 15px;
+  font-size: 13px;
   display: flex;
   align-items: center;
 }
@@ -368,8 +389,9 @@
 
 .crypto-content {
   flex: 1;
-  min-height: 0;
-  padding: 8px 4px 12px;
+  min-height: 540px;
+  /* 与正则/JSON 工作区对齐：14px 20px 20px 栅格 */
+  padding: 14px 20px 20px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -441,10 +463,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--crypto-border);
   flex-shrink: 0;
-  min-height: 56px;
+  min-height: 44px;
 }
 
 .crypto-codec-output .crypto-panel-header {
@@ -453,7 +475,7 @@
 }
 
 .crypto-panel-label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -474,9 +496,9 @@
 }
 
 .crypto-mode-inline-btn {
-  min-width: 64px;
-  padding: 9px 18px;
-  font-size: 14px;
+  min-width: 48px;
+  padding: 6px 12px;
+  font-size: 12px;
   font-weight: 600;
   border: none;
   background: transparent;
@@ -501,7 +523,7 @@
 }
 
 .crypto-panel-meta {
-  font-size: 13px;
+  font-size: 11px;
   font-family: var(--crypto-font-mono);
   color: var(--crypto-text-secondary);
 }
@@ -516,10 +538,10 @@
   outline: none !important;
   resize: none !important;
   min-height: 200px;
-  padding: 24px 26px !important;
+  padding: 16px 18px !important;
   font-family: var(--crypto-font-mono) !important;
-  font-size: 16px !important;
-  line-height: 1.8 !important;
+  font-size: 14px !important;
+  line-height: 1.7 !important;
   color: var(--crypto-text) !important;
   background: transparent !important;
   box-shadow: none !important;
@@ -531,7 +553,7 @@
 }
 
 .crypto-codec-input-footer {
-  padding: 12px 16px;
+  padding: 8px 14px;
   border-top: 1px solid var(--crypto-border);
   display: flex;
   align-items: center;
@@ -542,10 +564,10 @@
 .crypto-codec-output .crypto-output-content {
   flex: 1;
   min-height: 200px;
-  padding: 24px 26px;
+  padding: 16px 18px;
   font-family: var(--crypto-font-mono);
-  font-size: 16px;
-  line-height: 1.8;
+  font-size: 14px;
+  line-height: 1.7;
   color: var(--crypto-terminal-text);
   white-space: pre-wrap;
   word-break: break-all;
@@ -559,8 +581,8 @@
   font-style: italic;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 15px;
+  gap: 6px;
+  font-size: 13px;
 }
 
 .crypto-output-empty::before {
@@ -583,20 +605,20 @@
 
 .crypto-hash-top-controls {
   flex-shrink: 0;
-  padding: 14px 18px;
+  padding: 10px 14px;
   background: var(--crypto-bg-elevated);
   border: 1px solid var(--crypto-border);
   border-radius: var(--crypto-radius-lg);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   box-shadow: var(--crypto-shadow-sm);
 }
 
 .crypto-hash-controls-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -616,12 +638,12 @@
    ============================================================ */
 
 .crypto-output-header {
-  padding: 14px 18px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--crypto-border);
   background: var(--crypto-bg-elevated);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
   z-index: 2;
 }
@@ -633,14 +655,14 @@
 .crypto-hash-toolbar {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
 }
 
 .crypto-hash-toolbar-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -679,7 +701,7 @@
 
 /* 输出面板内部的底部工具栏 */
 .crypto-codec-output .crypto-toolbar {
-  padding: 12px 18px;
+  padding: 8px 14px;
   border-top: 1px solid var(--crypto-border);
   background: var(--crypto-bg-elevated);
   flex-shrink: 0;
@@ -698,7 +720,7 @@
   justify-content: center;
   padding: 0;
   flex-shrink: 0;
-  width: 74px;
+  width: 44px;
 }
 
 .crypto-swap-btn {
@@ -706,24 +728,24 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 4px;
   width: 100%;
   height: auto;
-  padding: 18px 8px;
+  padding: 10px 6px;
   border-radius: var(--crypto-radius-md);
   border: 1px solid var(--crypto-border);
   background: var(--crypto-bg-elevated);
   color: var(--crypto-text-secondary);
   cursor: pointer;
   transition: all var(--crypto-transition-fast);
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 800;
   font-family: var(--crypto-font-body);
   box-shadow: var(--crypto-shadow-sm);
 }
 
 .crypto-swap-btn svg {
-  font-size: 18px;
+  font-size: 14px;
 }
 
 .crypto-swap-btn:enabled:hover {
@@ -750,8 +772,8 @@
 .crypto-toolbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 0 0;
+  gap: 8px;
+  padding: 8px 0 0;
   flex-wrap: wrap;
 }
 
@@ -771,10 +793,10 @@
 .crypto-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 12.5px;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 11px;
   font-family: var(--crypto-font-mono);
   background: var(--crypto-accent-light);
   color: var(--crypto-accent);
@@ -808,60 +830,49 @@
    ============================================================ */
 
 .crypto-hash-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   margin-top: 0;
-  height: 100%;
-  align-content: start;
 }
 
 .crypto-hash-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
   background: var(--crypto-bg-elevated);
   border: 1px solid var(--crypto-border);
   border-radius: var(--crypto-radius-md);
-  padding: 18px 20px;
-  transition: all var(--crypto-transition-fast);
   box-shadow: var(--crypto-shadow-sm);
-  display: flex;
-  flex-direction: column;
-  min-height: 200px;
+  transition: all var(--crypto-transition-fast);
 }
 
 .crypto-hash-card:hover {
   border-color: var(--crypto-border-strong);
-  box-shadow: var(--crypto-shadow-glow);
-}
-
-.crypto-hash-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
+  background: var(--crypto-bg-surface);
 }
 
 .crypto-hash-algo {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--crypto-accent);
   font-family: var(--crypto-font-mono);
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+  width: 88px;
+  user-select: none;
 }
 
 .crypto-hash-value {
+  flex: 1;
   font-family: var(--crypto-font-mono);
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: 13px;
+  line-height: 1.55;
   color: var(--crypto-text);
   word-break: break-all;
-  background: var(--crypto-bg);
-  border: 1px solid var(--crypto-border);
-  border-radius: 8px;
-  padding: 14px 16px;
-  max-height: 120px;
-  overflow-y: auto;
-  flex: 1;
+  cursor: text;
+  user-select: all;
 }
 
 /* ============================================================
@@ -872,16 +883,16 @@
   background: var(--crypto-bg-elevated);
   border: 1px solid var(--crypto-border);
   border-radius: var(--crypto-radius-lg);
-  padding: 20px;
+  padding: 14px;
   box-shadow: var(--crypto-shadow-sm);
 }
 
 .crypto-id-config {
   display: flex;
-  gap: 16px;
+  gap: 10px;
   align-items: flex-end;
   flex-wrap: wrap;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .crypto-id-field label {
@@ -903,8 +914,8 @@
 .crypto-id-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+  gap: 6px;
+  padding: 8px 12px;
   background: var(--crypto-bg);
   border-radius: var(--crypto-radius-sm);
   border: 1px solid var(--crypto-border);
@@ -948,20 +959,20 @@
 
 .crypto-sym-top-controls {
   flex-shrink: 0;
-  padding: 14px 18px;
+  padding: 10px 14px;
   background: var(--crypto-bg-elevated);
   border: 1px solid var(--crypto-border);
   border-radius: var(--crypto-radius-lg);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   box-shadow: var(--crypto-shadow-sm);
 }
 
 .crypto-sym-controls-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -1000,13 +1011,13 @@
 
 .crypto-sym-action-btn {
   flex-shrink: 0;
-  padding: 8px 20px;
+  padding: 6px 14px;
   border-radius: var(--crypto-radius-sm);
   border: none;
   background: linear-gradient(135deg, var(--crypto-accent), var(--crypto-accent-deep));
   color: #fff;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   font-family: var(--crypto-font-body);
   transition: all var(--crypto-transition-fast);
@@ -1041,10 +1052,10 @@
   background: var(--crypto-terminal-bg);
   border: 1px solid color-mix(in srgb, var(--miao-brand) 8%, transparent);
   border-radius: var(--crypto-radius-md);
-  padding: 14px 16px;
+  padding: 10px 14px;
   font-family: var(--crypto-font-mono);
-  font-size: 11.5px;
-  line-height: 1.6;
+  font-size: 11px;
+  line-height: 1.55;
   color: var(--crypto-terminal-text);
   word-break: break-all;
   white-space: pre-wrap;
@@ -1066,8 +1077,8 @@
 .crypto-history-item {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: 10px;
+  padding: 10px 14px;
   background: var(--crypto-bg-elevated);
   border: 1px solid var(--crypto-border);
   border-radius: var(--crypto-radius-md);
@@ -1082,15 +1093,15 @@
 }
 
 .crypto-history-icon {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--crypto-radius-sm);
   background: var(--crypto-accent-light);
   color: var(--crypto-accent);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 12px;
   flex-shrink: 0;
 }
 
@@ -1128,13 +1139,13 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 56px 24px;
+  padding: 40px 20px;
   color: var(--crypto-text-tertiary);
 }
 
 .crypto-history-empty-icon {
-  font-size: 44px;
-  margin-bottom: 12px;
+  font-size: 36px;
+  margin-bottom: 8px;
   opacity: 0.2;
 }
 
@@ -1145,14 +1156,15 @@
 .crypto-copy-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
-  border-radius: 6px;
+  flex-shrink: 0;
+  gap: 3px;
+  padding: 4px 8px;
+  border-radius: 5px;
   border: 1px solid color-mix(in srgb, var(--miao-brand) 10%, transparent);
   background: color-mix(in srgb, var(--miao-brand) 5%, transparent);
   color: color-mix(in srgb, var(--miao-brand) 45%, transparent);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   font-family: var(--crypto-font-mono);
   transition: all var(--crypto-transition-fast);
 }
@@ -1246,10 +1258,6 @@
 
   .crypto-codec-output .crypto-output-content {
     font-size: 15px;
-  }
-
-  .crypto-hash-grid {
-    grid-template-columns: 1fr;
   }
 
   .crypto-nav-item {

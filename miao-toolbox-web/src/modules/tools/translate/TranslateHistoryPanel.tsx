@@ -88,9 +88,12 @@ const TranslateHistoryPanel: React.FC = () => {
       </div>
 
       {shown.length === 0 ? (
-        <div className="tt-output tt-output--placeholder tt-output--detect">
+        <div className="tt-output tt-output--placeholder">
           <HistoryOutlined className="tt-output-icon" />
-          <span>{onlyFav ? '暂无收藏记录' : '暂无历史记录，翻译后将自动保存'}</span>
+          <p className="tt-empty-title">{onlyFav ? '暂无收藏记录' : '暂无历史记录'}</p>
+          <p className="tt-empty-hint">
+            {onlyFav ? '点击记录上的收藏星标即可加入收藏。' : '翻译后将自动保存，方便下次查看。'}
+          </p>
         </div>
       ) : (
         <div className="tt-history-list">

@@ -28,7 +28,7 @@
   height: 100vh;
   min-height: 0;
   margin: 0;
-  padding: 18px 22px;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -45,7 +45,13 @@
    页面容器
    ============================================================ */
 .tt-page {
-  --tool-accent: var(--miao-brand);
+  /* 工具专属身份色：天蓝色（sky-500），与加解密的紫、正则的粉、JSON 的靛蓝区分 */
+  --tool-accent: var(--miao-accent-tool-sky);
+  --miao-brand: #0ea5e9;
+  --miao-brand-hover: #38bdf8;
+  --miao-brand-active: #0284c7;
+  --miao-brand-bg: rgba(14, 165, 233, 0.12);
+  --miao-brand-bg-hover: rgba(14, 165, 233, 0.18);
   --tt-radius: var(--miao-radius-md);
   --tt-radius-lg: 16px;
   --tt-ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -58,33 +64,31 @@
   min-height: 0;
   padding: 0 !important;
   max-width: none !important;
-  overflow: hidden;
+  overflow: auto;
   position: relative;
   color: var(--miao-text-primary);
+  /* 白底卡片 + 柔和投影，与正则测试器对齐 */
+  background: var(--miao-bg);
+  border-radius: var(--tt-radius-lg);
+  border: 1px solid var(--miao-border);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.03);
 }
 
-/* 极轻的两角光晕，作为页面底纹，保持通透 */
-.tt-page::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
+:root[data-theme='dark'] .tt-page {
   background:
-    radial-gradient(120% 80% at 0% 0%, var(--miao-brand-bg), transparent 55%),
-    radial-gradient(120% 80% at 100% 100%, var(--miao-success-bg), transparent 52%);
-}
-
-.tt-page > * {
-  position: relative;
-  z-index: 1;
+    linear-gradient(180deg, var(--miao-bg-elevated) 0%, rgba(18, 26, 38, 1) 100%);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 /* ============================================================
    页头（极简，无卡片包裹）
    ============================================================ */
 .tt-header {
-  padding: 4px 4px 0;
+  padding: 16px 20px 0;
   flex-shrink: 0;
 }
 
@@ -106,7 +110,8 @@
   color: #fff;
   font-size: 22px;
   background: linear-gradient(135deg, var(--miao-brand), var(--miao-brand-active));
-  box-shadow: 0 4px 16px var(--miao-brand-bg);
+  /* 让 ::after 的 z-index:-1 局限在图标自身堆叠上下文内，避免被卡片底色盖住 */
+  isolation: isolate;
 }
 
 .tt-header-icon::after {
@@ -174,7 +179,7 @@
    导航条（左对齐玻璃轨道）
    ============================================================ */
 .tt-nav {
-  padding: 14px 4px 0;
+  padding: 16px 20px 0;
   flex-shrink: 0;
 }
 
@@ -185,7 +190,6 @@
   border: 1px solid var(--miao-border);
   border-radius: var(--tt-radius);
   background: var(--miao-bg-elevated);
-  box-shadow: var(--miao-shadow-soft);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -223,7 +227,6 @@
 .tt-nav-item.active {
   color: var(--miao-on-brand);
   background: linear-gradient(135deg, var(--miao-brand), var(--miao-brand-active));
-  box-shadow: 0 2px 12px var(--miao-brand-bg);
 }
 
 .tt-nav-item.soon {
@@ -254,8 +257,8 @@
    ============================================================ */
 .tt-content {
   flex: 1;
-  min-height: 0;
-  padding: 8px 4px 12px;
+  min-height: 540px;
+  padding: 14px 20px 20px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -288,7 +291,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border: 1px solid var(--miao-border);
   border-radius: var(--tt-radius);
   background: var(--miao-bg-elevated);
@@ -384,6 +387,7 @@
   padding: 0 8px;
   border-radius: 6px;
   background: var(--miao-brand-bg);
+  border: 1px solid color-mix(in srgb, var(--miao-brand) 30%, transparent);
   color: var(--miao-brand);
   font-size: 11px;
   font-weight: 700;
@@ -432,9 +436,9 @@
 
 .tt-mode-segmented .ant-segmented-item-selected,
 .tt-tone-segmented .ant-segmented-item-selected {
-  background: var(--miao-bg-elevated);
-  color: var(--miao-brand);
-  box-shadow: 0 1px 4px rgba(34, 29, 48, 0.08);
+  background: linear-gradient(135deg, var(--miao-brand), var(--miao-brand-hover));
+  color: #fff;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--miao-brand) 40%, transparent);
 }
 
 .tt-toolbar {
@@ -443,9 +447,11 @@
 }
 
 .tt-segmented.ant-segmented {
-  background: var(--miao-brand-bg);
+  background: var(--miao-bg-muted);
   border: 1px solid var(--miao-border);
   border-radius: 7px;
+  min-height: 28px;
+  padding: 2px;
 }
 
 .tt-segmented .ant-segmented-item {
@@ -453,12 +459,23 @@
   color: var(--miao-text-secondary);
   font-size: 12px;
   font-weight: 600;
+  line-height: 24px;
+  transition: color 200ms var(--tt-ease), background-color 200ms var(--tt-ease);
+}
+
+.tt-segmented .ant-segmented-item:hover:not(.ant-segmented-item-selected) {
+  color: var(--miao-text-primary);
+  background: var(--miao-brand-bg);
 }
 
 .tt-segmented .ant-segmented-item-selected {
-  background: var(--miao-bg-elevated);
-  color: var(--miao-text-primary);
-  box-shadow: 0 3px 8px rgba(34, 29, 48, 0.08);
+  background: var(--miao-brand);
+  color: #fff;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--miao-brand) 40%, transparent);
+}
+
+.tt-segmented .ant-segmented-thumb {
+  background: var(--miao-brand);
 }
 
 .tt-primary-action.ant-btn {
@@ -477,7 +494,6 @@
   background: var(--miao-brand);
   border-color: var(--miao-brand);
   color: var(--miao-on-brand);
-  box-shadow: 0 8px 18px var(--miao-brand-bg);
 }
 
 .tt-primary-action.ant-btn-primary:hover,
@@ -486,19 +502,37 @@
   border-color: var(--miao-brand-hover);
   color: var(--miao-on-brand);
   transform: translateY(-1px);
-  box-shadow: 0 12px 24px var(--miao-brand-bg);
 }
 
 .tt-primary-action.ant-btn-primary:active {
   transform: translateY(0);
 }
 
+/* 工具内 AntD 主按钮统一为琥珀金（修复紫色泄漏到琥珀工具中） */
 .tt-page .ant-btn-primary {
-  color: var(--miao-on-brand);
+  background-color: var(--miao-brand) !important;
+  border-color: var(--miao-brand) !important;
+  color: var(--miao-on-brand) !important;
 }
 
-.tt-page .ant-btn-primary:not(:disabled):hover {
-  color: var(--miao-on-brand);
+.tt-page .ant-btn-primary:not(:disabled):hover,
+.tt-page .ant-btn-primary:not(:disabled):focus-visible {
+  background-color: var(--miao-brand-hover) !important;
+  border-color: var(--miao-brand-hover) !important;
+}
+
+.tt-page .ant-btn-primary:not(:disabled):active {
+  background-color: var(--miao-brand-active) !important;
+  border-color: var(--miao-brand-active) !important;
+}
+
+/* 工具内 AntD 开关开启态统一为琥珀金 */
+.tt-page .ant-switch.ant-switch-checked {
+  background: var(--miao-brand) !important;
+}
+
+.tt-page .ant-switch.ant-switch-checked:hover:not(.ant-switch-disabled) {
+  background: var(--miao-brand-hover) !important;
 }
 
 /* 图片面板语言选择条：无 swap 按钮，仅两列 */
@@ -601,6 +635,7 @@
 .tt-pane {
   position: relative;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -608,8 +643,17 @@
   border-radius: var(--tt-radius-lg);
   background: var(--miao-bg-elevated);
   box-shadow: var(--miao-shadow);
-  transition: border-color 240ms var(--tt-ease);
+  transition: border-color 240ms var(--tt-ease), box-shadow 240ms var(--tt-ease);
   isolation: isolate;
+}
+
+.tt-pane:focus-within {
+  border-color: var(--miao-border-strong);
+  box-shadow: var(--miao-shadow-soft);
+}
+
+:root[data-theme='dark'] .tt-pane {
+  background: var(--miao-bg-elevated);
 }
 
 /* 压制 AntD Input 在聚焦时给 wrap 容器加的蓝色外发光/外描边 */
@@ -625,15 +669,20 @@
 }
 
 .tt-pane-head {
-  min-height: 56px;
+  min-height: 52px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin: 0;
-  padding: 14px 18px;
+  padding: 12px 18px;
   border-bottom: 1px solid var(--miao-border);
-  background: transparent;
+  background: rgba(255, 255, 255, 0.02);
+  flex-shrink: 0;
+}
+
+:root[data-theme='dark'] .tt-pane-head {
+  background: rgba(255, 255, 255, 0.015);
 }
 
 .tt-pane-label {
@@ -731,22 +780,57 @@
   justify-content: center;
   text-align: center;
   color: var(--miao-text-tertiary);
-  background:
-    linear-gradient(180deg, var(--miao-success-bg), transparent 130px),
-    repeating-linear-gradient(
-      135deg,
-      transparent 0,
-      transparent 12px,
-      color-mix(in srgb, var(--miao-brand) 4%, transparent) 12px,
-      color-mix(in srgb, var(--miao-brand) 4%, transparent) 13px
-    ),
-    var(--miao-bg-elevated);
+  background: var(--miao-bg-elevated);
+  gap: 10px;
+  padding: 32px 24px;
 }
 
 .tt-output-icon {
+  width: 64px;
+  height: 64px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 28px;
   color: var(--miao-brand);
-  font-size: 26px;
-  opacity: 0.72;
+  background: var(--miao-brand-bg);
+  border: 1px solid color-mix(in srgb, var(--miao-brand) 20%, transparent);
+  opacity: 0.9;
+  margin-bottom: 8px;
+  animation: tt-float 3s ease-in-out infinite;
+}
+
+.tt-output-icon svg {
+  opacity: 0.8;
+}
+
+.tt-empty-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--miao-text-primary);
+  letter-spacing: 0.01em;
+}
+
+.tt-empty-hint {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--miao-text-secondary);
+  max-width: 280px;
+}
+
+.tt-output--placeholder .tt-placeholder-hint {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--miao-text-tertiary);
+  font-weight: 500;
+}
+
+@keyframes tt-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
 }
 
 .tt-output--loading {
@@ -1513,7 +1597,6 @@
   background: var(--miao-bg-elevated);
   border: 1px solid var(--miao-border);
   border-left: 3px solid var(--miao-brand);
-  box-shadow: var(--miao-shadow-soft);
   opacity: 0;
   transform: translateY(8px);
   animation: tt-subtitle-in 420ms var(--tt-ease) forwards;
@@ -1583,9 +1666,14 @@
 /* ============================================================
    滚动条
    ============================================================ */
+.tt-page {
+  scrollbar-width: thin;
+  scrollbar-color: var(--miao-border) transparent;
+}
+
 .tt-page ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 .tt-page ::-webkit-scrollbar-track {
@@ -1593,9 +1681,9 @@
 }
 
 .tt-page ::-webkit-scrollbar-thumb {
-  border: 3px solid transparent;
-  border-radius: 5px;
-  background: var(--miao-border-strong);
+  background: var(--miao-border);
+  border-radius: 4px;
+  border: 2px solid transparent;
   background-clip: padding-box;
 }
 
@@ -1767,7 +1855,7 @@
   }
 
   .tt-content {
-    padding: 10px 0 0;
+    padding: 14px 14px 0;
     overflow: visible;
   }
 }
@@ -1877,7 +1965,6 @@
   border: 1px solid var(--miao-border);
   border-radius: var(--tt-radius-lg);
   background: var(--miao-bg-elevated);
-  box-shadow: var(--miao-shadow-soft);
 }
 
 /* 译文面板头部的风格选择器 —— 当前已合并到命令栏，保留但隐藏 */
@@ -1907,6 +1994,7 @@
   padding: 1px 8px;
   border-radius: 6px;
   background: var(--miao-brand-bg);
+  border: 1px solid color-mix(in srgb, var(--miao-brand) 30%, transparent);
   color: var(--miao-brand);
   font-size: 11px;
   font-weight: 700;

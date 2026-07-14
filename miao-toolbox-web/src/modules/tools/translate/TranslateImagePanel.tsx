@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Select, Button, Alert, Space, Tooltip, Empty, Segmented, message } from 'antd';
+import { Select, Button, Alert, Tooltip, Segmented, message } from 'antd';
 import {
   PictureOutlined,
   TranslationOutlined,
@@ -476,20 +476,15 @@ const TranslateImagePanel: React.FC = () => {
             ) : (
               <div className="tt-output tt-output--placeholder">
                 <PictureOutlined className="tt-output-icon" />
-                <span>未识别到文本，请尝试更清晰的图片</span>
+                <p className="tt-empty-title">未识别到文本</p>
+                <p className="tt-empty-hint">请尝试更清晰的图片，或切换为手动框选模式。</p>
               </div>
             )
           ) : (
             <div className="tt-output tt-output--placeholder">
-              <Empty
-                image={Empty.PRESENTED_IMAGE_DEFAULT}
-                description={
-                  <Space direction="vertical" size={2}>
-                    <span>译文将逐块展示在这里</span>
-                    <span className="tt-placeholder-hint">先上传或粘贴一张图片吧</span>
-                  </Space>
-                }
-              />
+              <PictureOutlined className="tt-output-icon" />
+              <p className="tt-empty-title">译文将逐块展示在这里</p>
+              <p className="tt-empty-hint">先上传或粘贴一张图片，图片中的文字将被自动识别并翻译。</p>
             </div>
           )}
         </div>

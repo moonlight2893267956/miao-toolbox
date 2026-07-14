@@ -87,11 +87,9 @@ const HashTool: React.FC<HashToolProps> = ({ state, dispatch, onHistoryAdd }) =>
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
     >
-      <div className="crypto-hash-card-header">
-        <span className="crypto-hash-algo">{algo}</span>
-        <CopyButton value={value} />
-      </div>
-      <div className="crypto-hash-value">{value}</div>
+      <span className="crypto-hash-algo">{algo}</span>
+      <span className="crypto-hash-value" title={value}>{value}</span>
+      <CopyButton value={value} />
     </motion.div>
   );
 

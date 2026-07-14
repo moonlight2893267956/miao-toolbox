@@ -226,9 +226,10 @@ const TranslateDetectPanel: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="tt-output tt-output--placeholder tt-output--detect">
+            <div className="tt-output tt-output--placeholder">
               <ApartmentOutlined className="tt-output-icon" />
-              <span>识别结果将显示在这里（主语种 / 推荐目标语言）</span>
+              <p className="tt-empty-title">识别结果将显示在这里</p>
+              <p className="tt-empty-hint">自动检测源文本语言，并给出推荐目标语言。</p>
             </div>
           )}
         </div>

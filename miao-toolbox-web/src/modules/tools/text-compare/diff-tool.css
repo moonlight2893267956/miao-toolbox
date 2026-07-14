@@ -73,14 +73,16 @@
 }
 
 .miao-shell:has(.tc-page) {
-  background: var(--tc-bg);
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .miao-content:has(.tc-page) {
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 14px 16px 18px;
+  padding: 16px 20px;
 }
 
 /* Page Container */
@@ -954,13 +956,21 @@
 
 @media (max-width: 768px) {
   .miao-content:has(.tc-page) {
-    padding: 14px 12px 28px;
+    padding: 14px;
   }
 
   .tc-page {
     padding: 0;
   }
-  
+
+  .tc-header {
+    padding: 14px 14px 0;
+  }
+
+  .tc-main {
+    padding: 14px;
+  }
+
   .tc-toolbar {
     padding: 8px 12px;
     align-items: flex-start;
@@ -1041,15 +1051,6 @@
   height: 100vh;
   min-height: 0;
   overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 160px),
-    var(--tc-bg);
-}
-
-:root[data-theme='light'] .miao-shell:has(.tc-page) {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(243, 246, 249, 0.92) 220px),
-    var(--tc-bg);
 }
 
 .miao-shell:has(.tc-page) > .ant-layout {
@@ -1062,7 +1063,7 @@
   height: 100vh;
   min-height: 0;
   margin: 0;
-  padding: 14px 16px 18px;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1077,13 +1078,40 @@
 }
 
 .tc-page {
+  /* 整体主色调：淡青色 */
+  --tool-accent: var(--miao-accent-tool-cyan);
+  --miao-brand: var(--miao-accent-tool-cyan);
+  --miao-brand-hover: color-mix(in srgb, var(--miao-accent-tool-cyan) 82%, #ffffff);
+  --miao-brand-active: color-mix(in srgb, var(--miao-accent-tool-cyan) 82%, #000000);
+  --miao-brand-bg: color-mix(in srgb, var(--miao-accent-tool-cyan) 12%, transparent);
+  --miao-brand-bg-hover: color-mix(in srgb, var(--miao-accent-tool-cyan) 18%, transparent);
   width: 100%;
-  height: 100%;
+  flex: 1 1 auto;
+  height: auto;
   min-height: 0;
   margin: 0 auto;
+  padding: 0 !important;
+  max-width: none !important;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: auto;
+  position: relative;
+  color: var(--tc-text);
+  font-family: var(--tc-font-display);
+  background: var(--miao-bg);
+  border-radius: var(--miao-radius-lg);
+  border: 1px solid var(--miao-border);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.03);
+}
+
+:root[data-theme='dark'] .tc-page {
+  background:
+    linear-gradient(180deg, var(--miao-bg-elevated) 0%, rgba(20, 20, 28, 1) 100%);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .tc-bg-effects {
@@ -1109,6 +1137,10 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 1;
+  /* 与正则/加密工作区对齐：14px 20px 20px 栅格 */
+  padding: 14px 20px 20px;
 }
 
 .tc-command-bar {
@@ -1234,13 +1266,87 @@
 
 .tc-panels-container {
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 540px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
   gap: 8px;
   border: none;
   border-radius: 0;
   background: transparent;
+}
+
+/* ============================================================
+   页头 — 与正则/加密保持一致的非玻璃渐变图标
+   ============================================================ */
+.tc-header {
+  padding: 16px 20px 0;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.tc-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.tc-header-icon {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--miao-radius-md);
+  color: #fff;
+  font-size: 22px;
+  background: linear-gradient(
+    135deg,
+    var(--tool-accent),
+    color-mix(in srgb, var(--tool-accent) 72%, #000)
+  );
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--tool-accent) 40%, transparent);
+}
+
+.tc-header-text h2 {
+  margin: 0;
+  color: var(--miao-text-primary);
+  font-family: var(--miao-font-body);
+  font-size: 23px;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+.tc-header-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+  color: var(--miao-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tc-header-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--miao-success);
+  box-shadow: 0 0 0 4px var(--miao-success-bg);
+  animation: tc-header-pulse 2s ease-in-out infinite;
+}
+
+@keyframes tc-header-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 4px var(--miao-success-bg);
+  }
+  50% {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--miao-success) 20%, transparent);
+  }
 }
 
 .tc-panels-container.tc-stacked {

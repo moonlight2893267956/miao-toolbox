@@ -53,7 +53,10 @@
   --miao-accent-tool-purple: #8b5cf6;
   --miao-accent-tool-indigo: #6366f1;
   --miao-accent-tool-amber: #f59e0b;
+  --miao-accent-tool-sky: #0ea5e9;
   --miao-accent-tool-pink: #ec4899;
+  --miao-accent-tool-cyan: #22d3ee;
+  --miao-accent-tool-emerald: #10b981;
 
   /* 各工具页面用 --tool-accent 覆盖此默认值（见各工具 CSS） */
   --tool-accent: var(--miao-accent-tool-teal);
@@ -99,7 +102,10 @@
   --miao-accent-tool-purple: #a78bfa;
   --miao-accent-tool-indigo: #818cf8;
   --miao-accent-tool-amber: #fbbf24;
+  --miao-accent-tool-sky: #38bdf8;
   --miao-accent-tool-pink: #f472b6;
+  --miao-accent-tool-cyan: #22d3ee;
+  --miao-accent-tool-emerald: #34d399;
 
   /* 各工具页面用 --tool-accent 覆盖此默认值（见各工具 CSS） */
   --tool-accent: var(--miao-accent-tool-teal);

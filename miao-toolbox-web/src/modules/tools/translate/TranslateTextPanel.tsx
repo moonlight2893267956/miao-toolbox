@@ -505,7 +505,8 @@ const TranslateTextPanel: React.FC = () => {
           ) : (
             <div className="tt-output tt-output--placeholder">
               <TranslationOutlined className="tt-output-icon" />
-              <span>译文将显示在这里</span>
+              <p className="tt-empty-title">译文将显示在这里</p>
+              <p className="tt-empty-hint">在左侧输入文本，选择目标语言后点击「翻译」即可查看结果。</p>
             </div>
           )}
         </div>

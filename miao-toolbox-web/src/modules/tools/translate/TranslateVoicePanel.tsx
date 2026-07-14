@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Select, Button, Alert, Space, Tooltip, Empty, message } from 'antd';
+import { Select, Button, Alert, Tooltip, message } from 'antd';
 import {
   AudioOutlined,
   TranslationOutlined,
@@ -391,15 +391,9 @@ const TranslateVoicePanel: React.FC = () => {
             </div>
           ) : (
             <div className="tt-output tt-output--placeholder">
-              <Empty
-                image={Empty.PRESENTED_IMAGE_DEFAULT}
-                description={
-                  <Space direction="vertical" size={2}>
-                    <span>译文将显示在这里</span>
-                    <span className="tt-placeholder-hint">先录音，再点击「翻译」</span>
-                  </Space>
-                }
-              />
+              <AudioOutlined className="tt-output-icon" />
+              <p className="tt-empty-title">译文将显示在这里</p>
+              <p className="tt-empty-hint">先录音，再点击「翻译」按钮即可查看语音翻译结果。</p>
             </div>
           )}
         </div>
