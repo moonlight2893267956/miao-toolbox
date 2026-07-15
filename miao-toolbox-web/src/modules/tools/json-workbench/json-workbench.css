@@ -1044,10 +1044,20 @@
 
 /* ─── 长值 Tooltip ────────────────────────────────────── */
 
+/* 让 antd Tooltip 跟随本工具箱明/暗主题：
+   覆盖 antd 默认的深色 spotlight 背景与浅色文字变量，
+   否则浅色模式下会出现“深色文字落在深色背景上”看不见的问题；
+   同时让箭头颜色与气泡背景保持一致。 */
+.jw-value-tooltip.ant-tooltip {
+  --ant-color-bg-spotlight: var(--miao-bg-elevated);
+  --ant-color-text-light-solid: var(--miao-text-primary);
+}
+
 .jw-value-tooltip .ant-tooltip-inner {
   max-width: 480px;
   padding: 0;
   background: var(--miao-bg-elevated);
+  color: var(--miao-text-primary);
   border: 1px solid var(--miao-border);
   border-radius: 8px;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
