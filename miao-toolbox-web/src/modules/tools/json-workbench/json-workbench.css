@@ -920,10 +920,11 @@
 /* 值 */
 .jw-node__value {
   display: inline-block;
-  overflow: visible;
-  text-overflow: clip;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: none;
+  vertical-align: bottom;
 }
 
 .jw-node__value--string {
@@ -978,6 +979,8 @@
 /* 可编辑值（双击编辑） */
 .jw-node-row__value-editable {
   cursor: text;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .jw-node-row__value-editable:hover {
