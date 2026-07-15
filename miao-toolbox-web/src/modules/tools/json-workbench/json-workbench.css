@@ -40,7 +40,7 @@
 }
 
 .jw-page {
-  /* 工具专属点缀色：JSON 工作台用靛蓝 indigo-500，与智能翻译 sky、正则测试器 pink 区分 */
+  /* 工具专属点缀色：靛蓝 indigo，与翻译 sky / 正则 pink 区分 */
   --tool-accent: var(--miao-accent-tool-indigo);
   --tool-accent-4: color-mix(in srgb, var(--tool-accent) 4%, transparent);
   --tool-accent-5: color-mix(in srgb, var(--tool-accent) 5%, transparent);
@@ -55,9 +55,7 @@
   --tool-accent-30: color-mix(in srgb, var(--tool-accent) 30%, transparent);
   --tool-accent-32: color-mix(in srgb, var(--tool-accent) 32%, transparent);
   --tool-accent-37: color-mix(in srgb, var(--tool-accent) 37%, transparent);
-  /* 工具身份色：靛蓝系，把共享 ToolPageHeader / 主操作按钮的紫色泄漏
-     统一驱动为本工具的专属靛蓝，与智能翻译（天蓝）区分；hover/active/bg 用
-     color-mix 派生，自动适配亮/暗主题 */
+  /* 工具身份色：驱动共享头/主按钮为本工具靛蓝 */
   --miao-brand: var(--miao-accent-tool-indigo);
   --miao-brand-hover: color-mix(in srgb, var(--miao-accent-tool-indigo) 82%, #ffffff);
   --miao-brand-active: color-mix(in srgb, var(--miao-accent-tool-indigo) 82%, #000000);
@@ -65,33 +63,61 @@
   --miao-brand-bg-hover: color-mix(in srgb, var(--miao-accent-tool-indigo) 18%, transparent);
   --miao-accent-hover: color-mix(in srgb, var(--miao-accent-tool-indigo) 82%, #ffffff);
   --miao-accent-active: color-mix(in srgb, var(--miao-accent-tool-indigo) 82%, #000000);
+
+  /*
+   * 表面 — 与文本对照同一套冷中性 + 纯白（干净优先）
+   * 工具身份只靠 indigo 交互色（logo/主按钮），不靠侧轨/顶条/脏蓝壳
+   */
+  --jw-bg: #f2f3f7;
+  --jw-surface: #ffffff;
+  --jw-chrome: #f6f7fa;
+  --jw-editor: #ffffff;
+  --jw-gutter: #f3f4f8;
+  --jw-well: #f7f8fb;
+  --jw-border: rgba(15, 23, 42, 0.08);
+  --jw-border-strong: rgba(15, 23, 42, 0.12);
+  --jw-shadow-1: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --jw-shadow-2: 0 4px 14px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.03);
+
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   height: auto;
   min-height: 0;
   overflow: auto;
-  /* 与正则测试器一致的纯色卡片：仅靠 1px 边框 + 极淡阴影定义，无全局色填充 */
-  background: var(--miao-bg);
   color: var(--miao-text-primary);
   border-radius: var(--miao-radius-lg);
-  border: 1px solid var(--miao-border);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    0 8px 24px rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--jw-border);
+  background-color: var(--jw-bg);
+  background-image:
+    radial-gradient(90% 70% at 10% -15%, color-mix(in srgb, var(--tool-accent) 8%, transparent), transparent 55%),
+    linear-gradient(180deg, #f7f8fb 0%, var(--jw-bg) 40%);
+  box-shadow: var(--jw-shadow-2);
 }
 
 :root[data-theme='dark'] .jw-page {
-  background:
-    linear-gradient(180deg, var(--miao-bg-elevated) 0%, rgba(20, 20, 28, 1) 100%);
+  --jw-bg: #0b0b12;
+  --jw-surface: #16161f;
+  --jw-chrome: #1a1a24;
+  --jw-editor: #12121a;
+  --jw-gutter: #0e0e16;
+  --jw-well: #0e0e16;
+  --jw-border: rgba(255, 255, 255, 0.08);
+  --jw-border-strong: rgba(255, 255, 255, 0.12);
+  --jw-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --jw-shadow-2: 0 6px 18px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+  background-color: var(--jw-bg);
+  background-image:
+    radial-gradient(90% 70% at 10% -15%, color-mix(in srgb, var(--tool-accent) 12%, transparent), transparent 55%),
+    linear-gradient(180deg, #12121a 0%, var(--jw-bg) 50%);
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.2),
     0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
-/* 页头与正则测试器对齐：16px 20px 0 横向栅格（共享 ToolPageHeader 默认仅 2px 内缩） */
+/* 页头与文本对照/正则对齐：略收内边距 */
 .jw-page .tph {
-  padding: 16px 20px 0;
+  padding: 14px 16px 0;
 }
 
 /* ── 状态徽标对齐正则测试器：保留绿色脉冲点，去掉"运行中"文字标签 ── */
@@ -163,40 +189,46 @@
   opacity: 0.5;
 }
 
-/* ─── 工具栏 — 毛玻璃 + 精致排版 ──────────────────── */
+/* ─── L1 工具栏：抬升白条 ──────────────────────────── */
 
 .jw-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
-  border-bottom: 1px solid var(--miao-border);
-  background: var(--miao-bg-elevated);
-  box-shadow: var(--miao-shadow-soft);
+  margin: 10px 16px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--jw-border);
+  border-radius: 12px;
+  background: var(--jw-surface);
+  box-shadow: var(--jw-shadow-1);
   flex-shrink: 0;
   gap: 16px;
 }
 
 :root[data-theme='dark'] .jw-toolbar {
-  background: var(--miao-bg-elevated);
-  border-bottom-color: var(--miao-border);
+  background: var(--jw-surface);
+  border-color: var(--jw-border);
+  box-shadow: var(--jw-shadow-1);
 }
 
-/* ─── 面包屑 — 精致路径导航 ────────────────────────── */
+/* ─── 面包屑：贴工具条下方的次级 chrome 条 ─────────── */
 
 .jw-breadcrumb {
   flex-shrink: 0;
-  border-bottom: 1px solid var(--miao-border);
-  /* 与工具栏一致：实色底，去掉毛玻璃 */
-  background: var(--miao-bg-elevated);
-  padding: 5px 20px;
+  margin: 8px 16px 0;
+  border: 1px solid var(--jw-border);
+  border-radius: 12px;
+  background: var(--jw-chrome);
+  padding: 5px 14px;
   overflow-x: auto;
   overflow-y: hidden;
   white-space: nowrap;
+  box-shadow: none;
 }
 
 :root[data-theme='dark'] .jw-breadcrumb {
-  background: var(--miao-bg-elevated);
+  background: var(--jw-chrome);
+  border-color: var(--jw-border);
 }
 
 .jw-breadcrumb__list {
@@ -262,10 +294,10 @@
   align-items: center;
   gap: 0;
   margin-left: 4px;
-  border: 1px solid var(--miao-border);
+  border: 1px solid var(--jw-border);
   border-radius: var(--miao-radius-sm);
   overflow: hidden;
-  background: var(--miao-bg-muted);
+  background: var(--jw-chrome);
 }
 
 .jw-format-btn {
@@ -404,10 +436,10 @@
   display: inline-flex;
   align-items: center;
   margin-left: 4px;
-  border: 1px solid var(--miao-border);
+  border: 1px solid var(--jw-border);
   border-radius: var(--miao-radius-sm);
   overflow: hidden;
-  background: var(--miao-bg-muted);
+  background: var(--jw-chrome);
 }
 
 .jw-indent-btn {
@@ -495,8 +527,8 @@
   position: relative;
   display: inline-flex;
   border-radius: var(--miao-radius-sm);
-  border: 1px solid var(--miao-border);
-  background: var(--miao-bg-muted);
+  border: 1px solid var(--jw-border);
+  background: var(--jw-chrome);
   padding: 2px;
 }
 
@@ -547,12 +579,13 @@
 
 .jw-content {
   flex: 1;
-  min-height: 540px;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  /* 与正则测试器工作台对齐：14px 20px 20px 栅格，使面板与卡片边留出一致间距 */
-  padding: 14px 20px 20px;
+  padding: 12px 16px 16px;
+  gap: 0;
   overflow: hidden;
+  background: transparent;
 }
 
 /* ─── 压缩转义结果态 ───────────────────────────────── */
@@ -565,15 +598,15 @@
   justify-content: center;
   padding: 36px 28px;
   overflow: auto;
-  background:
-    linear-gradient(180deg, var(--tool-accent-4), transparent 42%),
-    var(--miao-bg-elevated);
+  border: 1px solid var(--jw-border);
+  border-radius: 14px;
+  background: var(--jw-surface);
+  box-shadow: var(--jw-shadow-2);
 }
 
 :root[data-theme='dark'] .jw-escaped-panel {
-  background:
-    linear-gradient(180deg, var(--tool-accent-9), transparent 42%),
-    rgba(20, 20, 28, 1);
+  background: var(--jw-surface);
+  border-color: var(--jw-border);
 }
 
 .jw-escaped-panel__content {
@@ -584,8 +617,8 @@
   padding: 20px;
   border: 1px solid var(--tool-accent-24);
   border-radius: var(--miao-radius-md);
-  background: var(--miao-bg-elevated);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.06);
+  background: var(--jw-chrome);
+  box-shadow: var(--jw-shadow-1);
 }
 
 :root[data-theme='dark'] .jw-escaped-panel__content {
@@ -638,8 +671,8 @@
   overflow: auto;
   padding: 12px 14px;
   border-radius: var(--miao-radius-sm);
-  border: 1px solid var(--miao-border);
-  background: var(--miao-bg-muted);
+  border: 1px solid var(--jw-border);
+  background: var(--jw-well);
   color: var(--miao-text-secondary);
   font-family: var(--miao-font-mono);
   font-size: 12px;
@@ -691,13 +724,17 @@
   border-color: var(--tool-accent);
 }
 
-/* ─── 自定义分栏布局 ─────────────────────────────────── */
+/* ─── L2 自定义分栏：单一白卡外框 ──────────────────── */
 
 .jw-split-pane {
   flex: 1;
   min-height: 0;
   display: flex;
   overflow: hidden;
+  border: 1px solid var(--jw-border);
+  border-radius: 14px;
+  background: var(--jw-surface);
+  box-shadow: var(--jw-shadow-2);
 }
 
 .jw-split-pane__left,
@@ -707,6 +744,7 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  background: var(--jw-editor);
 }
 
 /* 直接用 flex 继承高度，不用 absolute */
@@ -720,21 +758,31 @@
   min-height: 0;
 }
 
-/* ─── 分栏分割线 — 精致化 ──────────────────────── */
+/* 单栏模式：同样抬升为白卡 */
+.jw-content > .jw-tree-panel,
+.jw-content > .jw-raw-panel {
+  border: 1px solid var(--jw-border);
+  border-radius: 14px;
+  background: var(--jw-surface);
+  box-shadow: var(--jw-shadow-2);
+  overflow: hidden;
+}
+
+/* ─── 分栏分割线 ─────────────────────────────────── */
 
 .jw-split-pane__divider {
-  width: 4px;
+  width: 1px;
   cursor: col-resize;
   flex-shrink: 0;
-  background: var(--miao-border);
-  transition: background 0.2s, width 0.2s;
+  background: var(--jw-border);
+  transition: background 0.2s, width 0.15s;
   position: relative;
 }
 
 .jw-split-pane__divider:hover,
 .jw-split-pane__divider--active {
   background: var(--tool-accent);
-  width: 5px;
+  width: 3px;
 }
 
 .jw-split-pane__divider::after {
@@ -754,6 +802,7 @@
   overflow: auto;
   padding: 4px 0;
   overscroll-behavior: contain;
+  background: var(--jw-editor);
 }
 
 .jw-tree-panel--has-content {
@@ -1197,12 +1246,14 @@
   height: 100%;
   min-height: 0;
   overflow: hidden;
+  background: var(--jw-editor);
 }
 
 .jw-cm-editor {
   height: 100%;
   min-height: 0;
   position: relative;
+  background: var(--jw-editor);
 }
 
 .jw-cm-editor__core {
@@ -1515,9 +1566,9 @@
   font-size: 12px;
   padding: 10px 20px;
   border-radius: var(--miao-radius-md);
-  background: var(--miao-bg-muted);
+  background: var(--jw-well);
   color: var(--miao-text-secondary);
-  border: 1px solid var(--miao-border);
+  border: 1px solid var(--jw-border);
   cursor: default;
   user-select: all;
   white-space: nowrap;
@@ -2153,14 +2204,17 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 10px 20px;
-  border-bottom: 1px solid var(--miao-border);
-  background: var(--miao-bg-elevated);
-  box-shadow: var(--miao-shadow-soft);
+  margin: 8px 16px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--jw-border);
+  border-radius: 12px;
+  background: var(--jw-surface);
+  box-shadow: var(--jw-shadow-1);
 }
 
 :root[data-theme='dark'] .jw-search-bar {
-  background: var(--miao-bg-elevated);
+  background: var(--jw-surface);
+  border-color: var(--jw-border);
 }
 
 /* ── 工具栏: 输入框 + 模式 + 折叠其他 ── */
@@ -2175,18 +2229,35 @@
   max-width: 440px;
 }
 
-.jw-search-bar__input input {
+.jw-search-bar__input .ant-input-affix-wrapper,
+.jw-search-bar__input input,
+.jw-search-bar__input .ant-input {
   border-radius: var(--miao-radius-sm) !important;
-  background: var(--miao-bg-muted) !important;
-  border: 1px solid var(--miao-border) !important;
+  background: var(--jw-chrome) !important;
+  background-color: var(--jw-chrome) !important;
+  border: 1px solid var(--jw-border) !important;
   box-shadow: none !important;
+  color: var(--miao-text-primary) !important;
   transition: border-color 0.2s, background 0.2s !important;
 }
 
-.jw-search-bar__input input:focus {
+.jw-search-bar__input .ant-input-affix-wrapper:focus,
+.jw-search-bar__input .ant-input-affix-wrapper-focused,
+.jw-search-bar__input input:focus,
+.jw-search-bar__input .ant-input:focus {
   border-color: var(--tool-accent) !important;
-  background: var(--miao-bg-elevated) !important;
+  background: var(--jw-surface) !important;
+  background-color: var(--jw-surface) !important;
   box-shadow: 0 0 0 3px var(--tool-accent-11) !important;
+}
+
+:root[data-theme='dark'] .jw-search-bar__input .ant-input-affix-wrapper,
+:root[data-theme='dark'] .jw-search-bar__input input,
+:root[data-theme='dark'] .jw-search-bar__input .ant-input {
+  background: var(--jw-editor) !important;
+  background-color: var(--jw-editor) !important;
+  border-color: var(--jw-border) !important;
+  color: var(--miao-text-primary) !important;
 }
 
 .jw-search-bar__input .ant-input-suffix {

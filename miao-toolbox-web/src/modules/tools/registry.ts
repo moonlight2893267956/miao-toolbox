@@ -65,8 +65,8 @@ export const toolsRegistry: ToolMeta[] = [
     routeCode: 'TOOL_TEXT_COMPARE',
     category: 'available',
     available: true,
-    accentColor: '#00d4aa',
-    iconBg: 'rgba(0,212,170,0.12)',
+    accentColor: '#5c4fd0',
+    iconBg: 'rgba(92,79,208,0.12)',
   },
   {
     key: 'crypto',

@@ -252,29 +252,38 @@
 }
 
 .crypto-header-icon {
+  position: relative;
   width: 48px;
   height: 48px;
-  border-radius: var(--crypto-radius-md);
-  background: linear-gradient(135deg, var(--tool-accent), color-mix(in srgb, var(--tool-accent) 72%, #000), var(--tool-accent));
-  display: flex;
+  flex-shrink: 0;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  border-radius: var(--crypto-radius-md);
   color: #fff;
   font-size: 22px;
+  background: linear-gradient(
+    135deg,
+    var(--tool-accent),
+    color-mix(in srgb, var(--tool-accent) 72%, #000)
+  );
   box-shadow: 0 4px 16px color-mix(in srgb, var(--tool-accent) 40%, transparent);
-  flex-shrink: 0;
-  position: relative;
+  isolation: isolate;
 }
 
 .crypto-header-icon::after {
   content: '';
   position: absolute;
   inset: -2px;
-  border-radius: calc(var(--crypto-radius-md) + 2px);
-  background: linear-gradient(135deg, rgba(139,92,246,0.5), rgba(79,70,229,0.5));
   z-index: -1;
-  filter: blur(8px);
-  opacity: 0.6;
+  border-radius: calc(var(--crypto-radius-md) + 2px);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--tool-accent) 50%, transparent),
+    color-mix(in srgb, var(--tool-accent) 50%, transparent)
+  );
+  filter: blur(10px);
+  opacity: 0.5;
 }
 
 .crypto-header-text h2 {

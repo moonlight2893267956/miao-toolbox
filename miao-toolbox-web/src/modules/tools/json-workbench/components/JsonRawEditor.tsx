@@ -33,7 +33,7 @@ function getThemeExtensions(): Extension {
     '&': {
       height: '100%',
       fontSize: '13px',
-      backgroundColor: isDark ? '#141414' : '#ffffff',
+      backgroundColor: 'var(--jw-editor, #ffffff)',
     },
     '.cm-scroller': {
       overflow: 'auto',
@@ -51,16 +51,17 @@ function getThemeExtensions(): Extension {
       backgroundColor: isDark ? 'color-mix(in srgb, var(--tool-accent) 30%, transparent)' : 'color-mix(in srgb, var(--tool-accent) 15%, transparent)',
     },
     '.cm-gutters': {
-      backgroundColor: 'transparent',
+      backgroundColor: 'var(--jw-gutter, #f3f4f8)',
       color: 'var(--miao-text-tertiary)',
       border: 'none',
+      borderRight: '1px solid var(--jw-border, rgba(15,23,42,0.08))',
       paddingRight: '4px',
     },
     '.cm-activeLineGutter': {
-      backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.04)',
     },
     '.cm-activeLine': {
-      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.025)',
     },
     '.cm-foldGutter .cm-gutterElement': {
       color: 'var(--miao-text-tertiary)',

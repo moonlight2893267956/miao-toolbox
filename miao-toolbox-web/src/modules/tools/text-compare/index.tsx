@@ -80,13 +80,6 @@ const TextComparePage: React.FC = () => {
   return (
     <DiffProvider>
       <div className="tc-page">
-        {/* Background Effects */}
-        <div className="tc-bg-effects" aria-hidden="true">
-          <div className="tc-bg-gradient-left" />
-          <div className="tc-bg-gradient-right" />
-          <div className="tc-bg-noise" />
-        </div>
-
         <header className="tc-header">
           <div className="tc-header-inner">
             <div className="tc-header-icon">

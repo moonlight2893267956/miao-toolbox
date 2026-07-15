@@ -30,7 +30,7 @@ const StatCard: React.FC = () => {
     if (hasText) {
       return (
         <div className="tc-stat-card">
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--tc-cool-primary)' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--miao-brand)' }}>
             <CheckCircleOutlined /> 无差异
           </span>
         </div>

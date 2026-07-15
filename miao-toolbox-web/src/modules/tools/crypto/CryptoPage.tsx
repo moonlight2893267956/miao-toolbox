@@ -11,6 +11,7 @@
 
 import React, { useReducer, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { LockOutlined } from '@ant-design/icons';
 import './crypto.css';
 import type { CryptoState, CryptoAction, CryptoTabKey, HistoryEntry } from './types';
 import { CRYPTO_TABS, INITIAL_CRYPTO_STATE } from './types';
@@ -184,7 +185,9 @@ const CryptoPage: React.FC = () => {
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.35, delay: 0.05 }}
         >
-          <div className="crypto-header-icon">🔐</div>
+          <div className="crypto-header-icon">
+            <LockOutlined />
+          </div>
           <div className="crypto-header-text">
             <h2>加解密工具</h2>
             <p className="crypto-header-subtitle">

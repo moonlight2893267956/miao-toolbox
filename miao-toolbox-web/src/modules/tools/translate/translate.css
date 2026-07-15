@@ -100,8 +100,8 @@
 
 .tt-header-icon {
   position: relative;
-  width: 46px;
-  height: 46px;
+  width: 48px;
+  height: 48px;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
@@ -109,7 +109,12 @@
   border-radius: var(--tt-radius);
   color: #fff;
   font-size: 22px;
-  background: linear-gradient(135deg, var(--miao-brand), var(--miao-brand-active));
+  background: linear-gradient(
+    135deg,
+    var(--tool-accent, var(--miao-brand)),
+    color-mix(in srgb, var(--tool-accent, var(--miao-brand)) 72%, #000)
+  );
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--tool-accent, var(--miao-brand)) 40%, transparent);
   /* 让 ::after 的 z-index:-1 局限在图标自身堆叠上下文内，避免被卡片底色盖住 */
   isolation: isolate;
 }
@@ -122,11 +127,11 @@
   border-radius: calc(var(--tt-radius) + 2px);
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--miao-brand) 50%, transparent),
-    color-mix(in srgb, var(--miao-brand-active) 50%, transparent)
+    color-mix(in srgb, var(--tool-accent, var(--miao-brand)) 50%, transparent),
+    color-mix(in srgb, var(--tool-accent, var(--miao-brand)) 50%, transparent)
   );
-  filter: blur(8px);
-  opacity: 0.45;
+  filter: blur(10px);
+  opacity: 0.5;
 }
 
 .tt-header-text {
