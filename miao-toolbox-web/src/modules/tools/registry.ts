@@ -113,7 +113,7 @@ export const toolsRegistry: ToolMeta[] = [
   {
     key: 'regex-tester',
     title: '正则测试器',
-    description: '实时编写、调试和测试正则表达式，支持匹配高亮、分组详情、替换预览与多语言引擎对照。',
+    description: '实时编写、调试和测试正则表达式，支持匹配高亮、分组详情、替换预览与多语言代码生成。',
     icon: CodeSandboxOutlined,
     status: '可用',
     tags: ['正则', '开发工具', '调试'],

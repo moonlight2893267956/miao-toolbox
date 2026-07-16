@@ -1,7 +1,9 @@
 // 正则测试器 — 类型定义（架构 §5 状态形状 + Decision 命名约束）
+// 2026-07-16 变更：移除 RegexEngine / EngineWarning（FR-4/5 已废弃），
+// 新增 codeGenLanguage 供代码生成面板使用（FR-11 增强版）
 
-/** 引擎枚举：5 个短名（js/java/python/go/php），与路由 slug 风格一致 */
-export type RegexEngine = 'js' | 'java' | 'python' | 'go' | 'php';
+/** 代码生成目标语言（FR-11 增强版：Tab 式语言切换） */
+export type CodeGenLanguage = 'javascript' | 'java' | 'python' | 'go' | 'php' | 'csharp';
 
 /** 单个匹配结果（FR-1 高亮所需） */
 export interface MatchResult {
@@ -41,7 +43,7 @@ export interface MatchDetail {
   groups: CaptureGroup[];
 }
 
-/** 正则状态（架构 §5 RegexState） */
+/** 正则状态（架构 §5 RegexState，2026-07-16 简化） */
 export interface RegexState {
   // 核心输入
   pattern: string;
@@ -50,8 +52,8 @@ export interface RegexState {
   testText: string;
   /** 替换字符串（FR-3），支持 $1 / ${name} 分组引用 */
   replaceText: string;
-  /** 当前引擎（本 story 仅 js 实际执行匹配；切换仅写状态） */
-  engine: RegexEngine;
+  /** 代码生成面板当前选中的目标语言（FR-11 增强版） */
+  codeGenLanguage: CodeGenLanguage;
 
   // 匹配结果（JS 引擎）
   matches: MatchResult[];
@@ -68,6 +70,14 @@ export interface RegexState {
   patternError: string | null;
   /** ReDoS 超时警告（匹配超过 1s） */
   timeoutWarning: string | null;
+
+  // 面板开关
+  /** 速查表面板是否展开（FR-9） */
+  showCheatSheet: boolean;
+  /** 历史面板是否展开（FR-10） */
+  showHistory: boolean;
+  /** 代码生成 Modal 是否展开（FR-11） */
+  showCodeGen: boolean;
 }
 
 export type RegexAction =
@@ -75,7 +85,10 @@ export type RegexAction =
   | { type: 'REGEX_SET_FLAGS'; payload: string }
   | { type: 'REGEX_SET_TEST_TEXT'; payload: string }
   | { type: 'REGEX_SET_REPLACE_TEXT'; payload: string }
-  | { type: 'REGEX_SET_ENGINE'; payload: RegexEngine }
+  | { type: 'REGEX_SET_CODE_GEN_LANGUAGE'; payload: CodeGenLanguage }
   | { type: 'REGEX_MATCH_SUCCESS'; payload: { matches: MatchResult[]; matchDetails: MatchDetail[]; replacedText: string } }
   | { type: 'REGEX_MATCH_ERROR'; payload: string }
-  | { type: 'REGEX_SET_ACTIVE_MATCH'; payload: number };
+  | { type: 'REGEX_SET_ACTIVE_MATCH'; payload: number }
+  | { type: 'REGEX_TOGGLE_CHEAT_SHEET' }
+  | { type: 'REGEX_TOGGLE_HISTORY' }
+  | { type: 'REGEX_TOGGLE_CODE_GEN' };
