@@ -14,3 +14,7 @@ miao:
         base-url: "${MIAO_AI_AGENT_TRANSLATE_BASE_URL}"
         agent-name: "${MIAO_AI_AGENT_TRANSLATE_NAME:translate-agent}"
         api-key: "${MIAO_AI_AGENT_TRANSLATE_API_KEY}"
+      regex-assistant:
+        base-url: "${MIAO_AI_AGENT_REGEX_BASE_URL}"
+        agent-name: "${MIAO_AI_AGENT_REGEX_NAME:regex-assistant}"
+        api-key: "${MIAO_AI_AGENT_REGEX_API_KEY}"

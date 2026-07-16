@@ -7,10 +7,13 @@ import RegexEditor from './components/RegexEditor';
 import MatchHighlight from './components/MatchHighlight';
 import MatchGroups from './components/MatchGroups';
 import ReplacePreview from './components/ReplacePreview';
+import CheatSheet from './components/CheatSheet';
+import CodeGenerator from './components/CodeGenerator';
+import HistoryPanel from './components/HistoryPanel';
 import './regex-tester.css';
 
 const RegexTesterContent: React.FC = () => {
-  const { state, setTestText } = useRegexContext();
+  const { state, setTestText, toggleHistory, historyEntries, removeHistoryEntry, clearHistoryEntries } = useRegexContext();
 
   return (
     <>
@@ -23,7 +26,7 @@ const RegexTesterContent: React.FC = () => {
             <h2>正则测试器</h2>
             <div className="rt-header-subtitle">
               <span className="rt-dot" />
-              实时匹配高亮 · 多引擎对照 · 开发调试
+              实时匹配高亮 · 多语言代码生成 · 开发调试
             </div>
           </div>
         </div>
@@ -39,6 +42,8 @@ const RegexTesterContent: React.FC = () => {
           className="rt-timeout-alert"
         />
       )}
+
+      <CheatSheet />
 
       <section className="rt-workbench">
         <div className="rt-panel rt-panel--input">
@@ -75,6 +80,15 @@ const RegexTesterContent: React.FC = () => {
       </section>
 
       <ReplacePreview />
+
+      <CodeGenerator />
+
+      <HistoryPanel
+        entries={historyEntries}
+        onRemove={removeHistoryEntry}
+        onClear={clearHistoryEntries}
+        onClose={toggleHistory}
+      />
     </>
   );
 };

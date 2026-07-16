@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { Dispatch } from 'react';
-import type { RegexAction, RegexEngine, MatchResult, MatchDetail } from '../types';
+import type { RegexAction, MatchResult, MatchDetail } from '../types';
 
 const DEBOUNCE_MS = 300;
 const TIMEOUT_MS = 1000;
@@ -18,14 +18,13 @@ interface WorkerResponse {
  * 核心匹配引擎（FR-1 / NFR-2）：
  * - 输入变化后 debounce 300ms 再执行，避免高频输入频繁重算（AC3 不闪烁）
  * - 匹配在 Web Worker 中执行，主线程用 1s 竞速：超时则 terminate worker 并显示警告，浏览器不卡死（AC5）
- * - 仅 JS 引擎实际执行匹配；非 JS 引擎本 story 仍用 JS 引擎高亮（架构 Frontend Boundary）
+ * - 仅 JS 引擎执行匹配（2026-07-16 简化：移除 engine 参数）
  */
 export function useMatchEngine(
   pattern: string,
   flags: string,
   testText: string,
   replaceText: string,
-  engine: RegexEngine,
   dispatch: Dispatch<RegexAction>,
 ) {
   const workerRef = useRef<Worker | null>(null);
@@ -85,7 +84,7 @@ export function useMatchEngine(
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(debounce);
-  }, [pattern, flags, testText, replaceText, engine, dispatch]);
+  }, [pattern, flags, testText, replaceText, dispatch]);
 
   // 卸载清理
   useEffect(() => {

@@ -1,21 +1,11 @@
 import React from 'react';
-import { InfoCircleOutlined } from '@ant-design/icons';
-import { Segmented, Tooltip } from 'antd';
+import { BookOutlined, HistoryOutlined, CodeOutlined } from '@ant-design/icons';
+import { Tooltip } from 'antd';
 import { useRegexContext } from '../useRegexContext';
-import { ENGINES } from '../data/engines';
-import type { RegexEngine } from '../types';
+import { JS_FLAGS } from '../data/flags';
 
 const RegexEditor: React.FC = () => {
-  const { state, setPattern, toggleFlag, setEngine } = useRegexContext();
-  const engineDef = ENGINES[state.engine];
-
-  const engineOptions: { label: string; value: RegexEngine }[] = [
-    { label: 'JS', value: 'js' },
-    { label: 'Java', value: 'java' },
-    { label: 'Python', value: 'python' },
-    { label: 'Go', value: 'go' },
-    { label: 'PHP', value: 'php' },
-  ];
+  const { state, setPattern, toggleFlag, toggleCheatSheet, toggleHistory, toggleCodeGen, setPatternCursor } = useRegexContext();
 
   return (
     <div className="rt-command-bar">
@@ -26,6 +16,8 @@ const RegexEditor: React.FC = () => {
             type="text"
             value={state.pattern}
             onChange={(e) => setPattern(e.target.value)}
+            onKeyUp={(e) => setPatternCursor((e.target as HTMLInputElement).selectionStart ?? 0)}
+            onSelect={(e) => setPatternCursor((e.target as HTMLInputElement).selectionStart ?? 0)}
             placeholder="输入正则表达式，例如 \d+"
             spellCheck={false}
             className="rt-regex-field"
@@ -36,11 +28,37 @@ const RegexEditor: React.FC = () => {
         </div>
 
         <div className="rt-engine-select">
-          <Segmented
-            value={state.engine}
-            onChange={(v) => setEngine(v as RegexEngine)}
-            options={engineOptions}
-          />
+          <Tooltip title="代码生成">
+            <button
+              type="button"
+              className={`rt-cheat-toggle ${state.showCodeGen ? 'rt-cheat-toggle--active' : ''}`}
+              onClick={toggleCodeGen}
+              disabled={!state.pattern}
+              aria-label="代码生成"
+            >
+              <CodeOutlined />
+            </button>
+          </Tooltip>
+          <Tooltip title="语法速查">
+            <button
+              type="button"
+              className={`rt-cheat-toggle ${state.showCheatSheet ? 'rt-cheat-toggle--active' : ''}`}
+              onClick={toggleCheatSheet}
+              aria-label="语法速查"
+            >
+              <BookOutlined />
+            </button>
+          </Tooltip>
+          <Tooltip title="匹配历史">
+            <button
+              type="button"
+              className={`rt-cheat-toggle ${state.showHistory ? 'rt-cheat-toggle--active' : ''}`}
+              onClick={toggleHistory}
+              aria-label="匹配历史"
+            >
+              <HistoryOutlined />
+            </button>
+          </Tooltip>
         </div>
       </div>
 
@@ -51,7 +69,7 @@ const RegexEditor: React.FC = () => {
       )}
 
       <div className="rt-flags" role="group" aria-label="正则标志位">
-        {engineDef.flags.map((flag) => {
+        {JS_FLAGS.map((flag) => {
           const active = state.flags.includes(flag.key);
           return (
             <Tooltip key={flag.key} title={`${flag.name}：${flag.desc}`}>
@@ -68,12 +86,6 @@ const RegexEditor: React.FC = () => {
           );
         })}
       </div>
-
-      {state.engine !== 'js' && (
-        <div className="rt-engine-hint">
-          <InfoCircleOutlined /> 当前为 {engineDef.name} 引擎（仅 JS 引擎执行实时匹配；多引擎语法校验与代码生成将在后续 Story 提供）。
-        </div>
-      )}
     </div>
   );
 };
