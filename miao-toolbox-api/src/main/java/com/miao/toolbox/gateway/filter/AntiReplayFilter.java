@@ -66,9 +66,12 @@ public class AntiReplayFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String timestamp = request.getHeader("X-Request-Timestamp");
-        String nonce = request.getHeader("X-Request-Nonce");
-        String signature = request.getHeader("X-Request-Signature");
+        // 包装 request 以便读取 body（且供后续 Controller 重复消费）
+        CachedBodyHttpServletRequest cachedRequest = new CachedBodyHttpServletRequest(request);
+
+        String timestamp = cachedRequest.getHeader("X-Request-Timestamp");
+        String nonce = cachedRequest.getHeader("X-Request-Nonce");
+        String signature = cachedRequest.getHeader("X-Request-Signature");
 
         if (timestamp == null || nonce == null || signature == null) {
             writeError(response, "REPLAY_PROTECTION_FAILED", "缺少防重放请求头");
@@ -97,10 +100,10 @@ public class AntiReplayFilter extends OncePerRequestFilter {
             return;
         }
 
-        // #3: Verify HMAC-SHA256 signature
+        // #3: Verify HMAC-SHA256 signature (签名数据：timestamp + nonce + body)
         String signingKey = resolveSigningKey();
         if (signingKey != null) {
-            String data = timestamp + nonce + readBody(request);
+            String data = timestamp + nonce + readBody(cachedRequest);
             String expectedSignature = computeHmac(signingKey, data);
             if (!MessageDigest.isEqual(expectedSignature.getBytes(StandardCharsets.UTF_8), signature.getBytes(StandardCharsets.UTF_8))) {
                 // Try transition key — resolveSigningKey returns the NEW key from user entity.
@@ -120,7 +123,7 @@ public class AntiReplayFilter extends OncePerRequestFilter {
             }
         }
 
-        filterChain.doFilter(request, response);
+        filterChain.doFilter(cachedRequest, response);
     }
 
     /**
@@ -159,21 +162,23 @@ public class AntiReplayFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Read request body for signature computation.
-     * For GET requests, body is empty string.
+     * 读取请求 body 用于签名计算。
+     * 对 GET/DELETE 不读 body；其他方法从包装后的 request 读取。
      */
     private String readBody(HttpServletRequest request) {
-        // For signature verification, we use empty body for GET/DELETE
-        // and cached body wrapper for POST/PUT (to be enhanced with ContentCachingRequestWrapper)
         if ("GET".equalsIgnoreCase(request.getMethod()) || "DELETE".equalsIgnoreCase(request.getMethod())) {
             return "";
         }
-        // TODO: Use ContentCachingRequestWrapper for full body signing in Story 1.9
+        if (request instanceof CachedBodyHttpServletRequest cached) {
+            return cached.getBodyAsString();
+        }
         return "";
     }
 
     private void writeError(HttpServletResponse response, String errorCode, String message) throws IOException {
         response.setStatus(HttpStatus.BAD_REQUEST.value());
+        // 显式设置 UTF-8 字符集，避免 Servlet 默认 ISO-8859-1 把中文变成问号
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         ApiResponse<Void> apiResponse = ApiResponse.error(errorCode, message, null);
         response.getWriter().write(objectMapper.writeValueAsString(apiResponse));

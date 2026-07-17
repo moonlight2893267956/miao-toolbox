@@ -27,6 +27,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -107,6 +108,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private void writeError(HttpServletResponse response, String errorCode, String message, HttpStatus status) throws IOException {
         response.setStatus(status.value());
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         ApiResponse<Void> apiResponse = ApiResponse.error(errorCode, message, null);
         response.getWriter().write(objectMapper.writeValueAsString(apiResponse));

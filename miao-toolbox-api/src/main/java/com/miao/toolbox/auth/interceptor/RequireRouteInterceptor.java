@@ -18,6 +18,7 @@ import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 基于 {@link RequireRoute} 注解的 API 访问拦截器。
@@ -80,6 +81,7 @@ public class RequireRouteInterceptor implements HandlerInterceptor {
 
     private void writeForbidden(HttpServletResponse response) throws IOException {
         response.setStatus(HttpStatus.FORBIDDEN.value());
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         ApiResponse<Void> apiResponse = ApiResponse.error(
                 ErrorCode.ROUTE_FORBIDDEN, "您没有该功能的访问权限", null);
