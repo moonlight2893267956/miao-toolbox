@@ -1,5 +1,5 @@
-import React from 'react';
-import { CodeSandboxOutlined } from '@ant-design/icons';
+import React, { useState } from 'react';
+import { CodeSandboxOutlined, RobotOutlined } from '@ant-design/icons';
 import { Alert, Input } from 'antd';
 import { RegexProvider } from './RegexProvider';
 import { useRegexContext } from './useRegexContext';
@@ -10,10 +10,12 @@ import ReplacePreview from './components/ReplacePreview';
 import CheatSheet from './components/CheatSheet';
 import CodeGenerator from './components/CodeGenerator';
 import HistoryPanel from './components/HistoryPanel';
+import AIDrawer from './components/AIDrawer';
 import './regex-tester.css';
 
 const RegexTesterContent: React.FC = () => {
   const { state, setTestText, toggleHistory, historyEntries, removeHistoryEntry, clearHistoryEntries } = useRegexContext();
+  const [showAIDrawer, setShowAIDrawer] = useState(false);
 
   return (
     <>
@@ -29,10 +31,20 @@ const RegexTesterContent: React.FC = () => {
               实时匹配高亮 · 多语言代码生成 · 开发调试
             </div>
           </div>
+          <button
+            type="button"
+            className={`rt-ai-trigger ${showAIDrawer ? 'rt-ai-trigger--active' : ''}`}
+            onClick={() => setShowAIDrawer((v) => !v)}
+            aria-label="AI 正则助手"
+          >
+            <RobotOutlined /> AI 助手
+          </button>
         </div>
       </header>
 
       <RegexEditor />
+
+      <AIDrawer open={showAIDrawer} onClose={() => setShowAIDrawer(false)} />
 
       {state.timeoutWarning && (
         <Alert

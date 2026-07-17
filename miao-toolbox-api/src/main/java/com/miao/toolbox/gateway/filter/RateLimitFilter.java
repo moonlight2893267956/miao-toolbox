@@ -22,6 +22,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -114,6 +115,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             // #10: 添加 Retry-After 响应头
             response.setHeader("Retry-After", String.valueOf(windowSeconds));
+            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             ApiResponse<Void> apiResponse = ApiResponse.error("RATE_LIMIT_EXCEEDED", "请求过于频繁，请稍后再试", null);
             response.getWriter().write(objectMapper.writeValueAsString(apiResponse));
