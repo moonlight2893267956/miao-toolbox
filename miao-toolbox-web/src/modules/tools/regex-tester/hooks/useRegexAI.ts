@@ -114,8 +114,8 @@ export function useRegexAI() {
     let clean = full.trim();
     if (clean.endsWith('...')) clean = clean.slice(0, -3).trim();
 
-    let pattern: string | null = null;
-    let explanation: string | null = null;
+    let pattern: string | null;
+    let explanation: string | null;
     let suggestions: string[] | null = null;
     let model: string | null = null;
     let resolvedTraceId: string | null = traceId ?? null;
