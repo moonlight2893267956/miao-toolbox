@@ -117,7 +117,8 @@ const Sidebar: React.FC = () => {
 
   // ── Stagger slide animation: CSS owns the final values, JS only tunes delay ──
   useLayoutEffect(() => {
-    const container = siderRef.current?.querySelector<HTMLElement>('.ant-layout-sider-children');
+    const container = siderRef.current?.querySelector<HTMLElement>('.miao-sidebar-scroll')
+      ?? siderRef.current?.querySelector<HTMLElement>('.ant-layout-sider-children');
     if (!container) return;
 
     const labels   = container.querySelectorAll<HTMLElement>('.miao-nav-label');
@@ -171,132 +172,136 @@ const Sidebar: React.FC = () => {
         left: 0,
       }}
     >
-      {/* Top gradient strip */}
-      <div className="miao-sidebar-strip" />
+      {/* 可滚动主体：与把手分离，避免 overflow 裁切把手 */}
+      <div className="miao-sidebar-scroll">
+        <div className="miao-sidebar-strip" />
 
-      {/* Brand header */}
-      <div
-        className="miao-sidebar-brand"
-        onClick={() => navigate('/tools')}
-        role="button"
-        tabIndex={0}
-        aria-label="返回首页"
-      >
-        <div className="miao-sidebar-brand-mark">渺</div>
-        <div className="miao-sidebar-brand-text">
-          <span className="miao-sidebar-brand-title">阿渺工具箱</span>
-          <span className="miao-sidebar-brand-subtitle">MIAO · TOOLBOX</span>
-        </div>
-      </div>
-
-      <div className="miao-sidebar-divider" />
-
-      {/* Nav sections */}
-      {sections.map(section => (
-        <React.Fragment key={section.key}>
-          <div className="miao-sidebar-section">
-            <div className="miao-sidebar-section-label">{section.label}</div>
+        <div
+          className="miao-sidebar-brand"
+          onClick={() => navigate('/tools')}
+          role="button"
+          tabIndex={0}
+          aria-label="返回首页"
+        >
+          <div className="miao-sidebar-brand-mark">渺</div>
+          <div className="miao-sidebar-brand-text">
+            <span className="miao-sidebar-brand-title">阿渺工具箱</span>
+            <span className="miao-sidebar-brand-subtitle">MIAO · TOOLBOX</span>
           </div>
-          <ul className="miao-sidebar-nav">
-            {section.items.map(item => {
-              const isActive = item.key === activeKey;
-              const navItem = (
-                <li
-                  key={item.key}
-                  className={`miao-nav-item${isActive ? ' miao-nav-item-active' : ''}`}
-                  onClick={() => item.path && navigate(item.path)}
-                  role="button"
-                  tabIndex={0}
-                  aria-current={isActive ? 'page' : undefined}
-                >
-                  <span className="miao-nav-icon">{item.icon}</span>
-                  <span className="miao-nav-label-clip">
-                    <span className="miao-nav-label">{item.label}</span>
-                  </span>
-                  {item.badgeType === 'dot' && (
-                    <span className="miao-nav-badge-clip">
-                      <span className="miao-nav-badge miao-nav-badge-dot" />
-                    </span>
-                  )}
-                  {item.badgeType === 'count' && item.badge !== undefined && (
-                    <span className="miao-nav-badge-clip">
-                      <span className="miao-nav-badge miao-nav-badge-count">{item.badge}</span>
-                    </span>
-                  )}
-                </li>
-              );
+        </div>
 
-              // Collapsed: wrap with Tooltip
-              if (collapsed) {
-                return (
-                  <Tooltip
+        <div className="miao-sidebar-divider" />
+
+        {sections.map(section => (
+          <React.Fragment key={section.key}>
+            <div className="miao-sidebar-section">
+              <div className="miao-sidebar-section-label">{section.label}</div>
+            </div>
+            <ul className="miao-sidebar-nav">
+              {section.items.map(item => {
+                const isActive = item.key === activeKey;
+                const navItem = (
+                  <li
                     key={item.key}
-                    title={item.label}
-                    placement="right"
-                    overlayClassName="miao-nav-item-tooltip"
+                    className={`miao-nav-item${isActive ? ' miao-nav-item-active' : ''}`}
+                    onClick={() => item.path && navigate(item.path)}
+                    role="button"
+                    tabIndex={0}
+                    aria-current={isActive ? 'page' : undefined}
                   >
-                    {navItem}
-                  </Tooltip>
+                    <span className="miao-nav-icon">{item.icon}</span>
+                    <span className="miao-nav-label-clip">
+                      <span className="miao-nav-label">{item.label}</span>
+                    </span>
+                    {item.badgeType === 'dot' && (
+                      <span className="miao-nav-badge-clip">
+                        <span className="miao-nav-badge miao-nav-badge-dot" />
+                      </span>
+                    )}
+                    {item.badgeType === 'count' && item.badge !== undefined && (
+                      <span className="miao-nav-badge-clip">
+                        <span className="miao-nav-badge miao-nav-badge-count">{item.badge}</span>
+                      </span>
+                    )}
+                  </li>
                 );
-              }
-              return navItem;
-            })}
-          </ul>
-        </React.Fragment>
-      ))}
 
-      {/* Spacer */}
-      <div className="miao-sidebar-spacer" />
+                if (collapsed) {
+                  return (
+                    <Tooltip
+                      key={item.key}
+                      title={item.label}
+                      placement="right"
+                      overlayClassName="miao-nav-item-tooltip"
+                    >
+                      {navItem}
+                    </Tooltip>
+                  );
+                }
+                return navItem;
+              })}
+            </ul>
+          </React.Fragment>
+        ))}
 
-      {/* Footer: user card */}
-      <div className="miao-sidebar-footer">
-        <div className="miao-user-card">
-          <UserDropdown collapsed={collapsed}>
-            <button className="miao-user-card-avatar-trigger" type="button" aria-label="打开用户菜单">
-              <span className="miao-user-card-avatar">{firstChar}</span>
-            </button>
-          </UserDropdown>
-          <div className="miao-user-card-info">
-            <div className="miao-user-card-name">{username}</div>
-            <div className="miao-user-card-role">
-              {roleDisplay}
+        <div className="miao-sidebar-spacer" />
+
+        <div className="miao-sidebar-footer">
+          <div className="miao-user-card">
+            <UserDropdown collapsed={collapsed}>
+              <button className="miao-user-card-avatar-trigger" type="button" aria-label="打开用户菜单">
+                <span className="miao-user-card-avatar">{firstChar}</span>
+              </button>
+            </UserDropdown>
+            <div className="miao-user-card-info">
+              <div className="miao-user-card-name">{username}</div>
+              <div className="miao-user-card-role">
+                {roleDisplay}
+              </div>
+            </div>
+            <div className="miao-user-card-actions">
+              <Tooltip
+                title={isDark ? '切换亮色' : '切换暗色'}
+                placement="right"
+                overlayClassName="miao-nav-item-tooltip"
+              >
+                <button
+                  className="miao-user-card-btn"
+                  onClick={(e) => { e.stopPropagation(); toggleTheme(); }}
+                  aria-label={isDark ? '切换亮色模式' : '切换暗色模式'}
+                  type="button"
+                >
+                  {isDark ? <SunOutlined /> : <MoonOutlined />}
+                </button>
+              </Tooltip>
             </div>
           </div>
-          <div className="miao-user-card-actions">
-            <button
-              className="miao-user-card-btn"
-              onClick={(e) => { e.stopPropagation(); toggleTheme(); }}
-              title={isDark ? '切换亮色' : '切换暗色'}
-              aria-label={isDark ? '切换亮色模式' : '切换暗色模式'}
-            >
-              {isDark ? <SunOutlined /> : <MoonOutlined />}
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* Unified collapse/expand toggle: 圆形 FAB，骑墙在 sidebar 右边缘，hover 才出现 */}
+      {/* 始终可见的边线把手：不参与滚动，不因 hover 显隐（避免抖动） */}
       <Tooltip
         title={collapsed ? '展开侧栏' : '收起侧栏'}
-        placement="left"
-        mouseEnterDelay={0.2}
-        color="var(--miao-primary, #5C4FD0)"
+        placement="right"
+        mouseEnterDelay={0.25}
+        overlayClassName="miao-sidebar-toggle-tip"
       >
         <button
-          className="miao-sidebar-toggle-fab"
+          className={`miao-sidebar-toggle${collapsed ? ' is-collapsed' : ''}`}
           aria-label={collapsed ? '展开侧栏' : '收起侧栏'}
+          aria-expanded={!collapsed}
           onClick={() => setCollapsed(!collapsed)}
           type="button"
         >
-          {collapsed ? (
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M5 2.5L10 7L5 11.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          ) : (
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M9 2.5L4 7L9 11.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          )}
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path
+              d="M7.4 2.4 3.9 6l3.5 3.6"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
       </Tooltip>
     </Sider>

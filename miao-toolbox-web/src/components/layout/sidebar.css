@@ -8,6 +8,7 @@
    ══════════════════════════════════════════════════════════════ */
 
 /* ── Sidebar shell ── */
+.miao-sidebar.ant-layout-sider,
 .miao-sidebar {
   --miao-sidebar-motion: 380ms cubic-bezier(0.22, 1, 0.36, 1);
   --miao-sidebar-item-motion: 280ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -23,26 +24,37 @@
     background-color 180ms ease,
     border-color 180ms ease;
   will-change: width, min-width, max-width, flex-basis;
-  overflow: visible;  /* 让 FAB 能探出右边界 */
-  z-index: 5;         /* 保证 FAB 在主内容之上 */
+  overflow: visible !important; /* 边线把手需探出右边线 */
+  z-index: 5;
 }
 
+/* Ant 包裹层：不可滚动，overflow 可见，让边线把手探出右缘 */
 .miao-sidebar .ant-layout-sider-children {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
+  position: relative;
   transition: padding var(--miao-sidebar-motion);
 }
 
-.miao-sidebar .ant-layout-sider-children::-webkit-scrollbar {
+/* 实际滚动容器：导航与页脚 */
+.miao-sidebar-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.miao-sidebar-scroll::-webkit-scrollbar {
   width: 4px;
 }
-.miao-sidebar .ant-layout-sider-children::-webkit-scrollbar-track {
+.miao-sidebar-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
-.miao-sidebar .ant-layout-sider-children::-webkit-scrollbar-thumb {
+.miao-sidebar-scroll::-webkit-scrollbar-thumb {
   background: var(--miao-sidebar-scrollbar);
   border-radius: 2px;
 }
@@ -405,79 +417,99 @@
   min-height: 16px;
 }
 
-/* ── Unified collapse/expand FAB ──
-   32px 圆形按钮，绝对定位在 sidebar 竖直中点
-   默认 opacity 0（不显形），hover 整个 sidebar 时显现
-   展开态：MenuFold（折叠方向），折叠态：MenuUnfold（展开方向）
+/* ── 边线折叠把手 ─────────────────────────────────────────────
+   克制：28px 圆钮，骑在右边线中点，始终可见。
+   禁止：opacity 显隐、scale 动画、嵌套 transform —— 这些是抖动元凶。
+   hover 只改颜色/边框/阴影，transform 恒定为 translate(50%, -50%)。
 */
-.miao-sidebar-toggle-fab {
+.miao-sidebar-toggle {
   position: absolute;
   top: 50%;
-  right: -16px;        /* 悬出 sidebar 右边缘，形成"骑墙"效果 */
-  z-index: 10;
-  width: 32px;
-  height: 32px;
+  right: 0;
+  z-index: 20;
+  width: 28px;
+  height: 28px;
+  margin: 0;
   padding: 0;
   border: 1px solid var(--miao-sidebar-border);
   border-radius: 50%;
-  /* 径向顶光 + 线性纵向渐变，质感更精致 */
-  background:
-    radial-gradient(circle at 30% 0%, rgba(255, 255, 255, 0.18), transparent 60%),
-    linear-gradient(180deg, var(--miao-sidebar-bg) 0%, var(--miao-sidebar-bg-soft) 100%);
-  color: var(--miao-sidebar-text-muted);
-  cursor: pointer;
-  font-size: 14px;
-  line-height: 1;
-  display: flex;
+  /* 几何中心落在侧栏右边线；此 transform 永不因 hover 改变 */
+  transform: translate(50%, -50%);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  opacity: 0;
-  transform: translateY(-50%) scale(0.9);
-  transition: opacity 220ms ease,
-              transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
-              background 200ms ease,
-              color 160ms ease,
-              box-shadow 240ms ease,
-              border-color 160ms ease;
-  /* 三层阴影：近实 + 远弥散 + 顶部内高光 */
+  color: var(--miao-sidebar-text-muted);
+  background: var(--miao-sidebar-bg);
   box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.10),
-    0 6px 16px -2px rgba(0, 0, 0, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  pointer-events: none;  /* 隐藏时不让点击 */
+    0 1px 2px rgba(15, 12, 40, 0.06),
+    0 4px 12px -4px rgba(15, 12, 40, 0.12);
+  cursor: pointer;
+  line-height: 0;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
 }
 
-/* 悬停整个 sidebar 容器时才显现 */
-.miao-sidebar:hover .miao-sidebar-toggle-fab {
-  opacity: 1;
-  transform: translateY(-50%) scale(1);
-  pointer-events: auto;
+.miao-sidebar-toggle svg {
+  display: block;
+  /* 折叠态用旋转，比 scaleX 更稳，且不与父级 transform 打架 */
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* 直接悬停按钮 → 高亮态 */
-.miao-sidebar-toggle-fab:hover {
-  /* 顶光 + 主色对角渐变，悬停时质感更显 */
-  background:
-    radial-gradient(circle at 30% 0%, rgba(255, 255, 255, 0.30), transparent 60%),
-    linear-gradient(135deg, var(--miao-primary) 0%, var(--miao-primary-soft) 100%);
-  color: #fff;
-  border-color: transparent;
+.miao-sidebar-toggle.is-collapsed svg {
+  transform: rotate(180deg);
+}
+
+.miao-sidebar-toggle:hover {
+  color: var(--miao-sidebar-active-color);
+  background: var(--miao-sidebar-bg);
+  border-color: color-mix(in srgb, var(--miao-sidebar-active-color) 45%, var(--miao-sidebar-border));
   box-shadow:
-    0 4px 12px rgba(92, 79, 208, 0.32),
-    0 0 0 4px rgba(92, 79, 208, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.20);
+    0 1px 2px rgba(15, 12, 40, 0.06),
+    0 6px 16px -4px color-mix(in srgb, var(--miao-sidebar-active-color) 28%, transparent);
 }
 
-/* 按下回弹 */
-.miao-sidebar-toggle-fab:active {
-  transform: translateY(-50%) scale(0.94);
+.miao-sidebar-toggle:active {
+  background: var(--miao-sidebar-bg-hover);
+  box-shadow: 0 1px 2px rgba(15, 12, 40, 0.08);
 }
 
-/* 键盘聚焦可见 */
-.miao-sidebar-toggle-fab:focus-visible {
+.miao-sidebar-toggle:focus-visible {
   outline: none;
-  border-color: var(--miao-primary);
-  box-shadow: 0 0 0 3px rgba(92, 79, 208, 0.20);
+  border-color: var(--miao-sidebar-active-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--miao-sidebar-active-color) 22%, transparent);
+}
+
+.miao-sidebar-toggle-tip.ant-tooltip .ant-tooltip-inner,
+.miao-sidebar-toggle-tip .ant-tooltip-inner {
+  min-height: 0 !important;
+  font-family: var(--miao-font-body) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  line-height: 1.3 !important;
+  padding: 5px 10px !important;
+  border-radius: 6px !important;
+  background: #1c1b28 !important;
+  color: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: 0 8px 20px -8px rgba(15, 12, 40, 0.5) !important;
+}
+
+.miao-sidebar-toggle-tip.ant-tooltip .ant-tooltip-arrow::before,
+.miao-sidebar-toggle-tip .ant-tooltip-arrow::before {
+  background: #1c1b28 !important;
+}
+
+:root[data-theme='dark'] .miao-sidebar-toggle {
+  background: #14141c;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    0 6px 16px -6px rgba(0, 0, 0, 0.5);
+}
+
+:root[data-theme='dark'] .miao-sidebar-toggle:hover {
+  background: #1a1a24;
 }
 
 /* ── Footer: user card ── */
@@ -635,25 +667,28 @@
   background: rgba(217, 112, 32, 0.06);
 }
 
-/* ── User actions (theme toggle + collapse) ── */
+/* ── User actions（主题切换；折叠态仍展示） ── */
 .miao-user-card-actions {
   display: flex;
   gap: 2px;
   flex: 0 0 auto;
-  overflow: hidden;
+  align-items: center;
+  justify-content: center;
   transition:
     width var(--miao-sidebar-motion),
     flex-basis var(--miao-sidebar-motion),
-    transform var(--miao-sidebar-item-motion),
     opacity var(--miao-sidebar-item-motion);
   transition-delay: var(--item-delay, 0ms);
 }
+
+/* 折叠：不再隐藏 actions，仅保留头像 + 主题按钮纵向排列 */
 .ant-layout-sider-collapsed .miao-user-card-actions {
-  flex: 0 0 0;
-  width: 0;
-  opacity: 0;
-  transform: translateX(-24px);
-  pointer-events: none;
+  flex: 0 0 auto;
+  width: auto;
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  overflow: visible;
 }
 
 .miao-user-card-btn {
@@ -667,7 +702,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 140ms ease;
+  transition: background-color 140ms ease, color 140ms ease;
   font-size: 14px;
   padding: 0;
 }
@@ -675,15 +710,28 @@
   background: var(--miao-sidebar-bg-hover);
   color: var(--miao-sidebar-text);
 }
+.miao-user-card-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--miao-sidebar-active-color) 22%, transparent);
+}
 
-/* Collapsed user card */
+/* Collapsed user card：头像 + 主题按钮上下排布 */
 .ant-layout-sider-collapsed .miao-user-card {
   width: 44px;
-  height: 44px;
+  height: auto;
+  min-height: 44px;
+  flex-direction: column;
   justify-content: center;
-  gap: 0;
-  padding: 3px;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 3px;
   border-radius: 12px;
+}
+
+.ant-layout-sider-collapsed .miao-user-card-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
 }
 
 @media (prefers-reduced-motion: reduce) {

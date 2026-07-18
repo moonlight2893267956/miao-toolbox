@@ -7,6 +7,7 @@ import {
   PictureOutlined,
   TranslationOutlined,
   CodeSandboxOutlined,
+  ScheduleOutlined,
 } from '@ant-design/icons';
 
 /**
@@ -123,6 +124,20 @@ export const toolsRegistry: ToolMeta[] = [
     available: true,
     accentColor: '#ec4899',
     iconBg: 'rgba(236,72,153,0.12)',
+  },
+  {
+    key: 'cron-editor',
+    title: 'Cron 表达式编辑器',
+    description: '可视化构建、实时校验 Cron 表达式，提供中文可读翻译与未来执行时间预览。',
+    icon: ScheduleOutlined,
+    status: '可用',
+    tags: ['Cron', '定时', '开发工具'],
+    path: '/tools/cron-editor',
+    routeCode: 'TOOL_CRON_EDITOR',
+    category: 'available',
+    available: true,
+    accentColor: '#14b8a6',
+    iconBg: 'rgba(20,184,166,0.12)',
   },
   {
     key: 'image',

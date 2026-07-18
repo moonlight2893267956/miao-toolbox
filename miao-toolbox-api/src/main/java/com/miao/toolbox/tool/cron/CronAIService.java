@@ -1,12 +1,13 @@
-package com.miao.toolbox.tool.regex;
+package com.miao.toolbox.tool.cron;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.observability.AiInvocationRecorder;
 import com.miao.toolbox.observability.MiaoAiClient;
 import com.miao.toolbox.observability.MiaoAiProperties;
 import com.miao.toolbox.observability.dto.MiaoAiInvokeResponse;
-import com.miao.toolbox.tool.regex.dto.RegexAIRequest;
-import com.miao.toolbox.tool.regex.dto.RegexAIResponse;
+import com.miao.toolbox.tool.cron.dto.CronAIRequest;
+import com.miao.toolbox.tool.cron.dto.CronAIResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -25,36 +26,39 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 正则 AI 服务 — 封装对 miao-ai regex-assistant Agent 的调用。
+ * Cron AI 服务 — 封装对 miao-ai cron-assistant Agent 的调用。
  *
  * <p>五种任务类型：
  * <ul>
- *   <li>generate — 自然语言描述 → 生成正则 + 解释</li>
- *   <li>explain  — 正则 → 逐段解释</li>
- *   <li>optimize — 正则 → 优化建议（suggestions 内嵌优化后表达式）</li>
- *   <li>diagnose — 正则 + 样例 → 匹配诊断与修正表达式</li>
- *   <li>convert  — 正则 → 指定引擎方言转换</li>
+ *   <li>generate — 自然语言描述 → 生成 Cron 表达式 + 解释</li>
+ *   <li>explain  — Cron 表达式 → 中文详解</li>
+ *   <li>optimize — Cron 表达式 → 优化建议</li>
+ *   <li>diagnose — Cron 表达式 + 现象 → 排错诊断（多轮）</li>
+ *   <li>convert  — Cron 表达式 → 方言转换</li>
  * </ul>
+ *
+ * <p>SSE 流式逻辑完全复用 RegexAIService 的模式：miao-ai 把整个 output JSON 作为 token 逐段吐出，
+ * done 事件仅携带 trace_id/latency_ms，因此这里把每个 token 片段拼回完整 output JSON，原样转发给前端，
+ * 在 done 时解析出结构化字段用于调用日志记录。
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class RegexAIService {
+public class CronAIService {
 
-    private static final String AGENT_KEY = "regex-assistant";
+    private static final String AGENT_KEY = "cron-assistant";
 
     private final MiaoAiClient miaoAiClient;
     private final MiaoAiProperties miaoAiProperties;
     private final ObjectMapper objectMapper;
 
     /**
-     * 调用 regex-assistant Agent。
+     * 同步调用 cron-assistant Agent。
      */
-    public RegexAIResponse invoke(RegexAIRequest request) {
+    public CronAIResponse invoke(CronAIRequest request) {
         MiaoAiProperties.AgentConfig agent = miaoAiProperties.getAgent(AGENT_KEY);
         if (!agent.isEnabled()) {
-            throw new com.miao.toolbox.common.exception.BusinessException(
-                    "AI_AGENT_DISABLED", "正则 AI 助手未启用", 503);
+            throw new BusinessException("AI_AGENT_DISABLED", "Cron AI 助手未启用", 503);
         }
 
         Map<String, Object> input = buildInput(request);
@@ -65,102 +69,63 @@ public class RegexAIService {
         return parseResponse(request.getTask(), result);
     }
 
-    private Map<String, Object> buildInput(RegexAIRequest request) {
+    private Map<String, Object> buildInput(CronAIRequest request) {
         Map<String, Object> input = new HashMap<>();
         input.put("task", request.getTask());
 
-        switch (request.getTask()) {
-            case "generate" -> {
-                input.put("description", request.getDescription());
-                if (request.getEngine() != null) {
-                    input.put("engine", request.getEngine());
-                }
-            }
-            case "explain" -> {
-                input.put("pattern", request.getPattern());
-                if (request.getFlags() != null) {
-                    input.put("flags", request.getFlags());
-                }
-                if (request.getEngine() != null) {
-                    input.put("engine", request.getEngine());
-                }
-            }
-            case "optimize" -> {
-                input.put("pattern", request.getPattern());
-                if (request.getFlags() != null) {
-                    input.put("flags", request.getFlags());
-                }
-                if (request.getEngine() != null) {
-                    input.put("engine", request.getEngine());
-                }
-            }
-            case "diagnose" -> {
-                input.put("pattern", request.getPattern());
-                if (request.getFlags() != null) {
-                    input.put("flags", request.getFlags());
-                }
-                if (request.getEngine() != null) {
-                    input.put("engine", request.getEngine());
-                }
-                if (request.getSamples() != null && !request.getSamples().isEmpty()) {
-                    input.put("samples", request.getSamples());
-                }
-                if (request.getConversation() != null && !request.getConversation().isEmpty()) {
-                    input.put("conversation", request.getConversation());
-                }
-            }
-            case "convert" -> {
-                input.put("pattern", request.getPattern());
-                if (request.getEngine() != null) {
-                    input.put("engine", request.getEngine());
-                }
-                if (request.getTargetEngine() != null) {
-                    input.put("targetEngine", request.getTargetEngine());
-                }
-                if (request.getFlags() != null) {
-                    input.put("flags", request.getFlags());
-                }
-            }
-            default -> throw new com.miao.toolbox.common.exception.BusinessException(
-                    "INVALID_REQUEST", "不支持的任务类型: " + request.getTask(), 400);
+        if (request.getDescription() != null && !request.getDescription().isBlank()) {
+            input.put("description", request.getDescription());
+        }
+        if (request.getExpression() != null && !request.getExpression().isBlank()) {
+            input.put("expression", request.getExpression());
+        }
+        if (request.getDialect() != null && !request.getDialect().isBlank()) {
+            input.put("dialect", request.getDialect());
+        }
+        if (request.getTargetDialect() != null && !request.getTargetDialect().isBlank()) {
+            input.put("targetDialect", request.getTargetDialect());
+        }
+        if (request.getPhenomenon() != null && !request.getPhenomenon().isBlank()) {
+            input.put("phenomenon", request.getPhenomenon());
+        }
+        if (request.getConversation() != null && !request.getConversation().isEmpty()) {
+            input.put("conversation", request.getConversation());
         }
 
         return input;
     }
 
-    private Map<String, Object> buildMetadata(RegexAIRequest request) {
+    private Map<String, Object> buildMetadata(CronAIRequest request) {
         Map<String, Object> metadata = new HashMap<>();
-        metadata.put("tool", "regex-tester");
+        metadata.put("tool", "cron-editor");
         metadata.put("action", request.getTask());
         return metadata;
     }
 
     @SuppressWarnings("unchecked")
-    private RegexAIResponse parseResponse(String task, MiaoAiInvokeResponse result) {
+    private CronAIResponse parseResponse(String task, MiaoAiInvokeResponse result) {
         Object outputObj = result.getOutput();
         Map<String, Object> output;
 
         if (outputObj instanceof Map) {
             output = (Map<String, Object>) outputObj;
         } else {
-            // Agent 返回格式不符合预期，兜底处理
-            log.warn("Unexpected agent output format for task {}: {}", task, outputObj);
-            return RegexAIResponse.builder()
+            log.warn("Unexpected cron agent output format for task {}: {}", task, outputObj);
+            return CronAIResponse.builder()
                     .task(task)
-                    .pattern(null)
                     .explanation(String.valueOf(outputObj))
-                    .suggestions(List.of())
                     .model(result.getModel())
                     .traceId(result.getTraceId())
                     .build();
         }
 
-        String pattern = (String) output.get("pattern");
-        String originalPattern = (String) output.get("originalPattern");
-        String convertedPattern = (String) output.get("convertedPattern");
-        String diagnosis = (String) output.get("diagnosis");
-        String engine = (String) output.get("engine");
+        String expression = (String) output.get("expression");
+        String dialect = (String) output.get("dialect");
+        String originalExpression = (String) output.get("originalExpression");
+        String convertedExpression = (String) output.get("convertedExpression");
+        String optimizedExpression = (String) output.get("optimizedExpression");
         String explanation = (String) output.get("explanation");
+        String diagnosis = (String) output.get("diagnosis");
 
         List<String> suggestions = new ArrayList<>();
         Object suggestionsObj = output.get("suggestions");
@@ -170,28 +135,30 @@ public class RegexAIService {
             }
         }
 
-        return RegexAIResponse.builder()
+        // optimize 任务：Agent 可能将优化结果放在 optimizedExpression，统一回填到 expression 便于前端采纳
+        if ("optimize".equals(task) && expression == null && optimizedExpression != null) {
+            expression = optimizedExpression;
+        }
+
+        return CronAIResponse.builder()
                 .task(task)
-                .pattern(pattern)
-                .originalPattern(originalPattern)
-                .convertedPattern(convertedPattern)
-                .diagnosis(diagnosis)
-                .engine(engine)
+                .expression(expression)
+                .dialect(dialect)
+                .originalExpression(originalExpression)
+                .convertedExpression(convertedExpression)
+                .optimizedExpression(optimizedExpression)
                 .explanation(explanation)
                 .suggestions(suggestions.isEmpty() ? null : suggestions)
+                .diagnosis(diagnosis)
                 .model(result.getModel())
                 .traceId(result.getTraceId())
                 .build();
     }
 
     /**
-     * SSE 流式调用 regex-assistant Agent。
-     *
-     * <p>miao-ai 会把整个 output JSON 作为 token 逐段吐出，done 事件只携带 trace_id/latency_ms。
-     * 因此这里把每个 token 片段拼回完整 output JSON，原样转发给前端；在 done 时解析出
-     * pattern/explanation/suggestions 用于调用日志记录。
+     * SSE 流式调用 cron-assistant Agent。
      */
-    public void stream(RegexAIRequest request, SseEmitter emitter,
+    public void stream(CronAIRequest request, SseEmitter emitter,
                        AiInvocationRecorder.InvocationHandle handle) {
         HttpURLConnection conn = null;
         try {
@@ -218,7 +185,7 @@ public class RegexAIService {
             int responseCode = conn.getResponseCode();
             if (responseCode != 200) {
                 String errorBody = readErrorBody(conn);
-                log.error("SSE proxy(regex): miao-ai error HTTP {}: {}", responseCode, errorBody);
+                log.error("SSE proxy(cron): miao-ai error HTTP {}: {}", responseCode, errorBody);
                 miaoAiClient.recordStreamFailure(handle, "AI_HTTP_" + responseCode,
                         "miao-ai 返回错误: " + responseCode);
                 emitter.send(SseEmitter.event()
@@ -268,7 +235,7 @@ public class RegexAIService {
                                             truncate(dataStr, 512));
                                 }
                             } catch (Exception sendEx) {
-                                log.warn("SSE proxy(regex): failed to send event: {}", sendEx.getMessage());
+                                log.warn("SSE proxy(cron): failed to send event: {}", sendEx.getMessage());
                                 miaoAiClient.recordStreamFailure(handle, "SSE_CLIENT_DISCONNECTED",
                                         "客户端断开连接");
                                 break;
@@ -280,11 +247,11 @@ public class RegexAIService {
                 }
             }
 
-            log.info("SSE proxy(regex): stream completed, forwarded {} token events", tokenCount);
+            log.info("SSE proxy(cron): stream completed, forwarded {} token events", tokenCount);
             emitter.complete();
 
         } catch (Exception e) {
-            log.error("SSE proxy(regex) error: {}", e.getMessage(), e);
+            log.error("SSE proxy(cron) error: {}", e.getMessage(), e);
             miaoAiClient.recordStreamFailure(handle, "SSE_PROXY_ERROR", truncate(e.getMessage(), 512));
             try {
                 emitter.send(SseEmitter.event()

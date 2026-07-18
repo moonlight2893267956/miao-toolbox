@@ -1557,6 +1557,109 @@
   animation: rt-ai-pulse 1.2s ease-in-out infinite;
 }
 
+/* ── 当前正则上下文条 ── */
+.rt-ai-current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--miao-border);
+  background: var(--miao-bg-muted);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.rt-ai-current-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--miao-text-tertiary);
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.rt-ai-current-pattern {
+  font-family: var(--miao-font-mono);
+  font-size: 12px;
+  color: var(--miao-text-primary);
+  background: color-mix(in srgb, var(--tool-accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tool-accent) 22%, transparent);
+  border-radius: 6px;
+  padding: 2px 8px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rt-ai-current-flags {
+  color: var(--tool-accent);
+  font-weight: 600;
+}
+
+.rt-ai-current-empty {
+  font-size: 11px;
+  color: var(--miao-text-tertiary);
+  font-style: italic;
+}
+
+/* ── Tab 导航 ── */
+.rt-ai-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--miao-border);
+  background: var(--miao-bg-muted);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.rt-ai-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--miao-text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.rt-ai-tab:hover {
+  color: var(--miao-text-primary);
+  background: color-mix(in srgb, var(--tool-accent) 8%, transparent);
+}
+
+.rt-ai-tab--active {
+  color: #fff;
+  background: var(--tool-accent);
+  border-color: var(--tool-accent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--tool-accent) 35%, transparent);
+}
+
+.rt-ai-tab--active:hover {
+  color: #fff;
+  background: var(--tool-accent);
+}
+
+/* 作用于「当前正则」的提示 */
+.rt-ai-hint {
+  font-size: 11px;
+  color: var(--miao-text-tertiary);
+  margin-bottom: 8px;
+  padding-left: 2px;
+}
+
+/* 单任务运行按钮（独占一行、主色） */
+.rt-ai-run-btn {
+  width: 100%;
+  justify-content: center;
+}
+
 @keyframes rt-ai-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.5; transform: scale(0.7); }
@@ -1760,6 +1863,7 @@
   background: linear-gradient(135deg, var(--tool-accent), color-mix(in srgb, var(--tool-accent) 70%, #000));
   border-color: transparent;
   color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
   box-shadow: 0 3px 12px color-mix(in srgb, var(--tool-accent) 34%, transparent);
 }
 
@@ -1777,6 +1881,9 @@
 
 .rt-ai-btn--primary:hover:not(:disabled) {
   color: #fff;
+  /* 显式重设背景，避免被 .rt-ai-btn:hover 的浅色 wash 覆盖导致对比度丢失 */
+  background: linear-gradient(135deg, var(--tool-accent), color-mix(in srgb, var(--tool-accent) 70%, #000));
+  border-color: transparent;
   box-shadow: 0 5px 16px color-mix(in srgb, var(--tool-accent) 42%, transparent);
   transform: translateY(-1px);
 }
@@ -2013,6 +2120,18 @@
   .rt-ai-drawer {
     transition: none !important;
   }
+  /* 尊重「减少动态效果」：禁用抽屉进出场与光带动画，直接显隐 */
+  .rt-ai-drawer,
+  .rt-ai-drawer.is-open,
+  .rt-ai-drawer:not(.is-open),
+  .rt-ai-drawer::before,
+  .rt-ai-drawer::after,
+  .rt-ai-drawer.is-open .rt-ai-icon {
+    animation: none !important;
+  }
+  .rt-ai-drawer { transform: translateX(100%); opacity: 1; }
+  .rt-ai-drawer.is-open { transform: translateX(0); }
+  .rt-ai-drawer::before { opacity: 1; }
 }
 
 /* ========== AI 助手右侧抽屉 ========== */
@@ -2053,25 +2172,37 @@
   border-left: 1px solid var(--miao-border);
   box-shadow: -20px 0 60px color-mix(in srgb, var(--miao-text-primary) 14%, transparent);
   transform: translateX(100%);
-  transition: transform 340ms var(--rt-ease);
+  opacity: 0;
+  will-change: transform, opacity;
+  /* 关闭（默认）态：退场动画，AIDrawer 在 300ms 后卸载，时长需与之匹配 */
+  animation: rt-ai-slide-out 300ms var(--rt-ease) both;
 }
 
+/* 打开：弹性滑入（轻微回弹 + 缩放 + 渐显） */
 .rt-ai-drawer.is-open {
   transform: translateX(0);
+  opacity: 1;
+  animation: rt-ai-slide-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* 抽屉品牌径向渐变氛围层 */
+/* 抽屉品牌径向渐变氛围层（随滑入渐显） */
 .rt-ai-drawer::before {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;
+  opacity: 0;
+  transition: opacity 520ms var(--rt-ease);
   background: radial-gradient(
     circle at top right,
     color-mix(in srgb, var(--tool-accent) 10%, transparent),
     transparent 58%
   );
+}
+
+.rt-ai-drawer.is-open::before {
+  opacity: 1;
 }
 
 /* 抽屉左侧品牌光晕竖条 */
@@ -2087,6 +2218,11 @@
     var(--tool-accent),
     color-mix(in srgb, var(--tool-accent) 30%, transparent));
   box-shadow: 0 0 12px color-mix(in srgb, var(--tool-accent) 50%, transparent);
+}
+
+/* 打开时：左侧品牌光带自顶部扫下的高光脉冲 */
+.rt-ai-drawer.is-open::after {
+  animation: rt-ai-edge-glow 720ms ease-out both;
 }
 
 /* 抽屉内所有内容在光晕之上 */
@@ -2108,16 +2244,46 @@
   min-height: 0;
 }
 
-/* 抽屉打开时：分区错落入场 */
+/* 抽屉打开时：分区错落入场（更明显的位移 + 模糊渐清） */
 .rt-ai-drawer.is-open .rt-ai-section {
-  animation: rt-ai-rise 360ms var(--rt-ease) both;
+  animation: rt-ai-rise 440ms var(--rt-ease) both;
 }
-.rt-ai-drawer.is-open .rt-ai-section:nth-of-type(1) { animation-delay: 80ms; }
-.rt-ai-drawer.is-open .rt-ai-section:nth-of-type(2) { animation-delay: 150ms; }
+.rt-ai-drawer.is-open .rt-ai-section:nth-of-type(1) { animation-delay: 120ms; }
+.rt-ai-drawer.is-open .rt-ai-section:nth-of-type(2) { animation-delay: 210ms; }
 
 @keyframes rt-ai-rise {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(16px); filter: blur(5px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+/* 抽屉打开时：头部机器人图标弹性弹出 */
+.rt-ai-drawer.is-open .rt-ai-icon {
+  animation: rt-ai-icon-pop 600ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: 300ms;
+}
+
+@keyframes rt-ai-icon-pop {
+  0% { transform: scale(0.55) rotate(-14deg); opacity: 0; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+/* 抽屉滑入/滑出 + 边缘光带脉冲 */
+@keyframes rt-ai-slide-in {
+  0% { transform: translateX(102%) scale(0.985); opacity: 0; }
+  55% { opacity: 1; }
+  78% { transform: translateX(-1.5%) scale(1); }
+  100% { transform: translateX(0) scale(1); opacity: 1; }
+}
+
+@keyframes rt-ai-slide-out {
+  0% { transform: translateX(0) scale(1); opacity: 1; }
+  100% { transform: translateX(100%) scale(0.985); opacity: 0; }
+}
+
+@keyframes rt-ai-edge-glow {
+  0% { box-shadow: 0 0 0 color-mix(in srgb, var(--tool-accent) 0%, transparent); opacity: 0.35; }
+  45% { opacity: 1; }
+  100% { box-shadow: 0 0 12px color-mix(in srgb, var(--tool-accent) 50%, transparent); opacity: 1; }
 }
 
 /* ── AI 思考中动画（流式阶段的主视觉） ── */
@@ -2313,4 +2479,101 @@
 /* ── 抽屉暗色主题 ── */
 :root[data-theme='dark'] .rt-ai-drawer {
   box-shadow: -20px 0 60px rgba(0, 0, 0, 0.28);
+}
+
+/* ── 诊断样例输入 ── */
+.rt-ai-diagnose-input {
+  width: 100%;
+  resize: vertical;
+  font-family: var(--miao-font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--miao-text-primary);
+}
+
+/* ── 引擎转换行 ── */
+.rt-ai-convert-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rt-ai-convert-select {
+  flex: 1 1 90px;
+  min-width: 80px;
+  padding: 7px 10px;
+  border: 1px solid var(--miao-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--miao-bg) 80%, var(--miao-bg-elevated));
+  color: var(--miao-text-primary);
+  font-size: 12.5px;
+  font-family: var(--miao-font-mono);
+  cursor: pointer;
+  transition: border-color 150ms var(--rt-ease);
+}
+
+.rt-ai-convert-select:hover {
+  border-color: color-mix(in srgb, var(--tool-accent) 50%, var(--miao-border));
+}
+
+.rt-ai-convert-select:focus {
+  outline: none;
+  border-color: var(--tool-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tool-accent) 18%, transparent);
+}
+
+.rt-ai-convert-arrow {
+  color: var(--miao-text-tertiary);
+  font-size: 14px;
+}
+
+/* ── 诊断 / 转换结果补充 ── */
+.rt-ai-result-engine {
+  font-size: 12px;
+  color: var(--miao-text-secondary);
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--tool-accent) 8%, transparent);
+  display: inline-block;
+}
+
+.rt-ai-result-original {
+  font-size: 12px;
+  color: var(--miao-text-tertiary);
+}
+
+.rt-ai-result-original code {
+  font-family: var(--miao-font-mono);
+  color: var(--miao-text-secondary);
+  background: color-mix(in srgb, var(--miao-text-primary) 6%, transparent);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* ── 优化建议：逐条内嵌表达式 + 应用 ── */
+.rt-ai-suggestion-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--miao-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--miao-bg) 70%, var(--miao-bg-elevated));
+}
+
+.rt-ai-suggestion-text {
+  flex: 1 1 auto;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--miao-text-secondary);
+  word-break: break-word;
+}
+
+.rt-ai-apply-btn--sm {
+  flex: 0 0 auto;
+  padding: 5px 11px;
+  font-size: 11.5px;
+  box-shadow: none;
 }

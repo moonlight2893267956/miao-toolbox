@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
@@ -9,6 +9,8 @@ export interface MarkdownViewProps {
   children: string | null | undefined;
   className?: string;
 }
+
+const REMARK_PLUGINS = [remarkGfm];
 
 const markdownComponents: Components = {
   a: ({ href, children: linkChildren, ...rest }) => (
@@ -30,13 +32,11 @@ const markdownComponents: Components = {
  */
 const MarkdownView: React.FC<MarkdownViewProps> = ({ children, className }) => {
   const source = typeof children === 'string' ? children : '';
-  const plugins = useMemo(() => [remarkGfm], []);
-
   if (!source.trim()) return null;
 
   return (
     <div className={['md-view', className].filter(Boolean).join(' ')}>
-      <ReactMarkdown remarkPlugins={plugins} components={markdownComponents}>
+      <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={markdownComponents}>
         {source}
       </ReactMarkdown>
     </div>

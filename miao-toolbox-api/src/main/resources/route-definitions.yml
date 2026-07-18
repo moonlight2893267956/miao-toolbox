@@ -39,6 +39,14 @@ routes:
     sortOrder: 5
     adminRoute: false
     enabled: true
+  - code: TOOL_CRON_EDITOR
+    name: Cron 表达式编辑器
+    path: /tools/cron-editor
+    category: TOOL
+    icon: ScheduleOutlined
+    sortOrder: 6
+    adminRoute: false
+    enabled: true
   - code: PAGE_SETTINGS
     name: 个人设置
     path: /settings

@@ -18,3 +18,10 @@ miao:
         base-url: "${MIAO_AI_AGENTS_REGEX_ASSISTANT_BASE_URL}"
         agent-name: "regex-assistant"
         api-key: "${MIAO_AI_AGENTS_REGEX_ASSISTANT_API_KEY}"
+      cron-assistant:
+        base-url: "${MIAO_AI_AGENTS_CRON_ASSISTANT_BASE_URL}"
+        agent-name: "cron-assistant"
+        api-key: "${MIAO_AI_AGENTS_CRON_ASSISTANT_API_KEY}"
+        read-timeout: 120000
+        retry-count: 2
+        retry-interval: 1000
