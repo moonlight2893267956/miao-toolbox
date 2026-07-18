@@ -147,8 +147,6 @@ function numericMatch(f: CronField | null, value: number): boolean {
 function nextAllowedValue(
   f: CronField | null,
   value: number,
-  _min: number,
-  _max: number,
 ): number | null {
   if (!f) return null;
   for (const v of f.values) {
@@ -230,7 +228,7 @@ function findNext(cf: CompiledFields, tz: string, from: Date, limit: Date): Date
 
     // 月（找下一合法月；否则跳到次年 1 月）
     if (!numericMatch(cf.month, wt.month)) {
-      const nextM = nextAllowedValue(cf.month, wt.month, 1, 12);
+      const nextM = nextAllowedValue(cf.month, wt.month);
       if (nextM != null) {
         cur = fromWallTime(tz, wt.year, nextM, 1, 0, 0, 0);
       } else {
@@ -257,7 +255,7 @@ function findNext(cf: CompiledFields, tz: string, from: Date, limit: Date): Date
     }
     // 时（找下一合法小时；否则跳到次日 0 时）
     if (!numericMatch(cf.hour, wt.hour)) {
-      const nextH = nextAllowedValue(cf.hour, wt.hour, 0, 23);
+      const nextH = nextAllowedValue(cf.hour, wt.hour);
       if (nextH != null) {
         cur = fromWallTime(tz, wt.year, wt.month, wt.day, nextH, 0, 0);
       } else {
@@ -267,7 +265,7 @@ function findNext(cf: CompiledFields, tz: string, from: Date, limit: Date): Date
     }
     // 分（找下一合法分钟；否则跳到下一小时 0 分）
     if (!numericMatch(cf.minute, wt.minute)) {
-      const nextM = nextAllowedValue(cf.minute, wt.minute, 0, 59);
+      const nextM = nextAllowedValue(cf.minute, wt.minute);
       if (nextM != null) {
         cur = fromWallTime(tz, wt.year, wt.month, wt.day, wt.hour, nextM, 0);
       } else {
@@ -277,7 +275,7 @@ function findNext(cf: CompiledFields, tz: string, from: Date, limit: Date): Date
     }
     // 秒（5 位下 cf.second 是隐含的 [0]，6 位下是解析字段；始终参与匹配）
     if (!numericMatch(cf.second, wt.second)) {
-      const nextS = nextAllowedValue(cf.second, wt.second, 0, 59);
+      const nextS = nextAllowedValue(cf.second, wt.second);
       if (nextS != null) {
         cur = fromWallTime(tz, wt.year, wt.month, wt.day, wt.hour, wt.minute, nextS);
       } else {
