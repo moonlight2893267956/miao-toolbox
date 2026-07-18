@@ -1,0 +1,161 @@
+/**
+ * MarkdownView — AI 结果区紧凑 Markdown 样式
+ * 依赖主题 token（--miao-text-* / --miao-bg-* / --miao-font-mono 等）
+ */
+
+.md-view {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--miao-text-secondary);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.md-view > :first-child {
+  margin-top: 0;
+}
+
+.md-view > :last-child {
+  margin-bottom: 0;
+}
+
+.md-view p {
+  margin: 0 0 0.65em;
+}
+
+.md-view p:last-child {
+  margin-bottom: 0;
+}
+
+.md-view h3,
+.md-view h4,
+.md-view h5 {
+  margin: 0.85em 0 0.4em;
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--miao-text-primary);
+}
+
+.md-view h3 {
+  font-size: 14px;
+}
+
+.md-view h4 {
+  font-size: 13.5px;
+}
+
+.md-view h5 {
+  font-size: 12.5px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--miao-text-primary);
+}
+
+.md-view ul,
+.md-view ol {
+  margin: 0 0 0.65em;
+  padding-left: 1.35em;
+}
+
+.md-view li {
+  margin: 0.15em 0;
+}
+
+.md-view li > p {
+  margin: 0;
+}
+
+.md-view strong {
+  font-weight: 650;
+  color: var(--miao-text-primary);
+}
+
+.md-view em {
+  font-style: italic;
+}
+
+.md-view a {
+  color: var(--tool-accent, var(--miao-brand));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.md-view a:hover {
+  filter: brightness(1.08);
+}
+
+.md-view code {
+  font-family: var(--miao-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.92em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--miao-bg-muted, var(--miao-bg-base, #f5f5f5)) 88%, var(--tool-accent, var(--miao-brand)) 12%);
+  color: var(--miao-text-primary);
+  border: 1px solid color-mix(in srgb, var(--miao-border-subtle, var(--miao-border, #e8e8e8)) 80%, transparent);
+}
+
+.md-view pre {
+  margin: 0.5em 0 0.75em;
+  padding: 10px 12px;
+  overflow: auto;
+  max-height: 240px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--miao-bg-base, #0d0d0d) 92%, #000);
+  border: 1px solid var(--miao-border-subtle, var(--miao-border, #333));
+}
+
+.md-view pre code {
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--miao-text-secondary);
+  white-space: pre;
+}
+
+.md-view blockquote {
+  margin: 0.5em 0 0.75em;
+  padding: 4px 0 4px 12px;
+  border-left: 3px solid color-mix(in srgb, var(--tool-accent, var(--miao-brand)) 55%, transparent);
+  color: var(--miao-text-tertiary, var(--miao-text-secondary));
+}
+
+.md-view hr {
+  margin: 0.85em 0;
+  border: none;
+  border-top: 1px solid var(--miao-border-subtle, var(--miao-border, #e8e8e8));
+}
+
+.md-view table {
+  width: 100%;
+  margin: 0.5em 0 0.75em;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.md-view th,
+.md-view td {
+  padding: 4px 8px;
+  border: 1px solid var(--miao-border-subtle, var(--miao-border, #e8e8e8));
+  text-align: left;
+}
+
+.md-view th {
+  background: color-mix(in srgb, var(--miao-bg-muted, transparent) 90%, var(--tool-accent, var(--miao-brand)) 10%);
+  font-weight: 650;
+  color: var(--miao-text-primary);
+}
+
+.md-view del {
+  opacity: 0.75;
+}
+
+/* 亮色主题：代码块不要过深 */
+:root[data-theme='light'] .md-view pre {
+  background: color-mix(in srgb, var(--miao-bg-muted, #f5f5f5) 96%, #000 4%);
+}
+
+:root[data-theme='light'] .md-view pre code {
+  color: var(--miao-text-primary);
+}

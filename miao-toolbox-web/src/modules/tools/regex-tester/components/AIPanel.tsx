@@ -11,6 +11,7 @@ import {
   ExperimentOutlined,
   RocketOutlined,
 } from '@ant-design/icons';
+import MarkdownView from '../../../../components/shared/MarkdownView';
 import { useRegexContext } from '../useRegexContext';
 import { useRegexAI, type RegexAIResult } from '../hooks/useRegexAI';
 
@@ -221,7 +222,7 @@ const AIPanel: React.FC<{
             {result.explanation && (
               <div className="rt-ai-result-section">
                 <h5>解释</h5>
-                <p>{result.explanation}</p>
+                <MarkdownView>{result.explanation}</MarkdownView>
               </div>
             )}
             {result.suggestions && result.suggestions.length > 0 && (
