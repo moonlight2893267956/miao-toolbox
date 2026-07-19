@@ -11,6 +11,7 @@ const { Content } = Layout;
 /** 根据当前路由设置 data-active-page，避免 KeepAlive 下 :has() 误匹配隐藏页 */
 function resolveActivePage(pathname: string): string {
   if (pathname === '/tools' || pathname === '/tools/') return 'home';
+  if (pathname.startsWith('/admin')) return 'admin';
   if (pathname.startsWith('/tools/network')) return 'network';
   return 'tool';
 }
