@@ -462,6 +462,7 @@ const NETWORK_TAB_LABELS: Record<string, string> = {
   'curl-generator': 'Curl 命令生成器',
   'jwt-debugger': 'JWT 构建器/调试器',
   'hmac-signer': 'HMAC 签名生成/验证',
+  'http-api-sign': 'HTTP API 签名计算器',
   'nginx-config': 'Nginx 配置生成器',
   'dns-query': 'DNS 查询工具',
   'tcp-ping': 'TCP Ping 检查器',

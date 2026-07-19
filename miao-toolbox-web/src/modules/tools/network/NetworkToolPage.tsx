@@ -29,6 +29,13 @@ const OpenApiViewerTool = lazy(() => import('./analyzer/OpenApiViewer/OpenApiVie
 const EmailHeaderTool = lazy(() => import('./analyzer/EmailHeader/EmailHeaderTool'));
 const LogParserTool = lazy(() => import('./analyzer/LogParser/LogParserTool'));
 const DiffCheckerTool = lazy(() => import('./analyzer/DiffChecker/DiffCheckerTool'));
+const CurlGeneratorTool = lazy(() => import('./generator/CurlGenerator/CurlGeneratorTool'));
+const CidrCalculatorTool = lazy(() => import('./generator/CidrCalculator/CidrCalculatorTool'));
+const JwtDebuggerTool = lazy(() => import('./generator/JwtDebugger/JwtDebuggerTool'));
+const HmacSignerTool = lazy(() => import('./generator/HmacSigner/HmacSignerTool'));
+const NginxConfigTool = lazy(() => import('./generator/NginxConfig/NginxConfigTool'));
+const DockerNetworkTool = lazy(() => import('./generator/DockerNetwork/DockerNetworkTool'));
+const HttpApiSignTool = lazy(() => import('./generator/HttpApiSign/HttpApiSignTool'));
 
 const IMPLEMENTED_TOOLS: Record<string, React.LazyExoticComponent<React.FC>> = {
   'base64-codec': CodecSuiteTool,
@@ -44,6 +51,13 @@ const IMPLEMENTED_TOOLS: Record<string, React.LazyExoticComponent<React.FC>> = {
   'email-header': EmailHeaderTool,
   'log-parser': LogParserTool,
   'diff-checker': DiffCheckerTool,
+  'curl-generator': CurlGeneratorTool,
+  'cidr-calculator': CidrCalculatorTool,
+  'jwt-debugger': JwtDebuggerTool,
+  'hmac-signer': HmacSignerTool,
+  'nginx-config': NginxConfigTool,
+  'docker-network': DockerNetworkTool,
+  'http-api-sign': HttpApiSignTool,
 };
 
 function ToolChrome({

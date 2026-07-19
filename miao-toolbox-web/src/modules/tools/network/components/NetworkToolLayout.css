@@ -1,6 +1,7 @@
 /**
  * NetworkToolLayout — 上下卡片布局（与改双栏前一致）
  */
+@import './tool-form.css';
 
 .ntl-root {
   --ntl-accent: var(--tool-accent, #2563eb);

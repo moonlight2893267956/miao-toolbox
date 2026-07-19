@@ -1,0 +1,7 @@
+id: http-api-sign
+name: HTTP API 签名计算器
+category: generator
+phase: 1
+description: 参数排序 · 待签串 · 业务 sign 生成与验签
+icon: SafetyCertificateOutlined
+route: /tools/network/generator/http-api-sign

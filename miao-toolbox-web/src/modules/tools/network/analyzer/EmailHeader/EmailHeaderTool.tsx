@@ -186,15 +186,26 @@ const EmailHeaderTool: React.FC = () => {
         )
       }
     >
-      <div data-testid="network-tool-input-slot">
-        <TextArea
-          value={input}
-          onChange={(e) => setField('input', e.target.value)}
-          rows={12}
-          data-testid="email-input"
-          spellCheck={false}
-          style={{ fontFamily: 'var(--miao-font-mono, ui-monospace, Menlo, monospace)', fontSize: 12.5 }}
-        />
+      <div className="ntl-form" data-testid="network-tool-input-slot">
+        <section className="ntl-form-section">
+          <div className="ntl-form-section-head">
+            <span className="ntl-form-section-title">原始 Header</span>
+            <span className="ntl-form-section-desc">含 Received / Authentication-Results</span>
+          </div>
+          <div className="ntl-form-section-body">
+            <TextArea
+              value={input}
+              onChange={(e) => setField('input', e.target.value)}
+              rows={12}
+              data-testid="email-input"
+              spellCheck={false}
+              style={{
+                fontFamily: 'var(--miao-font-mono, ui-monospace, Menlo, monospace)',
+                fontSize: 12.5,
+              }}
+            />
+          </div>
+        </section>
       </div>
     </NetworkToolLayout>
   );

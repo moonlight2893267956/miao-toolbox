@@ -128,15 +128,27 @@ const MimeTypeTool: React.FC = () => {
         </div>
       }
     >
-      <div data-testid="network-tool-input-slot">
-        <Input
-          value={query}
-          onChange={(e) => setField('query', e.target.value)}
-          onPressEnter={run}
-          placeholder=".json · application/json · image · 图片"
-          data-testid="mime-input"
-          allowClear
-        />
+      <div className="ntl-form" data-testid="network-tool-input-slot">
+        <section className="ntl-form-section">
+          <div className="ntl-form-section-head">
+            <span className="ntl-form-section-title">查询</span>
+            <span className="ntl-form-section-desc">扩展名 · MIME · 关键字</span>
+          </div>
+          <div className="ntl-form-section-body">
+            <div className="ntl-form-single">
+              <Input
+                size="large"
+                value={query}
+                onChange={(e) => setField('query', e.target.value)}
+                onPressEnter={run}
+                placeholder=".json · application/json · image · 图片"
+                data-testid="mime-input"
+                allowClear
+              />
+              <p className="ntl-form-single-tip">例如 .png、image/jpeg、json、字体</p>
+            </div>
+          </div>
+        </section>
       </div>
     </NetworkToolLayout>
   );
