@@ -99,6 +99,16 @@ body {
   min-height: 100vh;
 }
 
+/* 全局隐藏竖直滚动条（仅隐藏视觉，滚动能力保留）。
+   WebKit 用 :vertical 精确隐藏竖直方向，水平滚动条（如代码区横向）仍可见；
+   Firefox 无单方向 API，整体隐藏。 */
+* {
+  scrollbar-width: none;            /* Firefox */
+}
+*::-webkit-scrollbar:vertical {
+  display: none;                    /* Chrome / Safari / Edge 竖直 */
+}
+
 button,
 input,
 textarea,

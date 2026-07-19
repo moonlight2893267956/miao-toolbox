@@ -9,8 +9,9 @@
   --tab-active-text: var(--miao-text-primary);
   --tab-border: var(--miao-border);
   --tab-accent: var(--miao-accent-primary);
-  position: relative;
-  z-index: 2;
+  position: sticky;                 /* 吸顶：整页滚动时 Tab 栏固定在头部 */
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   height: var(--tab-height);

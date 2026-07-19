@@ -125,18 +125,28 @@ const TabBar: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.activeKey, state.tabs, location.pathname]);
 
-  /* 可见 / 隐藏分割：严格按 state.tabs 顺序，不做视觉交换，
-     保证「关闭左/右」与屏幕顺序一致 */
+  /* 可见 / 隐藏分割：若激活 tab 在隐藏区，将其与可见区末尾交换，确保当前 tab 始终可见 */
   const { visibleTabs, hiddenTabs } = useMemo(() => {
     const all = state.tabs;
     if (all.length <= MAX_VISIBLE_TABS) {
       return { visibleTabs: all, hiddenTabs: [] as typeof all };
     }
+    const activeIdx = all.findIndex((t) => t.key === state.activeKey);
+    // 激活 tab 在隐藏区（≥ MAX_VISIBLE_TABS），与可见区末尾交换
+    if (activeIdx >= MAX_VISIBLE_TABS) {
+      const arr = [...all];
+      const lastVisibleIdx = MAX_VISIBLE_TABS - 1;
+      [arr[lastVisibleIdx], arr[activeIdx]] = [arr[activeIdx], arr[lastVisibleIdx]];
+      return {
+        visibleTabs: arr.slice(0, MAX_VISIBLE_TABS),
+        hiddenTabs: arr.slice(MAX_VISIBLE_TABS),
+      };
+    }
     return {
       visibleTabs: all.slice(0, MAX_VISIBLE_TABS),
       hiddenTabs: all.slice(MAX_VISIBLE_TABS),
     };
-  }, [state.tabs]);
+  }, [state.tabs, state.activeKey]);
 
   // 「更多」下拉：隐藏 tab + 关闭按钮（可关时）
   const moreMenuItems: MenuProps['items'] = hiddenTabs.map((tab) => ({
