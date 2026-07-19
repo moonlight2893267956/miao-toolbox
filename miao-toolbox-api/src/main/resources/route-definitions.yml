@@ -47,6 +47,14 @@ routes:
     sortOrder: 6
     adminRoute: false
     enabled: true
+  - code: TOOL_NETWORK_TOOLBOX
+    name: 网络工具箱
+    path: /tools/network
+    category: TOOL
+    icon: GlobalOutlined
+    sortOrder: 7
+    adminRoute: false
+    enabled: true
   - code: PAGE_SETTINGS
     name: 个人设置
     path: /settings

@@ -1,0 +1,87 @@
+.ntl-codec {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ntl-codec-kinds,
+.ntl-codec-dirs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ntl-codec-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ntl-codec-chip {
+  appearance: none;
+  cursor: pointer;
+  font-family: var(--miao-font-body);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: var(--miao-text-secondary);
+  background: var(--miao-bg-muted);
+  border: 1px solid var(--miao-border);
+  transition: all 160ms ease;
+}
+
+.ntl-codec-chip:hover {
+  border-color: var(--tool-accent, #2563eb);
+  color: var(--miao-text-primary);
+}
+
+.ntl-codec-chip--active {
+  background: var(--tool-accent, #2563eb);
+  border-color: var(--tool-accent, #2563eb);
+  color: #fff;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--tool-accent, #2563eb) 30%, transparent);
+}
+
+.ntl-codec-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--miao-text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.ntl-codec-input textarea,
+.ntl-codec-input.ant-input {
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace) !important;
+  font-size: 13px !important;
+}
+
+.ntl-codec-swap {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--miao-border);
+  border-radius: 10px;
+  background: var(--miao-bg-elevated);
+  color: var(--miao-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.ntl-codec-swap:hover {
+  border-color: var(--tool-accent, #2563eb);
+  color: var(--tool-accent, #2563eb);
+  background: color-mix(in srgb, var(--tool-accent, #2563eb) 8%, transparent);
+}

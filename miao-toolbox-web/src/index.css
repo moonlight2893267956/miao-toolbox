@@ -376,6 +376,10 @@ a {
   max-width: 1400px;
   margin: 0 auto;
   padding: 32px 40px 48px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .miao-page-header {

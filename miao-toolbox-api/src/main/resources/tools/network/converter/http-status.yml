@@ -1,0 +1,7 @@
+id: http-status
+name: HTTP 状态码参考
+category: converter
+phase: 1
+description: 搜索浏览 HTTP 状态码与中文解释
+icon: NumberOutlined
+route: /tools/network/converter/http-status

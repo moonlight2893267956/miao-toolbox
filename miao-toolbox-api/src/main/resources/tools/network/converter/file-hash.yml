@@ -1,0 +1,7 @@
+id: file-hash
+name: 文件哈希计算器
+category: converter
+phase: 1
+description: MD5/SHA-1/SHA-256/SHA-512 文件哈希
+icon: SafetyCertificateOutlined
+route: /tools/network/converter/file-hash

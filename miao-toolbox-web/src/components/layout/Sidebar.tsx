@@ -13,6 +13,7 @@ import {
 } from '@ant-design/icons';
 import { useAuth, isSuperAdmin } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useTabs, isTabbable, makeTabKey, tabTitleFromPath } from '../../contexts/TabContext';
 import { toolsRegistry } from '../../modules/tools/registry';
 import UserDropdown from './UserDropdown';
 import './sidebar.css';
@@ -46,6 +47,7 @@ const Sidebar: React.FC = () => {
   const location = useLocation();
   const { state } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const { openTab } = useTabs();
   const siderRef = useRef<HTMLDivElement>(null);
 
   const admin = isSuperAdmin(state.userInfo);
@@ -204,7 +206,21 @@ const Sidebar: React.FC = () => {
                   <li
                     key={item.key}
                     className={`miao-nav-item${isActive ? ' miao-nav-item-active' : ''}`}
-                    onClick={() => item.path && navigate(item.path)}
+                    onClick={() => {
+                      if (!item.path) return;
+                      // 路径可纳入 Tab 时先 openTab，否则直接导航
+                      if (isTabbable(item.path)) {
+                        const tool = toolsRegistry.find((t) => t.path === item.path);
+                        openTab({
+                          key: makeTabKey(item.path),
+                          label: tool?.title ?? tabTitleFromPath(item.path),
+                          path: item.path,
+                          icon: tool ? <tool.icon /> : undefined,
+                          closable: true,
+                        });
+                      }
+                      navigate(item.path);
+                    }}
                     role="button"
                     tabIndex={0}
                     aria-current={isActive ? 'page' : undefined}

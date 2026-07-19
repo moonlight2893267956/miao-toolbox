@@ -1,0 +1,7 @@
+id: diff-checker
+name: Diff 检查器
+category: analyzer
+phase: 1
+description: 文本/JSON 对比与高亮
+icon: DiffOutlined
+route: /tools/network/analyzer/diff-checker

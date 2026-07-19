@@ -1,0 +1,83 @@
+import React from 'react';
+import {
+  AlertOutlined,
+  ApiOutlined,
+  ApartmentOutlined,
+  CloudServerOutlined,
+  ClusterOutlined,
+  CodeOutlined,
+  ConsoleSqlOutlined,
+  ContainerOutlined,
+  DiffOutlined,
+  FieldTimeOutlined,
+  FileOutlined,
+  FileSearchOutlined,
+  GlobalOutlined,
+  Html5Outlined,
+  IdcardOutlined,
+  KeyOutlined,
+  LinkOutlined,
+  LockOutlined,
+  MailOutlined,
+  NodeIndexOutlined,
+  NumberOutlined,
+  PartitionOutlined,
+  ProfileOutlined,
+  RadarChartOutlined,
+  RobotOutlined,
+  SafetyCertificateOutlined,
+  SafetyOutlined,
+  SearchOutlined,
+  SecurityScanOutlined,
+  SendOutlined,
+  SwapOutlined,
+  SyncOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons';
+
+const ICON_MAP: Record<string, React.ComponentType> = {
+  AlertOutlined,
+  ApiOutlined,
+  ApartmentOutlined,
+  CloudServerOutlined,
+  ClusterOutlined,
+  CodeOutlined,
+  ConsoleSqlOutlined,
+  ContainerOutlined,
+  DiffOutlined,
+  FieldTimeOutlined,
+  FileOutlined,
+  FileSearchOutlined,
+  GlobalOutlined,
+  Html5Outlined,
+  IdcardOutlined,
+  KeyOutlined,
+  LinkOutlined,
+  LockOutlined,
+  MailOutlined,
+  NodeIndexOutlined,
+  NumberOutlined,
+  PartitionOutlined,
+  ProfileOutlined,
+  RadarChartOutlined,
+  RobotOutlined,
+  SafetyCertificateOutlined,
+  SafetyOutlined,
+  SearchOutlined,
+  SecurityScanOutlined,
+  SendOutlined,
+  SwapOutlined,
+  SyncOutlined,
+  ThunderboltOutlined,
+  // YAML 中部分图标在 antd 6 不存在，做别名
+  CookieOutlined: SafetyOutlined,
+  RssOutlined: GlobalOutlined,
+};
+
+/**
+ * 将 YAML 中的 Ant Design 图标名解析为 React 节点。
+ */
+export function resolveNetworkIcon(name?: string, className?: string): React.ReactNode {
+  const Comp = (name && ICON_MAP[name]) || ApiOutlined;
+  return <Comp className={className} />;
+}

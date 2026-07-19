@@ -1,0 +1,7 @@
+id: webhook-receiver
+name: Webhook 测试/接收器
+category: analyzer
+phase: 2
+description: 临时 Webhook 端点与请求历史
+icon: ThunderboltOutlined
+route: /tools/network/analyzer/webhook-receiver

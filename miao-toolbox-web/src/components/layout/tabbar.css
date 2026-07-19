@@ -1,0 +1,225 @@
+/* ─────────────────── TabBar 页签栏 ─────────────────── */
+.miao-tabbar {
+  --tab-height: 32px;
+  --tab-gap: 2px;
+  --tab-radius: 6px;
+  --tab-inactive-bg: var(--miao-bg-surface);
+  --tab-inactive-text: var(--miao-text-tertiary);
+  --tab-active-bg: var(--miao-bg-elevated);
+  --tab-active-text: var(--miao-text-primary);
+  --tab-border: var(--miao-border);
+  --tab-accent: var(--miao-accent-primary);
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  height: var(--tab-height);
+  max-width: 1400px;
+  margin: 0 auto;
+  background: transparent;
+  border-bottom: 1px solid var(--miao-border);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--miao-text-primary) 4%, transparent);
+}
+
+.miao-tabbar-scroll {
+  display: flex;
+  align-items: center;
+  gap: var(--tab-gap);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* IE 10+ */
+  padding: 0 12px;
+  height: 100%;
+  width: 100%;
+}
+
+.miao-tabbar-scroll::-webkit-scrollbar {
+  display: none;                /* WebKit */
+}
+
+/* ─── 单个 Tab ─── */
+.miao-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--tab-height);
+  padding: 0 10px 0 10px;
+  border-radius: var(--tab-radius) var(--tab-radius) 0 0;
+  background: var(--tab-inactive-bg);
+  color: var(--tab-inactive-text);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  transition: background 200ms ease, color 200ms ease, border-color 200ms ease, transform 200ms ease;
+  will-change: transform;
+}
+
+.miao-tab:hover {
+  background: color-mix(in srgb, var(--tab-inactive-bg) 90%, var(--miao-accent-primary) 10%);
+  color: var(--tab-active-text);
+}
+
+.miao-tab.is-active {
+  background: var(--tab-active-bg);
+  color: var(--tab-active-text);
+  border-bottom-color: var(--tab-accent);
+  font-weight: 600;
+  box-shadow: 0 -2px 8px color-mix(in srgb, var(--miao-text-primary) 6%, transparent);
+  z-index: 1;
+}
+
+.miao-tab.is-active .miao-tab-label {
+  color: var(--tab-active-text);
+}
+
+/* 固定标签：左端常亮，不可关闭 */
+.miao-tab.is-pinned {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.miao-tab.is-pinned .miao-tab-pin {
+  color: var(--tab-accent);
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+/* 图标 */
+.miao-tab-icon {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  opacity: 0.75;
+  transition: opacity 200ms ease;
+}
+
+.miao-tab:hover .miao-tab-icon,
+.miao-tab.is-active .miao-tab-icon {
+  opacity: 1;
+}
+
+/* 标签文字 */
+.miao-tab-label {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: max-width 250ms ease;
+}
+
+/* 关闭按钮：始终占位，默认不可见，hover 淡入 */
+.miao-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 2px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--miao-text-tertiary);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  font-size: 10px;
+  transition: background 150ms ease, color 150ms ease, transform 150ms ease, opacity 150ms ease;
+  opacity: 0;
+  transform: scale(0.85);
+  pointer-events: none;          /* 隐藏时不拦截鼠标事件 */
+}
+
+.miao-tab:hover .miao-tab-close,
+.miao-tab.is-active .miao-tab-close {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;          /* 可见时恢复点击 */
+}
+
+.miao-tab-close:hover {
+  background: var(--miao-danger-bg);
+  color: var(--miao-danger);
+  transform: scale(1.1);
+}
+
+.miao-tab-close:active {
+  transform: scale(0.95);
+}
+
+/* ─── 右键菜单 ─── */
+.miao-tabbar-dropdown .ant-dropdown-menu {
+  border-radius: 8px;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--miao-text-primary) 12%, transparent);
+  border: 1px solid var(--miao-border);
+  padding: 4px 0;
+  min-width: 140px;
+}
+
+.miao-tabbar-dropdown .ant-dropdown-menu-item {
+  font-size: 13px;
+  padding: 6px 14px;
+  color: var(--miao-text-primary);
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.miao-tabbar-dropdown .ant-dropdown-menu-item:hover {
+  background: var(--miao-bg-surface);
+  color: var(--miao-accent-primary);
+}
+
+/* ─── 减少动态效果 ─── */
+@media (prefers-reduced-motion: reduce) {
+  .miao-tab,
+  .miao-tab-icon,
+  .miao-tab-label,
+  .miao-tab-close,
+  .miao-tab.is-active {
+    transition: none !important;
+  }
+  .miao-tab .miao-tab-close {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ─── 暗色适配 ─── */
+[data-theme="dark"] .miao-tabbar {
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--miao-text-primary) 8%, transparent);
+  border-bottom-color: var(--miao-border);
+}
+
+[data-theme="dark"] .miao-tab.is-active {
+  box-shadow: 0 -2px 8px color-mix(in srgb, var(--miao-text-primary) 12%, transparent);
+}
+
+[data-theme="dark"] .miao-tabbar-dropdown .ant-dropdown-menu {
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--miao-text-primary) 20%, transparent);
+  border-color: var(--miao-border);
+}
+
+[data-theme="dark"] .miao-tabbar-dropdown .ant-dropdown-menu-item:hover {
+  background: var(--miao-bg-elevated);
+}
+
+/* ─── Tab 交换动画（React Flip 替代：CSS 过渡） ─── */
+.miao-tab:not(.reduced-motion) {
+  transition: transform 200ms ease, background 200ms ease, color 200ms ease, border-color 200ms ease;
+}
+
+/* 拖拽中视觉反馈 */
+.miao-tab.is-dragging {
+  opacity: 0.6;
+  transform: scale(1.05) rotate(1deg);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--miao-text-primary) 10%, transparent);
+  z-index: 10;
+}
+
+/* 空状态隐藏 */
+.miao-tabbar:empty {
+  display: none;
+}

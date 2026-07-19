@@ -1,0 +1,323 @@
+/* Cookie 分析器 */
+
+.ntl-ck {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ntl-ck-hint {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--miao-text-secondary);
+  line-height: 1.45;
+}
+
+.ntl-ck-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ntl-ck-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--tool-accent, #2563eb);
+  background: color-mix(in srgb, var(--tool-accent, #2563eb) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tool-accent, #2563eb) 18%, transparent);
+}
+
+.ntl-ck-tip {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--miao-text-secondary);
+  opacity: 0.85;
+}
+
+.ntl-ck-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--miao-border);
+  border-radius: 12px;
+  background: var(--miao-bg-elevated, #fff);
+}
+
+.ntl-ck-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  min-width: 680px;
+}
+
+.ntl-ck-table th {
+  text-align: left;
+  padding: 9px 12px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--miao-text-secondary);
+  background: color-mix(in srgb, var(--tool-accent, #2563eb) 6%, transparent);
+  border-bottom: 1px solid var(--miao-border);
+  white-space: nowrap;
+}
+
+.ntl-ck-th-idx {
+  width: 40px;
+}
+
+.ntl-ck-th-action {
+  width: 52px;
+  text-align: center;
+}
+
+.ntl-ck-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--miao-border);
+  vertical-align: middle;
+  color: var(--miao-text-primary);
+  font-weight: 600;
+  max-width: 200px;
+  word-break: break-all;
+}
+
+.ntl-ck-idx {
+  color: var(--miao-text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  width: 36px;
+}
+
+.ntl-ck-plain {
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace);
+  font-weight: 600;
+  color: var(--miao-text-primary);
+}
+
+.ntl-ck-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ntl-ck-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--tool-accent, #2563eb) 4%, transparent);
+}
+
+/* Name / Value 可复制：默认不抢眼，悬停才显示图标 */
+.ntl-ck-copyable {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.ntl-ck-copyable-text {
+  min-width: 0;
+  line-height: 1.4;
+  user-select: all;
+}
+
+.ntl-ck-copy-btn {
+  appearance: none;
+  cursor: pointer;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--miao-text-secondary);
+  font-size: 11px;
+  opacity: 0;
+  transition:
+    opacity 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease;
+}
+
+.ntl-ck-table tbody tr:hover .ntl-ck-copy-btn,
+.ntl-ck-card:hover .ntl-ck-copy-btn,
+.ntl-ck-copyable:hover .ntl-ck-copy-btn,
+.ntl-ck-copy-btn:focus-visible {
+  opacity: 0.85;
+}
+
+.ntl-ck-copy-btn:hover,
+.ntl-ck-copy-btn:focus-visible {
+  opacity: 1 !important;
+  color: var(--tool-accent, #2563eb);
+  border-color: color-mix(in srgb, var(--tool-accent, #2563eb) 30%, transparent);
+  background: color-mix(in srgb, var(--tool-accent, #2563eb) 10%, transparent);
+}
+
+.ntl-ck-copy-btn--done {
+  opacity: 1 !important;
+  color: var(--miao-success, #16a34a);
+  border-color: color-mix(in srgb, var(--miao-success, #16a34a) 35%, transparent);
+  background: color-mix(in srgb, var(--miao-success, #16a34a) 10%, transparent);
+}
+
+.ntl-ck-td-action {
+  text-align: center;
+  width: 52px;
+}
+
+.ntl-ck-row-copy {
+  appearance: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 7px;
+  border: 1px solid var(--miao-border);
+  background: var(--miao-bg, #fff);
+  color: var(--miao-text-secondary);
+  font-size: 12px;
+  transition: all 140ms ease;
+}
+
+.ntl-ck-row-copy:hover {
+  color: var(--tool-accent, #2563eb);
+  border-color: color-mix(in srgb, var(--tool-accent, #2563eb) 35%, transparent);
+  background: color-mix(in srgb, var(--tool-accent, #2563eb) 8%, transparent);
+}
+
+.ntl-ck-name {
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace);
+  font-weight: 750;
+  color: var(--tool-accent, #2563eb);
+}
+
+.ntl-ck-val {
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace);
+  font-weight: 650;
+}
+
+.ntl-ck-eq {
+  margin: 0 2px;
+  color: var(--miao-text-secondary);
+  font-weight: 700;
+}
+
+.ntl-ck-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ntl-ck-flag--on {
+  color: var(--miao-success, #16a34a);
+  background: color-mix(in srgb, var(--miao-success, #16a34a) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--miao-success, #16a34a) 22%, transparent);
+}
+
+.ntl-ck-flag--off {
+  color: var(--miao-text-secondary);
+  background: var(--miao-bg-muted, rgba(0, 0, 0, 0.03));
+  border: 1px solid var(--miao-border);
+  opacity: 0.7;
+}
+
+.ntl-ck-empty {
+  padding: 28px 12px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--miao-text-secondary);
+  border: 1px dashed var(--miao-border);
+  border-radius: 10px;
+}
+
+.ntl-ck-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ntl-ck-card {
+  border: 1px solid var(--miao-border);
+  border-radius: 11px;
+  padding: 12px 14px;
+  background: var(--miao-bg-elevated, #fff);
+}
+
+.ntl-ck-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.ntl-ck-card-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 4px;
+  font-size: 13px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ntl-ck-card .ntl-ck-copy-btn {
+  opacity: 0.45;
+}
+
+.ntl-ck-kv {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 6px 10px;
+  font-size: 12.5px;
+  align-items: center;
+}
+
+.ntl-ck-kv dt {
+  margin: 0;
+  font-weight: 700;
+  color: var(--miao-text-secondary);
+}
+
+.ntl-ck-kv dd {
+  margin: 0;
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace);
+  font-weight: 600;
+  word-break: break-all;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .ntl-ck-table-wrap {
+    display: none;
+  }
+
+  .ntl-ck-tip {
+    display: none;
+  }
+}
+
+@media (min-width: 721px) {
+  .ntl-ck-cards {
+    display: none;
+  }
+}

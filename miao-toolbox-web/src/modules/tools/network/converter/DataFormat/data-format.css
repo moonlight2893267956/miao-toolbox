@@ -1,0 +1,87 @@
+.ntl-df {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ntl-df-formats {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ntl-df-format-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ntl-df-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--miao-text-secondary);
+}
+
+.ntl-df-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ntl-df-chip {
+  appearance: none;
+  cursor: pointer;
+  font-family: var(--miao-font-body);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: var(--miao-text-secondary);
+  background: var(--miao-bg-muted);
+  border: 1px solid var(--miao-border);
+  transition: all 160ms ease;
+}
+
+.ntl-df-chip:hover {
+  border-color: var(--tool-accent, #2563eb);
+  color: var(--miao-text-primary);
+}
+
+.ntl-df-chip--active {
+  background: var(--tool-accent, #2563eb);
+  border-color: var(--tool-accent, #2563eb);
+  color: #fff;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--tool-accent, #2563eb) 30%, transparent);
+}
+
+.ntl-df-input textarea,
+.ntl-df-input.ant-input {
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace) !important;
+  font-size: 13px !important;
+}
+
+.ntl-df-swap {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--miao-border);
+  border-radius: 10px;
+  background: var(--miao-bg-elevated);
+  color: var(--miao-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.ntl-df-swap:hover {
+  border-color: var(--tool-accent, #2563eb);
+  color: var(--tool-accent, #2563eb);
+  background: color-mix(in srgb, var(--tool-accent, #2563eb) 8%, transparent);
+}

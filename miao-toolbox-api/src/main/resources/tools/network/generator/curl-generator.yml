@@ -1,0 +1,7 @@
+id: curl-generator
+name: Curl 命令生成器
+category: generator
+phase: 1
+description: 表单生成 curl/wget/httpie 命令
+icon: ConsoleSqlOutlined
+route: /tools/network/generator/curl-generator

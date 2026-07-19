@@ -1,0 +1,7 @@
+id: tcp-ping
+name: TCP Ping 检查器
+category: inspector
+phase: 2
+description: TCP 连接测试与延迟检测
+icon: RadarChartOutlined
+route: /tools/network/inspector/tcp-ping

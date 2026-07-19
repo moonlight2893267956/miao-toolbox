@@ -1,0 +1,7 @@
+id: graphql-tester
+name: GraphQL 查询测试器
+category: analyzer
+phase: 2
+description: GraphQL 端点查询与 Variables
+icon: ClusterOutlined
+route: /tools/network/analyzer/graphql-tester

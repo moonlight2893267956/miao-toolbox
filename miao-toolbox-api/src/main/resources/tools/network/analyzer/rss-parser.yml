@@ -1,0 +1,7 @@
+id: rss-parser
+name: RSS 订阅解析器
+category: analyzer
+phase: 2
+description: RSS 2.0/Atom Feed 解析
+icon: RssOutlined
+route: /tools/network/analyzer/rss-parser

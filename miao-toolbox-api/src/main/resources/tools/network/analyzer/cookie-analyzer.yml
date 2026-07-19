@@ -1,0 +1,7 @@
+id: cookie-analyzer
+name: Cookie 分析器
+category: analyzer
+phase: 1
+description: 解析 Cookie 属性
+icon: CookieOutlined
+route: /tools/network/analyzer/cookie-analyzer

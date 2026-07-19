@@ -1,0 +1,7 @@
+id: hmac-signer
+name: HMAC 签名生成/验证
+category: generator
+phase: 1
+description: 多算法 HMAC 签名与验证
+icon: LockOutlined
+route: /tools/network/generator/hmac-signer

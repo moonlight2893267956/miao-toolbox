@@ -1,0 +1,7 @@
+id: ip-reputation
+name: IP 信誉检查器
+category: inspector
+phase: 2
+description: AbuseIPDB 代理信誉查询
+icon: AlertOutlined
+route: /tools/network/inspector/ip-reputation

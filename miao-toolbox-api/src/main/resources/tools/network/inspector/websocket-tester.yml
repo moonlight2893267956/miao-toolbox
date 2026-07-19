@@ -1,0 +1,7 @@
+id: websocket-tester
+name: WebSocket 测试器
+category: inspector
+phase: 2
+description: WebSocket 实时收发消息
+icon: SyncOutlined
+route: /tools/network/inspector/websocket-tester

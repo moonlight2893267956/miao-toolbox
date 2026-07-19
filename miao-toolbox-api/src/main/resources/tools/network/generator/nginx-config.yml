@@ -1,0 +1,7 @@
+id: nginx-config
+name: Nginx 配置生成器
+category: generator
+phase: 1
+description: 场景化 Nginx 配置组合生成
+icon: CloudServerOutlined
+route: /tools/network/generator/nginx-config

@@ -1,0 +1,7 @@
+id: sitemap-parser
+name: Sitemap 解析器
+category: analyzer
+phase: 2
+description: Sitemap URL 列表与元数据统计
+icon: PartitionOutlined
+route: /tools/network/analyzer/sitemap-parser

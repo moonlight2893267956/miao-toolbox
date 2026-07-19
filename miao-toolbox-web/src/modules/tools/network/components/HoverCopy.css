@@ -1,0 +1,81 @@
+.ntl-hover-copy {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.ntl-hover-copy-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.4;
+  word-break: break-word;
+  user-select: all;
+}
+
+.ntl-hover-copy-btn {
+  appearance: none;
+  cursor: pointer;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 0;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--miao-text-secondary);
+  font-size: 11px;
+  opacity: 0;
+  transition:
+    opacity 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease;
+}
+
+.ntl-hover-copy:hover .ntl-hover-copy-btn,
+.ntl-hover-copy:focus-within .ntl-hover-copy-btn,
+tr:hover .ntl-hover-copy-btn,
+.ntl-eh-card:hover .ntl-hover-copy-btn,
+.ntl-eh-hop:hover .ntl-hover-copy-btn,
+.ntl-lp-line:hover .ntl-hover-copy-btn,
+.ntl-up-field:hover .ntl-hover-copy-btn,
+.ntl-hover-copy--always .ntl-hover-copy-btn {
+  opacity: 0.85;
+}
+
+.ntl-hover-copy-btn:hover:not(:disabled),
+.ntl-hover-copy-btn:focus-visible:not(:disabled) {
+  opacity: 1 !important;
+  color: var(--tool-accent, #2563eb);
+  border-color: color-mix(in srgb, var(--tool-accent, #2563eb) 30%, transparent);
+  background: color-mix(in srgb, var(--tool-accent, #2563eb) 10%, transparent);
+}
+
+.ntl-hover-copy-btn--done {
+  opacity: 1 !important;
+  color: var(--miao-success, #16a34a);
+  border-color: color-mix(in srgb, var(--miao-success, #16a34a) 35%, transparent);
+  background: color-mix(in srgb, var(--miao-success, #16a34a) 10%, transparent);
+}
+
+.ntl-hover-copy-btn.is-disabled,
+.ntl-hover-copy-btn:disabled {
+  opacity: 0 !important;
+  cursor: not-allowed;
+}
+
+/* 块级占满单元格 */
+.ntl-hover-copy--block {
+  display: flex;
+  width: 100%;
+}
+
+.ntl-hover-copy--icon {
+  flex: 0 0 auto;
+}
