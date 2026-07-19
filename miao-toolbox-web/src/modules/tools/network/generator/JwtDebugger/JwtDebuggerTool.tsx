@@ -67,7 +67,7 @@ function colorizeJson(obj: unknown): React.ReactNode {
   // 简单 tokenize：key / string / number / bool / null
   const parts: React.ReactNode[] = [];
   const re =
-    /("(?:\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*"(?:\s*:)?|\btrue\b|\bfalse\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[{}\[\],]|\s+)/g;
+    /("(?:\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*"(?:\s*:)?|\btrue\b|\bfalse\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[{}[\],]|\s+)/g;
   let m: RegExpExecArray | null;
   let i = 0;
   while ((m = re.exec(raw)) !== null) {
