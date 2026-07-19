@@ -230,7 +230,7 @@ function sanitizePersistedTabs(raw: unknown[]): TabItem[] {
 }
 
 /** 从 localStorage 恢复 Tab 状态；icon 无法序列化，刷新后由 AppLayout 重新补回 */
-function loadInitialState(_?: unknown): TabState {
+function loadInitialState(): TabState {
   try {
     const raw = localStorage.getItem(TAB_STORAGE_KEY);
     if (!raw) return initialState;
@@ -278,7 +278,8 @@ export const TabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     try {
       const data = {
-        tabs: state.tabs.map(({ icon, ...rest }) => rest),
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        tabs: state.tabs.map(({ icon: _icon, ...rest }) => rest),
         activeKey: state.activeKey,
       };
       localStorage.setItem(TAB_STORAGE_KEY, JSON.stringify(data));

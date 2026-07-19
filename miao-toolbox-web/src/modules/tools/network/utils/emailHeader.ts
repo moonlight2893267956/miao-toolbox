@@ -261,12 +261,14 @@ export function extractAuthResults(fields: HeaderField[]): AuthResult[] {
   for (const p of order) {
     const hit = best.get(p);
     if (hit) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { rank: _rank, ...rest } = hit;
       results.push(rest);
     }
   }
   for (const [p, hit] of best) {
     if (!order.includes(p as AuthResult['protocol'])) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { rank: _rank, ...rest } = hit;
       results.push(rest);
     }

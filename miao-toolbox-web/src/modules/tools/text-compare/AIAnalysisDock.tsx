@@ -251,46 +251,47 @@ const AIAnalysisContentView: React.FC<{ content: string; streaming: boolean }> =
   }
 
   // 完成态：尝试解析 JSON 结构化输出
+  let parsed: any;
   try {
-    const parsed = JSON.parse(content);
-
-    if (parsed.summary) {
-      return (
-        <div className="ai-drawer-structured">
-          <Section title="变更摘要" body={parsed.summary} />
-          {parsed.impact && <Section title="影响分析" body={parsed.impact} />}
-          {parsed.details && parsed.details.length > 0 && (
-            <div className="ai-drawer-section">
-              <h5>逐块解释</h5>
-              <ul className="ai-drawer-list">
-                {parsed.details.map((d: any, i: number) => (
-                  <li key={i}>
-                    <span className="ai-hunk-badge">#{d.hunk_index}</span>
-                    <span className="ai-hunk-type">{d.type}</span>
-                    <span className="ai-hunk-text">{d.explanation}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    if (parsed.explanation) {
-      return (
-        <div className="ai-drawer-structured">
-          <Section title="差异解释" body={parsed.explanation} />
-          {parsed.impact && <Section title="影响范围" body={parsed.impact} />}
-          {parsed.suggestion && <Section title="建议" body={parsed.suggestion} />}
-        </div>
-      );
-    }
-
-    return <pre className="ai-drawer-json">{JSON.stringify(parsed, null, 2)}</pre>;
+    parsed = JSON.parse(content);
   } catch {
     return <div className="ai-drawer-streaming done">{content}</div>;
   }
+
+  if (parsed.summary) {
+    return (
+      <div className="ai-drawer-structured">
+        <Section title="变更摘要" body={parsed.summary} />
+        {parsed.impact && <Section title="影响分析" body={parsed.impact} />}
+        {parsed.details && parsed.details.length > 0 && (
+          <div className="ai-drawer-section">
+            <h5>逐块解释</h5>
+            <ul className="ai-drawer-list">
+              {parsed.details.map((d: any, i: number) => (
+                <li key={i}>
+                  <span className="ai-hunk-badge">#{d.hunk_index}</span>
+                  <span className="ai-hunk-type">{d.type}</span>
+                  <span className="ai-hunk-text">{d.explanation}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (parsed.explanation) {
+    return (
+      <div className="ai-drawer-structured">
+        <Section title="差异解释" body={parsed.explanation} />
+        {parsed.impact && <Section title="影响范围" body={parsed.impact} />}
+        {parsed.suggestion && <Section title="建议" body={parsed.suggestion} />}
+      </div>
+    );
+  }
+
+  return <pre className="ai-drawer-json">{JSON.stringify(parsed, null, 2)}</pre>;
 };
 
 const Section: React.FC<{ title: string; body: string }> = ({ title, body }) => (
