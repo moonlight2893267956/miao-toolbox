@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Input, Select } from 'antd';
 import NetworkToolLayout from '../../components/NetworkToolLayout';
 import HoverCopy from '../../components/HoverCopy';
@@ -32,10 +32,19 @@ const LogParserTool: React.FC = () => {
     parseLogs(SAMPLE_NGINX_LOG),
   );
   const [loading, setLoading] = useState(false);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current != null) window.clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const run = useCallback(() => {
     setLoading(true);
-    window.setTimeout(() => {
+    if (timerRef.current != null) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
       setResult(parseLogs(input, { keyword, level, customRegex }));
       setLoading(false);
     }, 40);

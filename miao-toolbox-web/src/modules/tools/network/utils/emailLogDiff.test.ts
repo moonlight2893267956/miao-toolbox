@@ -32,6 +32,14 @@ describe('emailHeader', () => {
     expect(fields.find((f) => f.name === 'Subject')?.value).toBe('hello world');
   });
 
+  it('空行后正文不再当 Header 解析', () => {
+    const fields = parseHeaderFields(
+      'From: a@b.com\nSubject: hi\n\nBody-Line: should-not-be-header\nNote: ignore',
+    );
+    expect(fields.map((f) => f.name)).toEqual(['From', 'Subject']);
+    expect(fields.find((f) => f.name === 'Note')).toBeUndefined();
+  });
+
   it('extractAuthResults 从 Authentication-Results', () => {
     const r = extractAuthResults([
       {
@@ -43,6 +51,16 @@ describe('emailHeader', () => {
     expect(r.map((x) => `${x.protocol}=${x.result}`)).toEqual(
       expect.arrayContaining(['spf=fail', 'dkim=pass', 'dmarc=none']),
     );
+  });
+
+  it('Auth 多源同协议去重，优先 Authentication-Results', () => {
+    const a = analyzeEmailHeaders(SAMPLE_EMAIL_HEADERS);
+    const spf = a.auth.filter((x) => x.protocol === 'spf');
+    const dkim = a.auth.filter((x) => x.protocol === 'dkim');
+    expect(spf).toHaveLength(1);
+    expect(dkim).toHaveLength(1);
+    expect(spf[0].result).toBe('pass');
+    expect(dkim[0].result).toBe('pass'); // 非 signed 兜底
   });
 });
 
@@ -103,6 +121,13 @@ describe('textDiff', () => {
     expect(r.removed).toBeGreaterThan(0);
     expect(r.lines.some((l) => l.kind === 'add')).toBe(true);
     expect(r.lines.some((l) => l.kind === 'remove')).toBe(true);
+  });
+
+  it('仅一侧合法 JSON 时不格式化、不标 jsonFormatted', () => {
+    const r = computeLineDiff('{"a":1}', 'not-json', { formatJson: true });
+    expect(r.jsonFormatted).toBe(false);
+    expect(r.leftFormatted).toBe('{"a":1}');
+    expect(r.rightFormatted).toBe('not-json');
   });
 
   it('tryFormatJson 非法则原文', () => {

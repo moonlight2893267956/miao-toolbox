@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Input } from 'antd';
 import NetworkToolLayout from '../../components/NetworkToolLayout';
 import HoverCopy from '../../components/HoverCopy';
@@ -36,10 +36,19 @@ const EmailHeaderTool: React.FC = () => {
     analyzeEmailHeaders(SAMPLE_EMAIL_HEADERS),
   );
   const [loading, setLoading] = useState(false);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current != null) window.clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const run = useCallback(() => {
     setLoading(true);
-    window.setTimeout(() => {
+    if (timerRef.current != null) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
       setAnalysis(analyzeEmailHeaders(input));
       setLoading(false);
     }, 40);

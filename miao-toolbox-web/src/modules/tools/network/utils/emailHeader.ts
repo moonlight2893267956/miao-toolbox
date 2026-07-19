@@ -97,15 +97,32 @@ export function unfoldHeaders(raw: string): string {
  * 解析为 name/value 列表（支持同名多字段，顺序保留）
  */
 export function parseHeaderFields(raw: string): HeaderField[] {
-  const text = unfoldHeaders(raw);
-  if (!text) return [];
-  const lines = text.split('\n');
+  // 先按原始行处理，空行表示 Header/Body 分界；再对单字段做折行展开
+  const normalized = raw.replace(/\r\n/g, '\n');
+  if (!normalized.trim()) return [];
+
+  const rawLines = normalized.split('\n');
+  const headerLines: string[] = [];
+  for (const line of rawLines) {
+    // 空行：邮件体开始，停止解析
+    if (!line.trim()) break;
+    headerLines.push(line);
+  }
+
+  // 折行：以空白开头的续行并入上一字段
+  const unfolded: string[] = [];
+  for (const line of headerLines) {
+    if (/^[ \t]/.test(line) && unfolded.length > 0) {
+      unfolded[unfolded.length - 1] += ' ' + line.trim();
+    } else {
+      unfolded.push(line.trimEnd());
+    }
+  }
+
   const fields: HeaderField[] = [];
-  for (const line of lines) {
+  for (const line of unfolded) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    // 跳过邮件体分隔后的内容
-    if (trimmed === '') break;
     const colon = trimmed.indexOf(':');
     if (colon <= 0) continue;
     const name = trimmed.slice(0, colon).trim();
@@ -163,7 +180,9 @@ export function buildReceivedChain(fields: HeaderField[]): ReceivedHop[] {
     const newer = parseDateMs(hops[i].date);
     const older = parseDateMs(hops[i + 1].date);
     if (newer != null && older != null) {
-      hops[i].delaySeconds = Math.round((newer - older) / 1000);
+      const d = Math.round((newer - older) / 1000);
+      // 时钟乱序 / 回拨 → 不展示负延迟
+      hops[i].delaySeconds = d >= 0 ? d : null;
     } else {
       hops[i].delaySeconds = null;
     }
@@ -172,52 +191,86 @@ export function buildReceivedChain(fields: HeaderField[]): ReceivedHop[] {
 }
 
 /**
- * 从 Authentication-Results / Received-SPF 提取 spf/dkim/dmarc
+ * 从 Authentication-Results / Received-SPF / DKIM-Signature 提取 spf/dkim/dmarc。
+ * 同一协议只保留一条：优先 Authentication-Results 的 pass/fail，其次 Received-SPF，
+ * 最后才用 DKIM-Signature 的 signed 兜底。
  */
 export function extractAuthResults(fields: HeaderField[]): AuthResult[] {
-  const results: AuthResult[] = [];
+  type Ranked = AuthResult & { rank: number };
+  const best = new Map<string, Ranked>();
+
+  const take = (r: AuthResult, rank: number) => {
+    const prev = best.get(r.protocol);
+    if (!prev || rank > prev.rank) {
+      best.set(r.protocol, { ...r, rank });
+    }
+  };
 
   for (const f of fields) {
     const name = f.name.toLowerCase();
     const v = f.value;
 
-    if (name === 'received-spf') {
-      const m = v.match(/^\s*(\w+)/);
-      results.push({
-        protocol: 'spf',
-        result: (m?.[1] || 'unknown').toLowerCase(),
-        detail: v,
-        raw: `${f.name}: ${v}`,
-      });
-      continue;
-    }
-
     if (name === 'authentication-results' || name === 'arc-authentication-results') {
-      // spf=pass ... dkim=pass ... dmarc=pass ...
       const re = /\b(spf|dkim|dmarc)\s*=\s*([a-z0-9_-]+)/gi;
       let m: RegExpExecArray | null;
       while ((m = re.exec(v)) !== null) {
         const protocol = m[1].toLowerCase() as AuthResult['protocol'];
-        results.push({
-          protocol,
-          result: m[2].toLowerCase(),
-          detail: v.slice(Math.max(0, m.index - 10), m.index + 80),
-          raw: `${f.name}: ${v}`,
-        });
+        take(
+          {
+            protocol,
+            result: m[2].toLowerCase(),
+            detail: v.slice(Math.max(0, m.index - 10), m.index + 80),
+            raw: `${f.name}: ${v}`,
+          },
+          3,
+        );
       }
+      continue;
+    }
+
+    if (name === 'received-spf') {
+      const m = v.match(/^\s*(\w+)/);
+      take(
+        {
+          protocol: 'spf',
+          result: (m?.[1] || 'unknown').toLowerCase(),
+          detail: v,
+          raw: `${f.name}: ${v}`,
+        },
+        2,
+      );
+      continue;
     }
 
     if (name === 'dkim-signature') {
       const d = v.match(/\bd=([^;]+)/i)?.[1]?.trim();
-      results.push({
-        protocol: 'dkim',
-        result: 'signed',
-        detail: d ? `d=${d}` : v.slice(0, 120),
-        raw: `${f.name}: ${v}`,
-      });
+      take(
+        {
+          protocol: 'dkim',
+          result: 'signed',
+          detail: d ? `d=${d}` : v.slice(0, 120),
+          raw: `${f.name}: ${v}`,
+        },
+        1,
+      );
     }
   }
 
+  const order: AuthResult['protocol'][] = ['spf', 'dkim', 'dmarc', 'other'];
+  const results: AuthResult[] = [];
+  for (const p of order) {
+    const hit = best.get(p);
+    if (hit) {
+      const { rank: _rank, ...rest } = hit;
+      results.push(rest);
+    }
+  }
+  for (const [p, hit] of best) {
+    if (!order.includes(p as AuthResult['protocol'])) {
+      const { rank: _rank, ...rest } = hit;
+      results.push(rest);
+    }
+  }
   return results;
 }
 

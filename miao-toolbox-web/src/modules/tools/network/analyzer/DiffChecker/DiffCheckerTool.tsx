@@ -1,13 +1,15 @@
 /**
  * Diff 检查器 — 行级统一/并排 · 可选 JSON 格式化
+ * 仅在点击「对比」时计算，避免大文本输入时每次按键卡顿
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Input } from 'antd';
 import NetworkToolLayout from '../../components/NetworkToolLayout';
 import {
   computeLineDiff,
   formatDiffSummary,
   toSplitRows,
+  type DiffResult,
   type DiffViewMode,
 } from '../../utils/textDiff';
 import { resolveNetworkIcon } from '../../utils/iconMap';
@@ -36,22 +38,26 @@ const DiffCheckerTool: React.FC = () => {
   const [formatJson, setFormatJson] = useState(true);
   const [mode, setMode] = useState<DiffViewMode>('unified');
   const [loading, setLoading] = useState(false);
-  const [tick, setTick] = useState(0);
+  const [result, setResult] = useState<DiffResult>(() =>
+    computeLineDiff(SAMPLE_LEFT, SAMPLE_RIGHT, { formatJson: true }),
+  );
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current != null) window.clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const run = useCallback(() => {
     setLoading(true);
-    window.setTimeout(() => {
-      setTick((t) => t + 1);
+    if (timerRef.current != null) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
+      setResult(computeLineDiff(left, right, { formatJson }));
       setLoading(false);
     }, 40);
-  }, []);
-
-  const result = useMemo(
-    () => computeLineDiff(left, right, { formatJson }),
-    // tick 强制在点「对比」后重算（与输入实时联动其实也够，保留按钮语义）
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [left, right, formatJson, tick],
-  );
+  }, [left, right, formatJson]);
 
   const splitRows = useMemo(() => toSplitRows(result.lines), [result.lines]);
   const resultText = formatDiffSummary(result);

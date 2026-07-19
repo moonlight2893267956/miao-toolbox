@@ -105,9 +105,10 @@ function parseAutoLine(raw: string, index: number, prefer: LogFormat): ParsedLog
   const t = line.trimEnd();
   const fmt = prefer !== 'raw' ? prefer : detectLineFormat(t);
 
-  if (fmt === 'jsonl' || (t.startsWith('{') && t.endsWith('}'))) {
+  const tTrim = t.trim();
+  if (fmt === 'jsonl' || (tTrim.startsWith('{') && tTrim.endsWith('}'))) {
     try {
-      const obj = JSON.parse(t) as Record<string, unknown>;
+      const obj = JSON.parse(tTrim) as Record<string, unknown>;
       const fields: Record<string, string> = {};
       for (const [k, v] of Object.entries(obj)) {
         fields[k] = typeof v === 'string' ? v : JSON.stringify(v);
@@ -163,15 +164,52 @@ function levelMatch(lineLevel: string | undefined, filter: string): boolean {
   return l.includes(f) || f.includes(l);
 }
 
+/** 防护：避免超大粘贴 / 灾难性正则卡死主线程 */
+const MAX_LOG_CHARS = 1_500_000;
+const MAX_LOG_LINES = 15_000;
+const MAX_REGEX_LEN = 200;
+
 export function parseLogs(raw: string, options: LogParseOptions = {}): LogParseResult {
   const text = raw.replace(/\r\n/g, '\n');
   if (!text.trim()) {
     return { detected: 'raw', customFilter: false, lines: [], total: 0, matched: 0 };
   }
 
+  if (text.length > MAX_LOG_CHARS) {
+    return {
+      detected: 'raw',
+      customFilter: false,
+      lines: [],
+      total: 0,
+      matched: 0,
+      error: `日志过长（>${MAX_LOG_CHARS} 字符），请截取后再解析`,
+    };
+  }
+
   let customRe: RegExp | undefined;
   const customPattern = options.customRegex?.trim() || '';
   if (customPattern) {
+    if (customPattern.length > MAX_REGEX_LEN) {
+      return {
+        detected: 'raw',
+        customFilter: true,
+        lines: [],
+        total: 0,
+        matched: 0,
+        error: `自定义正则过长（最多 ${MAX_REGEX_LEN} 字符）`,
+      };
+    }
+    // 粗过滤明显易 ReDoS 的嵌套量词模式
+    if (/(\+|\*|\{\d+,?\d*\})\s*(\+|\*|\{\d+,?\d*\})/.test(customPattern) || /(\([^)]*[+*][^)]*\))[+*]/.test(customPattern)) {
+      return {
+        detected: 'raw',
+        customFilter: true,
+        lines: [],
+        total: 0,
+        matched: 0,
+        error: '自定义正则可能过于复杂（嵌套量词），请简化后重试',
+      };
+    }
     try {
       customRe = new RegExp(customPattern);
     } catch (e) {
@@ -187,9 +225,15 @@ export function parseLogs(raw: string, options: LogParseOptions = {}): LogParseR
   }
 
   const rawLines = text.split('\n');
-  const nonEmptyIdx = rawLines
+  let nonEmptyIdx = rawLines
     .map((line, index) => ({ line, index }))
     .filter(({ line }) => line.trim().length > 0);
+
+  let truncateHint: string | undefined;
+  if (nonEmptyIdx.length > MAX_LOG_LINES) {
+    truncateHint = `仅解析前 ${MAX_LOG_LINES} 行（共 ${nonEmptyIdx.length} 行非空）`;
+    nonEmptyIdx = nonEmptyIdx.slice(0, MAX_LOG_LINES);
+  }
 
   const sampleFormats = nonEmptyIdx.slice(0, 30).map(({ line }) => detectLineFormat(line));
   const detected = majorityFormat(sampleFormats);
@@ -200,7 +244,7 @@ export function parseLogs(raw: string, options: LogParseOptions = {}): LogParseR
 
   // 自定义正则：筛选 + 可选捕获组
   let customFilter = false;
-  let hint: string | undefined;
+  let hint: string | undefined = truncateHint;
   if (customRe) {
     customFilter = true;
     const kept: ParsedLogLine[] = [];
@@ -217,10 +261,11 @@ export function parseLogs(raw: string, options: LogParseOptions = {}): LogParseR
     }
     parsed = kept;
     if (kept.length === 0) {
-      hint =
+      const regexHint =
         `正则 /${customPattern}/ 未匹配任何行。` +
         `提示：日志是整行文本，^POST$ 只会匹配内容恰好为「POST」的行；` +
         `筛选 POST 请求可试：POST 或 "POST `;
+      hint = truncateHint ? `${truncateHint}；${regexHint}` : regexHint;
     }
   }
 

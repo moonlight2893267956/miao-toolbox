@@ -18,15 +18,6 @@ import { resolveNetworkIcon } from './utils/iconMap';
 import { useTabs, isTabbable, makeTabKey } from '../../../contexts/TabContext';
 import './network.css';
 
-type PhaseFilter = 'all' | '1' | '2' | '3';
-
-const PHASE_OPTIONS: { value: PhaseFilter; label: string }[] = [
-  { value: 'all', label: '全部' },
-  { value: '1', label: 'Phase 1' },
-  { value: '2', label: 'Phase 2' },
-  { value: '3', label: 'Phase 3' },
-];
-
 /** 名称 / 描述 / id / 分类 / 路由 模糊匹配 */
 function toolMatchesQuery(tool: NetworkToolMeta, query: string): boolean {
   const q = query.trim().toLowerCase();
@@ -43,7 +34,6 @@ function toolMatchesQuery(tool: NetworkToolMeta, query: string): boolean {
     .filter(Boolean)
     .join('\n')
     .toLowerCase();
-  // 支持空格分词：全部命中
   return q.split(/\s+/).every((token) => hay.includes(token));
 }
 
@@ -53,7 +43,6 @@ const NetworkToolList: React.FC = () => {
   const { openTab } = useTabs();
   const [tools, setTools] = useState<NetworkToolMeta[]>([]);
   const [loading, setLoading] = useState(true);
-  const [phaseFilter, setPhaseFilter] = useState<PhaseFilter>('all');
   const [search, setSearch] = useState('');
 
   const load = useCallback(async () => {
@@ -69,7 +58,6 @@ const NetworkToolList: React.FC = () => {
     }
   }, []);
 
-  /* 页面挂载时加载数据并确保自身 Tab 已创建 */
   useEffect(() => {
     void load();
     if (!isTabbable(location.pathname)) return;
@@ -81,20 +69,13 @@ const NetworkToolList: React.FC = () => {
       icon: <GlobalOutlined />,
       closable: true,
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = useMemo(() => {
-    let list = tools;
-    if (phaseFilter !== 'all') {
-      const phase = Number(phaseFilter);
-      list = list.filter((t) => t.phase === phase);
-    }
-    if (search.trim()) {
-      list = list.filter((t) => toolMatchesQuery(t, search));
-    }
-    return list;
-  }, [tools, phaseFilter, search]);
+    if (!search.trim()) return tools;
+    return tools.filter((t) => toolMatchesQuery(t, search));
+  }, [tools, search]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, NetworkToolMeta[]>();
@@ -144,12 +125,7 @@ const NetworkToolList: React.FC = () => {
     [tools],
   );
 
-  const hasActiveFilter = phaseFilter !== 'all' || search.trim().length > 0;
-
-  const clearFilters = () => {
-    setSearch('');
-    setPhaseFilter('all');
-  };
+  const hasSearch = search.trim().length > 0;
 
   return (
     <div className="ntl-page" data-testid="network-tool-list">
@@ -170,10 +146,12 @@ const NetworkToolList: React.FC = () => {
               <span className="ntl-header-stat">
                 共 <strong>{tools.length}</strong> 个工具
               </span>
-              <span className="ntl-header-stat">
-                已开放 <strong>{onlineCount}</strong>
-              </span>
-              {hasActiveFilter && (
+              {onlineCount < tools.length && (
+                <span className="ntl-header-stat">
+                  可用 <strong>{onlineCount}</strong>
+                </span>
+              )}
+              {hasSearch && (
                 <span className="ntl-header-stat" data-testid="network-filter-hit-count">
                   匹配 <strong>{filtered.length}</strong>
                 </span>
@@ -183,8 +161,8 @@ const NetworkToolList: React.FC = () => {
         </div>
       </header>
 
-      <div className="ntl-filter-bar" data-testid="network-phase-filter">
-        <div className="ntl-search-wrap">
+      <div className="ntl-filter-bar" data-testid="network-tool-filter">
+        <div className="ntl-search-wrap ntl-search-wrap--grow">
           <Input
             allowClear
             size="middle"
@@ -197,31 +175,14 @@ const NetworkToolList: React.FC = () => {
             spellCheck={false}
           />
         </div>
-        <div className="ntl-filter-phase">
-          <span className="ntl-filter-label">阶段</span>
-          <div className="ntl-phase-chips" role="tablist" aria-label="按阶段筛选">
-            {PHASE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                role="tab"
-                aria-selected={phaseFilter === opt.value}
-                className={`ntl-phase-chip${phaseFilter === opt.value ? ' ntl-phase-chip--active' : ''}`}
-                onClick={() => setPhaseFilter(opt.value)}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {hasActiveFilter && (
+        {hasSearch && (
           <button
             type="button"
             className="ntl-filter-clear"
-            onClick={clearFilters}
+            onClick={() => setSearch('')}
             data-testid="network-filter-clear"
           >
-            <CloseCircleFilled /> 清除筛选
+            <CloseCircleFilled /> 清除搜索
           </button>
         )}
       </div>
@@ -235,14 +196,16 @@ const NetworkToolList: React.FC = () => {
         <div className="ntl-list-empty" data-testid="network-tool-list-empty">
           <Empty
             description={
-              hasActiveFilter
-                ? `没有匹配「${search.trim() || `Phase ${phaseFilter}`}」的工具`
-                : '暂无工具'
+              hasSearch ? `没有匹配「${search.trim()}」的工具` : '暂无工具'
             }
           >
-            {hasActiveFilter ? (
-              <button type="button" className="ntl-filter-clear ntl-filter-clear--primary" onClick={clearFilters}>
-                清除筛选
+            {hasSearch ? (
+              <button
+                type="button"
+                className="ntl-filter-clear ntl-filter-clear--primary"
+                onClick={() => setSearch('')}
+              >
+                清除搜索
               </button>
             ) : null}
           </Empty>
@@ -275,13 +238,17 @@ const NetworkToolList: React.FC = () => {
                       onClick={() => handleOpen(tool)}
                     >
                       <div className="ntl-tool-card-top">
-                        <span className="ntl-tool-card-icon">{resolveNetworkIcon(tool.icon)}</span>
-                        <span
-                          className={`ntl-tool-card-badge${online ? ' ntl-tool-card-badge--live' : ' ntl-tool-card-badge--soon'}`}
-                          data-testid={online ? undefined : `network-soon-${tool.id}`}
-                        >
-                          {online ? `P${tool.phase}` : '即将推出'}
+                        <span className="ntl-tool-card-icon">
+                          {resolveNetworkIcon(tool.icon)}
                         </span>
+                        {!online && (
+                          <span
+                            className="ntl-tool-card-badge ntl-tool-card-badge--soon"
+                            data-testid={`network-soon-${tool.id}`}
+                          >
+                            即将推出
+                          </span>
+                        )}
                       </div>
                       <div className="ntl-tool-card-body">
                         <h4>{tool.name}</h4>

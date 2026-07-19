@@ -48,9 +48,12 @@ export function computeLineDiff(
   if (opts.formatJson) {
     const L = tryFormatJson(leftRaw);
     const R = tryFormatJson(rightRaw);
-    left = L.text;
-    right = R.text;
-    jsonFormatted = L.formatted || R.formatted;
+    // 仅当两侧均可解析为 JSON 时才格式化，避免单侧美化导致假 diff
+    if (L.formatted && R.formatted) {
+      left = L.text;
+      right = R.text;
+      jsonFormatted = true;
+    }
   }
 
   const parts = diffLines(left, right);

@@ -12,6 +12,7 @@ import {
 } from '../../utils/codecs';
 import '../../network.css';
 import '../../components/NetworkToolLayout.css';
+import './codec-suite.css';
 
 const KINDS: { key: CodecKind; label: string }[] = [
   { key: 'base64', label: 'Base64' },
@@ -85,8 +86,8 @@ const CodecSuiteTool: React.FC = () => {
         </button>
       }
     >
-      <div data-testid="network-tool-input-slot">
-        <div className="ntl-chip-row">
+      <div data-testid="network-tool-input-slot" className="ntl-codec">
+        <div className="ntl-codec-toolbar">
           <div className="ntl-chip-group" role="tablist" aria-label="编解码类型">
             {KINDS.map((k) => (
               <button
@@ -106,9 +107,9 @@ const CodecSuiteTool: React.FC = () => {
               </button>
             ))}
           </div>
-        </div>
 
-        <div className="ntl-chip-row">
+          <div className="ntl-codec-sep" aria-hidden />
+
           <div className="ntl-chip-group" role="group" aria-label="方向">
             <button
               type="button"
@@ -127,8 +128,9 @@ const CodecSuiteTool: React.FC = () => {
               解码
             </button>
           </div>
+
           {kind === 'base64' && (
-            <label className="ntl-option">
+            <label className="ntl-option ntl-codec-option">
               <Switch size="small" checked={urlSafe} onChange={setUrlSafe} data-testid="codec-url-safe" />
               <span>URL-Safe</span>
             </label>
@@ -142,6 +144,7 @@ const CodecSuiteTool: React.FC = () => {
           placeholder={placeholders}
           spellCheck={false}
           data-testid="codec-input"
+          className="ntl-codec-input"
         />
       </div>
     </NetworkToolLayout>

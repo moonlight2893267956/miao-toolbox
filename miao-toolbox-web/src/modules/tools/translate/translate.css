@@ -262,11 +262,49 @@
    ============================================================ */
 .tt-content {
   flex: 1;
-  min-height: 540px;
+  min-height: 0;
   padding: 14px 20px 20px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+}
+
+/* 高屏仍给内容区一点呼吸空间；矮屏靠 flex 自适应 */
+@media (min-height: 800px) {
+  .tt-content {
+    min-height: min(540px, calc(100vh - 220px));
+  }
+}
+
+/* 矮视口（小分辨率笔记本）：压缩页头与双栏强制高度 */
+@media (max-height: 720px) {
+  .tt-header {
+    padding-top: 8px;
+  }
+
+  .tt-header-inner {
+    padding-bottom: 4px;
+  }
+
+  .tt-content {
+    padding-top: 10px;
+    padding-bottom: 12px;
+  }
+
+  .tt-split {
+    min-height: 280px;
+  }
+
+  .tt-split--voice {
+    min-height: 260px;
+  }
+
+  .tt-voice-state,
+  .tt-voice-rec,
+  .tt-voice-done {
+    min-height: 120px;
+    padding: 12px;
+  }
 }
 
 .tt-tab-panel {
@@ -1312,20 +1350,37 @@
 /* ============================================================
    语音翻译（FR-12 前端，story-3.2）
    ============================================================ */
+.tt-split--voice {
+  /* 语音双栏：中间区可收缩，避免矮屏把导入条挤出卡片 */
+  min-height: min(400px, 50vh);
+}
+
 .tt-pane--record {
   min-height: 0;
+  /* 防止子元素（阴影/焦点环）溢出卡片外 */
+  overflow: hidden;
+}
+
+/* 中间录音主体：可滚动，底部导入条始终可见 */
+.tt-voice-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* 录音区通用居中容器（空闲 / 请求 / 处理 / 错误 复用） */
 .tt-voice-state {
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 160px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 24px 18px;
+  padding: 20px 16px;
   text-align: center;
 }
 
@@ -1357,19 +1412,21 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 88px;
-  height: 88px;
+  width: clamp(64px, 12vw, 88px);
+  height: clamp(64px, 12vw, 88px);
   margin-bottom: 4px;
   border: 0;
   border-radius: 50%;
   color: #fff;
-  font-size: 34px;
+  font-size: clamp(26px, 5vw, 34px);
   cursor: pointer;
   background: linear-gradient(135deg, var(--miao-brand), var(--miao-brand-active));
   box-shadow: 0 8px 24px var(--miao-brand-bg);
   transition:
     transform 200ms var(--tt-ease),
     box-shadow 240ms var(--tt-ease);
+  /* 避免阴影被父级 overflow 裁切时「露半截环」 */
+  flex-shrink: 0;
 }
 
 .tt-voice-mic:hover {
@@ -1384,13 +1441,13 @@
 /* 录音中 */
 .tt-voice-rec {
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 160px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 20px;
-  padding: 24px 18px;
+  gap: 16px;
+  padding: 16px;
 }
 
 .tt-voice-rec-top {
@@ -1423,7 +1480,7 @@
 .tt-voice-timer {
   color: var(--miao-text-primary);
   font-family: var(--miao-font-display);
-  font-size: 30px;
+  font-size: clamp(22px, 4vw, 30px);
   font-weight: 700;
   line-height: 1.1;
 }
@@ -1441,8 +1498,9 @@
   gap: 3px;
   width: 100%;
   max-width: 360px;
-  height: 72px;
+  height: clamp(48px, 10vh, 72px);
   padding: 0 6px;
+  flex-shrink: 0;
 }
 
 .tt-wave--active {
@@ -1479,13 +1537,13 @@
 /* 已录：回放 + 格式说明 */
 .tt-voice-done {
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 120px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 24px 18px;
+  padding: 16px;
 }
 
 .tt-voice-audio {
@@ -1509,21 +1567,34 @@
   white-space: nowrap;
 }
 
-/* 导入本地音频文件（FR-12b） */
+/* 导入本地音频文件（FR-12b）—— 固定在录音卡片底部，不被裁切 */
 .tt-voice-import-row {
+  flex: 0 0 auto;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding: 14px 18px 4px;
+  gap: 8px 12px;
+  padding: 12px 14px 14px;
   border-top: 1px dashed var(--miao-border, #e5e7eb);
-  margin-top: 8px;
+  margin: 0;
+  background: color-mix(in srgb, var(--miao-bg-elevated, #fff) 92%, var(--miao-bg-muted, #f5f5f5));
+  z-index: 1;
+}
+
+.tt-voice-import-btn.ant-btn {
+  flex: 0 0 auto;
+  height: 34px;
+  border-radius: 8px;
+  font-weight: 650;
 }
 
 .tt-voice-import-hint {
+  flex: 1 1 140px;
+  min-width: 0;
   color: var(--miao-text-secondary);
   font-size: 12px;
   font-weight: 500;
+  line-height: 1.4;
 }
 
 /* 结果：双语文本（字幕式滚动归 story-3.3） */
@@ -1843,6 +1914,35 @@
   .tt-lang-bar {
     width: 100%;
   }
+
+  /* 中等宽度：语音双栏仍可并排，但降低强制高度 */
+  .tt-split--voice {
+    min-height: min(360px, 48vh);
+  }
+}
+
+/* 笔记本 / 小桌面：提前改为上下堆叠，避免左右各半栏过窄 */
+@media (max-width: 1024px) {
+  .tt-split--voice {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    gap: 12px;
+  }
+
+  .tt-split--voice .tt-pane--record {
+    /* 录音区优先可见，结果区跟在下方 */
+    min-height: min(320px, 42vh);
+    max-height: none;
+  }
+
+  .tt-split--voice .tt-pane--result {
+    min-height: min(280px, 38vh);
+  }
+
+  .tt-content {
+    min-height: 0;
+    padding: 12px 16px 16px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1855,13 +1955,24 @@
   .miao-content:has(.tt-page) {
     height: auto;
     min-height: 100vh;
-    padding: 14px;
+    padding: 12px;
     overflow: visible;
   }
 
   .tt-content {
-    padding: 14px 14px 0;
+    padding: 12px 12px 16px;
     overflow: visible;
+    min-height: 0;
+  }
+
+  .tt-page {
+    overflow: visible;
+  }
+
+  .tt-nav-track {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
@@ -1871,13 +1982,22 @@
   }
 
   .tt-pane {
-    min-height: 360px;
+    min-height: 280px;
+  }
+
+  /* 语音面板单独处理，避免被通用 min-height 撑得过高 */
+  .tt-split--voice .tt-pane {
+    min-height: 240px;
   }
 
   .tt-textarea.ant-input,
   .tt-output,
   .tt-output--detect {
-    min-height: 300px !important;
+    min-height: 240px !important;
+  }
+
+  .tt-output--placeholder .tt-output-icon {
+    font-size: 36px;
   }
 }
 
@@ -1888,6 +2008,19 @@
 
   .tt-header-subtitle {
     display: none;
+  }
+
+  .tt-header {
+    padding: 12px 14px 0;
+  }
+
+  .tt-nav {
+    padding: 0 12px;
+  }
+
+  .tt-command-bar {
+    padding: 12px;
+    gap: 10px;
   }
 
   .tt-command-actions {
@@ -1902,6 +2035,10 @@
     grid-template-columns: 1fr 34px;
   }
 
+  .tt-lang-bar.tt-lang-bar--image {
+    grid-template-columns: 1fr;
+  }
+
   .tt-lang-bar .tt-lang-select:last-child {
     grid-column: 1 / -1;
   }
@@ -1909,11 +2046,50 @@
   .tt-pane-head {
     align-items: flex-start;
     flex-direction: column;
+    min-height: 44px;
+    padding: 10px 14px;
   }
 
   .tt-pane-tools {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  /* 语音：矮屏紧凑 */
+  .tt-voice-state {
+    min-height: 140px;
+    padding: 14px 12px;
+    gap: 10px;
+  }
+
+  .tt-voice-state-title {
+    font-size: 14px;
+  }
+
+  .tt-voice-state-desc {
+    font-size: 12px;
+    max-width: 100%;
+  }
+
+  .tt-voice-import-row {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .tt-voice-import-btn.ant-btn {
+    width: 100%;
+  }
+
+  .tt-voice-import-hint {
+    flex: none;
+    text-align: center;
+    font-size: 11.5px;
+  }
+
+  .tt-text-actions {
+    flex-wrap: wrap;
   }
 
   .tt-detect-dominant,

@@ -52,8 +52,13 @@ public class TranslateService {
             throw new BusinessException("TRANSLATE_INVALID_REQUEST", "目标语言不能为空", 400);
         }
 
+        // 预处理：把下划线替换为空格，避免 Baidu 把 "legacy_url_rewrite" 当
+        // 代码变量处理（只改动少量字符而不实际翻译）。自然语言场景下空格
+        // 帮助 Baidu 正确分词识别，翻译质量显著提升。
+        String queryText = request.getText() != null ? request.getText().replace('_', ' ') : "";
+
         BaiduTranslateClient.TranslateResult result =
-                baiduTranslateClient.translate(request.getText(), from, to);
+                baiduTranslateClient.translate(queryText, from, to);
 
         String translated = result.items().stream()
                 .map(BaiduTranslateClient.TranslateItem::dst)
