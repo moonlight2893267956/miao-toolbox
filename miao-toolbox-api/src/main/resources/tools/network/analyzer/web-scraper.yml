@@ -1,0 +1,7 @@
+id: web-scraper
+name: Web 抓取器
+category: analyzer
+phase: 2
+description: 按 CSS 选择器提取网页内容
+icon: Html5Outlined
+route: /tools/network/analyzer/web-scraper

@@ -1,0 +1,7 @@
+id: security-header
+name: 安全头检查器
+category: analyzer
+phase: 2
+description: HSTS/CSP 等安全头逐项评分
+icon: SecurityScanOutlined
+route: /tools/network/analyzer/security-header

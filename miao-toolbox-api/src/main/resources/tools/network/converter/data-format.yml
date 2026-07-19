@@ -1,0 +1,7 @@
+id: data-format
+name: 数据格式转换器
+category: converter
+phase: 1
+description: JSON/YAML/CSV/TOML 双向转换
+icon: SwapOutlined
+route: /tools/network/converter/data-format

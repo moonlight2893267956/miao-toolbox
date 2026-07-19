@@ -1,0 +1,7 @@
+id: log-parser
+name: 日志解析/分析器
+category: analyzer
+phase: 1
+description: 日志格式化、高亮与筛选
+icon: FileSearchOutlined
+route: /tools/network/analyzer/log-parser

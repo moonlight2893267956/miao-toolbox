@@ -1,0 +1,7 @@
+id: http-header
+name: HTTP Header 分析器
+category: inspector
+phase: 2
+description: 响应头分类展示与缺失标记
+icon: ProfileOutlined
+route: /tools/network/inspector/http-header

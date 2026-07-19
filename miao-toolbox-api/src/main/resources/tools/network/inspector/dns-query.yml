@@ -1,0 +1,7 @@
+id: dns-query
+name: DNS 查询工具
+category: inspector
+phase: 2
+description: 多记录类型 DNS 查询
+icon: SearchOutlined
+route: /tools/network/inspector/dns-query

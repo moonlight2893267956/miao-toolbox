@@ -1,0 +1,7 @@
+id: url-parser
+name: URL 解析器
+category: analyzer
+phase: 1
+description: 拆解 URL 与 query 参数编辑
+icon: LinkOutlined
+route: /tools/network/analyzer/url-parser

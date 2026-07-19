@@ -1,0 +1,7 @@
+id: email-header
+name: Email Header 分析器
+category: analyzer
+phase: 1
+description: 解析 Received 链与 SPF/DKIM/DMARC
+icon: MailOutlined
+route: /tools/network/analyzer/email-header

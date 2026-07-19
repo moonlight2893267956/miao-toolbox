@@ -1,0 +1,7 @@
+id: cidr-calculator
+name: CIDR/子网计算器
+category: generator
+phase: 1
+description: 网络地址、广播地址与子网划分
+icon: ApartmentOutlined
+route: /tools/network/generator/cidr-calculator

@@ -1,0 +1,7 @@
+id: openapi-viewer
+name: OpenAPI/Swagger 查看器
+category: analyzer
+phase: 1
+description: 粘贴 OpenAPI 文档并渲染
+icon: ApiOutlined
+route: /tools/network/analyzer/openapi-viewer

@@ -1,0 +1,7 @@
+id: docker-network
+name: Docker 网络配置生成器
+category: generator
+phase: 1
+description: Compose 网络配置与冲突检测
+icon: ContainerOutlined
+route: /tools/network/generator/docker-network

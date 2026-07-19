@@ -1,0 +1,263 @@
+/* MIME 结果 — 卡片列表 */
+
+.ntl-mime-result {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ntl-mime-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 22px;
+}
+
+.ntl-mime-count {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--tool-accent, #2563eb);
+  background: color-mix(in srgb, var(--tool-accent, #2563eb) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tool-accent, #2563eb) 18%, transparent);
+}
+
+.ntl-mime-tip {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--miao-text-secondary);
+  opacity: 0.85;
+}
+
+.ntl-mime-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ntl-mime-card {
+  --mime-tone: var(--tool-accent, #2563eb);
+  position: relative;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 12px 14px;
+  padding: 12px 12px 12px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--mime-tone) 14%, var(--miao-border));
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--mime-tone) 7%, transparent) 0%,
+      transparent 48%
+    ),
+    var(--miao-bg-elevated, #fff);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--mime-tone) 6%, transparent);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease,
+    background 160ms ease;
+}
+
+.ntl-mime-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--mime-tone);
+  opacity: 0.85;
+}
+
+.ntl-mime-card:hover {
+  border-color: color-mix(in srgb, var(--mime-tone) 32%, var(--miao-border));
+  box-shadow:
+    0 4px 14px color-mix(in srgb, var(--mime-tone) 10%, transparent),
+    0 1px 0 color-mix(in srgb, var(--mime-tone) 8%, transparent);
+  transform: translateY(-1px);
+}
+
+/* 类型色相 */
+.ntl-mime-card--image {
+  --mime-tone: #2563eb;
+}
+.ntl-mime-card--audio {
+  --mime-tone: #7c3aed;
+}
+.ntl-mime-card--video {
+  --mime-tone: #db2777;
+}
+.ntl-mime-card--text {
+  --mime-tone: #0d9488;
+}
+.ntl-mime-card--font {
+  --mime-tone: #d97706;
+}
+.ntl-mime-card--application {
+  --mime-tone: #4f46e5;
+}
+
+.ntl-mime-ext {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 9px;
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace);
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--mime-tone);
+  background: color-mix(in srgb, var(--mime-tone) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mime-tone) 18%, transparent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ntl-mime-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ntl-mime-type {
+  appearance: none;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--miao-text-primary);
+  word-break: break-all;
+  transition: color 140ms ease;
+}
+
+.ntl-mime-type:hover {
+  color: var(--mime-tone);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.ntl-mime-desc {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--miao-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ntl-mime-copy {
+  appearance: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 9px;
+  border: 1px solid var(--miao-border);
+  background: var(--miao-bg, #fff);
+  color: var(--miao-text-secondary);
+  font-size: 14px;
+  opacity: 0.72;
+  transition:
+    opacity 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    transform 140ms ease;
+}
+
+.ntl-mime-card:hover .ntl-mime-copy {
+  opacity: 1;
+}
+
+.ntl-mime-copy:hover {
+  border-color: var(--mime-tone);
+  color: var(--mime-tone);
+  background: color-mix(in srgb, var(--mime-tone) 10%, transparent);
+}
+
+.ntl-mime-copy:active {
+  transform: scale(0.94);
+}
+
+.ntl-mime-copy--done {
+  opacity: 1;
+  color: var(--miao-success, #16a34a);
+  border-color: color-mix(in srgb, var(--miao-success, #16a34a) 40%, transparent);
+  background: color-mix(in srgb, var(--miao-success, #16a34a) 10%, transparent);
+}
+
+.ntl-mime-empty {
+  padding: 32px 16px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--miao-text-secondary);
+  border: 1px dashed var(--miao-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--tool-accent, #2563eb) 3%, transparent);
+}
+
+@media (max-width: 640px) {
+  .ntl-mime-card {
+    grid-template-columns: 64px minmax(0, 1fr) 32px;
+    gap: 10px;
+    padding: 11px 10px 11px 12px;
+  }
+
+  .ntl-mime-ext {
+    height: 30px;
+    font-size: 11.5px;
+  }
+
+  .ntl-mime-type {
+    font-size: 12.5px;
+  }
+
+  .ntl-mime-copy {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ntl-mime-card,
+  .ntl-mime-copy {
+    transition: none;
+  }
+
+  .ntl-mime-card:hover {
+    transform: none;
+  }
+}

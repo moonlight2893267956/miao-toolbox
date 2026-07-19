@@ -1,0 +1,79 @@
+.ntl-codec {
+  display: flex;
+  flex-direction: column;
+  /* 按钮区与输入框之间的纵向间距 */
+  gap: 20px;
+}
+
+/* 控制条：类型 + 分隔 + 方向 + 选项，整体作为一组 */
+.ntl-codec-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--miao-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ntl-accent) 3%, transparent);
+}
+
+/* 类型组与方向组之间的视觉分隔 */
+.ntl-codec-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 0;
+  background: var(--miao-border);
+}
+
+/* URL-Safe 选项推到右侧 */
+.ntl-codec-option {
+  margin-left: auto;
+}
+
+/* 输入区与上方控制条保持呼吸感 */
+.ntl-codec-input {
+  margin-top: 2px;
+}
+
+.ntl-codec-input textarea,
+.ntl-codec-input.ant-input {
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace) !important;
+  font-size: 13px !important;
+  line-height: 1.7 !important;
+  padding: 12px 14px !important;
+}
+
+/* —— 按钮间距（仅作用于本工具） —— */
+/* 取消组的胶囊背景与边框，让 chip 呈现为独立按钮 */
+.ntl-codec .ntl-chip-group {
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+/* 每个 chip 单独成「按钮」：带背景、边框、间距 */
+.ntl-codec .ntl-chip {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 8px;
+  background: var(--miao-bg-elevated);
+  border: 1px solid var(--miao-border);
+  color: var(--miao-text-secondary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 140ms ease;
+}
+
+.ntl-codec .ntl-chip:hover:not(.is-on) {
+  border-color: var(--ntl-accent);
+  color: var(--ntl-accent);
+  background: color-mix(in srgb, var(--ntl-accent) 6%, transparent);
+}
+
+.ntl-codec .ntl-chip.is-on {
+  background: var(--ntl-accent);
+  border-color: var(--ntl-accent);
+  color: #fff;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--ntl-accent) 32%, transparent);
+}

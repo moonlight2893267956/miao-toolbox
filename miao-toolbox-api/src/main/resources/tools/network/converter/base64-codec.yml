@@ -1,0 +1,7 @@
+id: base64-codec
+name: 编码解码全家桶
+category: converter
+phase: 1
+description: Base64/URL/HTML实体/Hex 双向转换
+icon: CodeOutlined
+route: /tools/network/converter/base64-codec

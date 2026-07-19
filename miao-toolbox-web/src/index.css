@@ -365,6 +365,38 @@ a {
   background: var(--miao-bg);
 }
 
+/* 工作台（首页 ToolsPage）：锁在视口内，让内容在固定高度内可滚动
+   用 data-active-page 而非 :has() —— KeepAlive 下所有缓存页面都在 DOM 里，
+   display:none 的也会被 :has() 匹配，导致从工具页切到工作台时全屏样式误触发。
+   同时用 !important 覆盖各工具页 :has() 对 .miao-content 的 max-width/width/margin 覆盖 */
+.miao-shell[data-active-page='home'] {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+.miao-shell[data-active-page='home'] > .ant-layout {
+  min-height: 0;
+}
+.miao-shell[data-active-page='home'] .miao-content {
+  height: 100vh;
+  width: 100% !important;
+  max-width: 1400px !important;
+  margin: 0 auto !important;
+  padding: 32px 40px 48px;
+}
+.miao-shell[data-active-page='home'] .miao-content > div {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;      /* IE / Edge */
+}
+.miao-shell[data-active-page='home'] .miao-content > div::-webkit-scrollbar {
+  display: none;                  /* Chrome / Safari / Edge */
+}
+
 :root[data-theme='dark'] .miao-shell {
   background:
     linear-gradient(180deg, rgba(162, 155, 254, 0.045), transparent 280px),
@@ -376,6 +408,10 @@ a {
   max-width: 1400px;
   margin: 0 auto;
   padding: 32px 40px 48px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .miao-page-header {

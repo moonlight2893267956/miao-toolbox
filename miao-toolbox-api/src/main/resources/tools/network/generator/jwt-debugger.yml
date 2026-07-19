@@ -1,0 +1,7 @@
+id: jwt-debugger
+name: JWT 构建器/调试器
+category: generator
+phase: 1
+description: JWT 解码、构建与签名验证
+icon: SafetyOutlined
+route: /tools/network/generator/jwt-debugger

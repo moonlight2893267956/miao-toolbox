@@ -1,0 +1,7 @@
+id: http-request-builder
+name: HTTP 请求构建器
+category: analyzer
+phase: 2
+description: 轻量版 Postman 请求调试
+icon: SendOutlined
+route: /tools/network/analyzer/http-request-builder

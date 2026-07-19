@@ -291,7 +291,7 @@ const TranslateVoicePanel: React.FC = () => {
         </div>
       </div>
 
-      <div className="tt-split">
+      <div className="tt-split tt-split--voice">
         {/* 左：录音区 */}
         <div className="tt-pane tt-pane--record">
           <div className="tt-pane-head">
@@ -302,7 +302,7 @@ const TranslateVoicePanel: React.FC = () => {
               </span>
             )}
           </div>
-          {renderRecordPane()}
+          <div className="tt-voice-main">{renderRecordPane()}</div>
           <div className="tt-voice-import-row">
             <input
               ref={fileInputRef}
@@ -312,6 +312,7 @@ const TranslateVoicePanel: React.FC = () => {
               onChange={handleFileChange}
             />
             <Button
+              className="tt-voice-import-btn"
               icon={<UploadOutlined />}
               onClick={handleImportClick}
               disabled={busy}

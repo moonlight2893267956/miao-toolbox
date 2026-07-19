@@ -1,0 +1,7 @@
+id: network-assistant
+name: 网络排障 AI 助手
+category: ai
+phase: 3
+description: 排障诊断、配置生成、报文解读与拼写检查
+icon: RobotOutlined
+route: /tools/network/ai/network-assistant

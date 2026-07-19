@@ -1,0 +1,7 @@
+id: cors-checker
+name: CORS 策略检查器
+category: analyzer
+phase: 2
+description: 预检请求与跨域策略分析
+icon: NodeIndexOutlined
+route: /tools/network/analyzer/cors-checker

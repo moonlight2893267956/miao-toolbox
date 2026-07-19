@@ -1,0 +1,7 @@
+id: timestamp
+name: 时间戳转换器
+category: converter
+phase: 1
+description: Unix 时间戳与人类可读时间互转
+icon: FieldTimeOutlined
+route: /tools/network/converter/timestamp

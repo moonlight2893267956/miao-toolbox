@@ -6,9 +6,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toolsRegistry, getToolsByCategory } from './registry';
 import type { ToolMeta } from './registry';
 import { isSuperAdmin, useAuth } from '../../contexts/AuthContext';
+import { useTabs, isTabbable, makeTabKey } from '../../contexts/TabContext';
 
 const ToolsPage: React.FC = () => {
   const navigate = useNavigate();
+  const { openTab } = useTabs();
   const { state } = useAuth();
   const [search, setSearch] = useState('');
   const admin = isSuperAdmin(state.userInfo);
@@ -30,11 +32,20 @@ const ToolsPage: React.FC = () => {
     filteredTools.some((ft) => ft.key === t.key),
   );
 
-  const handleToolClick = (path: string | null, title: string) => {
-    if (path) {
-      navigate(path);
+  const handleToolClick = (tool: ToolMeta) => {
+    if (tool.path) {
+      if (isTabbable(tool.path)) {
+        openTab({
+          key: makeTabKey(tool.path),
+          label: tool.title,
+          path: tool.path,
+          icon: <tool.icon />,
+          closable: true,
+        });
+      }
+      navigate(tool.path);
     } else {
-      message.info(`${title} 正在接入中`);
+      message.info(`${tool.title} 正在接入中`);
     }
   };
 
@@ -91,7 +102,7 @@ const ToolsPage: React.FC = () => {
         style={{ transform, transition: 'transform 0.15s ease-out' }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        onClick={() => handleToolClick(tool.path, tool.title)}
+        onClick={() => handleToolClick(tool)}
         variants={itemVariants}
         whileTap={{ scale: 0.98 }}
       >

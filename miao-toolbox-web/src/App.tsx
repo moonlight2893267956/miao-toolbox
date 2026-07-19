@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { App as AntApp } from 'antd';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { TabProvider } from './contexts/TabContext';
 import RequireAuth from './routes/index';
 import RequireRoute from './routes/RequireRoute';
 import AppLayout from './components/layout/AppLayout';
@@ -22,6 +23,9 @@ const CryptoPage = lazy(() => import('./modules/tools/crypto/CryptoPage'));
 const TranslatePage = lazy(() => import('./modules/tools/translate'));
 const RegexTesterPage = lazy(() => import('./modules/tools/regex-tester'));
 const CronEditorPage = lazy(() => import('./modules/tools/cron-editor'));
+const NetworkToolLayoutPreview = lazy(() => import('./modules/tools/network/NetworkToolLayoutPreview'));
+const NetworkToolList = lazy(() => import('./modules/tools/network/NetworkToolList'));
+const NetworkToolPage = lazy(() => import('./modules/tools/network/NetworkToolPage'));
 const DashboardPage = lazy(() => import('./modules/admin/DashboardPage'));
 const UserManagePage = lazy(() => import('./modules/admin/UserManagePage'));
 const InvocationsPage = lazy(() => import('./modules/admin/InvocationsPage'));
@@ -84,6 +88,24 @@ function AppRoutes() {
         <Route path="tools/translate" element={<RequireRoute code="TOOL_TRANSLATE"><TranslatePage /></RequireRoute>} />
         <Route path="tools/regex-tester" element={<RequireRoute code="TOOL_REGEX_TESTER"><RegexTesterPage /></RequireRoute>} />
         <Route path="tools/cron-editor" element={<RequireRoute code="TOOL_CRON_EDITOR"><CronEditorPage /></RequireRoute>} />
+        <Route
+          path="tools/network"
+          element={
+            <RequireRoute code="TOOL_NETWORK_TOOLBOX">
+              <NetworkToolList />
+            </RequireRoute>
+          }
+        />
+        <Route
+          path="tools/network/:category/:toolId"
+          element={
+            <RequireRoute code="TOOL_NETWORK_TOOLBOX">
+              <NetworkToolPage />
+            </RequireRoute>
+          }
+        />
+        {/* Story nt-1-2 布局预览：仅需登录，非正式产品入口 */}
+        <Route path="tools/network/_layout-preview" element={<NetworkToolLayoutPreview />} />
         <Route path="admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="admin/dashboard" element={<RequireRoute code="ADMIN_DASHBOARD"><DashboardPage /></RequireRoute>} />
         <Route path="admin/invocations" element={<RequireRoute code="ADMIN_INVOCATIONS"><InvocationsPage /></RequireRoute>} />
@@ -102,11 +124,13 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AntApp>
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
-        </AntApp>
+        <TabProvider>
+          <AntApp>
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </AntApp>
+        </TabProvider>
       </AuthProvider>
     </ThemeProvider>
   );

@@ -1,0 +1,7 @@
+id: mime-type
+name: MIME 类型参考
+category: converter
+phase: 1
+description: 扩展名与 MIME 类型互查
+icon: FileOutlined
+route: /tools/network/converter/mime-type

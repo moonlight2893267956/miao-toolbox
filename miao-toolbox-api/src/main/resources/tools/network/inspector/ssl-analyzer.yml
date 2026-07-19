@@ -1,0 +1,7 @@
+id: ssl-analyzer
+name: SSL/TLS 证书分析器
+category: inspector
+phase: 2
+description: 证书链、有效期与加密套件分析
+icon: SafetyCertificateOutlined
+route: /tools/network/inspector/ssl-analyzer

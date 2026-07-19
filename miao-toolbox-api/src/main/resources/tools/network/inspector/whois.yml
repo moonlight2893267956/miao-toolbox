@@ -1,0 +1,7 @@
+id: whois
+name: WHOIS 查询
+category: inspector
+phase: 2
+description: 域名/IP 注册信息查询
+icon: IdcardOutlined
+route: /tools/network/inspector/whois
