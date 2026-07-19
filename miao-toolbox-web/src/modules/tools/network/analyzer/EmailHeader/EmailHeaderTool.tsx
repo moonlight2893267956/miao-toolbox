@@ -9,11 +9,13 @@ import {
   type EmailHeaderAnalysis,
 } from '../../utils/emailHeader';
 import { resolveNetworkIcon } from '../../utils/iconMap';
+import { useTabPageStore } from '../../../../../hooks/useTabPageState';
 import '../../network.css';
 import '../../components/NetworkToolLayout.css';
 import './email-header.css';
 
 const { TextArea } = Input;
+const PAGE_KEY = 'tools-network-email-header';
 
 const CAT_LABEL: Record<string, string> = {
   routing: '路由',
@@ -31,10 +33,11 @@ function authClass(result: string): string {
 }
 
 const EmailHeaderTool: React.FC = () => {
-  const [input, setInput] = useState(SAMPLE_EMAIL_HEADERS);
-  const [analysis, setAnalysis] = useState<EmailHeaderAnalysis | null>(() =>
-    analyzeEmailHeaders(SAMPLE_EMAIL_HEADERS),
-  );
+  const { state, setField, setState } = useTabPageStore(PAGE_KEY, {
+    input: SAMPLE_EMAIL_HEADERS,
+    analysis: analyzeEmailHeaders(SAMPLE_EMAIL_HEADERS) as EmailHeaderAnalysis | null,
+  });
+  const { input, analysis } = state;
   const [loading, setLoading] = useState(false);
   const timerRef = useRef<number | null>(null);
 
@@ -49,10 +52,13 @@ const EmailHeaderTool: React.FC = () => {
     if (timerRef.current != null) window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(() => {
       timerRef.current = null;
-      setAnalysis(analyzeEmailHeaders(input));
+      setState((prev) => ({
+        ...prev,
+        analysis: analyzeEmailHeaders(prev.input),
+      }));
       setLoading(false);
     }, 40);
-  }, [input]);
+  }, [setState]);
 
   const resultText = analysis ? formatEmailAnalysisText(analysis) : '';
 
@@ -183,7 +189,7 @@ const EmailHeaderTool: React.FC = () => {
       <div data-testid="network-tool-input-slot">
         <TextArea
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => setField('input', e.target.value)}
           rows={12}
           data-testid="email-input"
           spellCheck={false}

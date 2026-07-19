@@ -3,8 +3,13 @@ import { useOutlet, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import { Layout } from 'antd';
 import Sidebar from './Sidebar';
 import TabBar from './TabBar';
-import { useTabs, isTabbable, makeTabKey, tabTitleFromPath } from '../../contexts/TabContext';
-import { toolsRegistry } from '../../modules/tools/registry';
+import {
+  useTabs,
+  isTabbable,
+  makeTabKey,
+  resolveTabIcon,
+  resolveTabLabel,
+} from '../../contexts/TabContext';
 
 const { Content } = Layout;
 
@@ -55,34 +60,43 @@ const AppLayout: React.FC = () => {
     });
   }, [state.tabs]);
 
-  /* 刷新时补齐图标（仅 mount 一次） */
+  /* 刷新时补齐图标（localStorage 无法序列化 ReactNode；含网络子工具 / admin） */
   useEffect(() => {
     state.tabs.forEach((t) => {
       if (!t.icon) {
-        const tool = toolsRegistry.find((tool) => tool.path === t.path);
-        if (tool) {
-          updateTab(t.key, { icon: <tool.icon /> });
+        const icon = resolveTabIcon(t.path);
+        if (icon) {
+          updateTab(t.key, { icon });
         }
+      }
+      // 标题若只是路径末段，尝试换成友好名
+      const label = resolveTabLabel(t.path);
+      if (label && label !== t.label && (t.label === t.path || !t.label)) {
+        updateTab(t.key, { label });
       }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* 路由进入可 tab 路径时确保有对应 Tab（地址栏优先，含侧栏/深链/刷新） */
+  /*
+   * 路由进入可 tab 路径时确保有对应 Tab（深链 / 刷新 / 侧栏）。
+   * ⚠️ 依赖只能是 pathname：若把 state.tabs 放进 deps，关闭当前 Tab 后
+   * URL 尚未跳转时会立刻 openTab 把刚关的页签加回来，表现为「关不掉 + 闪烁」。
+   */
   useEffect(() => {
     const path = location.pathname;
     if (!isTabbable(path)) return;
     const key = makeTabKey(path);
-    if (state.tabs.find((t) => t.key === key)) return;
-    const tool = toolsRegistry.find((t) => t.path === path);
+    // 用最新 tabs 判断（openTab 内部对已存在 key 会激活并补 icon）
     openTab({
       key,
-      label: tool?.title ?? tabTitleFromPath(path),
+      label: resolveTabLabel(path),
       path,
-      icon: tool ? <tool.icon /> : undefined,
+      icon: resolveTabIcon(path),
       closable: true,
     });
-  }, [location.pathname, state.tabs, openTab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅 pathname 变化时同步 Tab
+  }, [location.pathname]);
 
   /* 当标签从「有」变为「无」（关闭最后一个 / 关闭全部）时，返回首页 */
   const prevTabsLenRef = useRef(state.tabs.length);
@@ -103,7 +117,7 @@ const AppLayout: React.FC = () => {
   return (
     <Layout className="miao-shell" data-active-page={activePage}>
       <Sidebar />
-      <Layout style={{ background: 'transparent' }}>
+      <Layout style={{ background: 'var(--miao-bg)', minWidth: 0 }}>
         <TabBar />
         <Content className="miao-content">
           {state.tabs.length === 0 ? (

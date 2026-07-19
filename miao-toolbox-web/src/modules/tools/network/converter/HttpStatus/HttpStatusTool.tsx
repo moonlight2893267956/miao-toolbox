@@ -3,22 +3,31 @@ import { Input } from 'antd';
 import NetworkToolLayout from '../../components/NetworkToolLayout';
 import { formatHttpStatusText, searchHttpStatus } from '../../utils/httpStatus';
 import { resolveNetworkIcon } from '../../utils/iconMap';
+import { useTabPageStore } from '../../../../../hooks/useTabPageState';
 import '../../network.css';
 import '../../components/NetworkToolLayout.css';
 
+const PAGE_KEY = 'tools-network-http-status';
+
 const HttpStatusTool: React.FC = () => {
-  const [query, setQuery] = useState('429');
-  const [output, setOutput] = useState(() => formatHttpStatusText(searchHttpStatus('429')));
+  const { state, setField, setState } = useTabPageStore(PAGE_KEY, {
+    query: '429',
+    output: formatHttpStatusText(searchHttpStatus('429')),
+  });
+  const { query, output } = state;
   const [loading, setLoading] = useState(false);
 
   const run = useCallback(() => {
     setLoading(true);
     window.setTimeout(() => {
       const items = searchHttpStatus(query);
-      setOutput(formatHttpStatusText(items));
+      setState((prev) => ({
+        ...prev,
+        output: formatHttpStatusText(items),
+      }));
       setLoading(false);
     }, 40);
-  }, [query]);
+  }, [query, setState]);
 
   return (
     <NetworkToolLayout
@@ -33,7 +42,7 @@ const HttpStatusTool: React.FC = () => {
       <div data-testid="network-tool-input-slot">
         <Input
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => setField('query', e.target.value)}
           onPressEnter={run}
           placeholder="输入 429 / Too Many / 限流 …"
           data-testid="http-status-input"

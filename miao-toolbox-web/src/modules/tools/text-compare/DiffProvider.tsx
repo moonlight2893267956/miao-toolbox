@@ -1,8 +1,11 @@
-import React, { useReducer, useCallback } from 'react';
+import React, { useReducer, useCallback, useEffect } from 'react';
 import type { DiffAction, DiffState, LayoutMode } from './types';
 import { DiffContext } from './diffContext';
 import type { DiffContextValue } from './diffContext';
 import { useDiffApi } from './useDiffApi';
+import { loadPageState, savePageState } from '../../../shared/utils/tabPageStorage';
+
+const PAGE_KEY = 'tools-text-compare';
 
 const initialState: DiffState = {
   leftText: '',
@@ -20,6 +23,21 @@ const initialState: DiffState = {
   currentHunkIndex: -1,
   goToHunk: null,
 };
+
+function loadInitialDiffState(): DiffState {
+  const loaded = loadPageState<Partial<DiffState>>(PAGE_KEY);
+  if (!loaded) return initialState;
+  return {
+    ...initialState,
+    leftText: typeof loaded.leftText === 'string' ? loaded.leftText : '',
+    rightText: typeof loaded.rightText === 'string' ? loaded.rightText : '',
+    layout:
+      loaded.layout === 'stacked' || loaded.layout === 'split' ? loaded.layout : 'split',
+    ignoreWhitespace: !!loaded.ignoreWhitespace,
+    structuredDiff: !!loaded.structuredDiff,
+    showLineNumbers: loaded.showLineNumbers !== false,
+  };
+}
 
 function diffReducer(state: DiffState, action: DiffAction): DiffState {
   switch (action.type) {
@@ -57,8 +75,26 @@ function diffReducer(state: DiffState, action: DiffAction): DiffState {
 }
 
 export const DiffProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, dispatch] = useReducer(diffReducer, initialState);
+  const [state, dispatch] = useReducer(diffReducer, undefined, loadInitialDiffState);
   const { compare } = useDiffApi();
+
+  useEffect(() => {
+    savePageState(PAGE_KEY, {
+      leftText: state.leftText,
+      rightText: state.rightText,
+      layout: state.layout,
+      ignoreWhitespace: state.ignoreWhitespace,
+      structuredDiff: state.structuredDiff,
+      showLineNumbers: state.showLineNumbers,
+    });
+  }, [
+    state.leftText,
+    state.rightText,
+    state.layout,
+    state.ignoreWhitespace,
+    state.structuredDiff,
+    state.showLineNumbers,
+  ]);
 
   const setLeft = useCallback((text: string) => dispatch({ type: 'SET_LEFT', payload: text }), []);
   const setRight = useCallback((text: string) => dispatch({ type: 'SET_RIGHT', payload: text }), []);

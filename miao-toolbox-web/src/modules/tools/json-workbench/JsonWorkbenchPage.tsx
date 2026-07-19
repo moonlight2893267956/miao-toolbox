@@ -15,6 +15,7 @@ import type {
   JsonWorkbenchState,
   JsonWbAction,
   ViewMode,
+  SearchMode,
 } from './types';
 import { useJsonParser } from './hooks/useJsonParser';
 import { getAllDescendantIds, renameKeyAtPath, setValueAtPath } from './utils/parseAndFlatten';
@@ -32,9 +33,12 @@ import RepairPreviewModal from './components/RepairPreviewModal';
 import AiRepairModal from './components/AiRepairModal';
 import { useAiRepair } from './hooks/useAiRepair';
 import ToolPageHeader from '../../../components/shared/ToolPageHeader';
+import { loadPageState, savePageState } from '../../../shared/utils/tabPageStorage';
 import './json-workbench.css';
 
 // ─── 初始状态 ──────────────────────────────────────────
+
+const PAGE_KEY = 'tools-json-workbench';
 
 const initialState: JsonWorkbenchState = {
   rawJson: '',
@@ -58,6 +62,36 @@ const initialState: JsonWorkbenchState = {
   repairError: null,
   largeFileHintDismissed: false,
 };
+
+/** 仅恢复可序列化的编辑偏好与原文；解析树在 mount 后由 parse 重算 */
+function loadInitialJsonState(): JsonWorkbenchState {
+  const loaded = loadPageState<{
+    rawJson?: string;
+    viewMode?: ViewMode;
+    indentSize?: 2 | 4;
+    schemaJson?: string | null;
+    searchQuery?: string;
+    searchMode?: SearchMode;
+  }>(PAGE_KEY);
+  if (!loaded) return initialState;
+  return {
+    ...initialState,
+    rawJson: typeof loaded.rawJson === 'string' ? loaded.rawJson : '',
+    viewMode:
+      loaded.viewMode === 'tree' || loaded.viewMode === 'raw' || loaded.viewMode === 'split'
+        ? loaded.viewMode
+        : 'split',
+    indentSize: loaded.indentSize === 4 ? 4 : 2,
+    schemaJson: typeof loaded.schemaJson === 'string' ? loaded.schemaJson : null,
+    searchQuery: typeof loaded.searchQuery === 'string' ? loaded.searchQuery : '',
+    searchMode:
+      loaded.searchMode === 'key' ||
+      loaded.searchMode === 'value' ||
+      loaded.searchMode === 'regex'
+        ? loaded.searchMode
+        : 'key',
+  };
+}
 
 // ─── Reducer ───────────────────────────────────────────
 
@@ -419,8 +453,39 @@ function SplitPane({ left, right }: { left: React.ReactNode; right: React.ReactN
 // ─── 主页面 ────────────────────────────────────────────
 
 export default function JsonWorkbenchPage() {
-  const [state, dispatch] = useReducer(jsonWbReducer, initialState);
+  const [state, dispatch] = useReducer(jsonWbReducer, undefined, loadInitialJsonState);
   const { parse, debouncedParse, applyRepair } = useJsonParser(dispatch);
+
+  // 持久化原文与编辑偏好（刷新恢复；关 Tab 由 TabContext 清除）
+  useEffect(() => {
+    savePageState(PAGE_KEY, {
+      rawJson: state.rawJson,
+      viewMode: state.viewMode,
+      indentSize: state.indentSize,
+      schemaJson: state.schemaJson,
+      searchQuery: state.searchQuery,
+      searchMode: state.searchMode,
+    });
+  }, [
+    state.rawJson,
+    state.viewMode,
+    state.indentSize,
+    state.schemaJson,
+    state.searchQuery,
+    state.searchMode,
+  ]);
+
+  // 刷新后若有缓存原文，自动重新解析以恢复树视图
+  const restoredParseRef = useRef(false);
+  useEffect(() => {
+    if (restoredParseRef.current) return;
+    restoredParseRef.current = true;
+    if (state.rawJson.trim()) {
+      parse(state.rawJson, 1, undefined, { preserveExpandedIds: false }).catch(() => {});
+    }
+    // 仅在首屏执行
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const { repair: aiRepair, reset: resetAi, loading: aiLoading, result: aiResult, error: aiError } = useAiRepair();
   const [scrollTarget, setScrollTarget] = useState<number | null>(null);
   const [expandedArrayPaths, setExpandedArrayPaths] = useState<Set<string>>(new Set());

@@ -1,5 +1,24 @@
-import React, { createContext, useContext, useReducer, useCallback, useMemo, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useReducer,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from 'react';
 import type { ReactNode } from 'react';
+import {
+  DashboardOutlined,
+  PartitionOutlined,
+  RobotOutlined,
+  SafetyOutlined,
+  SettingOutlined,
+  TeamOutlined,
+} from '@ant-design/icons';
+import { toolsRegistry } from '../modules/tools/registry';
+import { resolveNetworkIconFromPath } from '../modules/tools/network/utils/iconMap';
+import { clearPageStates } from '../shared/utils/tabPageStorage';
 
 /** 单个 Tab 元数据 */
 export interface TabItem {
@@ -47,10 +66,27 @@ function tabReducer(state: TabState, action: TabAction): TabState {
     case 'OPEN_TAB': {
       const exists = state.tabs.find((t) => t.key === action.tab.key);
       if (exists) {
+        // 已存在：仅在缺 icon/label 时补齐，避免无意义的 tabs 新引用触发整栏重渲染闪烁
+        const patch: Partial<TabItem> = {};
+        if (!exists.icon && action.tab.icon) patch.icon = action.tab.icon;
+        if ((!exists.label || exists.label === exists.path) && action.tab.label) {
+          patch.label = action.tab.label;
+        }
+        const needActivate = state.activeKey !== action.tab.key;
+        if (Object.keys(patch).length === 0 && !needActivate) {
+          return state;
+        }
+        const tabs =
+          Object.keys(patch).length > 0
+            ? state.tabs.map((t) => (t.key === action.tab.key ? { ...t, ...patch } : t))
+            : state.tabs;
         return {
           ...state,
+          tabs,
           activeKey: action.tab.key,
-          history: pushHistory(state.history, action.tab.key),
+          history: needActivate
+            ? pushHistory(state.history, action.tab.key)
+            : state.history,
         };
       }
       return {
@@ -273,6 +309,8 @@ const TabContext = createContext<TabContextValue | null>(null);
 
 export const TabProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(tabReducer, undefined, loadInitialState);
+  /** 用于检测被关闭的 Tab，同步清理页面工作数据 */
+  const prevTabKeysRef = useRef<string[]>(state.tabs.map((t) => t.key));
 
   /* 状态变化即写入 localStorage（icon 为 ReactNode，序列化时剔除） */
   useEffect(() => {
@@ -287,6 +325,17 @@ export const TabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       /* 忽略隐私模式 / 配额超限等异常 */
     }
   }, [state.tabs, state.activeKey]);
+
+  /* 关闭 Tab 时清除对应页面数据（刷新不清除，仅关闭时清除） */
+  useEffect(() => {
+    const prevKeys = prevTabKeysRef.current;
+    const currKeys = new Set(state.tabs.map((t) => t.key));
+    const removed = prevKeys.filter((k) => !currKeys.has(k));
+    if (removed.length > 0) {
+      clearPageStates(removed);
+    }
+    prevTabKeysRef.current = state.tabs.map((t) => t.key);
+  }, [state.tabs]);
 
   const openTab = useCallback((tab: TabItem) => {
     dispatch({ type: 'OPEN_TAB', tab });
@@ -390,4 +439,77 @@ export function tabTitleFromPath(path: string): string {
     routes: '路由管理',
   };
   return map[last] || last || '页面';
+}
+
+/** 网络工具子路径 title 兜底（与 YAML name 对齐的常用项） */
+const NETWORK_TAB_LABELS: Record<string, string> = {
+  'base64-codec': '编码解码全家桶',
+  'data-format': '数据格式转换器',
+  'file-hash': '文件哈希计算器',
+  'http-status': 'HTTP 状态码参考',
+  'ip-format': 'IP 格式转换器',
+  'mime-type': 'MIME 类型参考',
+  timestamp: '时间戳转换器',
+  'cookie-analyzer': 'Cookie 分析器',
+  'url-parser': 'URL 解析器',
+  'openapi-viewer': 'OpenAPI/Swagger 查看器',
+  'email-header': 'Email Header 分析器',
+  'log-parser': '日志解析/分析器',
+  'diff-checker': 'Diff 检查器',
+  'cors-checker': 'CORS 策略检查器',
+  'docker-network': 'Docker 网络配置生成器',
+  'cidr-calculator': 'CIDR/子网计算器',
+  'curl-generator': 'Curl 命令生成器',
+  'jwt-debugger': 'JWT 构建器/调试器',
+  'hmac-signer': 'HMAC 签名生成/验证',
+  'nginx-config': 'Nginx 配置生成器',
+  'dns-query': 'DNS 查询工具',
+  'tcp-ping': 'TCP Ping 检查器',
+  whois: 'WHOIS 查询',
+  'ssl-analyzer': 'SSL/TLS 证书分析器',
+  'http-header': 'HTTP Header 分析器',
+  'ip-reputation': 'IP 信誉检查器',
+  'websocket-tester': 'WebSocket 测试器',
+  'network-assistant': '网络排障 AI 助手',
+};
+
+/** 解析 Tab 标题（工具注册表优先） */
+export function resolveTabLabel(path: string): string {
+  const tool = toolsRegistry.find((t) => t.path === path);
+  if (tool?.title) return tool.title;
+  if (path === '/tools/network' || path === '/tools/network/') return '网络工具箱';
+  if (path.startsWith('/tools/network/')) {
+    const id = path.split('/').filter(Boolean).pop() ?? '';
+    if (NETWORK_TAB_LABELS[id]) return NETWORK_TAB_LABELS[id];
+  }
+  return tabTitleFromPath(path);
+}
+
+/**
+ * 按路径解析 Tab 图标。
+ * toolsRegistry → 网络子工具 icon 表 → admin / settings
+ */
+export function resolveTabIcon(path: string): ReactNode | undefined {
+  const tool = toolsRegistry.find((t) => t.path === path);
+  if (tool?.icon) {
+    const Icon = tool.icon;
+    return <Icon />;
+  }
+
+  // 网络工具箱列表 + 各子工具（刷新后 localStorage 无 ReactNode，靠此补回）
+  if (path.startsWith('/tools/network')) {
+    return resolveNetworkIconFromPath(path);
+  }
+
+  if (path === '/admin/dashboard') return <DashboardOutlined />;
+  if (path === '/admin/invocations' || path.startsWith('/admin/invocations')) {
+    return <RobotOutlined />;
+  }
+  if (path === '/admin/users' || path.startsWith('/admin/users')) return <TeamOutlined />;
+  if (path === '/admin/roles' || path.startsWith('/admin/roles')) return <SafetyOutlined />;
+  if (path === '/admin/routes' || path.startsWith('/admin/routes')) {
+    return <PartitionOutlined />;
+  }
+  if (path === '/settings') return <SettingOutlined />;
+  return undefined;
 }

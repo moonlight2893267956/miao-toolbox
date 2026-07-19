@@ -1,9 +1,12 @@
-import React, { useReducer, useCallback, useRef } from 'react';
+import React, { useReducer, useCallback, useRef, useEffect } from 'react';
 import type { RegexAction, RegexState, CodeGenLanguage } from './types';
 import { RegexContext } from './regexContext';
 import type { RegexContextValue } from './regexContext';
 import { useMatchEngine } from './hooks/useMatchEngine';
 import { useHistory } from './hooks/useHistory';
+import { loadPageState, savePageState } from '../../../shared/utils/tabPageStorage';
+
+const PAGE_KEY = 'tools-regex-tester';
 
 const initialState: RegexState = {
   pattern: '',
@@ -23,6 +26,25 @@ const initialState: RegexState = {
   showHistory: false,
   showCodeGen: false,
 };
+
+function loadInitialRegexState(): RegexState {
+  const loaded = loadPageState<{
+    pattern?: string;
+    flags?: string;
+    testText?: string;
+    replaceText?: string;
+    codeGenLanguage?: CodeGenLanguage;
+  }>(PAGE_KEY);
+  if (!loaded) return initialState;
+  return {
+    ...initialState,
+    pattern: typeof loaded.pattern === 'string' ? loaded.pattern : '',
+    flags: typeof loaded.flags === 'string' ? loaded.flags : 'g',
+    testText: typeof loaded.testText === 'string' ? loaded.testText : '',
+    replaceText: typeof loaded.replaceText === 'string' ? loaded.replaceText : '',
+    codeGenLanguage: loaded.codeGenLanguage ?? 'javascript',
+  };
+}
 
 function regexReducer(state: RegexState, action: RegexAction): RegexState {
   switch (action.type) {
@@ -72,10 +94,26 @@ function regexReducer(state: RegexState, action: RegexAction): RegexState {
 }
 
 export const RegexProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, dispatch] = useReducer(regexReducer, initialState);
+  const [state, dispatch] = useReducer(regexReducer, undefined, loadInitialRegexState);
 
   // 正则输入框光标位置 ref（CheatSheet 点击插入时需要）
   const patternCursorRef = useRef<number>(0);
+
+  useEffect(() => {
+    savePageState(PAGE_KEY, {
+      pattern: state.pattern,
+      flags: state.flags,
+      testText: state.testText,
+      replaceText: state.replaceText,
+      codeGenLanguage: state.codeGenLanguage,
+    });
+  }, [
+    state.pattern,
+    state.flags,
+    state.testText,
+    state.replaceText,
+    state.codeGenLanguage,
+  ]);
 
   const setPattern = useCallback((pattern: string) => dispatch({ type: 'REGEX_SET_PATTERN', payload: pattern }), []);
   const setFlags = useCallback((flags: string) => dispatch({ type: 'REGEX_SET_FLAGS', payload: flags }), []);

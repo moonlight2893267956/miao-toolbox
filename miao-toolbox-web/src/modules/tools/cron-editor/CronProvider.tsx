@@ -1,15 +1,27 @@
 // Cron 编辑器 — Provider（架构 Decision 2：单一 setter + 派生计算）
-import React, { useReducer, useMemo, useCallback } from 'react';
+import React, { useReducer, useMemo, useCallback, useEffect } from 'react';
 import type { CronAction, CronDialect, CronState } from './types';
 import { CronContext } from './cronContext';
 import type { CronContextValue } from './cronContext';
 import { parseExpression } from './utils/cronParser';
 import { validate } from './utils/cronValidator';
+import { loadPageState, savePageState } from '../../../shared/utils/tabPageStorage';
+
+const PAGE_KEY = 'tools-cron-editor';
 
 const initialState: CronState = {
   expression: '',
   dialect: 'linux5',
 };
+
+function loadInitialCronState(): CronState {
+  const loaded = loadPageState<Partial<CronState>>(PAGE_KEY);
+  if (!loaded) return initialState;
+  return {
+    expression: typeof loaded.expression === 'string' ? loaded.expression : '',
+    dialect: (loaded.dialect as CronDialect) || 'linux5',
+  };
+}
 
 function cronReducer(state: CronState, action: CronAction): CronState {
   switch (action.type) {
@@ -24,7 +36,14 @@ function cronReducer(state: CronState, action: CronAction): CronState {
 }
 
 export const CronProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, dispatch] = useReducer(cronReducer, initialState);
+  const [state, dispatch] = useReducer(cronReducer, undefined, loadInitialCronState);
+
+  useEffect(() => {
+    savePageState(PAGE_KEY, {
+      expression: state.expression,
+      dialect: state.dialect,
+    });
+  }, [state.expression, state.dialect]);
 
   const setExpression = useCallback(
     (expr: string) => dispatch({ type: 'CRON_SET_EXPRESSION', payload: expr }),

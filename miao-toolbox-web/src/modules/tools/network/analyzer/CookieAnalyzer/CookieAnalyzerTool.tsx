@@ -17,6 +17,7 @@ import {
   type CookieAttributes,
 } from '../../utils/cookieAnalyzer';
 import { resolveNetworkIcon } from '../../utils/iconMap';
+import { useTabPageStore } from '../../../../../hooks/useTabPageState';
 import '../../network.css';
 import '../../components/NetworkToolLayout.css';
 import './cookie-analyzer.css';
@@ -25,6 +26,7 @@ const { TextArea } = Input;
 
 const SAMPLE =
   'session=abc123; Domain=.example.com; Path=/; HttpOnly; Secure; SameSite=Lax';
+const PAGE_KEY = 'tools-network-cookie-analyzer';
 
 function copyText(text: string, label?: string) {
   void navigator.clipboard?.writeText(text).then(
@@ -207,17 +209,20 @@ function CookieTable({ cookies }: { cookies: CookieAttributes[] }) {
 }
 
 const CookieAnalyzerTool: React.FC = () => {
-  const [input, setInput] = useState(SAMPLE);
-  const [cookies, setCookies] = useState<CookieAttributes[]>(() => parseCookies(SAMPLE));
+  const { state, setField, setState } = useTabPageStore(PAGE_KEY, {
+    input: SAMPLE,
+    cookies: parseCookies(SAMPLE) as CookieAttributes[],
+  });
+  const { input, cookies } = state;
   const [loading, setLoading] = useState(false);
 
   const run = useCallback(() => {
     setLoading(true);
     window.setTimeout(() => {
-      setCookies(parseCookies(input));
+      setState((prev) => ({ ...prev, cookies: parseCookies(prev.input) }));
       setLoading(false);
     }, 40);
-  }, [input]);
+  }, [setState]);
 
   const resultText =
     cookies.length > 0
@@ -260,7 +265,7 @@ const CookieAnalyzerTool: React.FC = () => {
         </p>
         <TextArea
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => setField('input', e.target.value)}
           rows={5}
           placeholder={SAMPLE}
           data-testid="cookie-input"

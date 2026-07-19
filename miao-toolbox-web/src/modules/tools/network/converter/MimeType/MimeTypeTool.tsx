@@ -8,6 +8,7 @@ import {
   type MimeEntry,
 } from '../../utils/mimeTypes';
 import { resolveNetworkIcon } from '../../utils/iconMap';
+import { useTabPageStore } from '../../../../../hooks/useTabPageState';
 import '../../network.css';
 import '../../components/NetworkToolLayout.css';
 import './mime-type.css';
@@ -84,18 +85,23 @@ function MimeResultList({ items }: { items: MimeEntry[] }) {
   );
 }
 
+const PAGE_KEY = 'tools-network-mime-type';
+
 const MimeTypeTool: React.FC = () => {
-  const [query, setQuery] = useState('.json');
-  const [items, setItems] = useState<MimeEntry[]>(() => lookupMime('.json'));
+  const { state, setField, setState } = useTabPageStore(PAGE_KEY, {
+    query: '.json',
+    items: lookupMime('.json') as MimeEntry[],
+  });
+  const { query, items } = state;
   const [loading, setLoading] = useState(false);
 
   const run = useCallback(() => {
     setLoading(true);
     window.setTimeout(() => {
-      setItems(lookupMime(query));
+      setState((prev) => ({ ...prev, items: lookupMime(prev.query) }));
       setLoading(false);
     }, 40);
-  }, [query]);
+  }, [setState]);
 
   const resultText = formatMimeText(items);
   const countLabel =
@@ -125,7 +131,7 @@ const MimeTypeTool: React.FC = () => {
       <div data-testid="network-tool-input-slot">
         <Input
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => setField('query', e.target.value)}
           onPressEnter={run}
           placeholder=".json · application/json · image · 图片"
           data-testid="mime-input"

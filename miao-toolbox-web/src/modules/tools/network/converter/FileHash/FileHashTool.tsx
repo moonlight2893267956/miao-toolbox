@@ -15,18 +15,21 @@ import {
   type FileHashResult,
 } from '../../utils/fileHash';
 import { resolveNetworkIcon } from '../../utils/iconMap';
+import { useTabPageState } from '../../../../../hooks/useTabPageState';
 import '../../network.css';
 import '../../components/NetworkToolLayout.css';
 import './file-hash.css';
 
 const WARN_SIZE = 50 * 1024 * 1024; // 50MB
+const PAGE_KEY = 'tools-network-file-hash';
 
 const FileHashTool: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [results, setResults] = useState<FileHashResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [expected, setExpected] = useState('');
+  /** 文件本身无法序列化，仅持久化预期哈希 */
+  const [expected, setExpected] = useTabPageState(PAGE_KEY, '');
   const [dragOver, setDragOver] = useState(false);
   const [copied, setCopied] = useState<FileHashAlgo | null>(null);
 

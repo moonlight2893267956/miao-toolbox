@@ -17,6 +17,7 @@ import {
   type TimestampUnit,
   type TimestampFormats,
 } from '../../utils/timestampConvert';
+import { useTabPageStore } from '../../../../../hooks/useTabPageState';
 import '../../network.css';
 import './timestamp-tool.css';
 
@@ -131,26 +132,53 @@ function LiveMetric({
   );
 }
 
+const PAGE_KEY = 'tools-network-timestamp';
+
+type KvRow = { label: string; value: string };
+
 const TimestampTool: React.FC = () => {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [liveOn, setLiveOn] = useState(true);
 
-  const [tsInput, setTsInput] = useState('1721318400');
-  const [tsUnit, setTsUnit] = useState<TimestampUnit>('s');
-  const [tsRows, setTsRows] = useState<{ label: string; value: string }[] | null>(null);
-  const [tsErr, setTsErr] = useState<string | null>(null);
+  const { state, setField, setState } = useTabPageStore(PAGE_KEY, {
+    tsInput: '1721318400',
+    tsUnit: 's' as TimestampUnit,
+    tsRows: null as KvRow[] | null,
+    tsErr: null as string | null,
+    dateInput: '2024-07-18 16:00:00',
+    dateUnit: 's' as TimestampUnit,
+    dateRows: null as KvRow[] | null,
+    dateLead: null as KvRow | null,
+    dateErr: null as string | null,
+    parts: dateToParts(new Date(), 8) as TimestampParts,
+    partsUnit: 's' as TimestampUnit,
+    partsRows: null as KvRow[] | null,
+    partsLead: null as KvRow | null,
+    partsErr: null as string | null,
+  });
 
-  const [dateInput, setDateInput] = useState('2024-07-18 16:00:00');
-  const [dateUnit, setDateUnit] = useState<TimestampUnit>('s');
-  const [dateRows, setDateRows] = useState<{ label: string; value: string }[] | null>(null);
-  const [dateLead, setDateLead] = useState<{ label: string; value: string } | null>(null);
-  const [dateErr, setDateErr] = useState<string | null>(null);
+  const {
+    tsInput,
+    tsUnit,
+    tsRows,
+    tsErr,
+    dateInput,
+    dateUnit,
+    dateRows,
+    dateLead,
+    dateErr,
+    parts,
+    partsUnit,
+    partsRows,
+    partsLead,
+    partsErr,
+  } = state;
 
-  const [parts, setParts] = useState<TimestampParts>(() => dateToParts(new Date(), 8));
-  const [partsUnit, setPartsUnit] = useState<TimestampUnit>('s');
-  const [partsRows, setPartsRows] = useState<{ label: string; value: string }[] | null>(null);
-  const [partsLead, setPartsLead] = useState<{ label: string; value: string } | null>(null);
-  const [partsErr, setPartsErr] = useState<string | null>(null);
+  const setTsInput = useCallback((v: string) => setField('tsInput', v), [setField]);
+  const setTsUnit = useCallback((v: TimestampUnit) => setField('tsUnit', v), [setField]);
+  const setDateInput = useCallback((v: string) => setField('dateInput', v), [setField]);
+  const setDateUnit = useCallback((v: TimestampUnit) => setField('dateUnit', v), [setField]);
+  const setPartsUnit = useCallback((v: TimestampUnit) => setField('partsUnit', v), [setField]);
 
   useEffect(() => {
     if (!liveOn) return;
@@ -164,56 +192,74 @@ const TimestampTool: React.FC = () => {
     try {
       const date = timestampToDate(tsInput, tsUnit);
       const f = buildFormats(date);
-      setTsRows(formatsToRows(f));
-      setTsErr(null);
-      setParts(dateToParts(date, 8));
+      setState((prev) => ({
+        ...prev,
+        tsRows: formatsToRows(f),
+        tsErr: null,
+        parts: dateToParts(date, 8),
+      }));
     } catch (e) {
-      setTsErr(e instanceof Error ? e.message : '转换失败');
-      setTsRows(null);
+      setState((prev) => ({
+        ...prev,
+        tsErr: e instanceof Error ? e.message : '转换失败',
+        tsRows: null,
+      }));
     }
-  }, [tsInput, tsUnit]);
+  }, [tsInput, tsUnit, setState]);
 
   const convertDate = useCallback(() => {
     try {
       const date = parseDateString(dateInput, 8);
       const f = buildFormats(date);
       const val = dateUnit === 's' ? f.unixSeconds : f.unixMillis;
-      setDateLead({
-        label: dateUnit === 's' ? 'Unix 秒' : 'Unix 毫秒',
-        value: String(val),
-      });
-      setDateRows(formatsToRows(f));
-      setDateErr(null);
-      setTsInput(String(f.unixSeconds));
-      setParts(dateToParts(date, 8));
+      setState((prev) => ({
+        ...prev,
+        dateLead: {
+          label: dateUnit === 's' ? 'Unix 秒' : 'Unix 毫秒',
+          value: String(val),
+        },
+        dateRows: formatsToRows(f),
+        dateErr: null,
+        tsInput: String(f.unixSeconds),
+        parts: dateToParts(date, 8),
+      }));
     } catch (e) {
-      setDateErr(e instanceof Error ? e.message : '转换失败');
-      setDateRows(null);
-      setDateLead(null);
+      setState((prev) => ({
+        ...prev,
+        dateErr: e instanceof Error ? e.message : '转换失败',
+        dateRows: null,
+        dateLead: null,
+      }));
     }
-  }, [dateInput, dateUnit]);
+  }, [dateInput, dateUnit, setState]);
 
   const convertParts = useCallback(() => {
     try {
       const date = partsToDate(parts, 8);
       const f = buildFormats(date);
       const val = partsUnit === 's' ? f.unixSeconds : f.unixMillis;
-      setPartsLead({
-        label: partsUnit === 's' ? 'Unix 秒' : 'Unix 毫秒',
-        value: String(val),
-      });
-      setPartsRows(formatsToRows(f));
-      setPartsErr(null);
+      setState((prev) => ({
+        ...prev,
+        partsLead: {
+          label: partsUnit === 's' ? 'Unix 秒' : 'Unix 毫秒',
+          value: String(val),
+        },
+        partsRows: formatsToRows(f),
+        partsErr: null,
+      }));
     } catch (e) {
-      setPartsErr(e instanceof Error ? e.message : '转换失败');
-      setPartsRows(null);
-      setPartsLead(null);
+      setState((prev) => ({
+        ...prev,
+        partsErr: e instanceof Error ? e.message : '转换失败',
+        partsRows: null,
+        partsLead: null,
+      }));
     }
-  }, [parts, partsUnit]);
+  }, [parts, partsUnit, setState]);
 
   const setPart = (key: keyof TimestampParts, v: number | null) => {
     if (v === null || Number.isNaN(v)) return;
-    setParts((p) => ({ ...p, [key]: v }));
+    setState((prev) => ({ ...prev, parts: { ...prev.parts, [key]: v } }));
   };
 
   useEffect(() => {
@@ -376,7 +422,7 @@ const TimestampTool: React.FC = () => {
               <button
                 type="button"
                 className="ntl-ts-btn"
-                onClick={() => setParts(dateToParts(new Date(), 8))}
+                onClick={() => setField('parts', dateToParts(new Date(), 8))}
               >
                 填入现在
               </button>

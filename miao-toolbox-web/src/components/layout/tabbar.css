@@ -1,160 +1,215 @@
-/* ─────────────────── TabBar 页签栏 ─────────────────── */
-.miao-tabbar {
-  --tab-height: 32px;
-  --tab-gap: 2px;
-  --tab-radius: 6px;
-  --tab-inactive-bg: var(--miao-bg-surface);
-  --tab-inactive-text: var(--miao-text-tertiary);
-  --tab-active-bg: var(--miao-bg-elevated);
-  --tab-active-text: var(--miao-text-primary);
-  --tab-border: var(--miao-border);
-  --tab-accent: var(--miao-accent-primary);
-  position: sticky;                 /* 吸顶：整页滚动时 Tab 栏固定在头部 */
+/* ══════════════════════════════════════════════════════════════
+   TabBar — 纯白顶栏 + 稳妥切换
+   - 整条顶栏纯白，与内容不割裂
+   - 切换只改颜色/底线，不做阴影/位移过渡，避免闪烁
+   ══════════════════════════════════════════════════════════════ */
+
+/* 全宽白底外壳（盖住内容区两侧的米色底） */
+.miao-tabbar-shell {
+  flex: 0 0 auto;
+  width: 100%;
+  background: #ffffff;
+  border-bottom: 1px solid color-mix(in srgb, var(--miao-border, #e8e8e8) 100%, transparent);
+  position: sticky;
   top: 0;
   z-index: 10;
+}
+
+.miao-tabbar {
+  --tab-h: 36px;
+  --tab-gap: 2px;
+  --tab-radius: 8px 8px 0 0;
+  --tab-pad-x: 12px;
+  --tab-accent: var(--miao-accent-primary, #5c4fd0);
+
+  --tab-idle-text: var(--miao-text-tertiary, #94a3b8);
+  --tab-hover-text: var(--miao-text-secondary, #64748b);
+  --tab-active-text: var(--miao-text-primary, #0f172a);
+
   display: flex;
-  align-items: center;
-  height: var(--tab-height);
-  max-width: 1400px;
-  margin: 0 auto;
-  background: transparent;
-  border-bottom: 1px solid var(--miao-border);
-  box-shadow: 0 1px 3px color-mix(in srgb, var(--miao-text-primary) 4%, transparent);
+  align-items: flex-end;
+  gap: 4px;
+  min-height: 40px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0 16px;
+  background: #ffffff;
+  border-bottom: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  position: relative;
+  z-index: 1;
 }
 
 .miao-tabbar-scroll {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: var(--tab-gap);
   overflow-x: auto;
   overflow-y: hidden;
-  scrollbar-width: none;        /* Firefox */
-  -ms-overflow-style: none;     /* IE 10+ */
-  padding: 0 12px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 4px 0 0;
   height: 100%;
+  min-height: var(--tab-h);
   flex: 1 1 auto;
   min-width: 0;
+  /* 去掉 mask，避免横向滚动/重绘时边缘闪一下 */
+  mask-image: none;
 }
 
 .miao-tabbar-scroll::-webkit-scrollbar {
-  display: none;                /* WebKit */
+  display: none;
 }
 
-/* ─── 更多 Tab 下拉按钮 ─── */
+/* ─── 更多 Tab ─── */
 .miao-tabbar-more {
+  align-self: center;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
+  gap: 3px;
+  min-width: 34px;
   height: 28px;
-  margin-right: 8px;
-  border-radius: 6px;
-  border: none;
-  background: var(--tab-inactive-bg);
-  color: var(--tab-inactive-text);
+  margin: 0 0 4px 4px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--tab-idle-text);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 650;
   flex-shrink: 0;
-  transition: background 150ms ease, color 150ms ease;
+  transition: color 120ms ease, background-color 120ms ease;
 }
+
 .miao-tabbar-more:hover {
-  background: color-mix(in srgb, var(--tab-inactive-bg) 90%, var(--miao-accent-primary) 10%);
   color: var(--tab-active-text);
+  background: color-mix(in srgb, var(--tab-accent) 8%, transparent);
 }
+
 .miao-tabbar-more.is-active-hidden {
   color: var(--tab-accent);
-  border: 1px solid color-mix(in srgb, var(--tab-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--tab-accent) 10%, transparent);
 }
+
 .miao-tabbar-more-count {
-  font-size: 10px;
-  margin-left: 2px;
-  opacity: 0.85;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  min-width: 1.1em;
+  text-align: center;
 }
+
 .miao-tabbar-more-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  min-width: 140px;
+  min-width: 148px;
 }
+
 .miao-tabbar-more-label {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: 600;
 }
+
 .miao-tabbar-more-pin {
   font-size: 10px;
-  color: var(--miao-accent-primary);
+  color: var(--tab-accent);
   opacity: 0.85;
 }
+
 .miao-tabbar-more-close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   background: transparent;
   color: var(--miao-text-tertiary);
   cursor: pointer;
   padding: 0;
   flex-shrink: 0;
   font-size: 10px;
-}
-.miao-tabbar-more-close:hover {
-  background: var(--miao-danger-bg);
-  color: var(--miao-danger);
+  transition: background 120ms ease, color 120ms ease;
 }
 
-/* ─── 单个 Tab ─── */
+.miao-tabbar-more-close:hover {
+  background: var(--miao-danger-bg, rgba(255, 77, 79, 0.12));
+  color: var(--miao-danger, #ff4d4f);
+}
+
+/* ─── 单个 Tab ───
+   切换只改 color / 底线 / font-weight，不做 box-shadow、transform 过渡
+*/
 .miao-tab {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: var(--tab-height);
-  padding: 0 10px 0 10px;
-  border-radius: var(--tab-radius) var(--tab-radius) 0 0;
-  background: var(--tab-inactive-bg);
-  color: var(--tab-inactive-text);
-  font-size: 12px;
-  font-weight: 500;
+  gap: 7px;
+  height: var(--tab-h);
+  padding: 0 var(--tab-pad-x);
+  border-radius: var(--tab-radius);
+  background: transparent;
+  color: var(--tab-idle-text);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
   border: none;
   border-bottom: 2px solid transparent;
-  transition: background 200ms ease, color 200ms ease, border-color 200ms ease, transform 200ms ease;
-  /* 自适应收缩：tab 多时自动变窄 */
+  /* 仅颜色类属性，避免阴影/位移切换时闪 */
+  transition:
+    color 100ms ease,
+    background-color 100ms ease,
+    border-bottom-color 100ms ease;
   flex: 0 1 auto;
   min-width: 0;
-  max-width: 180px;
+  max-width: 176px;
 }
 
 .miao-tab:hover {
-  background: color-mix(in srgb, var(--tab-inactive-bg) 90%, var(--miao-accent-primary) 10%);
-  color: var(--tab-active-text);
+  color: var(--tab-hover-text);
+  background: color-mix(in srgb, var(--tab-accent) 5%, transparent);
+}
+
+.miao-tab:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--tab-accent) 28%, transparent);
 }
 
 .miao-tab.is-active {
-  background: var(--tab-active-bg);
   color: var(--tab-active-text);
+  font-weight: 700;
+  background: transparent;
   border-bottom-color: var(--tab-accent);
-  font-weight: 600;
-  box-shadow: 0 -2px 8px color-mix(in srgb, var(--miao-text-primary) 6%, transparent);
+  box-shadow: none;
   z-index: 1;
+}
+
+/* 不用 ::after 动画条，避免切换时伪元素插拔闪烁 */
+.miao-tab.is-active::after {
+  content: none;
 }
 
 .miao-tab.is-active .miao-tab-label {
   color: var(--tab-active-text);
 }
 
-/* 固定标签：左端常亮，不可关闭（pinned ⇒ closable=false） */
 .miao-tab.is-pinned {
   padding-left: 10px;
   padding-right: 10px;
@@ -164,39 +219,47 @@
 .miao-tab.is-pinned .miao-tab-pin {
   color: var(--tab-accent);
   font-size: 10px;
-  opacity: 0.8;
+  opacity: 0.9;
+  display: inline-flex;
 }
 
-/* 图标 */
 .miao-tab-icon {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
   font-size: 13px;
   opacity: 0.75;
-  transition: opacity 200ms ease;
   flex-shrink: 0;
+  color: inherit;
+  /* 无 transform 过渡 */
+  transition: color 100ms ease, opacity 100ms ease;
 }
 
-.miao-tab:hover .miao-tab-icon,
+.miao-tab:hover .miao-tab-icon {
+  opacity: 0.95;
+}
+
 .miao-tab.is-active .miao-tab-icon {
   opacity: 1;
+  color: var(--tab-accent);
 }
 
-/* 标签文字 */
 .miao-tab-label {
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+  line-height: 1.2;
 }
 
-/* 关闭按钮：始终占位，默认不可见，hover 淡入 */
 .miao-tab-close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 16px;
   height: 16px;
-  margin-left: 2px;
+  margin-left: 1px;
   border-radius: 4px;
   border: none;
   background: transparent;
@@ -205,132 +268,127 @@
   padding: 0;
   line-height: 1;
   font-size: 10px;
-  transition: background 150ms ease, color 150ms ease, transform 150ms ease, opacity 150ms ease;
+  transition: background 100ms ease, color 100ms ease, opacity 100ms ease;
   opacity: 0;
-  transform: scale(0.85);
-  pointer-events: none;          /* 隐藏时不拦截鼠标事件 */
+  pointer-events: none;
   flex-shrink: 0;
 }
 
 .miao-tab:hover .miao-tab-close,
-.miao-tab.is-active .miao-tab-close {
-  opacity: 1;
-  transform: scale(1);
-  pointer-events: auto;          /* 可见时恢复点击 */
+.miao-tab.is-active .miao-tab-close,
+.miao-tab:focus-within .miao-tab-close {
+  opacity: 0.85;
+  pointer-events: auto;
 }
 
 .miao-tab-close:hover {
-  background: var(--miao-danger-bg);
-  color: var(--miao-danger);
-  transform: scale(1.1);
+  background: var(--miao-danger-bg, rgba(255, 77, 79, 0.12));
+  color: var(--miao-danger, #ff4d4f);
+  opacity: 1;
 }
 
-.miao-tab-close:active {
-  transform: scale(0.95);
-}
-
-/* ─── 右键菜单 ─── */
-.miao-tabbar-dropdown .ant-dropdown-menu {
-  border-radius: 8px;
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--miao-text-primary) 12%, transparent);
-  border: 1px solid var(--miao-border);
-  padding: 4px 0;
-  min-width: 140px;
-}
-
-.miao-tabbar-dropdown .ant-dropdown-menu-item {
-  font-size: 13px;
-  padding: 6px 14px;
-  color: var(--miao-text-primary);
-  transition: background 150ms ease, color 150ms ease;
-}
-
-.miao-tabbar-dropdown .ant-dropdown-menu-item:hover {
-  background: var(--miao-bg-surface);
-  color: var(--miao-accent-primary);
-}
-
-/* ─── 更多 Tab 下拉菜单 ─── */
+/* ─── 下拉菜单 ─── */
+.miao-tabbar-dropdown .ant-dropdown-menu,
 .miao-tabbar-more-dropdown .ant-dropdown-menu {
-  border-radius: 8px;
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--miao-text-primary) 12%, transparent);
+  border-radius: 10px;
+  box-shadow:
+    0 4px 6px -2px color-mix(in srgb, var(--miao-text-primary) 6%, transparent),
+    0 12px 28px -10px color-mix(in srgb, var(--miao-text-primary) 14%, transparent);
   border: 1px solid var(--miao-border);
-  padding: 4px 0;
-  min-width: 160px;
+  padding: 6px;
+  min-width: 148px;
+  background: #fff;
+}
+
+.miao-tabbar-dropdown .ant-dropdown-menu-item,
+.miao-tabbar-more-dropdown .ant-dropdown-menu-item {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: 8px;
+  color: var(--miao-text-primary);
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.miao-tabbar-dropdown .ant-dropdown-menu-item:hover,
+.miao-tabbar-more-dropdown .ant-dropdown-menu-item:hover {
+  background: color-mix(in srgb, var(--tab-accent) 8%, transparent);
+  color: var(--tab-accent);
+}
+
+.miao-tabbar-more-dropdown .ant-dropdown-menu {
+  min-width: 168px;
   max-height: 320px;
   overflow-y: auto;
 }
 
 .miao-tabbar-more-dropdown .ant-dropdown-menu-item {
-  font-size: 13px;
-  padding: 6px 14px;
-  color: var(--miao-text-primary);
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: background 150ms ease, color 150ms ease;
-}
-
-.miao-tabbar-more-dropdown .ant-dropdown-menu-item:hover {
-  background: var(--miao-bg-surface);
-  color: var(--miao-accent-primary);
 }
 
 .miao-tabbar-more-dropdown .ant-dropdown-menu-item.is-active-item {
-  font-weight: 600;
-  color: var(--miao-accent-primary);
+  font-weight: 700;
+  color: var(--tab-accent);
+  background: color-mix(in srgb, var(--tab-accent) 9%, transparent);
 }
 
-/* ─── 减少动态效果 ─── */
 @media (prefers-reduced-motion: reduce) {
   .miao-tab,
   .miao-tab-icon,
-  .miao-tab-label,
   .miao-tab-close,
-  .miao-tab.is-active {
+  .miao-tabbar-more {
     transition: none !important;
   }
+
   .miao-tab .miao-tab-close {
     opacity: 1;
-    transform: none;
+    pointer-events: auto;
   }
 }
 
-/* ─── 暗色适配 ─── */
-[data-theme="dark"] .miao-tabbar {
-  box-shadow: 0 1px 3px color-mix(in srgb, var(--miao-text-primary) 8%, transparent);
-  border-bottom-color: var(--miao-border);
+/* ─── 暗色 ─── */
+[data-theme='dark'] .miao-tabbar-shell {
+  background: var(--miao-bg-elevated, #16161f);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 
-[data-theme="dark"] .miao-tab.is-active {
-  box-shadow: 0 -2px 8px color-mix(in srgb, var(--miao-text-primary) 12%, transparent);
+[data-theme='dark'] .miao-tabbar {
+  background: var(--miao-bg-elevated, #16161f);
 }
 
-[data-theme="dark"] .miao-tabbar-dropdown .ant-dropdown-menu,
-[data-theme="dark"] .miao-tabbar-more-dropdown .ant-dropdown-menu {
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--miao-text-primary) 20%, transparent);
-  border-color: var(--miao-border);
+[data-theme='dark'] .miao-tab.is-active {
+  border-bottom-color: var(--tab-accent);
 }
 
-[data-theme="dark"] .miao-tabbar-dropdown .ant-dropdown-menu-item:hover,
-[data-theme="dark"] .miao-tabbar-more-dropdown .ant-dropdown-menu-item:hover {
-  background: var(--miao-bg-elevated);
+[data-theme='dark'] .miao-tabbar-dropdown .ant-dropdown-menu,
+[data-theme='dark'] .miao-tabbar-more-dropdown .ant-dropdown-menu {
+  background: #1a1a24;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.55);
 }
 
-/* ─── Tab 交换动画（React Flip 替代：CSS 过渡） ─── */
-.miao-tab:not(.reduced-motion) {
-  transition: transform 200ms ease, background 200ms ease, color 200ms ease, border-color 200ms ease;
-}
-
-/* 拖拽中视觉反馈 */
+/* 拖拽：仅在 is-dragging 时瞬时样式，不走 transition */
 .miao-tab.is-dragging {
-  opacity: 0.6;
-  transform: scale(1.05) rotate(1deg);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--miao-text-primary) 10%, transparent);
+  opacity: 0.7;
   z-index: 10;
 }
 
-/* 空状态隐藏 */
-.miao-tabbar:empty {
+.miao-tabbar:empty,
+.miao-tabbar-shell:empty {
   display: none;
+}
+
+@media (max-width: 720px) {
+  .miao-tabbar {
+    --tab-h: 34px;
+    --tab-pad-x: 10px;
+    padding: 0 10px;
+  }
+
+  .miao-tab {
+    font-size: 12px;
+    max-width: 148px;
+  }
 }

@@ -134,17 +134,18 @@ const NetworkToolPage: React.FC = () => {
   }, []);
 
   /* Tab 创建/更新：用本实例的 instancePathRef.current 而非共享的
-     location.pathname，避免切到其他 Tab 后被错误触发时覆盖其他 Tab。 */
+     location.pathname，避免切到其他 Tab 后被错误触发时覆盖其他 Tab。
+     每次 tool 就绪都 updateTab，确保刷新后缺 icon 的 Tab 能补回图标。 */
   useEffect(() => {
-    if (tabCreatedRef.current || !tool) return;
+    if (!tool) return;
     const path = instancePathRef.current;
     if (!isTabbable(path)) return;
     const key = makeTabKey(path);
     const icon = resolveNetworkIcon(tool.icon);
-    tabCreatedRef.current = true;
-    // 创建 Tab；如果 AppLayout 刷新恢复已创建了占位 Tab，这里用
-    // updateTab 把标题/图标修正为工具真实名称。
-    openTab({ key, label: tool.name, path, icon, closable: true });
+    if (!tabCreatedRef.current) {
+      tabCreatedRef.current = true;
+      openTab({ key, label: tool.name, path, icon, closable: true });
+    }
     updateTab(key, { label: tool.name, icon });
   }, [tool, openTab, updateTab]);
 

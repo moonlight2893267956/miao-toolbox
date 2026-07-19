@@ -13,11 +13,24 @@ import {
   type OpenApiEndpoint,
 } from '../../utils/openapiViewer';
 import { resolveNetworkIcon } from '../../utils/iconMap';
+import { useTabPageStore } from '../../../../../hooks/useTabPageState';
 import '../../network.css';
 import '../../components/NetworkToolLayout.css';
 import './openapi-viewer.css';
 
 const { TextArea } = Input;
+const PAGE_KEY = 'tools-network-openapi-viewer';
+
+function initialOpenApi() {
+  const r = parseOpenApiDocument(SAMPLE_OAS3);
+  if (!r.ok) {
+    return { doc: null as OpenApiDocumentView | null, activeId: null as string | null };
+  }
+  return {
+    doc: r.doc as OpenApiDocumentView,
+    activeId: (r.doc.groups[0]?.endpoints[0]?.id ?? null) as string | null,
+  };
+}
 
 function MethodBadge({ method }: { method: string }) {
   const m = method.toLowerCase();
@@ -127,18 +140,15 @@ function EndpointDetail({ ep }: { ep: OpenApiEndpoint }) {
 }
 
 const OpenApiViewerTool: React.FC = () => {
-  const [input, setInput] = useState(SAMPLE_OAS3);
-  const [doc, setDoc] = useState<OpenApiDocumentView | null>(() => {
-    const r = parseOpenApiDocument(SAMPLE_OAS3);
-    return r.ok ? r.doc : null;
+  const boot = initialOpenApi();
+  const { state, setField, setState } = useTabPageStore(PAGE_KEY, {
+    input: SAMPLE_OAS3,
+    doc: boot.doc,
+    error: null as string | null,
+    activeId: boot.activeId,
   });
-  const [error, setError] = useState<string | null>(null);
+  const { input, doc, error, activeId } = state;
   const [loading, setLoading] = useState(false);
-  const [activeId, setActiveId] = useState<string | null>(() => {
-    const r = parseOpenApiDocument(SAMPLE_OAS3);
-    if (!r.ok) return null;
-    return r.doc.groups[0]?.endpoints[0]?.id ?? null;
-  });
 
   const activeEp = useMemo(() => {
     if (!doc || !activeId) return null;
@@ -154,25 +164,35 @@ const OpenApiViewerTool: React.FC = () => {
     window.setTimeout(() => {
       const r = parseOpenApiDocument(input);
       if (!r.ok) {
-        setError(r.error);
-        setDoc(null);
-        setActiveId(null);
+        setState((prev) => ({
+          ...prev,
+          error: r.error,
+          doc: null,
+          activeId: null,
+        }));
       } else {
-        setError(null);
-        setDoc(r.doc);
-        setActiveId(r.doc.groups[0]?.endpoints[0]?.id ?? null);
+        setState((prev) => ({
+          ...prev,
+          error: null,
+          doc: r.doc,
+          activeId: r.doc.groups[0]?.endpoints[0]?.id ?? null,
+        }));
       }
       setLoading(false);
     }, 40);
-  }, [input]);
+  }, [input, setState]);
 
   const loadSample = (sample: string) => {
-    setInput(sample);
     const r = parseOpenApiDocument(sample);
     if (r.ok) {
-      setDoc(r.doc);
-      setError(null);
-      setActiveId(r.doc.groups[0]?.endpoints[0]?.id ?? null);
+      setState({
+        input: sample,
+        doc: r.doc,
+        error: null,
+        activeId: r.doc.groups[0]?.endpoints[0]?.id ?? null,
+      });
+    } else {
+      setField('input', sample);
     }
   };
 
@@ -234,7 +254,7 @@ const OpenApiViewerTool: React.FC = () => {
                           type="button"
                           className={`ntl-oa-ep${activeId === ep.id ? ' is-active' : ''}`}
                           data-testid={`openapi-ep-${ep.method}-${ep.path.replace(/\W+/g, '_')}`}
-                          onClick={() => setActiveId(ep.id)}
+                          onClick={() => setField('activeId', ep.id)}
                         >
                           <MethodBadge method={ep.method} />
                           <div className="ntl-oa-ep-main">
@@ -284,7 +304,7 @@ const OpenApiViewerTool: React.FC = () => {
         </div>
         <TextArea
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => setField('input', e.target.value)}
           rows={10}
           placeholder="粘贴 openapi: 3.0 或 swagger: '2.0' 文档（JSON / YAML）"
           data-testid="openapi-input"

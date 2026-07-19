@@ -20,9 +20,32 @@ const TabBar: React.FC = () => {
   const onClose = useCallback(
     (e: React.MouseEvent, key: string) => {
       e.stopPropagation();
+      e.preventDefault();
+      const closing = state.tabs.find((t) => t.key === key);
+      // 先算出关闭后的回退路径，避免 URL 仍停在已关页签上被 AppLayout 重新 openTab
+      let fallbackPath: string | null = null;
+      if (closing && (state.activeKey === key || location.pathname === closing.path)) {
+        const remaining = state.tabs.filter((t) => t.key !== key);
+        // 与 reducer 一致：优先 history 中仍存在的 key
+        for (let i = state.history.length - 1; i >= 0; i--) {
+          const h = state.history[i];
+          if (h !== key && remaining.some((t) => t.key === h)) {
+            fallbackPath = remaining.find((t) => t.key === h)!.path;
+            break;
+          }
+        }
+        if (!fallbackPath) {
+          fallbackPath = remaining[remaining.length - 1]?.path ?? '/tools';
+        }
+      }
       closeTab(key);
+      if (fallbackPath != null && fallbackPath !== location.pathname) {
+        navigate(fallbackPath, { replace: true });
+      } else if (fallbackPath === '/tools' && location.pathname !== '/tools') {
+        navigate('/tools', { replace: true });
+      }
     },
-    [closeTab],
+    [closeTab, state.tabs, state.activeKey, state.history, location.pathname, navigate],
   );
 
   const onClick = useCallback(
@@ -190,88 +213,90 @@ const TabBar: React.FC = () => {
   if (state.tabs.length === 0) return null;
 
   return (
-    <div className="miao-tabbar">
-      <div className="miao-tabbar-scroll" ref={scrollRef} onWheel={onWheel}>
-        {visibleTabs.map((tab) => {
-          const isActive = tab.key === state.activeKey;
-          const canClose = tab.closable && !tab.pinned;
+    <div className="miao-tabbar-shell">
+      <div className="miao-tabbar" role="tablist">
+        <div className="miao-tabbar-scroll" ref={scrollRef} onWheel={onWheel}>
+          {visibleTabs.map((tab) => {
+            const isActive = tab.key === state.activeKey;
+            const canClose = tab.closable && !tab.pinned;
 
-          return (
-            <Dropdown
-              key={tab.key}
-              trigger={['contextMenu']}
-              menu={{
-                items: buildMenuItems(tab.key),
-                onClick: ({ key: menuKey }) => handleMenuClick(menuKey, tab.key),
-              }}
-              overlayClassName="miao-tabbar-dropdown"
-            >
-              <div
-                data-tab-key={tab.key}
-                className={
-                  'miao-tab' +
-                  (isActive ? ' is-active' : '') +
-                  (tab.pinned ? ' is-pinned' : '')
-                }
-                onClick={() => onClick(tab.key, tab.path)}
-                role="tab"
-                aria-selected={isActive}
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onClick(tab.key, tab.path);
-                  }
-                  if (e.key === 'Delete' && canClose) {
-                    closeTab(tab.key);
-                  }
+            return (
+              <Dropdown
+                key={tab.key}
+                trigger={['contextMenu']}
+                menu={{
+                  items: buildMenuItems(tab.key),
+                  onClick: ({ key: menuKey }) => handleMenuClick(menuKey, tab.key),
                 }}
+                overlayClassName="miao-tabbar-dropdown"
               >
-                {tab.icon && <span className="miao-tab-icon">{tab.icon}</span>}
-                <span className="miao-tab-label">{tab.label}</span>
-                {tab.pinned && (
-                  <span className="miao-tab-pin">
-                    <PushpinOutlined />
-                  </span>
-                )}
-                {canClose && (
-                  <button
-                    className="miao-tab-close"
-                    onClick={(e) => onClose(e, tab.key)}
-                    title="关闭标签"
-                    aria-label="关闭标签"
-                    type="button"
-                  >
-                    <CloseOutlined />
-                  </button>
-                )}
-              </div>
-            </Dropdown>
-          );
-        })}
-      </div>
+                <div
+                  data-tab-key={tab.key}
+                  className={
+                    'miao-tab' +
+                    (isActive ? ' is-active' : '') +
+                    (tab.pinned ? ' is-pinned' : '')
+                  }
+                  onClick={() => onClick(tab.key, tab.path)}
+                  role="tab"
+                  aria-selected={isActive}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onClick(tab.key, tab.path);
+                    }
+                    if (e.key === 'Delete' && canClose) {
+                      closeTab(tab.key);
+                    }
+                  }}
+                >
+                  {tab.icon && <span className="miao-tab-icon">{tab.icon}</span>}
+                  <span className="miao-tab-label">{tab.label}</span>
+                  {tab.pinned && (
+                    <span className="miao-tab-pin">
+                      <PushpinOutlined />
+                    </span>
+                  )}
+                  {canClose && (
+                    <button
+                      className="miao-tab-close"
+                      onClick={(e) => onClose(e, tab.key)}
+                      title="关闭标签"
+                      aria-label="关闭标签"
+                      type="button"
+                    >
+                      <CloseOutlined />
+                    </button>
+                  )}
+                </div>
+              </Dropdown>
+            );
+          })}
+        </div>
 
-      {hiddenTabs.length > 0 && (
-        <Dropdown
-          menu={{ items: moreMenuItems, onClick: handleMoreClick }}
-          trigger={['click']}
-          open={moreOpen}
-          onOpenChange={setMoreOpen}
-          overlayClassName="miao-tabbar-more-dropdown"
-        >
-          <button
-            className={
-              'miao-tabbar-more' +
-              (hiddenTabs.some((t) => t.key === state.activeKey) ? ' is-active-hidden' : '')
-            }
-            type="button"
-            aria-label="更多标签"
+        {hiddenTabs.length > 0 && (
+          <Dropdown
+            menu={{ items: moreMenuItems, onClick: handleMoreClick }}
+            trigger={['click']}
+            open={moreOpen}
+            onOpenChange={setMoreOpen}
+            overlayClassName="miao-tabbar-more-dropdown"
           >
-            <EllipsisOutlined />
-            <span className="miao-tabbar-more-count">{hiddenTabs.length}</span>
-          </button>
-        </Dropdown>
-      )}
+            <button
+              className={
+                'miao-tabbar-more' +
+                (hiddenTabs.some((t) => t.key === state.activeKey) ? ' is-active-hidden' : '')
+              }
+              type="button"
+              aria-label="更多标签"
+            >
+              <EllipsisOutlined />
+              <span className="miao-tabbar-more-count">{hiddenTabs.length}</span>
+            </button>
+          </Dropdown>
+        )}
+      </div>
     </div>
   );
 };

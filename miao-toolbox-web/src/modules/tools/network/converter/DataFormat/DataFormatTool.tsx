@@ -10,6 +10,7 @@ import {
   type DataFormat,
 } from '../../utils/formatConverter';
 import { resolveNetworkIcon } from '../../utils/iconMap';
+import { useTabPageStore } from '../../../../../hooks/useTabPageState';
 import '../../network.css';
 import '../../components/NetworkToolLayout.css';
 
@@ -26,33 +27,47 @@ const SAMPLE_JSON = `{
   "tags": ["network", "dev"]
 }`;
 
+const PAGE_KEY = 'tools-network-data-format';
+
 const DataFormatTool: React.FC = () => {
-  const [from, setFrom] = useState<DataFormat>('json');
-  const [to, setTo] = useState<DataFormat>('yaml');
-  const [input, setInput] = useState(SAMPLE_JSON);
-  const [output, setOutput] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const { state, setField, setState } = useTabPageStore(PAGE_KEY, {
+    from: 'json' as DataFormat,
+    to: 'yaml' as DataFormat,
+    input: SAMPLE_JSON,
+    output: '',
+    error: null as string | null,
+  });
+  const { from, to, input, output, error } = state;
   const [loading, setLoading] = useState(false);
 
   const convert = useCallback(() => {
     setLoading(true);
     window.setTimeout(() => {
       const result = convertDataFormat(input, from, to);
-      setOutput(result.output);
-      setError(result.error ?? null);
+      setState((prev) => ({
+        ...prev,
+        output: result.output,
+        error: result.error ?? null,
+      }));
       setLoading(false);
     }, 80);
-  }, [input, from, to]);
+  }, [input, from, to, setState]);
 
   const swapFormats = useCallback(() => {
-    setFrom(to);
-    setTo(from);
-    if (output) {
-      setInput(output);
-      setOutput('');
-      setError(null);
-    }
-  }, [from, to, output]);
+    setState((prev) => {
+      const next = {
+        ...prev,
+        from: prev.to,
+        to: prev.from,
+      };
+      if (prev.output) {
+        next.input = prev.output;
+        next.output = '';
+        next.error = null;
+      }
+      return next;
+    });
+  }, [setState]);
 
   return (
     <NetworkToolLayout
@@ -85,7 +100,7 @@ const DataFormatTool: React.FC = () => {
                 aria-selected={from === f.key}
                 className={`ntl-chip${from === f.key ? ' is-on' : ''}`}
                 data-testid={`df-from-${f.key}`}
-                onClick={() => setFrom(f.key)}
+                onClick={() => setField('from', f.key)}
               >
                 {f.label}
               </button>
@@ -103,7 +118,7 @@ const DataFormatTool: React.FC = () => {
                 aria-selected={to === f.key}
                 className={`ntl-chip${to === f.key ? ' is-on' : ''}`}
                 data-testid={`df-to-${f.key}`}
-                onClick={() => setTo(f.key)}
+                onClick={() => setField('to', f.key)}
               >
                 {f.label}
               </button>
@@ -114,7 +129,7 @@ const DataFormatTool: React.FC = () => {
         <Input.TextArea
           rows={8}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => setField('input', e.target.value)}
           placeholder="粘贴待转换文本…"
           spellCheck={false}
           data-testid="df-input"

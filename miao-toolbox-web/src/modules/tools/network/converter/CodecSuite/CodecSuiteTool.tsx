@@ -10,6 +10,7 @@ import {
   type CodecDirection,
   type CodecKind,
 } from '../../utils/codecs';
+import { useTabPageStore } from '../../../../../hooks/useTabPageState';
 import '../../network.css';
 import '../../components/NetworkToolLayout.css';
 import './codec-suite.css';
@@ -21,13 +22,18 @@ const KINDS: { key: CodecKind; label: string }[] = [
   { key: 'hex', label: 'Hex' },
 ];
 
+const PAGE_KEY = 'tools-network-base64-codec';
+
 const CodecSuiteTool: React.FC = () => {
-  const [kind, setKind] = useState<CodecKind>('base64');
-  const [direction, setDirection] = useState<CodecDirection>('encode');
-  const [urlSafe, setUrlSafe] = useState(false);
-  const [input, setInput] = useState('hello world');
-  const [output, setOutput] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const { state, setField, setState } = useTabPageStore(PAGE_KEY, {
+    kind: 'base64' as CodecKind,
+    direction: 'encode' as CodecDirection,
+    urlSafe: false,
+    input: 'hello world',
+    output: '',
+    error: null as string | null,
+  });
+  const { kind, direction, urlSafe, input, output, error } = state;
   const [loading, setLoading] = useState(false);
 
   const submitLabel = direction === 'encode' ? '编码' : '解码';
@@ -36,19 +42,25 @@ const CodecSuiteTool: React.FC = () => {
     setLoading(true);
     window.setTimeout(() => {
       const result = runCodec(kind, direction, input, { urlSafe });
-      setOutput(result.output);
-      setError(result.error ?? null);
+      setState((prev) => ({
+        ...prev,
+        output: result.output,
+        error: result.error ?? null,
+      }));
       setLoading(false);
     }, 80);
-  }, [kind, direction, input, urlSafe]);
+  }, [kind, direction, input, urlSafe, setState]);
 
   const swap = useCallback(() => {
     if (!output && !error) return;
-    setInput(output);
-    setOutput('');
-    setError(null);
-    setDirection((d) => (d === 'encode' ? 'decode' : 'encode'));
-  }, [output, error]);
+    setState((prev) => ({
+      ...prev,
+      input: prev.output,
+      output: '',
+      error: null,
+      direction: prev.direction === 'encode' ? 'decode' : 'encode',
+    }));
+  }, [output, error, setState]);
 
   const placeholders = useMemo(() => {
     if (direction === 'encode') {
@@ -98,9 +110,12 @@ const CodecSuiteTool: React.FC = () => {
                 className={`ntl-chip${kind === k.key ? ' is-on' : ''}`}
                 data-testid={`codec-kind-${k.key}`}
                 onClick={() => {
-                  setKind(k.key);
-                  setError(null);
-                  setOutput('');
+                  setState((prev) => ({
+                    ...prev,
+                    kind: k.key,
+                    error: null,
+                    output: '',
+                  }));
                 }}
               >
                 {k.label}
@@ -115,7 +130,7 @@ const CodecSuiteTool: React.FC = () => {
               type="button"
               className={`ntl-chip${direction === 'encode' ? ' is-on' : ''}`}
               data-testid="codec-dir-encode"
-              onClick={() => setDirection('encode')}
+              onClick={() => setField('direction', 'encode')}
             >
               编码
             </button>
@@ -123,7 +138,7 @@ const CodecSuiteTool: React.FC = () => {
               type="button"
               className={`ntl-chip${direction === 'decode' ? ' is-on' : ''}`}
               data-testid="codec-dir-decode"
-              onClick={() => setDirection('decode')}
+              onClick={() => setField('direction', 'decode')}
             >
               解码
             </button>
@@ -131,7 +146,12 @@ const CodecSuiteTool: React.FC = () => {
 
           {kind === 'base64' && (
             <label className="ntl-option ntl-codec-option">
-              <Switch size="small" checked={urlSafe} onChange={setUrlSafe} data-testid="codec-url-safe" />
+              <Switch
+                size="small"
+                checked={urlSafe}
+                onChange={(v) => setField('urlSafe', v)}
+                data-testid="codec-url-safe"
+              />
               <span>URL-Safe</span>
             </label>
           )}
@@ -140,7 +160,7 @@ const CodecSuiteTool: React.FC = () => {
         <Input.TextArea
           rows={6}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => setField('input', e.target.value)}
           placeholder={placeholders}
           spellCheck={false}
           data-testid="codec-input"

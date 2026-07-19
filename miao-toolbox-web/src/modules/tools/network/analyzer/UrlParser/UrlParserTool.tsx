@@ -18,11 +18,13 @@ import {
   type UrlParts,
 } from '../../utils/urlParser';
 import { resolveNetworkIcon } from '../../utils/iconMap';
+import { useTabPageStore } from '../../../../../hooks/useTabPageState';
 import '../../network.css';
 import '../../components/NetworkToolLayout.css';
 import './url-parser.css';
 
 const SAMPLE = 'https://example.com:8080/api?q=hello&lang=zh#section';
+const PAGE_KEY = 'tools-network-url-parser';
 
 function copyText(text: string) {
   void navigator.clipboard?.writeText(text).then(
@@ -31,14 +33,29 @@ function copyText(text: string) {
   );
 }
 
+function initialParts(): UrlParts | null {
+  const r = parseUrl(SAMPLE);
+  return r.ok ? r.parts : null;
+}
+
 const UrlParserTool: React.FC = () => {
-  const [input, setInput] = useState(SAMPLE);
-  const [parts, setParts] = useState<UrlParts | null>(() => {
-    const r = parseUrl(SAMPLE);
-    return r.ok ? r.parts : null;
+  const { state, setField, setState } = useTabPageStore(PAGE_KEY, {
+    input: SAMPLE,
+    parts: initialParts() as UrlParts | null,
+    error: null as string | null,
   });
-  const [error, setError] = useState<string | null>(null);
+  const { input, parts, error } = state;
   const [loading, setLoading] = useState(false);
+
+  const setParts = useCallback(
+    (updater: UrlParts | null | ((prev: UrlParts | null) => UrlParts | null)) => {
+      setState((prev) => ({
+        ...prev,
+        parts: typeof updater === 'function' ? updater(prev.parts) : updater,
+      }));
+    },
+    [setState],
+  );
 
   const assembled = useMemo(() => {
     if (!parts?.hostname) return '';
@@ -54,40 +71,41 @@ const UrlParserTool: React.FC = () => {
     window.setTimeout(() => {
       const r = parseUrl(input);
       if (!r.ok) {
-        setError(r.error);
-        setParts(null);
+        setState((prev) => ({ ...prev, error: r.error, parts: null }));
       } else {
-        setError(null);
-        setParts(r.parts);
+        setState((prev) => ({ ...prev, error: null, parts: r.parts }));
       }
       setLoading(false);
     }, 40);
-  }, [input]);
+  }, [input, setState]);
 
-  const patch = useCallback((patchObj: Partial<UrlParts>) => {
-    setParts((prev) => {
-      if (!prev) return prev;
-      const next = { ...prev, ...patchObj };
-      // 同步 host 展示字段
-      if ('hostname' in patchObj || 'port' in patchObj) {
-        const port = next.port?.trim();
-        next.host = port ? `${next.hostname}:${port}` : next.hostname;
-      }
-      try {
-        next.search = (() => {
-          const s = reassembleFromParts({ ...next });
-          const u = new URL(s);
-          next.href = u.href;
-          next.origin = u.origin;
-          return u.search;
-        })();
-      } catch {
-        /* keep */
-      }
-      return next;
-    });
-    setError(null);
-  }, []);
+  const patch = useCallback(
+    (patchObj: Partial<UrlParts>) => {
+      setParts((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev, ...patchObj };
+        // 同步 host 展示字段
+        if ('hostname' in patchObj || 'port' in patchObj) {
+          const port = next.port?.trim();
+          next.host = port ? `${next.hostname}:${port}` : next.hostname;
+        }
+        try {
+          next.search = (() => {
+            const s = reassembleFromParts({ ...next });
+            const u = new URL(s);
+            next.href = u.href;
+            next.origin = u.origin;
+            return u.search;
+          })();
+        } catch {
+          /* keep */
+        }
+        return next;
+      });
+      setField('error', null);
+    },
+    [setParts, setField],
+  );
 
   const setParam = (index: number, field: keyof QueryParam, value: string) => {
     setParts((prev) => {
@@ -274,7 +292,7 @@ const UrlParserTool: React.FC = () => {
       <div data-testid="network-tool-input-slot">
         <Input.TextArea
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => setField('input', e.target.value)}
           rows={3}
           placeholder={SAMPLE}
           data-testid="url-input"

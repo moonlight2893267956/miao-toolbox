@@ -9,11 +9,13 @@ import {
   type LogParseResult,
 } from '../../utils/logParser';
 import { resolveNetworkIcon } from '../../utils/iconMap';
+import { useTabPageStore } from '../../../../../hooks/useTabPageState';
 import '../../network.css';
 import '../../components/NetworkToolLayout.css';
 import './log-parser.css';
 
 const { TextArea } = Input;
+const PAGE_KEY = 'tools-network-log-parser';
 
 const LEVEL_OPTIONS = [
   { value: '', label: '全部级别' },
@@ -24,13 +26,14 @@ const LEVEL_OPTIONS = [
 ];
 
 const LogParserTool: React.FC = () => {
-  const [input, setInput] = useState(SAMPLE_NGINX_LOG);
-  const [keyword, setKeyword] = useState('');
-  const [level, setLevel] = useState('');
-  const [customRegex, setCustomRegex] = useState('');
-  const [result, setResult] = useState<LogParseResult | null>(() =>
-    parseLogs(SAMPLE_NGINX_LOG),
-  );
+  const { state, setField, setState } = useTabPageStore(PAGE_KEY, {
+    input: SAMPLE_NGINX_LOG,
+    keyword: '',
+    level: '',
+    customRegex: '',
+    result: parseLogs(SAMPLE_NGINX_LOG) as LogParseResult | null,
+  });
+  const { input, keyword, level, customRegex, result } = state;
   const [loading, setLoading] = useState(false);
   const timerRef = useRef<number | null>(null);
 
@@ -45,10 +48,17 @@ const LogParserTool: React.FC = () => {
     if (timerRef.current != null) window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(() => {
       timerRef.current = null;
-      setResult(parseLogs(input, { keyword, level, customRegex }));
+      setState((prev) => ({
+        ...prev,
+        result: parseLogs(prev.input, {
+          keyword: prev.keyword,
+          level: prev.level,
+          customRegex: prev.customRegex,
+        }),
+      }));
       setLoading(false);
     }, 40);
-  }, [input, keyword, level, customRegex]);
+  }, [setState]);
 
   const resultText = result ? formatLogResultText(result) : '';
 
@@ -142,7 +152,7 @@ const LogParserTool: React.FC = () => {
             <label>关键词</label>
             <Input
               value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
+              onChange={(e) => setField('keyword', e.target.value)}
               placeholder="login / 500 …"
               data-testid="log-keyword"
               allowClear
@@ -152,7 +162,7 @@ const LogParserTool: React.FC = () => {
             <label>级别</label>
             <Select
               value={level}
-              onChange={setLevel}
+              onChange={(v) => setField('level', v)}
               options={LEVEL_OPTIONS}
               data-testid="log-level"
               style={{ width: '100%' }}
@@ -162,7 +172,7 @@ const LogParserTool: React.FC = () => {
             <label>自定义正则（筛选行，可含捕获组）</label>
             <Input
               value={customRegex}
-              onChange={(e) => setCustomRegex(e.target.value)}
+              onChange={(e) => setField('customRegex', e.target.value)}
               placeholder={'POST  或  user=(?<user>\\w+)'}
               data-testid="log-regex"
               allowClear
@@ -172,7 +182,7 @@ const LogParserTool: React.FC = () => {
         </div>
         <TextArea
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => setField('input', e.target.value)}
           rows={10}
           data-testid="log-input"
           spellCheck={false}

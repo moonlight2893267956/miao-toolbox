@@ -20,6 +20,7 @@ import {
 import { translateText, enhanceTranslate } from './translateService';
 import { useTranslateContext } from './useTranslateContext';
 import { useTranslateHistory } from './useTranslateHistory';
+import { useTabPageStore } from '../../../hooks/useTabPageState';
 
 /**
  * 文本翻译 Tab —— 实现 FR-1/2/3/4。
@@ -140,35 +141,70 @@ function downloadFile(filename: string, content: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
+const TRANSLATE_PAGE_KEY = 'tools-translate';
+
 const TranslateTextPanel: React.FC = () => {
   const { state: ttState, dispatch: ttDispatch } = useTranslateContext();
   const { add: addHistory } = useTranslateHistory();
-  const [from, setFrom] = useState<LanguageCode>(ttState.prefill?.from ?? 'auto');
-  const [to, setTo] = useState<LanguageCode>(ttState.prefill?.to ?? 'en');
-  const [source, setSource] = useState(ttState.prefill?.text ?? '');
-  const [result, setResult] = useState<TranslateResponse | null>(
-    ttState.prefill?.target
+  const prefill = ttState.prefill;
+  const { state: page, setField, setState: setPage } = useTabPageStore(TRANSLATE_PAGE_KEY, {
+    from: (prefill?.from ?? 'auto') as LanguageCode,
+    to: (prefill?.to ?? 'en') as LanguageCode,
+    source: prefill?.text ?? '',
+    result: (prefill?.target
       ? {
-          translatedText: ttState.prefill.target,
-          from: ttState.prefill.from,
-          charCount: ttState.prefill.text.length,
+          translatedText: prefill.target,
+          from: prefill.from,
+          charCount: prefill.text.length,
         }
-      : null,
+      : null) as TranslateResponse | null,
+    segments: (prefill?.target
+      ? [{ src: prefill.text, dst: prefill.target }]
+      : []) as Segment[],
+    aiMode: true,
+    polishTone: 'formal' as AiEnhanceTone,
+    contextMode: false,
+  });
+  const {
+    from,
+    to,
+    source,
+    result,
+    segments,
+    aiMode,
+    polishTone,
+    contextMode,
+  } = page;
+  const setFrom = useCallback((v: LanguageCode) => setField('from', v), [setField]);
+  const setTo = useCallback((v: LanguageCode) => setField('to', v), [setField]);
+  const setSource = useCallback((v: string) => setField('source', v), [setField]);
+  const setResult = useCallback(
+    (v: TranslateResponse | null | ((p: TranslateResponse | null) => TranslateResponse | null)) => {
+      if (typeof v === 'function') {
+        setPage((prev) => ({ ...prev, result: v(prev.result) }));
+      } else {
+        setField('result', v);
+      }
+    },
+    [setField, setPage],
   );
-  const [segments, setSegments] = useState<Segment[]>(
-    ttState.prefill?.target
-      ? [{ src: ttState.prefill.text, dst: ttState.prefill.target }]
-      : [],
+  const setSegments = useCallback(
+    (v: Segment[] | ((p: Segment[]) => Segment[])) => {
+      if (typeof v === 'function') {
+        setPage((prev) => ({ ...prev, segments: v(prev.segments) }));
+      } else {
+        setField('segments', v);
+      }
+    },
+    [setField, setPage],
   );
+  const setAiMode = useCallback((v: boolean) => setField('aiMode', v), [setField]);
+  const setPolishTone = useCallback((v: AiEnhanceTone) => setField('polishTone', v), [setField]);
+  const setContextMode = useCallback((v: boolean) => setField('contextMode', v), [setField]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // AI 翻译模式（FR-16 / story-4.2 迭代：默认一键 AI 翻译，结果直接进译文栏）
-  const [aiMode, setAiMode] = useState(true);
-  const [polishTone, setPolishTone] = useState<AiEnhanceTone>('formal');
-
-  // 上下文连贯翻译（FR-17）：开关默认关；contextTurns 为本会话累积的「原文→译文」对（内存态，刷新即清空）
-  const [contextMode, setContextMode] = useState(false);
+  // 上下文连贯轮次仅会话内存，不持久化（避免跨刷新污染）
   const [contextTurns, setContextTurns] = useState<Segment[]>([]);
 
   // 挂载后清空跨面板联动预填（FR-7），避免重复应用；

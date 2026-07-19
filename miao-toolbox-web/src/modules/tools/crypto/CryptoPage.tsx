@@ -9,7 +9,7 @@
  * - 操作历史持久化
  */
 
-import React, { useReducer, useCallback } from 'react';
+import React, { useReducer, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { LockOutlined } from '@ant-design/icons';
 import './crypto.css';
@@ -24,6 +24,30 @@ import UniqueIdGenerator from './components/UniqueIdGenerator';
 import RsaCodec from './components/RsaCodec';
 import HistoryPanel from './components/HistoryPanel';
 import { useHistory } from './hooks/useHistory';
+import { loadPageState, savePageState } from '../../../shared/utils/tabPageStorage';
+
+const PAGE_KEY = 'tools-crypto';
+
+function loadInitialCryptoState(): CryptoState {
+  const loaded = loadPageState<Partial<CryptoState>>(PAGE_KEY);
+  if (!loaded || typeof loaded !== 'object') return INITIAL_CRYPTO_STATE;
+  return {
+    ...INITIAL_CRYPTO_STATE,
+    ...loaded,
+    // 合并嵌套面板状态，避免旧缓存缺字段
+    url: { ...INITIAL_CRYPTO_STATE.url, ...loaded.url },
+    escape: { ...INITIAL_CRYPTO_STATE.escape, ...loaded.escape },
+    base64: { ...INITIAL_CRYPTO_STATE.base64, ...loaded.base64 },
+    hash: { ...INITIAL_CRYPTO_STATE.hash, ...loaded.hash },
+    symmetric: { ...INITIAL_CRYPTO_STATE.symmetric, ...loaded.symmetric },
+    uniqueId: { ...INITIAL_CRYPTO_STATE.uniqueId, ...loaded.uniqueId },
+    rsa: {
+      ...INITIAL_CRYPTO_STATE.rsa,
+      ...loaded.rsa,
+      generating: false,
+    },
+  };
+}
 
 // ============================================================
 // Reducer
@@ -130,9 +154,16 @@ function renderTabPanel(
 // ============================================================
 
 const CryptoPage: React.FC = () => {
-  const [state, dispatch] = useReducer(cryptoReducer, INITIAL_CRYPTO_STATE);
+  const [state, dispatch] = useReducer(cryptoReducer, undefined, loadInitialCryptoState);
   const { list: historyList, clear: clearHistory, add: addHistory } = useHistory();
   const [localHistory, setLocalHistory] = React.useState<HistoryEntry[]>(historyList);
+
+  useEffect(() => {
+    savePageState(PAGE_KEY, {
+      ...state,
+      rsa: { ...state.rsa, generating: false },
+    });
+  }, [state]);
 
   const handleHistoryAdd = useCallback(
     (entry: Omit<HistoryEntry, 'id' | 'timestamp'>) => {

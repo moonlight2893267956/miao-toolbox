@@ -13,6 +13,7 @@ import {
   type DiffViewMode,
 } from '../../utils/textDiff';
 import { resolveNetworkIcon } from '../../utils/iconMap';
+import { useTabPageStore } from '../../../../../hooks/useTabPageState';
 import '../../network.css';
 import '../../components/NetworkToolLayout.css';
 import './diff-checker.css';
@@ -32,15 +33,20 @@ const SAMPLE_RIGHT = `{
   "tags": ["a", "b"]
 }`;
 
+const PAGE_KEY = 'tools-network-diff-checker';
+
 const DiffCheckerTool: React.FC = () => {
-  const [left, setLeft] = useState(SAMPLE_LEFT);
-  const [right, setRight] = useState(SAMPLE_RIGHT);
-  const [formatJson, setFormatJson] = useState(true);
-  const [mode, setMode] = useState<DiffViewMode>('unified');
+  const { state, setField, setState } = useTabPageStore(PAGE_KEY, {
+    left: SAMPLE_LEFT,
+    right: SAMPLE_RIGHT,
+    formatJson: true,
+    mode: 'unified' as DiffViewMode,
+    result: computeLineDiff(SAMPLE_LEFT, SAMPLE_RIGHT, {
+      formatJson: true,
+    }) as DiffResult,
+  });
+  const { left, right, formatJson, mode, result } = state;
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<DiffResult>(() =>
-    computeLineDiff(SAMPLE_LEFT, SAMPLE_RIGHT, { formatJson: true }),
-  );
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -54,10 +60,15 @@ const DiffCheckerTool: React.FC = () => {
     if (timerRef.current != null) window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(() => {
       timerRef.current = null;
-      setResult(computeLineDiff(left, right, { formatJson }));
+      setState((prev) => ({
+        ...prev,
+        result: computeLineDiff(prev.left, prev.right, {
+          formatJson: prev.formatJson,
+        }),
+      }));
       setLoading(false);
     }, 40);
-  }, [left, right, formatJson]);
+  }, [setState]);
 
   const splitRows = useMemo(() => toSplitRows(result.lines), [result.lines]);
   const resultText = formatDiffSummary(result);
@@ -93,7 +104,7 @@ const DiffCheckerTool: React.FC = () => {
               <button
                 type="button"
                 className={mode === 'unified' ? 'is-on' : ''}
-                onClick={() => setMode('unified')}
+                onClick={() => setField('mode', 'unified')}
                 data-testid="diff-mode-unified"
               >
                 统一
@@ -101,7 +112,7 @@ const DiffCheckerTool: React.FC = () => {
               <button
                 type="button"
                 className={mode === 'split' ? 'is-on' : ''}
-                onClick={() => setMode('split')}
+                onClick={() => setField('mode', 'split')}
                 data-testid="diff-mode-split"
               >
                 并排
@@ -173,7 +184,7 @@ const DiffCheckerTool: React.FC = () => {
             <input
               type="checkbox"
               checked={formatJson}
-              onChange={(e) => setFormatJson(e.target.checked)}
+              onChange={(e) => setField('formatJson', e.target.checked)}
               data-testid="diff-format-json"
             />
             JSON 自动格式化后对比
@@ -185,7 +196,7 @@ const DiffCheckerTool: React.FC = () => {
             <TextArea
               id="diff-left"
               value={left}
-              onChange={(e) => setLeft(e.target.value)}
+              onChange={(e) => setField('left', e.target.value)}
               rows={10}
               data-testid="diff-left"
               spellCheck={false}
@@ -197,7 +208,7 @@ const DiffCheckerTool: React.FC = () => {
             <TextArea
               id="diff-right"
               value={right}
-              onChange={(e) => setRight(e.target.value)}
+              onChange={(e) => setField('right', e.target.value)}
               rows={10}
               data-testid="diff-right"
               spellCheck={false}
