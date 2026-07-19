@@ -1,0 +1,123 @@
+/* 配置生成类工具共用样式 */
+
+.ntl-gen-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.ntl-gen-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.ntl-gen-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+  flex: 1;
+}
+
+.ntl-gen-field label,
+.ntl-gen-label {
+  font-size: 12px;
+  color: var(--ant-color-text-secondary, #666);
+}
+
+.ntl-gen-headers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ntl-gen-header-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ntl-gen-header-row .ant-input {
+  flex: 1;
+}
+
+.ntl-gen-kv-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ntl-gen-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.ntl-gen-meta strong {
+  font-weight: 600;
+}
+
+.ntl-gen-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ntl-gen-badge--ok {
+  background: rgba(82, 196, 26, 0.12);
+  color: #389e0d;
+}
+
+.ntl-gen-badge--err {
+  background: rgba(255, 77, 79, 0.12);
+  color: #cf1322;
+}
+
+.ntl-gen-badge--warn {
+  background: rgba(250, 173, 20, 0.15);
+  color: #d48806;
+}
+
+.ntl-gen-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.ntl-gen-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.ntl-gen-table th,
+.ntl-gen-table td {
+  border: 1px solid var(--ant-color-border-secondary, #f0f0f0);
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.ntl-gen-table th {
+  background: var(--ant-color-fill-quaternary, #fafafa);
+  font-weight: 600;
+}
+
+.ntl-gen-json-expired {
+  color: #cf1322;
+  font-weight: 600;
+}
+
+.ntl-gen-tabs-hint {
+  font-size: 12px;
+  color: var(--ant-color-text-secondary, #666);
+  margin-bottom: 8px;
+}

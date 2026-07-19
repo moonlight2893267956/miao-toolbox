@@ -258,20 +258,28 @@ const CookieAnalyzerTool: React.FC = () => {
         </div>
       }
     >
-      <div data-testid="network-tool-input-slot">
-        <p className="ntl-ck-hint">
-          支持：<code>Set-Cookie</code> 属性串、多行多条、或 <code>document.cookie</code>（
-          <code>a=1; b=2</code>）
-        </p>
-        <TextArea
-          value={input}
-          onChange={(e) => setField('input', e.target.value)}
-          rows={5}
-          placeholder={SAMPLE}
-          data-testid="cookie-input"
-          spellCheck={false}
-          style={{ fontFamily: 'var(--miao-font-mono, ui-monospace, Menlo, monospace)' }}
-        />
+      <div className="ntl-form" data-testid="network-tool-input-slot">
+        <section className="ntl-form-section">
+          <div className="ntl-form-section-head">
+            <span className="ntl-form-section-title">Cookie 文本</span>
+            <span className="ntl-form-section-desc">Set-Cookie · document.cookie</span>
+          </div>
+          <div className="ntl-form-section-body">
+            <TextArea
+              value={input}
+              onChange={(e) => setField('input', e.target.value)}
+              rows={5}
+              placeholder={SAMPLE}
+              data-testid="cookie-input"
+              spellCheck={false}
+              style={{ fontFamily: 'var(--miao-font-mono, ui-monospace, Menlo, monospace)' }}
+            />
+            <p className="ntl-form-hint-box">
+              支持 <code>Set-Cookie</code> 属性串、多行多条，或 <code>document.cookie</code>（
+              <code>a=1; b=2</code>）
+            </p>
+          </div>
+        </section>
       </div>
     </NetworkToolLayout>
   );

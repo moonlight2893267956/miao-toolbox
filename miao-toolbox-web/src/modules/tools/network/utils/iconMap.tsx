@@ -116,6 +116,7 @@ export const NETWORK_TOOL_ICON_BY_ID: Record<string, string> = {
   'hmac-signer': 'LockOutlined',
   'jwt-debugger': 'SafetyOutlined',
   'nginx-config': 'CloudServerOutlined',
+  'http-api-sign': 'SafetyCertificateOutlined',
   'dns-query': 'SearchOutlined',
   'http-header': 'ProfileOutlined',
   'ip-reputation': 'AlertOutlined',

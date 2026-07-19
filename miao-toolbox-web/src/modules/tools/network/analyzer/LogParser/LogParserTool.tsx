@@ -146,48 +146,66 @@ const LogParserTool: React.FC = () => {
         )
       }
     >
-      <div data-testid="network-tool-input-slot">
-        <div className="ntl-lp-filters" style={{ marginBottom: 12 }}>
-          <div className="ntl-lp-field">
-            <label>关键词</label>
-            <Input
-              value={keyword}
-              onChange={(e) => setField('keyword', e.target.value)}
-              placeholder="login / 500 …"
-              data-testid="log-keyword"
-              allowClear
-            />
+      <div className="ntl-form" data-testid="network-tool-input-slot">
+        <section className="ntl-form-section">
+          <div className="ntl-form-section-head">
+            <span className="ntl-form-section-title">筛选</span>
+            <span className="ntl-form-section-desc">关键词 · 级别 · 正则</span>
           </div>
-          <div className="ntl-lp-field" style={{ maxWidth: 160 }}>
-            <label>级别</label>
-            <Select
-              value={level}
-              onChange={(v) => setField('level', v)}
-              options={LEVEL_OPTIONS}
-              data-testid="log-level"
-              style={{ width: '100%' }}
-            />
+          <div className="ntl-form-section-body">
+            <div className="ntl-form-row">
+              <div className="ntl-form-field">
+                <label>关键词</label>
+                <Input
+                  value={keyword}
+                  onChange={(e) => setField('keyword', e.target.value)}
+                  placeholder="login / 500 …"
+                  data-testid="log-keyword"
+                  allowClear
+                />
+              </div>
+              <div className="ntl-form-field ntl-form-field--md">
+                <label>级别</label>
+                <Select
+                  value={level}
+                  onChange={(v) => setField('level', v)}
+                  options={LEVEL_OPTIONS}
+                  data-testid="log-level"
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div className="ntl-form-field ntl-form-field--grow">
+                <label>自定义正则</label>
+                <Input
+                  value={customRegex}
+                  onChange={(e) => setField('customRegex', e.target.value)}
+                  placeholder={'POST  或  user=(?<user>\\w+)'}
+                  data-testid="log-regex"
+                  allowClear
+                  spellCheck={false}
+                />
+              </div>
+            </div>
           </div>
-          <div className="ntl-lp-field" style={{ flex: '1 1 220px' }}>
-            <label>自定义正则（筛选行，可含捕获组）</label>
-            <Input
-              value={customRegex}
-              onChange={(e) => setField('customRegex', e.target.value)}
-              placeholder={'POST  或  user=(?<user>\\w+)'}
-              data-testid="log-regex"
-              allowClear
+        </section>
+        <section className="ntl-form-section">
+          <div className="ntl-form-section-head">
+            <span className="ntl-form-section-title">日志内容</span>
+          </div>
+          <div className="ntl-form-section-body">
+            <TextArea
+              value={input}
+              onChange={(e) => setField('input', e.target.value)}
+              rows={10}
+              data-testid="log-input"
               spellCheck={false}
+              style={{
+                fontFamily: 'var(--miao-font-mono, ui-monospace, Menlo, monospace)',
+                fontSize: 12.5,
+              }}
             />
           </div>
-        </div>
-        <TextArea
-          value={input}
-          onChange={(e) => setField('input', e.target.value)}
-          rows={10}
-          data-testid="log-input"
-          spellCheck={false}
-          style={{ fontFamily: 'var(--miao-font-mono, ui-monospace, Menlo, monospace)', fontSize: 12.5 }}
-        />
+        </section>
       </div>
     </NetworkToolLayout>
   );
