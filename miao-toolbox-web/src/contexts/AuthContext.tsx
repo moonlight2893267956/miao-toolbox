@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useReducer, useCallback, useRef } from 'react';
 import axios from 'axios';
+import { silentRefresh } from '../services/tokenRefresh';
 
 const ROUTES_STORAGE_KEY = 'miao_routes';
 
@@ -24,6 +25,22 @@ export function setTokens(accessToken: string | null, signingKey: string | null)
 export function clearTokens() {
   _accessToken = null;
   _signingKey = null;
+}
+
+/** 检查 access token 是否已过期或即将过期（默认 30 秒缓冲） */
+export function isAccessTokenExpired(bufferSeconds = 30): boolean {
+  const token = getAccessToken();
+  if (!token) return true;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    const payload = JSON.parse(atob(parts[1]));
+    const exp = payload.exp;
+    if (typeof exp !== 'number') return true;
+    return Date.now() >= (exp * 1000 - bufferSeconds * 1000);
+  } catch {
+    return true;
+  }
 }
 
 export interface RoleBrief {
@@ -254,27 +271,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const promise = (async () => {
       try {
-        const response = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
-        const data = response.data.data;
-        setTokens(data.accessToken, data.signingKey);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        if (data.mustChangePassword) {
-          localStorage.setItem('mustChangePassword', 'true');
-        } else {
-          localStorage.removeItem('mustChangePassword');
+        const accessToken = await silentRefresh();
+        if (!accessToken) {
+          if (!_accessToken) {
+            clearTokens();
+            localStorage.removeItem('user');
+            localStorage.removeItem('mustChangePassword');
+            localStorage.removeItem(ROUTES_STORAGE_KEY);
+            dispatch({ type: 'LOGOUT' });
+          }
+          return null;
         }
+        // silentRefresh 已更新 token 和 localStorage，这里更新 React 状态
+        const user = getInitialUserInfo();
+        const mustChangePassword = localStorage.getItem('mustChangePassword') === 'true';
         let routes = getInitialAccessibleRoutes();
         try {
-          routes = await fetchAccessibleRoutes(data.accessToken, data.signingKey);
-          persistAccessibleRoutes(routes);
+          const signingKey = getSigningKey();
+          if (signingKey) {
+            routes = await fetchAccessibleRoutes(accessToken, signingKey);
+            persistAccessibleRoutes(routes);
+          }
         } catch {
           localStorage.removeItem(ROUTES_STORAGE_KEY);
           routes = [];
         }
-        dispatch({ type: 'TOKEN_REFRESHED', payload: { userInfo: data.user, mustChangePassword: data.mustChangePassword, accessibleRoutes: routes } });
-        return data.accessToken;
+        dispatch({ type: 'TOKEN_REFRESHED', payload: { userInfo: user!, mustChangePassword, accessibleRoutes: routes } });
+        return accessToken;
       } catch {
-        // 仅在未登录时清除状态（OAuth 回调可能在刷新期间已完成登录）
         if (!_accessToken) {
           clearTokens();
           localStorage.removeItem('user');

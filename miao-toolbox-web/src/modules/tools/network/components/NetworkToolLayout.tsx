@@ -10,6 +10,11 @@ export interface NetworkToolLayoutProps {
   submitText?: string;
   showSubmit?: boolean;
   loading?: boolean;
+  /**
+   * 流式/连续场景：loading 期间若已有结果，仍渲染结果而非用「处理中…」整块覆盖。
+   * 默认 false，保持一次性工具「加载时显示处理中」的原有行为。
+   */
+  keepResultWhileLoading?: boolean;
   onSubmit?: () => void;
   resultText?: string;
   error?: string | null;
@@ -52,6 +57,7 @@ const NetworkToolLayout: React.FC<NetworkToolLayoutProps> = ({
   submitText = '执行',
   showSubmit = true,
   loading = false,
+  keepResultWhileLoading = false,
   onSubmit,
   resultText,
   error,
@@ -152,17 +158,25 @@ const NetworkToolLayout: React.FC<NetworkToolLayoutProps> = ({
           ) : null}
 
           <div className="ntl-card-body ntl-result-body" data-testid="ntl-result">
-            {loading ? (
+            {loading && !(keepResultWhileLoading && showResultBody) ? (
               <div className="ntl-loading" data-testid="ntl-loading">
                 <Spin size="small" />
                 <span>处理中…</span>
               </div>
             ) : showResultBody ? (
-              hasResultSlot ? (
-                result
-              ) : (
-                <pre className="ntl-result-text">{resultText}</pre>
-              )
+              <>
+                {loading ? (
+                  <div className="ntl-loading ntl-loading--inline" data-testid="ntl-loading">
+                    <Spin size="small" />
+                    <span>探测中…</span>
+                  </div>
+                ) : null}
+                {hasResultSlot ? (
+                  result
+                ) : (
+                  <pre className="ntl-result-text">{resultText}</pre>
+                )}
+              </>
             ) : (
               <div className="ntl-result-empty">执行后结果将显示在这里</div>
             )}

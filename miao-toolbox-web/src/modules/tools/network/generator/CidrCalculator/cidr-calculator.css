@@ -9,7 +9,7 @@
 .ntl-cidr-empty {
   margin: 0;
   font-size: 13px;
-  color: var(--miao-text-secondary, #666);
+  color: var(--miao-text-secondary, #5a5a6e);
 }
 
 .ntl-cidr-status {
@@ -30,7 +30,7 @@
   font-weight: 650;
   border: 1px solid transparent;
   background: var(--ant-color-fill-quaternary, #f5f5f5);
-  color: var(--miao-text, #1f1f1f);
+  color: var(--miao-text-primary, #1a1a3e);
 }
 
 .ntl-cidr-chip-k {
@@ -42,19 +42,19 @@
 }
 
 .ntl-cidr-chip--info {
-  color: #0958d9;
+  color: var(--miao-info-text, #0958d9);
   background: rgba(22, 119, 255, 0.1);
   border-color: rgba(22, 119, 255, 0.22);
 }
 
 .ntl-cidr-chip--ok {
-  color: #237804;
+  color: var(--miao-success-text, #237804);
   background: rgba(82, 196, 26, 0.12);
   border-color: rgba(82, 196, 26, 0.28);
 }
 
 .ntl-cidr-chip--muted {
-  color: var(--miao-text-secondary, #666);
+  color: var(--miao-text-secondary, #5a5a6e);
   font-weight: 500;
 }
 
@@ -80,7 +80,7 @@
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.03em;
-  color: var(--miao-text-secondary, #666);
+  color: var(--miao-text-secondary, #5a5a6e);
 }
 
 .ntl-cidr-hero-body {
@@ -95,7 +95,7 @@
   font-size: 20px;
   font-weight: 750;
   letter-spacing: 0.02em;
-  color: var(--miao-text, #1f1f1f);
+  color: var(--miao-text-primary, #1a1a3e);
   word-break: break-all;
   line-height: 1.35;
 }
@@ -106,13 +106,13 @@
   align-items: center;
   gap: 8px 12px;
   font-size: 13px;
-  color: var(--miao-text-secondary, #666);
+  color: var(--miao-text-secondary, #5a5a6e);
 }
 
 .ntl-cidr-hero-range strong {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-weight: 700;
-  color: #0958d9;
+  color: var(--miao-info-text, #0958d9);
   font-size: 13.5px;
 }
 
@@ -152,7 +152,7 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--miao-text-secondary, #666);
+  color: var(--miao-text-secondary, #5a5a6e);
   margin-bottom: 4px;
   display: flex;
   align-items: center;
@@ -164,7 +164,7 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 13.5px;
   font-weight: 650;
-  color: var(--miao-text, #1f1f1f);
+  color: var(--miao-text-primary, #1a1a3e);
   word-break: break-all;
   line-height: 1.4;
 }
@@ -172,16 +172,16 @@
 .ntl-cidr-metric-hint {
   margin-top: 3px;
   font-size: 11px;
-  color: var(--miao-text-secondary, #888);
+  color: var(--miao-text-secondary, #8a8a9a);
   line-height: 1.35;
 }
 
 .ntl-cidr-metric--accent .ntl-cidr-metric-value {
-  color: #0958d9;
+  color: var(--miao-info-text, #0958d9);
 }
 
 .ntl-cidr-metric--ok .ntl-cidr-metric-value {
-  color: #237804;
+  color: var(--miao-success-text, #237804);
 }
 
 /* 子网表 */
@@ -207,24 +207,34 @@
   font-size: 12px;
   font-weight: 750;
   letter-spacing: 0.02em;
-  color: var(--miao-text, #1f1f1f);
+  color: var(--miao-text-primary, #1a1a3e);
 }
 
 .ntl-cidr-subnets-meta {
   font-size: 11.5px;
-  color: var(--miao-text-secondary, #666);
+  color: var(--miao-text-secondary, #5a5a6e);
 }
 
 .ntl-cidr-table-wrap {
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
   max-height: 320px;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ntl-cidr-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 12.5px;
-  min-width: 620px;
+  /* 仅在表容器内横向滚动，不撑破整页 */
+  min-width: min(100%, 620px);
+}
+
+@media (max-width: 720px) {
+  .ntl-cidr-table {
+    min-width: 520px;
+  }
 }
 
 .ntl-cidr-table th {
@@ -237,10 +247,23 @@
   font-weight: 800;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--miao-text-secondary, #666);
-  background: color-mix(in srgb, var(--tool-accent, #2563eb) 6%, #fafafa);
+  color: var(--miao-text-tertiary, var(--miao-text-secondary));
+  background: color-mix(
+    in srgb,
+    var(--tool-accent, #2563eb) 8%,
+    var(--miao-bg-elevated, #fff)
+  );
   border-bottom: 1px solid var(--miao-border, #f0f0f0);
   white-space: nowrap;
+}
+
+:root[data-theme='dark'] .ntl-cidr-table th {
+  color: var(--miao-text-secondary);
+  background: color-mix(
+    in srgb,
+    var(--tool-accent, #a29bfe) 12%,
+    var(--miao-bg-elevated, #14141c)
+  );
 }
 
 .ntl-cidr-table td {
@@ -267,14 +290,14 @@
 
 .ntl-cidr-td-cidr {
   font-weight: 700;
-  color: #0958d9;
+  color: var(--miao-info-text, #0958d9);
 }
 
 .ntl-cidr-copy-btn {
   border: none;
   background: transparent;
   cursor: pointer;
-  color: var(--miao-text-secondary, #666);
+  color: var(--miao-text-secondary, #5a5a6e);
   font-size: 12px;
   padding: 2px 6px;
   border-radius: 6px;
@@ -285,12 +308,12 @@
 }
 
 .ntl-cidr-copy-btn:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: var(--miao-text, #1f1f1f);
+  background: color-mix(in srgb, var(--miao-text-primary) 8%, transparent);
+  color: var(--miao-text-primary, #1a1a3e);
 }
 
 .ntl-cidr-copy-btn--done {
-  color: #237804;
+  color: var(--miao-success-text, #237804);
 }
 
 .ntl-cidr-metric-copy {

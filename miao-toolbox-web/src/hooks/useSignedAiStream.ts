@@ -1,10 +1,12 @@
 /**
  * 带 HMAC 签名的 AI SSE 流式调用 Hook。
  * 工具层只提供 endpoint + 请求体 + 结果解析；签名/读流/中止统一在此。
+ * 支持 token 过期自动续期：调用前主动检查 + 401 兜底重试。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import axiosInstance from '../services/axiosInstance';
-import { getAccessToken, getSigningKey } from '../contexts/AuthContext';
+import { getAccessToken, getSigningKey, isAccessTokenExpired } from '../contexts/AuthContext';
+import { silentRefresh } from '../services/tokenRefresh';
 
 async function hmacSha256(key: string, data: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -81,16 +83,50 @@ export function useSignedAiStream<TParams, TResult>(
       abortRef.current = controller;
 
       try {
+        // 主动续期：token 过期或临期时先刷新，避免用过期 token 发请求
+        if (isAccessTokenExpired()) {
+          const newToken = await silentRefresh();
+          if (!newToken) {
+            setError('登录已过期，请重新登录');
+            const currentPath = window.location.pathname;
+            if (currentPath !== '/login') {
+              window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
+            }
+            return;
+          }
+        }
+
         const body = JSON.stringify(params);
         const headers = await buildSignedHeaders(body);
         const baseUrl = axiosInstance.defaults.baseURL || '';
-        const response = await fetch(`${baseUrl}${endpoint}`, {
+        let response = await fetch(`${baseUrl}${endpoint}`, {
           method: 'POST',
           headers,
           body,
           signal: controller.signal,
           credentials: 'include',
         });
+
+        // 401 兜底重试：刷新 token 后用新 token 重试一次
+        if (response.status === 401) {
+          const newToken = await silentRefresh();
+          if (!newToken) {
+            setError('登录已过期，请重新登录');
+            const currentPath = window.location.pathname;
+            if (currentPath !== '/login') {
+              window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
+            }
+            return;
+          }
+          const retryHeaders = await buildSignedHeaders(body);
+          response = await fetch(`${baseUrl}${endpoint}`, {
+            method: 'POST',
+            headers: retryHeaders,
+            body,
+            signal: controller.signal,
+            credentials: 'include',
+          });
+        }
 
         if (!response.ok) {
           try {

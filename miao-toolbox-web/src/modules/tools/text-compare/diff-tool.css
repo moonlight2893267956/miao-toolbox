@@ -1900,7 +1900,9 @@
   position: fixed;
   right: 28px;
   bottom: 28px;
-  z-index: 900;
+  /* 配合 React Portal 渲染到 document.body：脱离 .miao-content 的 stacking context 后，
+     需要一个全局最高层级，避免被 TabBar / 侧栏下拉等高 z-index 元素遮挡 */
+  z-index: 9999;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1979,7 +1981,8 @@
 .ai-drawer-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  /* Portal 渲染到 body 后：低于 dock / drawer，仅用于移动端遮罩 */
+  z-index: 9998;
   background: rgba(5, 8, 16, 0.6);
   backdrop-filter: blur(4px);
   display: none;
@@ -1991,7 +1994,8 @@
   top: 0;
   right: 0;
   bottom: 0;
-  z-index: 1100;
+  /* Portal 渲染到 body 后用全局最高 z-index，确保顶部不被 TabBar 等遮挡 */
+  z-index: 10000;
   width: 400px;
   max-width: 92vw;
   display: flex;

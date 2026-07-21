@@ -759,7 +759,14 @@
 }
 
 /* 单栏模式：同样抬升为白卡 */
-.jw-content > .jw-tree-panel,
+.jw-content > .jw-tree-panel {
+  border: 1px solid var(--jw-border);
+  border-radius: 14px;
+  background: var(--jw-surface);
+  box-shadow: var(--jw-shadow-2);
+  overflow: auto;
+}
+
 .jw-content > .jw-raw-panel {
   border: 1px solid var(--jw-border);
   border-radius: 14px;

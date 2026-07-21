@@ -89,15 +89,17 @@ select,
 }
 
 html {
-  min-width: 320px;
   background: var(--miao-bg);
+  /* 不再强制 min-width，避免视口 < 320 时整页横向滚动 */
+  overflow-x: clip;
 }
 
 body {
   margin: 0;
-  min-width: 320px;
   min-height: 100vh;
+  overflow-x: clip;
 }
+
 
 /* 全局隐藏竖直滚动条（仅隐藏视觉，滚动能力保留）。
    WebKit 用 :vertical 精确隐藏竖直方向，水平滚动条（如代码区横向）仍可见；
@@ -118,6 +120,9 @@ select {
 
 #root {
   min-height: 100vh;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 a {
@@ -437,6 +442,20 @@ a {
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  min-width: 0; /* flex 子项可收缩，避免小屏整页横向滚动 */
+  box-sizing: border-box;
+  overflow-x: clip;
+}
+
+/* 壳层横向溢出兜底：侧栏 + 内容区在窄屏不得撑破视口 */
+.miao-shell,
+.miao-shell > .ant-layout {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.miao-shell > .ant-layout {
+  overflow-x: clip;
 }
 
 .miao-page-header {
@@ -1031,6 +1050,38 @@ a {
   }
 }
 
+/* 中等宽度：收紧内容边距（侧栏展开时可用宽度更紧） */
+@media (max-width: 1200px) {
+  .miao-content {
+    padding: 24px 20px 36px;
+  }
+
+  .miao-shell[data-active-page='home'] .miao-content,
+  .miao-shell[data-active-page='admin'] .miao-content {
+    padding: 24px 20px 36px !important;
+  }
+
+  .miao-page-title {
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 991px) {
+  .miao-content {
+    padding: 20px 16px 32px;
+  }
+
+  .miao-shell[data-active-page='home'] .miao-content,
+  .miao-shell[data-active-page='admin'] .miao-content {
+    padding: 20px 16px 32px !important;
+  }
+
+  .miao-page-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
 @media (max-width: 767px) {
   .miao-auth-page {
     min-height: 100vh;
@@ -1054,7 +1105,29 @@ a {
   }
 
   .miao-content {
-    padding: 24px 16px 40px;
+    padding: 14px 12px 28px;
+  }
+
+  .miao-shell[data-active-page='home'] .miao-content,
+  .miao-shell[data-active-page='admin'] .miao-content {
+    padding: 14px 12px 28px !important;
+  }
+
+  .miao-page-title {
+    font-size: 24px;
+  }
+
+  .miao-editorial-hero {
+    gap: 24px;
+    padding: 28px 0 36px;
+  }
+
+  .miao-editorial-hero h1 {
+    font-size: clamp(28px, 8vw, 40px) !important;
+  }
+
+  .miao-bento-grid {
+    gap: 12px;
   }
 }
 

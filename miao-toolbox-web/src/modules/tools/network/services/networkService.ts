@@ -1,4 +1,5 @@
 import axiosInstance from '../../../../services/axiosInstance';
+import { getAccessToken, getSigningKey } from '../../../../contexts/AuthContext';
 import type { NetworkToolMeta } from '../types';
 
 interface ApiEnvelope<T> {
@@ -13,4 +14,238 @@ interface ApiEnvelope<T> {
 export async function listNetworkTools(): Promise<NetworkToolMeta[]> {
   const response = await axiosInstance.get<ApiEnvelope<NetworkToolMeta[]>>('/api/network/tools');
   return response.data.data ?? [];
+}
+
+// ── TCP Ping ──
+
+export interface TcpPingProbe {
+  seq: number;
+  success: boolean;
+  latencyMs?: number | null;
+  errorCode?: string | null;
+  message?: string | null;
+}
+
+export interface TcpPingResult {
+  host: string;
+  port: number;
+  resolvedIp?: string | null;
+  count: number;
+  successCount: number;
+  failCount: number;
+  avgLatencyMs?: number | null;
+  probes: TcpPingProbe[];
+}
+
+export interface TcpPingParams {
+  host: string;
+  port?: number;
+  count?: number;
+}
+
+export async function tcpPing(params: TcpPingParams): Promise<TcpPingResult> {
+  const response = await axiosInstance.post<ApiEnvelope<TcpPingResult>>(
+    '/api/network/inspector/tcp-ping',
+    {
+      host: params.host,
+      port: params.port ?? 443,
+      count: params.count ?? 4,
+    },
+    { timeout: 120_000 },
+  );
+  return response.data.data;
+}
+
+async function hmacSha256Hex(key: string, data: string): Promise<string> {
+  const enc = new TextEncoder();
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(key),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const sig = await crypto.subtle.sign('HMAC', cryptoKey, enc.encode(data));
+  return Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+/**
+ * SSE 连续 TCP Ping（最多 count 次，默认 30）。
+ * onProbe / onSummary / onDone / onError 回调。
+ * 返回 abort 函数。
+ */
+export function tcpPingStream(
+  params: TcpPingParams,
+  handlers: {
+    onProbe?: (p: TcpPingProbe) => void;
+    onSummary?: (s: TcpPingResult) => void;
+    onDone?: () => void;
+    onError?: (msg: string) => void;
+  },
+): () => void {
+  const controller = new AbortController();
+  const bodyObj = {
+    host: params.host,
+    port: params.port ?? 443,
+    count: params.count ?? 30,
+  };
+  const body = JSON.stringify(bodyObj);
+
+  void (async () => {
+    try {
+      const token = getAccessToken();
+      const signingKey = getSigningKey();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+      };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      if (signingKey && token) {
+        const timestamp = Date.now().toString();
+        const nonce = crypto.randomUUID();
+        headers['X-Request-Timestamp'] = timestamp;
+        headers['X-Request-Nonce'] = nonce;
+        headers['X-Request-Signature'] = await hmacSha256Hex(
+          signingKey,
+          timestamp + nonce + body,
+        );
+      }
+
+      const res = await fetch('/api/network/inspector/tcp-ping/stream', {
+        method: 'POST',
+        headers,
+        body,
+        credentials: 'include',
+        signal: controller.signal,
+      });
+      if (!res.ok || !res.body) {
+        handlers.onError?.(`请求失败 HTTP ${res.status}`);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let eventName = 'message';
+      let dataLines: string[] = [];
+
+      const flush = () => {
+        if (!dataLines.length) return;
+        const data = dataLines.join('\n');
+        dataLines = [];
+        const name = eventName;
+        eventName = 'message';
+        try {
+          if (name === 'probe') handlers.onProbe?.(JSON.parse(data) as TcpPingProbe);
+          else if (name === 'summary') handlers.onSummary?.(JSON.parse(data) as TcpPingResult);
+          else if (name === 'done') handlers.onDone?.();
+          else if (name === 'error') {
+            const o = JSON.parse(data) as { message?: string };
+            handlers.onError?.(o.message || '流式探测失败');
+          }
+        } catch {
+          /* ignore parse */
+        }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n');
+        buffer = parts.pop() ?? '';
+        for (const line of parts) {
+          if (line.startsWith('event:')) {
+            eventName = line.slice(6).trim();
+          } else if (line.startsWith('data:')) {
+            dataLines.push(line.slice(5).trim());
+          } else if (line === '') {
+            flush();
+          }
+        }
+      }
+      flush();
+      handlers.onDone?.();
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') return;
+      handlers.onError?.(e instanceof Error ? e.message : '流式探测中断');
+    }
+  })();
+
+  return () => controller.abort();
+}
+
+// ── DNS 查询 ──
+
+export interface DnsRecordResult {
+  name: string;
+  type: string;
+  ttl: number;
+  value: string;
+}
+
+export interface DnsQueryResult {
+  domain: string;
+  queryTypes: string[];
+  dnsServer: string;
+  records: DnsRecordResult[];
+  total: number;
+}
+
+export interface DnsQueryParams {
+  domain: string;
+  types?: string[];
+  dnsServer?: string;
+  timeoutMs?: number;
+}
+
+export async function dnsQuery(params: DnsQueryParams): Promise<DnsQueryResult> {
+  const response = await axiosInstance.post<ApiEnvelope<DnsQueryResult>>(
+    '/api/network/inspector/dns-query',
+    {
+      domain: params.domain,
+      types: params.types,
+      dnsServer: params.dnsServer,
+      timeoutMs: params.timeoutMs,
+    },
+    { timeout: 35_000 },
+  );
+  return response.data.data;
+}
+
+// ── WHOIS 查询 ──
+
+export interface WhoisFieldResult {
+  key: string;
+  value: string;
+}
+
+export interface WhoisQueryResult {
+  target: string;
+  queryType: 'DOMAIN' | 'IP';
+  whoisServer: string;
+  fields: WhoisFieldResult[];
+  raw: string;
+  found: boolean;
+}
+
+export interface WhoisQueryParams {
+  target: string;
+  whoisServer?: string;
+  timeoutMs?: number;
+}
+
+export async function whoisQuery(params: WhoisQueryParams): Promise<WhoisQueryResult> {
+  const response = await axiosInstance.post<ApiEnvelope<WhoisQueryResult>>(
+    '/api/network/inspector/whois',
+    {
+      target: params.target,
+      whoisServer: params.whoisServer,
+      timeoutMs: params.timeoutMs,
+    },
+    { timeout: 60_000 },
+  );
+  return response.data.data;
 }

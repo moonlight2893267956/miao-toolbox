@@ -1,0 +1,105 @@
+/* TCP Ping 结果区 */
+
+.ntl-tp {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ntl-tp-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--miao-text-secondary);
+}
+
+.ntl-tp-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ntl-tp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+  border: 1px solid transparent;
+  background: var(--miao-brand-bg, rgba(92, 79, 208, 0.1));
+  color: var(--miao-text-primary);
+}
+
+.ntl-tp-chip-k {
+  opacity: 0.7;
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ntl-tp-chip--ok {
+  color: var(--miao-success-text, #237804);
+  background: var(--miao-success-bg, rgba(82, 196, 26, 0.12));
+}
+
+.ntl-tp-chip--err {
+  color: var(--miao-error-text, #a8071a);
+  background: var(--miao-error-bg, rgba(255, 77, 79, 0.12));
+}
+
+.ntl-tp-chip--info {
+  color: var(--miao-info-text, #0958d9);
+  background: var(--miao-info-bg, rgba(22, 119, 255, 0.1));
+}
+
+.ntl-tp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ntl-tp-row {
+  display: grid;
+  grid-template-columns: 48px 72px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--miao-border);
+  background: var(--miao-bg-elevated);
+  font-size: 13px;
+}
+
+.ntl-tp-row--ok {
+  border-color: color-mix(in srgb, var(--miao-success, #52c41a) 35%, var(--miao-border));
+}
+
+.ntl-tp-row--fail {
+  border-color: color-mix(in srgb, var(--miao-error, #ff4d4f) 35%, var(--miao-border));
+}
+
+.ntl-tp-seq {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 700;
+  color: var(--miao-text-secondary);
+}
+
+.ntl-tp-latency {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 750;
+  color: var(--miao-info-text, #0958d9);
+}
+
+.ntl-tp-msg {
+  color: var(--miao-text-secondary);
+  font-size: 12.5px;
+  word-break: break-all;
+}
+
+.ntl-tp-msg--fail {
+  color: var(--miao-error-text, #a8071a);
+}
