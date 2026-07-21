@@ -9,7 +9,7 @@
 .ntl-hs-empty {
   margin: 0;
   font-size: 13px;
-  color: var(--miao-text-secondary, #666);
+  color: var(--miao-text-secondary, #5a5a6e);
 }
 
 .ntl-hs-status {
@@ -30,7 +30,7 @@
   font-weight: 650;
   border: 1px solid transparent;
   background: var(--ant-color-fill-quaternary, #f5f5f5);
-  color: var(--miao-text, #1f1f1f);
+  color: var(--miao-text-primary, #1a1a3e);
 }
 
 .ntl-hs-chip-k {
@@ -42,38 +42,38 @@
 }
 
 .ntl-hs-chip--muted {
-  color: var(--miao-text-secondary, #666);
+  color: var(--miao-text-secondary, #5a5a6e);
   font-weight: 500;
 }
 
 .ntl-hs-chip--1xx {
-  color: #0958d9;
-  background: rgba(22, 119, 255, 0.1);
-  border-color: rgba(22, 119, 255, 0.22);
+  color: var(--miao-info-text, #0958d9);
+  background: var(--miao-info-bg, rgba(22, 119, 255, 0.1));
+  border-color: color-mix(in srgb, var(--miao-info, #1677ff) 28%, transparent);
 }
 
 .ntl-hs-chip--2xx {
-  color: #237804;
-  background: rgba(82, 196, 26, 0.12);
-  border-color: rgba(82, 196, 26, 0.28);
+  color: var(--miao-success-text, #237804);
+  background: var(--miao-success-bg, rgba(82, 196, 26, 0.12));
+  border-color: color-mix(in srgb, var(--miao-success, #52c41a) 30%, transparent);
 }
 
 .ntl-hs-chip--3xx {
-  color: #0958d9;
-  background: rgba(9, 88, 217, 0.08);
-  border-color: rgba(9, 88, 217, 0.2);
+  color: var(--miao-info-text, #0958d9);
+  background: var(--miao-info-bg, rgba(9, 88, 217, 0.08));
+  border-color: color-mix(in srgb, var(--miao-info, #1677ff) 25%, transparent);
 }
 
 .ntl-hs-chip--4xx {
-  color: #ad6800;
-  background: rgba(250, 173, 20, 0.14);
-  border-color: rgba(250, 173, 20, 0.32);
+  color: var(--miao-warning-text, #ad6800);
+  background: var(--miao-warning-bg, rgba(250, 173, 20, 0.14));
+  border-color: color-mix(in srgb, var(--miao-warning, #faad14) 35%, transparent);
 }
 
 .ntl-hs-chip--5xx {
-  color: #a8071a;
-  background: rgba(255, 77, 79, 0.12);
-  border-color: rgba(255, 77, 79, 0.3);
+  color: var(--miao-error-text, #a8071a);
+  background: var(--miao-error-bg, rgba(255, 77, 79, 0.12));
+  border-color: color-mix(in srgb, var(--miao-error, #ff4d4f) 30%, transparent);
 }
 
 /* 主命中卡片 */
@@ -110,19 +110,19 @@
 }
 
 .ntl-hs-hero--1xx .ntl-hs-hero-head {
-  background: rgba(22, 119, 255, 0.06);
+  background: var(--miao-info-bg, rgba(22, 119, 255, 0.06));
 }
 .ntl-hs-hero--2xx .ntl-hs-hero-head {
-  background: rgba(82, 196, 26, 0.08);
+  background: var(--miao-success-bg, rgba(82, 196, 26, 0.08));
 }
 .ntl-hs-hero--3xx .ntl-hs-hero-head {
-  background: rgba(9, 88, 217, 0.06);
+  background: var(--miao-info-bg, rgba(9, 88, 217, 0.06));
 }
 .ntl-hs-hero--4xx .ntl-hs-hero-head {
-  background: rgba(250, 173, 20, 0.1);
+  background: var(--miao-warning-bg, rgba(250, 173, 20, 0.1));
 }
 .ntl-hs-hero--5xx .ntl-hs-hero-head {
-  background: rgba(255, 77, 79, 0.08);
+  background: var(--miao-error-bg, rgba(255, 77, 79, 0.08));
 }
 
 .ntl-hs-hero-code {
@@ -134,19 +134,19 @@
 }
 
 .ntl-hs-hero--1xx .ntl-hs-hero-code {
-  color: #0958d9;
+  color: var(--miao-info-text, #0958d9);
 }
 .ntl-hs-hero--2xx .ntl-hs-hero-code {
-  color: #237804;
+  color: var(--miao-success-text, #237804);
 }
 .ntl-hs-hero--3xx .ntl-hs-hero-code {
-  color: #0958d9;
+  color: var(--miao-info-text, #0958d9);
 }
 .ntl-hs-hero--4xx .ntl-hs-hero-code {
-  color: #ad6800;
+  color: var(--miao-warning-text, #ad6800);
 }
 .ntl-hs-hero--5xx .ntl-hs-hero-code {
-  color: #a8071a;
+  color: var(--miao-error-text, #a8071a);
 }
 
 .ntl-hs-hero-meta {
@@ -161,23 +161,24 @@
 .ntl-hs-hero-phrase {
   font-size: 16px;
   font-weight: 750;
-  color: var(--miao-text, #1f1f1f);
+  color: var(--miao-text-primary);
 }
 
 .ntl-hs-hero-zh {
   font-size: 13px;
-  color: var(--miao-text-secondary, #666);
+  color: var(--miao-text-secondary);
 }
 
 .ntl-hs-hero-body {
   padding: 12px 14px 14px;
   display: grid;
   gap: 10px;
+  background: var(--miao-bg-elevated, transparent);
 }
 
 .ntl-hs-field {
   display: grid;
-  gap: 3px;
+  gap: 4px;
 }
 
 .ntl-hs-field-label {
@@ -185,13 +186,14 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--miao-text-secondary, #888);
+  color: var(--miao-text-tertiary, var(--miao-text-secondary));
 }
 
 .ntl-hs-field-value {
   font-size: 13.5px;
-  line-height: 1.5;
-  color: var(--miao-text, #1f1f1f);
+  line-height: 1.55;
+  color: var(--miao-text-primary);
+  opacity: 0.95;
 }
 
 /* 列表卡片 */
@@ -235,29 +237,30 @@
 }
 
 .ntl-hs-card-code--1xx {
-  color: #0958d9;
+  color: var(--miao-info-text, #0958d9);
 }
 .ntl-hs-card-code--2xx {
-  color: #237804;
+  color: var(--miao-success-text, #237804);
 }
 .ntl-hs-card-code--3xx {
-  color: #0958d9;
+  color: var(--miao-info-text, #0958d9);
 }
 .ntl-hs-card-code--4xx {
-  color: #ad6800;
+  color: var(--miao-warning-text, #ad6800);
 }
 .ntl-hs-card-code--5xx {
-  color: #a8071a;
+  color: var(--miao-error-text, #a8071a);
 }
 
 .ntl-hs-card-phrase {
   font-weight: 700;
   font-size: 14px;
+  color: var(--miao-text-primary);
 }
 
 .ntl-hs-card-zh {
   font-size: 12.5px;
-  color: var(--miao-text-secondary, #666);
+  color: var(--miao-text-secondary);
 }
 
 .ntl-hs-card-cat {
@@ -266,8 +269,8 @@
   font-weight: 650;
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--ant-color-fill-quaternary, #f5f5f5);
-  color: var(--miao-text-secondary, #666);
+  background: var(--miao-brand-bg, rgba(92, 79, 208, 0.1));
+  color: var(--miao-text-secondary);
 }
 
 .ntl-hs-card-rows {
@@ -275,11 +278,11 @@
   gap: 4px;
   font-size: 12.5px;
   line-height: 1.45;
-  color: var(--miao-text-secondary, #555);
+  color: var(--miao-text-secondary);
 }
 
 .ntl-hs-card-rows strong {
-  color: var(--miao-text-secondary, #888);
+  color: var(--miao-text-tertiary, var(--miao-text-secondary));
   font-weight: 650;
   margin-right: 6px;
 }
@@ -288,7 +291,7 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  color: var(--miao-text-secondary, #666);
+  color: var(--miao-text-secondary);
   font-size: 12px;
   padding: 2px 6px;
   border-radius: 6px;
@@ -299,10 +302,10 @@
 }
 
 .ntl-hs-copy-btn:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: var(--miao-text, #1f1f1f);
+  background: color-mix(in srgb, var(--miao-text-primary) 8%, transparent);
+  color: var(--miao-text-primary);
 }
 
 .ntl-hs-copy-btn--done {
-  color: #237804;
+  color: var(--miao-success-text, #237804);
 }

@@ -9,6 +9,9 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 /* ── 分区卡片 ── */
@@ -17,6 +20,8 @@
   border-radius: 12px;
   background: color-mix(in srgb, var(--tool-accent, #2563eb) 2.5%, var(--miao-bg-elevated, #fff));
   overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .ntl-form-section-head {
@@ -34,13 +39,13 @@
   font-size: 12.5px;
   font-weight: 750;
   letter-spacing: 0.02em;
-  color: var(--miao-text, #1f1f1f);
+  color: var(--miao-text-primary, #1a1a3e);
 }
 
 .ntl-form-section-desc {
   margin: 0;
   font-size: 11.5px;
-  color: var(--miao-text-secondary, #666);
+  color: var(--miao-text-secondary, #5a5a6e);
   line-height: 1.4;
 }
 
@@ -49,6 +54,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
 }
 
 .ntl-form-section-body--tight {
@@ -57,31 +63,33 @@
 }
 
 /* ── 字段 ── */
+
 .ntl-form-field {
   display: flex;
   flex-direction: column;
   gap: 5px;
   min-width: 0;
+  max-width: 100%;
 }
 
 .ntl-form-field label,
 .ntl-form-label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--miao-text-secondary, #666);
+  color: var(--miao-text-secondary, #5a5a6e);
 }
 
 .ntl-form-hint {
   margin: 0;
   font-size: 12px;
-  color: var(--miao-text-secondary, #666);
+  color: var(--miao-text-secondary, #5a5a6e);
   line-height: 1.45;
 }
 
 .ntl-form-hint-box {
   margin: 0;
   font-size: 11.5px;
-  color: var(--miao-text-secondary, #888);
+  color: var(--miao-text-secondary, #8a8a9a);
   line-height: 1.4;
   padding: 6px 10px;
   border-radius: 8px;
@@ -95,26 +103,38 @@
   flex-wrap: wrap;
   gap: 10px;
   align-items: flex-end;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .ntl-form-row > .ntl-form-field {
-  flex: 1;
-  min-width: 120px;
+  flex: 1 1 140px;
+  min-width: 0;
 }
 
 .ntl-form-row > .ntl-form-field--sm {
-  flex: 0 0 120px;
-  min-width: 100px;
+  flex: 1 1 100px;
+  min-width: 0;
+  max-width: 140px;
 }
 
 .ntl-form-row > .ntl-form-field--md {
-  flex: 0 0 160px;
-  min-width: 140px;
+  flex: 1 1 140px;
+  min-width: 0;
+  max-width: 200px;
 }
 
 .ntl-form-row > .ntl-form-field--grow {
-  flex: 3;
-  min-width: 160px;
+  flex: 3 1 180px;
+  min-width: 0;
+}
+
+@media (max-width: 560px) {
+  .ntl-form-row > .ntl-form-field--sm,
+  .ntl-form-row > .ntl-form-field--md {
+    max-width: none;
+    flex: 1 1 100%;
+  }
 }
 
 .ntl-form-grid-2 {
@@ -161,9 +181,23 @@
   font-weight: 750;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--miao-text-secondary, #888);
-  background: color-mix(in srgb, var(--tool-accent, #2563eb) 4%, #fafafa);
+  color: var(--miao-text-tertiary, var(--miao-text-secondary));
+  /* 叠在 elevated 表面上，勿用 #fafafa（暗色下会变成刺眼白条） */
+  background: color-mix(
+    in srgb,
+    var(--tool-accent, #2563eb) 8%,
+    var(--miao-bg-elevated, #fff)
+  );
   border-bottom: 1px solid var(--miao-border, #f0f0f0);
+}
+
+:root[data-theme='dark'] .ntl-form-kv-head {
+  color: var(--miao-text-secondary);
+  background: color-mix(
+    in srgb,
+    var(--tool-accent, #a29bfe) 12%,
+    var(--miao-bg-elevated, #14141c)
+  );
 }
 
 .ntl-form-kv-row {
@@ -201,7 +235,7 @@
 
 .ntl-form-kv-count {
   font-size: 11.5px;
-  color: var(--miao-text-secondary, #888);
+  color: var(--miao-text-secondary, #8a8a9a);
 }
 
 /* ── 导入行：文本 + 按钮 ── */
@@ -234,7 +268,7 @@
 .ntl-form-single-tip {
   margin: 0;
   font-size: 12px;
-  color: var(--miao-text-secondary, #888);
+  color: var(--miao-text-secondary, #8a8a9a);
   line-height: 1.4;
 }
 
@@ -242,6 +276,8 @@
 .ntl-gen-grid {
   display: grid;
   gap: 12px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .ntl-gen-row {
@@ -249,21 +285,24 @@
   flex-wrap: wrap;
   gap: 10px;
   align-items: flex-end;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .ntl-gen-field {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  min-width: 140px;
-  flex: 1;
+  min-width: 0;
+  flex: 1 1 140px;
+  max-width: 100%;
 }
 
 .ntl-gen-field label,
 .ntl-gen-label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--miao-text-secondary, #666);
+  color: var(--miao-text-secondary, #5a5a6e);
 }
 
 .ntl-gen-headers {
@@ -376,7 +415,7 @@
 
 .ntl-gen-tabs-hint {
   font-size: 12px;
-  color: var(--miao-text-secondary, #666);
+  color: var(--miao-text-secondary, #5a5a6e);
   margin: 0;
   line-height: 1.45;
 }

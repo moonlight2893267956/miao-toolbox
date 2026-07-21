@@ -1,7 +1,8 @@
 import axios, { AxiosError } from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
 import { message as antdMessage } from 'antd';
-import { getAccessToken, getSigningKey, setTokens, clearTokens } from '../contexts/AuthContext';
+import { getAccessToken, getSigningKey } from '../contexts/AuthContext';
+import { silentRefresh } from './tokenRefresh';
 
 // 错误去重：同一消息 2 秒内只展示一次
 const errorThrottle = new Map<string, number>();
@@ -65,23 +66,6 @@ axiosInstance.interceptors.request.use(async (config: InternalAxiosRequestConfig
 });
 
 // 响应拦截器：401 静默刷新 + 429 提示
-let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (token: string | null) => void;
-  reject: (error: unknown) => void;
-}> = [];
-
-function processQueue(error: unknown, token: string | null = null) {
-  failedQueue.forEach(prom => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-}
-
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -96,58 +80,24 @@ axiosInstance.interceptors.response.use(
 
     // 401 静默刷新
     if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then(token => {
-          if (token) {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            // 清除旧签名头，让请求拦截器用新 signingKey 重新签名
-            delete originalRequest.headers['X-Request-Timestamp'];
-            delete originalRequest.headers['X-Request-Nonce'];
-            delete originalRequest.headers['X-Request-Signature'];
-            return axiosInstance(originalRequest);
-          }
-          return Promise.reject(error);
-        });
-      }
-
       originalRequest._retry = true;
-      isRefreshing = true;
+      const newToken = await silentRefresh();
 
-      try {
-        const response = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
-        const { accessToken, signingKey, user } = response.data.data;
-        setTokens(accessToken, signingKey);
-        localStorage.setItem('user', JSON.stringify(user));
-
-        processQueue(null, accessToken);
-
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-        // 清除旧签名头，让请求拦截器用新 signingKey 重新签名
+      if (newToken) {
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
         delete originalRequest.headers['X-Request-Timestamp'];
         delete originalRequest.headers['X-Request-Nonce'];
         delete originalRequest.headers['X-Request-Signature'];
         return axiosInstance(originalRequest);
-      } catch (refreshError) {
-        clearTokens();
-        localStorage.removeItem('user');
-        localStorage.removeItem('mustChangePassword');
-        localStorage.removeItem('miao_routes');
-
-        // 标记 auth 错误，下游拦截器将静默吞掉，避免排队请求同时弹 toast
-        Object.assign(refreshError as object, { [AUTH_REDIRECT]: true });
-        processQueue(refreshError, null);
-
-        // 跳转登录页，携带来源路径
-        const currentPath = window.location.pathname;
-        if (currentPath !== '/login') {
-          window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
-        }
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
       }
+
+      // 刷新失败，标记 auth 错误并跳转登录
+      Object.assign(error as object, { [AUTH_REDIRECT]: true });
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/login') {
+        window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
+      }
+      return Promise.reject(error);
     }
 
     return Promise.reject(error);

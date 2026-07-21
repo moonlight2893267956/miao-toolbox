@@ -40,4 +40,14 @@ public final class ErrorCode {
     public static final String DIFF_EMPTY_CONTENT = "DIFF_EMPTY_CONTENT";
     public static final String DIFF_FILE_NOT_FOUND = "DIFF_FILE_NOT_FOUND";
     public static final String DIFF_INVALID_REQUEST = "DIFF_INVALID_REQUEST";
+
+    // Network toolbox (server-side proxy tools)
+    public static final String NETWORK_DNS_RESOLVE_FAILED = "NETWORK_DNS_RESOLVE_FAILED";
+    public static final String NETWORK_CONNECTION_TIMEOUT = "NETWORK_CONNECTION_TIMEOUT";
+    public static final String NETWORK_CONNECTION_REFUSED = "NETWORK_CONNECTION_REFUSED";
+    public static final String NETWORK_SSL_HANDSHAKE_FAILED = "NETWORK_SSL_HANDSHAKE_FAILED";
+    public static final String NETWORK_HOST_UNREACHABLE = "NETWORK_HOST_UNREACHABLE";
+    public static final String NETWORK_SSRF_BLOCKED = "NETWORK_SSRF_BLOCKED";
+    public static final String NETWORK_INVALID_INPUT = "NETWORK_INVALID_INPUT";
+    public static final String NETWORK_RATE_LIMITED = "NETWORK_RATE_LIMITED";
 }

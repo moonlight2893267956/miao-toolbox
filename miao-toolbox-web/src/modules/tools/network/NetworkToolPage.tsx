@@ -36,6 +36,9 @@ const HmacSignerTool = lazy(() => import('./generator/HmacSigner/HmacSignerTool'
 const NginxConfigTool = lazy(() => import('./generator/NginxConfig/NginxConfigTool'));
 const DockerNetworkTool = lazy(() => import('./generator/DockerNetwork/DockerNetworkTool'));
 const HttpApiSignTool = lazy(() => import('./generator/HttpApiSign/HttpApiSignTool'));
+const TcpPingTool = lazy(() => import('./inspector/TcpPing/TcpPingTool'));
+const DnsQueryTool = lazy(() => import('./inspector/DnsQuery/DnsQueryTool'));
+const WhoisTool = lazy(() => import('./inspector/Whois/WhoisTool'));
 
 const IMPLEMENTED_TOOLS: Record<string, React.LazyExoticComponent<React.FC>> = {
   'base64-codec': CodecSuiteTool,
@@ -58,6 +61,9 @@ const IMPLEMENTED_TOOLS: Record<string, React.LazyExoticComponent<React.FC>> = {
   'nginx-config': NginxConfigTool,
   'docker-network': DockerNetworkTool,
   'http-api-sign': HttpApiSignTool,
+  'tcp-ping': TcpPingTool,
+  'dns-query': DnsQueryTool,
+  'whois': WhoisTool,
 };
 
 function ToolChrome({

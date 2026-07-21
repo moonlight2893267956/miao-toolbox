@@ -107,8 +107,22 @@
 }
 
 .ntl-gen-table th {
-  background: var(--ant-color-fill-quaternary, #fafafa);
+  background: color-mix(
+    in srgb,
+    var(--tool-accent, #2563eb) 8%,
+    var(--miao-bg-elevated, #fff)
+  );
+  color: var(--miao-text-tertiary, var(--miao-text-secondary));
   font-weight: 600;
+}
+
+:root[data-theme='dark'] .ntl-gen-table th {
+  color: var(--miao-text-secondary);
+  background: color-mix(
+    in srgb,
+    var(--tool-accent, #a29bfe) 12%,
+    var(--miao-bg-elevated, #14141c)
+  );
 }
 
 .ntl-gen-json-expired {

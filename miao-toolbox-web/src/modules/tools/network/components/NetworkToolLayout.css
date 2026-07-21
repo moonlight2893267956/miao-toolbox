@@ -10,8 +10,11 @@
   display: flex;
   flex-direction: column;
   width: 100%;
+  max-width: 100%;
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
+  box-sizing: border-box;
   color: var(--miao-text-primary);
 }
 
@@ -24,6 +27,19 @@
   gap: 14px;
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  .ntl-card-body {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .ntl-card-head {
+    padding: 10px 12px;
+  }
 }
 
 .ntl-card {
@@ -327,4 +343,15 @@
 .ntl-root .ant-input-textarea textarea:focus {
   border-color: var(--ntl-accent) !important;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--ntl-accent) 14%, transparent) !important;
+}
+
+/* 流式场景：结果上方的内联「探测中…」提示 */
+.ntl-loading--inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--ntl-accent);
+  opacity: 0.85;
 }

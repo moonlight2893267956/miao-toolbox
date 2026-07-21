@@ -125,7 +125,7 @@ const AppLayout: React.FC = () => {
             hasHadTabsRef.current && isTabbable(location.pathname) ? (
               <Navigate to="/tools" replace />
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, minWidth: 0, maxWidth: '100%', overflow: 'auto', overflowX: 'clip' }}>
                 {outlet}
               </div>
             )
@@ -141,7 +141,10 @@ const AppLayout: React.FC = () => {
                       flexDirection: 'column',
                       flex: 1,
                       minHeight: 0,
+                      minWidth: 0,
+                      maxWidth: '100%',
                       overflow: 'auto',
+                      overflowX: 'clip',
                     }}
                   >
                     {element}
@@ -150,7 +153,7 @@ const AppLayout: React.FC = () => {
               })}
               {/* 首次访问：outlet 尚未入缓存时直接渲染（仅在有 Tab 时，避免与空分支双挂载） */}
               {outlet && !elements[location.pathname] && (
-                <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, minWidth: 0, maxWidth: '100%', overflow: 'auto', overflowX: 'clip' }}>
                   {outlet}
                 </div>
               )}

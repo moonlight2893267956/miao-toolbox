@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SparkleIcon, RefreshIcon, TraceIcon, CloseIcon } from './icons';
 import { useDiffContext } from './useDiffContext';
@@ -66,7 +67,9 @@ const AIAnalysisDock: React.FC = () => {
   // 没有对比结果时不显示
   if (!hasResult) return null;
 
-  return (
+  // 用 React Portal 渲染到 document.body，逃出 .miao-content (overflow-x: clip) 创建的
+  // stacking context，避免 drawer 顶部被 TabBar 等上层元素遮挡。
+  return createPortal(
     <>
       {/* Floating Dock Button — 右下角 */}
       <AnimatePresence>
@@ -235,7 +238,8 @@ const AIAnalysisDock: React.FC = () => {
           </>
         )}
       </AnimatePresence>
-    </>
+    </>,
+    document.body,
   );
 };
 

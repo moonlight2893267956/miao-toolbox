@@ -14,7 +14,8 @@ export interface NetworkToolMeta {
  * phase ≤ 此值：入口开放（详情页可为占位壳）
  * phase > 此值：卡片显示「即将推出」
  */
-export const NETWORK_ONLINE_PHASE = 1;
+/** Phase 2：服务端代理工具（TCP Ping 等）已开放入口 */
+export const NETWORK_ONLINE_PHASE = 2;
 
 export const NETWORK_CATEGORY_ORDER = [
   'converter',

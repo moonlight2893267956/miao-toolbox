@@ -356,7 +356,7 @@ function Toolbar({ viewMode, onViewModeChange, hasData, hasRawInput, canFormat, 
           </Dropdown>
         )}
         <div className="jw-view-toggle">
-          {(['tree', 'split', 'raw'] as ViewMode[]).map((mode) => (
+          {(['raw', 'split', 'tree'] as ViewMode[]).map((mode) => (
             <button
               key={mode}
               className={`jw-view-toggle__btn ${viewMode === mode ? 'jw-view-toggle__btn--active' : ''}`}

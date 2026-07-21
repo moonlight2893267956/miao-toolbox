@@ -30,11 +30,13 @@
   max-width: none;
   height: 100vh;
   min-height: 0;
+  min-width: 0;
   margin: 0;
-  padding: 16px 20px;
+  padding: 12px 16px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .miao-shell[data-active-page='network'] .miao-content > div {
@@ -42,7 +44,16 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
   width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+@media (max-width: 768px) {
+  .miao-shell[data-active-page='network'] .miao-content {
+    padding: 8px 10px;
+  }
 }
 
 /* ============================================================
@@ -69,10 +80,14 @@
   flex: 1 1 auto;
   height: auto;
   min-height: 0;
+  min-width: 0;
+  width: 100%;
+  max-width: 100% !important;
   padding: 0 !important;
-  max-width: none !important;
-  overflow: auto;
+  overflow-x: clip;
+  overflow-y: auto;
   position: relative;
+  box-sizing: border-box;
   color: var(--miao-text-primary);
   background: var(--miao-bg);
   border-radius: var(--miao-radius-lg);
@@ -442,8 +457,15 @@
    ============================================================ */
 .ntl-list-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  /* min() 防止 minmax 下限撑破窄容器导致横向滚动 */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
   gap: 12px;
+}
+
+@media (max-width: 480px) {
+  .ntl-list-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .ntl-tool-card {
@@ -616,15 +638,39 @@
 
 .ntl-tool-chrome {
   width: 100%;
-  max-width: 880px;
+  max-width: min(880px, 100%);
   margin: 0 auto;
-  padding: 12px 20px 28px;
+  padding: 10px 16px 24px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   box-sizing: border-box;
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .ntl-tool-chrome {
+    padding: 8px 10px 20px;
+  }
+
+  .ntl-header {
+    padding: 12px 12px 0;
+  }
+
+  .ntl-filter-bar {
+    margin: 12px 12px 0;
+    padding: 10px 12px;
+  }
+
+  .ntl-list-body {
+    padding: 14px 12px 20px;
+  }
+
+  .ntl-tool-hero-title {
+    font-size: 16px;
+  }
 }
 
 .ntl-tool-body {
