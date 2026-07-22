@@ -757,9 +757,24 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
   padding: 14px 18px;
   background: var(--tc-surface-elevated);
+  border: none;
   border-bottom: 1px solid var(--tc-border);
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.tc-diff-header:hover {
+  background: var(--tc-surface-hover, var(--tc-surface-elevated));
+}
+
+.tc-diff-viewer.is-collapsed .tc-diff-header {
+  border-bottom: none;
 }
 
 .tc-diff-title {
@@ -1268,6 +1283,7 @@
   background: var(--tc-surface);
   overflow: hidden;
   box-shadow: var(--tc-shadow-2);
+  position: relative;
 }
 
 :root[data-theme='dark'] .tc-panels-container {
@@ -2590,4 +2606,107 @@
 
 :root[data-theme='light'] .ai-hunk-text {
   color: #4f5d73;
+}
+
+/* ── FindBar 浮动查找栏 ── */
+.tc-find-bar {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--tc-surface-elevated, #fff);
+  border: 1px solid var(--tc-border-light);
+  border-radius: var(--tc-radius-md);
+  box-shadow: var(--tc-shadow-3);
+}
+
+:root[data-theme='dark'] .tc-find-bar {
+  background: var(--tc-surface-elevated, #1e1e28);
+}
+
+.tc-find-bar .tc-find-input {
+  width: 180px;
+}
+
+.tc-find-case-btn {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: var(--tc-radius-sm);
+  background: transparent;
+  color: var(--tc-text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--tc-font-mono);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tc-find-case-btn:hover { background: var(--tc-chrome); color: var(--tc-text); }
+.tc-find-case-btn.is-active { background: var(--tc-side-bg); color: var(--tc-side); }
+
+.tc-find-count {
+  font-size: 12px;
+  color: var(--tc-text-tertiary);
+  min-width: 36px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.tc-find-nav-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tc-find-nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.tc-find-close-btn {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: var(--tc-radius-sm);
+  background: transparent;
+  color: var(--tc-text-tertiary);
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tc-find-close-btn:hover { background: var(--tc-accent-removed-bg); color: var(--tc-accent-removed); }
+
+/* ── Find 高亮标记 ── */
+.tc-find-mark {
+  background: var(--miao-warning-bg, rgba(245, 158, 11, 0.2));
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.tc-find-mark-active {
+  background: var(--miao-accent-bg, rgba(59, 130, 246, 0.45));
+  color: #fff;
+  box-shadow: 0 0 0 1px var(--miao-accent, #3b82f6);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* ── Word wrap 换行 ── */
+.dt-editor-cm.is-wrap .cm-content {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+.dt-editor-cm.is-wrap .cm-line {
+  white-space: pre-wrap !important;
+  word-break: break-word;
+}
+.dt-editor-cm.is-wrap .cm-scroller {
+  overflow-x: hidden !important;
 }

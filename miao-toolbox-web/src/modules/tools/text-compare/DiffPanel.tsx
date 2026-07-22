@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Upload, message, Select, Button, Tooltip } from 'antd';
 import { CloudUploadOutlined, FileTextOutlined, FormatPainterOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import { useDiffContext } from './useDiffContext';
-import CodeEditor from './CodeEditor';
+import CodeEditor, { type CodeEditorHandle } from './CodeEditor';
 import {
   formatWithPrettier,
   FORMAT_LANGUAGES,
@@ -29,12 +29,39 @@ const LANGUAGE_LABEL: Record<FormatLang, string> = Object.fromEntries(
   LANGUAGE_OPTIONS.map((o) => [o.value, o.label]),
 ) as Record<FormatLang, string>;
 
-const DiffPanel: React.FC<{ side: 'left' | 'right' }> = ({ side }) => {
+export interface DiffPanelHandle {
+  setFindQuery: (query: string, caseSensitive: boolean) => void;
+  getMatchCount: () => number;
+  focusMatch: (index: number) => void;
+  clearSelection: () => void;
+  blur: () => void;
+}
+
+const DiffPanel = forwardRef<DiffPanelHandle, { side: 'left' | 'right'; onFocus?: () => void }>(({ side, onFocus }, ref) => {
   const { state, setLeft, setRight, dispatch } = useDiffContext();
   const text = side === 'left' ? state.leftText : state.rightText;
   const label = side === 'left' ? state.leftLabel : state.rightLabel;
   const setText = side === 'left' ? setLeft : setRight;
   const fileAction = side === 'left' ? 'SET_LEFT_FILE' as const : 'SET_RIGHT_FILE' as const;
+  const editorRef = useRef<CodeEditorHandle>(null);
+
+  useImperativeHandle(ref, () => ({
+    setFindQuery(query, caseSensitive) {
+      editorRef.current?.setFindQuery(query, caseSensitive);
+    },
+    getMatchCount() {
+      return editorRef.current?.getMatchCount() ?? 0;
+    },
+    focusMatch(index) {
+      editorRef.current?.focusMatch(index);
+    },
+    clearSelection() {
+      editorRef.current?.clearSelection();
+    },
+    blur() {
+      editorRef.current?.blur();
+    },
+  }), []);
 
   const [selectedLanguage, setSelectedLanguage] = useState<FormatLang | null>(null);
   const [hasManualSelected, setHasManualSelected] = useState(false);
@@ -200,6 +227,7 @@ const DiffPanel: React.FC<{ side: 'left' | 'right' }> = ({ side }) => {
       </div>
       <div className="tc-editor-area">
         <CodeEditor
+          ref={editorRef}
           value={text}
           onChange={setText}
           language={state.language}
@@ -208,12 +236,14 @@ const DiffPanel: React.FC<{ side: 'left' | 'right' }> = ({ side }) => {
           minRows={16}
           maxRows={52}
           fillHeight
-          lineWrapping={state.layout !== 'split'}
+          lineWrapping={state.wordWrap}
           onFormatShortcut={handleFormat}
+          onFocus={onFocus}
         />
       </div>
     </div>
   );
-};
+});
 
+DiffPanel.displayName = 'DiffPanel';
 export default DiffPanel;

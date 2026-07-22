@@ -36,7 +36,7 @@ const Chip: React.FC<ChipProps> = ({ icon, label, active, onClick, ariaLabel }) 
 );
 
 const Toolbar: React.FC<{ onCompare: () => void }> = ({ onCompare }) => {
-  const { state, setLayout, setIgnoreWhitespace, setStructuredDiff, setShowLineNumbers } = useDiffContext();
+  const { state, setLayout, setIgnoreWhitespace, setStructuredDiff, setShowLineNumbers, setWordWrap } = useDiffContext();
   const isJsonYaml = state.language === 'json' || state.language === 'yaml' || state.language === 'yml';
   const canCompare = Boolean(state.leftText || state.rightText);
 
@@ -73,6 +73,12 @@ const Toolbar: React.FC<{ onCompare: () => void }> = ({ onCompare }) => {
           active={state.showLineNumbers}
           onClick={() => setShowLineNumbers(!state.showLineNumbers)}
           ariaLabel="切换行号显示"
+        />
+        <Chip
+          label="换行"
+          active={state.wordWrap}
+          onClick={() => setWordWrap(!state.wordWrap)}
+          ariaLabel="切换自动换行"
         />
         <Chip
           icon={<AlignLeftOutlined />}

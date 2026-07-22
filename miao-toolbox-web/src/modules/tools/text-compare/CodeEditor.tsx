@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { EditorView, keymap, placeholder, lineNumbers, highlightSpecialChars, drawSelection, highlightActiveLine } from '@codemirror/view';
-import { EditorState, Prec, type Extension } from '@codemirror/state';
+import { EditorView, keymap, placeholder, lineNumbers, highlightSpecialChars, drawSelection, highlightActiveLine, Decoration, ViewPlugin, ViewUpdate } from '@codemirror/view';
+import type { DecorationSet } from '@codemirror/view';
+import { EditorState, Prec, Compartment, StateEffect, type Extension } from '@codemirror/state';
 import { foldGutter, indentOnInput, indentUnit, foldKeymap } from '@codemirror/language';
 import { defaultKeymap, history } from '@codemirror/commands';
 import { json } from '@codemirror/lang-json';
@@ -16,6 +17,83 @@ import { yaml } from '@codemirror/lang-yaml';
 import { closeBrackets, autocompletion, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
 import { useDiffContext } from './useDiffContext';
 
+// ── Find effects ──
+const findQueryEffect = StateEffect.define<{ query: string; caseSensitive: boolean }>();
+const findActiveEffect = StateEffect.define<number>();
+
+// ── Find matches helper ──
+function findMatchRanges(view: EditorView, query: string, caseSensitive: boolean): { from: number; to: number }[] {
+  if (!query) return [];
+  const text = view.state.doc.toString();
+  const flags = caseSensitive ? 'g' : 'gi';
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(escaped, flags);
+  const ranges: { from: number; to: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    ranges.push({ from: m.index, to: m.index + m[0].length });
+    if (m[0].length === 0) re.lastIndex++; // 防止零宽匹配死循环
+  }
+  return ranges;
+}
+
+// ── Find highlight plugin ──
+function buildFindDecos(view: EditorView, query: string, caseSensitive: boolean, activeIndex: number): DecorationSet {
+  const ranges = findMatchRanges(view, query, caseSensitive);
+  if (ranges.length === 0) return Decoration.none;
+  return Decoration.set(
+    ranges.map((r, i) =>
+      Decoration.mark({
+        class: i === activeIndex ? 'tc-find-mark tc-find-mark-active' : 'tc-find-mark',
+      }).range(r.from, r.to),
+    ),
+  );
+}
+
+class FindPlugin {
+  decorations: DecorationSet;
+  query: string;
+  caseSensitive: boolean;
+  activeIndex: number;
+  constructor(view: EditorView) {
+    this.query = '';
+    this.caseSensitive = false;
+    this.activeIndex = -1;
+    this.decorations = Decoration.none;
+  }
+  update(update: ViewUpdate) {
+    let dirty = false;
+    for (const tr of update.transactions) {
+      for (const eff of tr.effects) {
+        if (eff.is(findQueryEffect)) {
+          this.query = eff.value.query;
+          this.caseSensitive = eff.value.caseSensitive;
+          this.activeIndex = -1;
+          dirty = true;
+        } else if (eff.is(findActiveEffect)) {
+          this.activeIndex = eff.value;
+          dirty = true;
+        }
+      }
+    }
+    // 文档变更后重新计算匹配
+    if (update.docChanged && this.query) dirty = true;
+    if (dirty) {
+      this.decorations = buildFindDecos(update.view, this.query, this.caseSensitive, this.activeIndex);
+    }
+  }
+}
+
+const findViewPlugin = ViewPlugin.fromClass(FindPlugin, { decorations: (v) => v.decorations });
+
+export interface CodeEditorHandle {
+  setFindQuery: (query: string, caseSensitive: boolean) => void;
+  getMatchCount: () => number;
+  focusMatch: (index: number) => void;
+  clearSelection: () => void;
+  blur: () => void;
+}
+
 interface CodeEditorProps {
   value: string;
   onChange?: (value: string) => void;
@@ -28,6 +106,7 @@ interface CodeEditorProps {
   lineWrapping?: boolean;
   onFormatShortcut?: () => void;
   fillHeight?: boolean;
+  onFocus?: () => void;
 }
 
 const LANGUAGE_EXTENSIONS: Record<string, Extension> = {
@@ -47,7 +126,7 @@ const LANGUAGE_EXTENSIONS: Record<string, Extension> = {
   yml: yaml(),
 };
 
-const CodeEditor = forwardRef<{ view: EditorView | null }, CodeEditorProps>(({
+const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(({
   value,
   onChange,
   language,
@@ -59,6 +138,7 @@ const CodeEditor = forwardRef<{ view: EditorView | null }, CodeEditorProps>(({
   lineWrapping = true,
   onFormatShortcut,
   fillHeight = false,
+  onFocus,
 }, ref) => {
   const { runCompare } = useDiffContext();
   const editorRef = useRef<HTMLDivElement>(null);
@@ -68,14 +148,51 @@ const CodeEditor = forwardRef<{ view: EditorView | null }, CodeEditorProps>(({
   const onViewReadyRef = useRef(onViewReady);
   const onFormatShortcutRef = useRef(onFormatShortcut);
   const onCompareShortcutRef = useRef(runCompare);
+  const onFocusRef = useRef(onFocus);
 
-  useImperativeHandle(ref, () => ({ get view() { return viewRef.current; } }), []);
+  useImperativeHandle(ref, () => ({
+    setFindQuery(query: string, caseSensitive: boolean) {
+      const view = viewRef.current;
+      if (!view) return;
+      view.dispatch({ effects: findQueryEffect.of({ query, caseSensitive }) });
+    },
+    getMatchCount() {
+      const view = viewRef.current;
+      if (!view) return 0;
+      const plugin = view.plugin(findViewPlugin);
+      if (!plugin) return 0;
+      return plugin.decorations.size;
+    },
+    focusMatch(index: number) {
+      const view = viewRef.current;
+      if (!view) return;
+      const plugin = view.plugin(findViewPlugin);
+      if (!plugin) return;
+      const ranges = findMatchRanges(view, plugin.query, plugin.caseSensitive);
+      if (index < 0 || index >= ranges.length) return;
+      const { from } = ranges[index];
+      view.dispatch({
+        effects: [
+          findActiveEffect.of(index),
+          EditorView.scrollIntoView(from, { y: 'center' }),
+        ],
+      });
+    },
+    clearSelection() {
+      // 不再需要操作选区，查找仅通过装饰高亮
+    },
+    blur() {
+      const view = viewRef.current;
+      if (view) view.contentDOM.blur();
+    },
+  }), []);
 
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
   useEffect(() => { initialValueRef.current = value; }, [value]);
   useEffect(() => { onViewReadyRef.current = onViewReady; }, [onViewReady]);
   useEffect(() => { onFormatShortcutRef.current = onFormatShortcut; }, [onFormatShortcut]);
   useEffect(() => { onCompareShortcutRef.current = runCompare; }, [runCompare]);
+  useEffect(() => { onFocusRef.current = onFocus; }, [onFocus]);
 
   const createEditor = useCallback(() => {
     if (!editorRef.current) return;
@@ -142,6 +259,7 @@ const CodeEditor = forwardRef<{ view: EditorView | null }, CodeEditorProps>(({
         '.cm-foldGutter': { cursor: 'pointer' },
         '.cm-foldPlaceholder': { color: 'var(--tc-text-tertiary, var(--dt-editor-muted, var(--ant-color-text-tertiary)))' },
       }),
+      findViewPlugin,
     ];
 
     if (lineWrapping) extensions.push(EditorView.lineWrapping);
@@ -157,6 +275,15 @@ const CodeEditor = forwardRef<{ view: EditorView | null }, CodeEditorProps>(({
   useEffect(() => {
     createEditor();
     return () => { viewRef.current?.destroy(); viewRef.current = null; };
+  }, [createEditor]);
+
+  // 编辑器获得焦点时通知父组件
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const handler = () => onFocusRef.current?.();
+    view.contentDOM.addEventListener('focus', handler);
+    return () => view.contentDOM.removeEventListener('focus', handler);
   }, [createEditor]);
 
   useEffect(() => {
@@ -187,7 +314,7 @@ const CodeEditor = forwardRef<{ view: EditorView | null }, CodeEditorProps>(({
     <div className="dt-editor-wrap">
       <div
         ref={editorRef}
-        className="dt-editor-cm"
+        className={`dt-editor-cm${lineWrapping ? ' is-wrap' : ''}`}
         style={{
           height: fillHeight ? '100%' : undefined,
           minHeight: fillHeight ? 0 : `${minRows * 18}px`,

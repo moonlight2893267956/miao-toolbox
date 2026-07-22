@@ -1,5 +1,6 @@
-import React, { useRef, useCallback, useEffect } from 'react';
+import React, { useRef, useCallback, useEffect, useState } from 'react';
 import * as Diff from 'diff';
+import { DownOutlined, RightOutlined } from '@ant-design/icons';
 import { useDiffContext } from './useDiffContext';
 import type { DiffHunk, DiffChange, HunkType } from './types';
 
@@ -128,6 +129,13 @@ const DiffBlock: React.FC<{ hunk: DiffHunk; index: number; isActive: boolean }> 
 const DiffViewer: React.FC = () => {
   const { state, dispatch } = useDiffContext();
   const viewerRef = useRef<HTMLDivElement>(null);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('miao-text-compare-diff-collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   const hunks = state.diffResult?.hunks ?? [];
   const diffHunks = hunks.filter(h => h.type !== 'unchanged');
@@ -146,6 +154,16 @@ const DiffViewer: React.FC = () => {
     dispatch({ type: 'SET_CURRENT_HUNK_INDEX', payload: next });
     dispatch({ type: 'GO_TO_HUNK', payload: next });
   }, [state.currentHunkIndex, totalCount, dispatch]);
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('miao-text-compare-diff-collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (state.goToHunk == null || !viewerRef.current) return;
@@ -192,10 +210,19 @@ const DiffViewer: React.FC = () => {
 
   let visibleIndex = 0;
   return (
-    <div className="tc-diff-viewer" ref={viewerRef}>
-      <div className="tc-diff-header">
-        <span>差异结果 · 共 {totalCount} 处</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div className={`tc-diff-viewer${collapsed ? ' is-collapsed' : ''}`} ref={viewerRef}>
+      <button
+        type="button"
+        className="tc-diff-header"
+        onClick={toggleCollapsed}
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? '展开差异结果' : '折叠差异结果'}
+      >
+        <span className="tc-diff-title">
+          {collapsed ? <RightOutlined style={{ marginRight: 8 }} /> : <DownOutlined style={{ marginRight: 8 }} />}
+          差异结果 · 共 {totalCount} 处
+        </span>
+        <div className="tc-diff-nav" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
             className="tc-btn"
@@ -212,14 +239,16 @@ const DiffViewer: React.FC = () => {
             aria-label="下一处差异"
           >↓</button>
         </div>
-      </div>
-      <div className="tc-diff-body">
-        {hunks.map((hunk, i) => {
-          if (hunk.type === 'unchanged') return null;
-          const idx = visibleIndex++;
-          return <DiffBlock key={i} hunk={hunk} index={idx} isActive={idx === state.currentHunkIndex} />;
-        })}
-      </div>
+      </button>
+      {!collapsed && (
+        <div className="tc-diff-body">
+          {hunks.map((hunk, i) => {
+            if (hunk.type === 'unchanged') return null;
+            const idx = visibleIndex++;
+            return <DiffBlock key={i} hunk={hunk} index={idx} isActive={idx === state.currentHunkIndex} />;
+          })}
+        </div>
+      )}
     </div>
   );
 };

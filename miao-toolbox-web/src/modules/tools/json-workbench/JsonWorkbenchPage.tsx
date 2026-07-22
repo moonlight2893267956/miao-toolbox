@@ -7,6 +7,8 @@ import {
   ThunderboltOutlined,
   BulbOutlined,
   CodeOutlined,
+  SaveOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
 import { message, Tooltip, Dropdown, Modal, Input } from 'antd';
 import type { MenuProps } from 'antd';
@@ -32,6 +34,9 @@ import SearchBar from './components/SearchBar';
 import RepairPreviewModal from './components/RepairPreviewModal';
 import AiRepairModal from './components/AiRepairModal';
 import { useAiRepair } from './hooks/useAiRepair';
+import JsonHistoryDrawer from './components/JsonHistoryDrawer';
+import { loadHistory, captureSnapshot, deleteSnapshot, clearHistory } from './utils/jsonWorkbenchHistory';
+import type { JsonSnapshot } from './utils/jsonWorkbenchHistory';
 import ToolPageHeader from '../../../components/shared/ToolPageHeader';
 import { loadPageState, savePageState } from '../../../shared/utils/tabPageStorage';
 import './json-workbench.css';
@@ -242,9 +247,11 @@ function jsonWbReducer(state: JsonWorkbenchState, action: JsonWbAction): JsonWor
 
 // ─── 工具栏 ────────────────────────────────────────────
 
-function Toolbar({ viewMode, onViewModeChange, hasData, hasRawInput, canFormat, isEscapedJson, indentSize, onFormat, onCompress, onEscapeCompact, onUnescape, onIndentChange, showError, onRepair, onCopyPretty, onCopyCompact, hasSchema, onSchemaClear, parseProgress, fileSize, schemaMenuItems }: {
+function Toolbar({ viewMode, onViewModeChange, onSave, canSave, hasData, hasRawInput, canFormat, isEscapedJson, indentSize, onFormat, onCompress, onEscapeCompact, onUnescape, onIndentChange, showError, onRepair, onCopyPretty, onCopyCompact, hasSchema, onSchemaClear, parseProgress, fileSize, schemaMenuItems, onOpenHistory }: {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
+  onSave: () => void;
+  canSave: boolean;
   hasData: boolean;
   hasRawInput: boolean;
   canFormat: boolean;
@@ -264,6 +271,7 @@ function Toolbar({ viewMode, onViewModeChange, hasData, hasRawInput, canFormat, 
   parseProgress: number;
   fileSize: number;
   schemaMenuItems: MenuProps['items'];
+  onOpenHistory: () => void;
 }) {
   return (
     <div className="jw-toolbar">
@@ -355,6 +363,12 @@ function Toolbar({ viewMode, onViewModeChange, hasData, hasRawInput, canFormat, 
             </Tooltip>
           </Dropdown>
         )}
+        <button className="jw-save-btn" onClick={onSave} disabled={!canSave} title="将当前内容保存为历史快照 (Ctrl+S)">
+          <SaveOutlined /> 保存
+        </button>
+        <button className="jw-history-btn" onClick={onOpenHistory} title="查看历史记录并回滚">
+          <HistoryOutlined /> 历史
+        </button>
         <div className="jw-view-toggle">
           {(['raw', 'split', 'tree'] as ViewMode[]).map((mode) => (
             <button
@@ -489,6 +503,42 @@ export default function JsonWorkbenchPage() {
   const { repair: aiRepair, reset: resetAi, loading: aiLoading, result: aiResult, error: aiError } = useAiRepair();
   const [scrollTarget, setScrollTarget] = useState<number | null>(null);
   const [expandedArrayPaths, setExpandedArrayPaths] = useState<Set<string>>(new Set());
+
+  // ─── 历史快照 ─────────────────────────────────────────
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState<JsonSnapshot[]>(() => loadHistory());
+  const recordSnapshot = useCallback((raw: string, label: string) => {
+    setHistory(captureSnapshot(raw, label));
+  }, []);
+
+  const handleSaveSnapshot = useCallback(() => {
+    const raw = state.rawJson;
+    if (!raw || !raw.trim()) {
+      message.warning('当前内容为空，无法保存快照');
+      return;
+    }
+    recordSnapshot(raw, '手动保存');
+    message.success('已保存到历史');
+  }, [state.rawJson, recordSnapshot]);
+  const handleOpenHistory = useCallback(() => {
+    setHistory(loadHistory());
+    setHistoryOpen(true);
+  }, []);
+  const handleRestoreSnapshot = useCallback(
+    (raw: string) => {
+      dispatch({ type: 'JSON_WB_SET_RAW', payload: raw });
+      debouncedParse(raw, 1, expandedArrayPaths, { preserveExpandedIds: true });
+      setHistoryOpen(false);
+    },
+    [debouncedParse, expandedArrayPaths],
+  );
+  const handleDeleteSnapshot = useCallback((id: string) => {
+    setHistory(deleteSnapshot(id));
+  }, []);
+  const handleClearHistory = useCallback(() => {
+    clearHistory();
+    setHistory([]);
+  }, []);
 
   const handleViewModeChange = useCallback((mode: ViewMode) => {
     dispatch({ type: 'JSON_WB_SET_VIEW_MODE', payload: mode });
@@ -851,6 +901,18 @@ export default function JsonWorkbenchPage() {
     return () => window.removeEventListener('keydown', handler);
   }, [handleEscapeCompact, handleUnescape, handleFormat, handleCompress]);
 
+  // Ctrl+S / Cmd+S 快捷键保存快照
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        handleSaveSnapshot();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [handleSaveSnapshot]);
+
   // ─── Schema 校验 ─────────────────────────────────────
 
   const schemaFileRef = useRef<HTMLInputElement>(null);
@@ -1078,6 +1140,8 @@ export default function JsonWorkbenchPage() {
       <Toolbar
         viewMode={state.viewMode}
         onViewModeChange={handleViewModeChange}
+        onSave={handleSaveSnapshot}
+        canSave={!!state.rawJson.trim()}
         hasData={hasData}
         hasRawInput={hasRawInput}
         canFormat={canFormat}
@@ -1097,6 +1161,7 @@ export default function JsonWorkbenchPage() {
         schemaMenuItems={schemaMenuItems}
         parseProgress={state.parseProgress}
         fileSize={rawJsonByteSize}
+        onOpenHistory={handleOpenHistory}
       />
       {largeFileHint && (
         <div className="jw-large-file-hint">
@@ -1179,6 +1244,14 @@ export default function JsonWorkbenchPage() {
         accept=".json,.schema.json"
         style={{ display: 'none' }}
         onChange={handleSchemaFile}
+      />
+      <JsonHistoryDrawer
+        open={historyOpen}
+        snapshots={history}
+        onClose={() => setHistoryOpen(false)}
+        onRestore={handleRestoreSnapshot}
+        onDelete={handleDeleteSnapshot}
+        onClear={handleClearHistory}
       />
     </div>
   );

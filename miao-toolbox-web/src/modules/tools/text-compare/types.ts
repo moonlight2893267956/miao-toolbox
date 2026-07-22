@@ -57,6 +57,7 @@ export interface DiffState {
   structuredDiff: boolean;
   showLineNumbers: boolean;
   language: string | null;
+  wordWrap: boolean;
   diffResult: DiffResult | null;
   loading: boolean;
   error: string | null;
@@ -71,6 +72,7 @@ export type DiffAction =
   | { type: 'SET_IGNORE_WHITESPACE'; payload: boolean }
   | { type: 'SET_STRUCTURED_DIFF'; payload: boolean }
   | { type: 'SET_SHOW_LINE_NUMBERS'; payload: boolean }
+  | { type: 'SET_WORD_WRAP'; payload: boolean }
   | { type: 'SET_LANGUAGE'; payload: string | null }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }

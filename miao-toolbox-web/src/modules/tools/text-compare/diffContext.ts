@@ -10,6 +10,7 @@ export interface DiffContextValue {
   setIgnoreWhitespace: (v: boolean) => void;
   setStructuredDiff: (v: boolean) => void;
   setShowLineNumbers: (v: boolean) => void;
+  setWordWrap: (v: boolean) => void;
   runCompare: () => void;
 }
 

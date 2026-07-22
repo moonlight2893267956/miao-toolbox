@@ -17,6 +17,7 @@ const initialState: DiffState = {
   structuredDiff: false,
   showLineNumbers: true,
   language: null,
+  wordWrap: true,
   diffResult: null,
   loading: false,
   error: null,
@@ -35,7 +36,8 @@ function loadInitialDiffState(): DiffState {
       loaded.layout === 'stacked' || loaded.layout === 'split' ? loaded.layout : 'split',
     ignoreWhitespace: !!loaded.ignoreWhitespace,
     structuredDiff: !!loaded.structuredDiff,
-    showLineNumbers: loaded.showLineNumbers !== false,
+      showLineNumbers: loaded.showLineNumbers !== false,
+      wordWrap: loaded.wordWrap !== false,
   };
 }
 
@@ -53,6 +55,8 @@ function diffReducer(state: DiffState, action: DiffAction): DiffState {
       return { ...state, structuredDiff: action.payload };
     case 'SET_SHOW_LINE_NUMBERS':
       return { ...state, showLineNumbers: action.payload };
+    case 'SET_WORD_WRAP':
+      return { ...state, wordWrap: action.payload };
     case 'SET_LANGUAGE':
       return { ...state, language: action.payload };
     case 'SET_LOADING':
@@ -86,6 +90,7 @@ export const DiffProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ignoreWhitespace: state.ignoreWhitespace,
       structuredDiff: state.structuredDiff,
       showLineNumbers: state.showLineNumbers,
+      wordWrap: state.wordWrap,
     });
   }, [
     state.leftText,
@@ -94,6 +99,7 @@ export const DiffProvider: React.FC<{ children: React.ReactNode }> = ({ children
     state.ignoreWhitespace,
     state.structuredDiff,
     state.showLineNumbers,
+    state.wordWrap,
   ]);
 
   const setLeft = useCallback((text: string) => dispatch({ type: 'SET_LEFT', payload: text }), []);
@@ -102,6 +108,7 @@ export const DiffProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setIgnoreWhitespace = useCallback((v: boolean) => dispatch({ type: 'SET_IGNORE_WHITESPACE', payload: v }), []);
   const setStructuredDiff = useCallback((v: boolean) => dispatch({ type: 'SET_STRUCTURED_DIFF', payload: v }), []);
   const setShowLineNumbers = useCallback((v: boolean) => dispatch({ type: 'SET_SHOW_LINE_NUMBERS', payload: v }), []);
+  const setWordWrap = useCallback((v: boolean) => dispatch({ type: 'SET_WORD_WRAP', payload: v }), []);
 
   const runCompare = useCallback(async () => {
     if (!state.leftText && !state.rightText) {
@@ -128,7 +135,7 @@ export const DiffProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const value: DiffContextValue = {
     state, dispatch, setLeft, setRight, setLayout,
-    setIgnoreWhitespace, setStructuredDiff, setShowLineNumbers,
+    setIgnoreWhitespace, setStructuredDiff, setShowLineNumbers, setWordWrap,
     runCompare,
   };
 

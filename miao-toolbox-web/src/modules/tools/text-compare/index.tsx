@@ -1,17 +1,37 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { DiffOutlined } from '@ant-design/icons';
 import { DiffProvider } from './DiffProvider';
 import { useDiffContext } from './useDiffContext';
 import Toolbar from './Toolbar';
-import DiffPanel from './DiffPanel';
+import DiffPanel, { type DiffPanelHandle } from './DiffPanel';
 import StatCard from './StatCard';
 import DiffViewer from './DiffViewer';
 import AIAnalysisDock from './AIAnalysisDock';
+import FindBar from './FindBar';
 import './diff-tool.css';
 
 const DiffContent: React.FC = () => {
   const { state, runCompare } = useDiffContext();
+  const leftPanelRef = useRef<DiffPanelHandle>(null);
+  const rightPanelRef = useRef<DiffPanelHandle>(null);
+  const [findState, setFindState] = useState({
+    query: '',
+    caseSensitive: false,
+    currentIndex: -1,
+    startIndex: 0,
+  });
+
+  const handleQueryChange = useCallback(
+    (query: string, caseSensitive: boolean, currentIndex: number, startIndex: number) => {
+      setFindState({ query, caseSensitive, currentIndex, startIndex });
+    },
+    []
+  );
+
+  // 互斥焦点：一侧编辑器聚焦时，另一侧失焦
+  const handleLeftFocus = useCallback(() => { rightPanelRef.current?.blur(); }, []);
+  const handleRightFocus = useCallback(() => { leftPanelRef.current?.blur(); }, []);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -45,26 +65,29 @@ const DiffContent: React.FC = () => {
       </motion.div>
 
       <div className={`tc-panels-container ${isStacked ? 'tc-stacked' : ''}`}>
+        {/* FindBar 浮动在编辑区上方 */}
+        <FindBar leftRef={leftPanelRef} rightRef={rightPanelRef} onQueryChange={handleQueryChange} />
+
         {isStacked ? (
           <>
             <div className="tc-panel-zone tc-panel-left tc-full-width">
-              <DiffPanel side="left" />
+              <DiffPanel ref={leftPanelRef} side="left" onFocus={handleLeftFocus} />
             </div>
             <div className="tc-panel-zone tc-panel-right tc-full-width">
-              <DiffPanel side="right" />
+              <DiffPanel ref={rightPanelRef} side="right" onFocus={handleRightFocus} />
             </div>
           </>
         ) : (
           <>
             <div className="tc-panel-zone tc-panel-left">
-              <DiffPanel side="left" />
+              <DiffPanel ref={leftPanelRef} side="left" onFocus={handleLeftFocus} />
             </div>
             <div className="tc-divider">
               <div className="tc-divider-glow" />
               <div className="tc-divider-line" />
             </div>
             <div className="tc-panel-zone tc-panel-right">
-              <DiffPanel side="right" />
+              <DiffPanel ref={rightPanelRef} side="right" onFocus={handleRightFocus} />
             </div>
           </>
         )}
