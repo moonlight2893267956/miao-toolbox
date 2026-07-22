@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { DiffOutlined } from '@ant-design/icons';
 import { DiffProvider } from './DiffProvider';
@@ -15,16 +15,10 @@ const DiffContent: React.FC = () => {
   const { state, runCompare } = useDiffContext();
   const leftPanelRef = useRef<DiffPanelHandle>(null);
   const rightPanelRef = useRef<DiffPanelHandle>(null);
-  const [findState, setFindState] = useState({
-    query: '',
-    caseSensitive: false,
-    currentIndex: -1,
-    startIndex: 0,
-  });
 
   const handleQueryChange = useCallback(
-    (query: string, caseSensitive: boolean, currentIndex: number, startIndex: number) => {
-      setFindState({ query, caseSensitive, currentIndex, startIndex });
+    () => {
+      // 查找状态由 FindBar 与编辑器内部维护，此处无需保存
     },
     []
   );

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { EditorView, keymap, placeholder, lineNumbers, highlightSpecialChars, drawSelection, highlightActiveLine, Decoration, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
-import { EditorState, Prec, Compartment, StateEffect, type Extension } from '@codemirror/state';
+import { EditorState, Prec, StateEffect, type Extension } from '@codemirror/state';
 import { foldGutter, indentOnInput, indentUnit, foldKeymap } from '@codemirror/language';
 import { defaultKeymap, history } from '@codemirror/commands';
 import { json } from '@codemirror/lang-json';
@@ -55,7 +55,7 @@ class FindPlugin {
   query: string;
   caseSensitive: boolean;
   activeIndex: number;
-  constructor(view: EditorView) {
+  constructor() {
     this.query = '';
     this.caseSensitive = false;
     this.activeIndex = -1;

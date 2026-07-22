@@ -160,7 +160,9 @@ const DiffViewer: React.FC = () => {
       const next = !prev;
       try {
         localStorage.setItem('miao-text-compare-diff-collapsed', String(next));
-      } catch {}
+      } catch {
+        // localStorage 不可用时忽略
+      }
       return next;
     });
   }, []);

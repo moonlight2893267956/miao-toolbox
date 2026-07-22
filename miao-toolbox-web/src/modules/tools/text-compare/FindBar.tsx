@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Input, type InputRef } from 'antd';
-import { useDiffContext } from './useDiffContext';
 import type { DiffPanelHandle } from './DiffPanel';
 
 interface FindBarProps {
@@ -114,7 +113,11 @@ const FindBar: React.FC<FindBarProps> = ({ leftRef, rightRef, onQueryChange }) =
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') { e.preventDefault(); close(); }
-    else if (e.key === 'Enter') { e.preventDefault(); e.shiftKey ? go(-1) : go(1); }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.shiftKey) go(-1);
+      else go(1);
+    }
   };
 
   if (!open) return null;
