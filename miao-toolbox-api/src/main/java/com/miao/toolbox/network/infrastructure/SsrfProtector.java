@@ -219,7 +219,6 @@ public class SsrfProtector {
     private static BusinessException dnsFailed(String host) {
         return new BusinessException(
                 ErrorCode.NETWORK_DNS_RESOLVE_FAILED,
-                "无法解析主机: " + host,
-                502);
+                "无法解析主机: " + host + "，请检查域名是否正确");
     }
 }

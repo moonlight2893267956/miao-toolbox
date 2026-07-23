@@ -3,6 +3,7 @@ package com.miao.toolbox.network.dto;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -17,7 +18,8 @@ public class TcpPingResponse {
     private int failCount;
     /** 成功样本平均延迟 ms，无成功则为 null */
     private Double avgLatencyMs;
-    private List<TcpPingProbe> probes;
+    @Builder.Default
+    private List<TcpPingProbe> probes = new ArrayList<>();
 
     @Data
     @Builder

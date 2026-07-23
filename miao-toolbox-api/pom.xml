@@ -81,6 +81,13 @@
 			<optional>true</optional>
 		</dependency>
 
+		<!-- HTTP 客户端：OkHttp（支持自定义 Dns，用于 SSRF 安全的出站请求） -->
+		<dependency>
+			<groupId>com.squareup.okhttp3</groupId>
+			<artifactId>okhttp</artifactId>
+			<version>4.12.0</version>
+		</dependency>
+
 		<!-- JWT -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>

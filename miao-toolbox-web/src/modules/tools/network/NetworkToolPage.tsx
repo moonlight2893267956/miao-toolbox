@@ -39,6 +39,9 @@ const HttpApiSignTool = lazy(() => import('./generator/HttpApiSign/HttpApiSignTo
 const TcpPingTool = lazy(() => import('./inspector/TcpPing/TcpPingTool'));
 const DnsQueryTool = lazy(() => import('./inspector/DnsQuery/DnsQueryTool'));
 const WhoisTool = lazy(() => import('./inspector/Whois/WhoisTool'));
+const SslAnalyzerTool = lazy(() => import('./inspector/SslAnalyzer/SslAnalyzerTool'));
+const HttpHeaderTool = lazy(() => import('./inspector/HttpHeader/HttpHeaderTool'));
+const IpReputationTool = lazy(() => import('./inspector/IpReputation/IpReputationTool'));
 
 const IMPLEMENTED_TOOLS: Record<string, React.LazyExoticComponent<React.FC>> = {
   'base64-codec': CodecSuiteTool,
@@ -64,6 +67,9 @@ const IMPLEMENTED_TOOLS: Record<string, React.LazyExoticComponent<React.FC>> = {
   'tcp-ping': TcpPingTool,
   'dns-query': DnsQueryTool,
   'whois': WhoisTool,
+  'ssl-analyzer': SslAnalyzerTool,
+  'http-header': HttpHeaderTool,
+  'ip-reputation': IpReputationTool,
 };
 
 function ToolChrome({

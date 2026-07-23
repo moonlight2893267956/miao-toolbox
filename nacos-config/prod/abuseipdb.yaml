@@ -1,0 +1,3 @@
+# SECRET_GROUP / abuseipdb.yaml — AbuseIPDB API Key（密钥类，渲染自部署机 .env）
+# 真实值由部署机 .env 的 ABUSEIPDB_API_KEY 渲染，或直接在 Nacos 控制台填写。
+ABUSEIPDB_API_KEY: "${ABUSEIPDB_API_KEY}"

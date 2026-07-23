@@ -46,6 +46,21 @@ describe('jsonEscape', () => {
     expect(result).toEqual({ error: '无法识别为转义 JSON' });
   });
 
+  it('unescapes a bare escaped JSON without outer quotes', () => {
+    const result = unescapeJsonString('{"name": "wuxiangyi"}'.replace(/"/g, '\\"'), 2);
+
+    expect('error' in result).toBe(false);
+    if (!('error' in result)) {
+      expect(JSON.parse(result.value)).toEqual({ name: 'wuxiangyi' });
+    }
+  });
+
+  it('detects a bare escaped JSON as escaped', () => {
+    const result = inspectEscapedJsonString('{"name": "wuxiangyi"}'.replace(/"/g, '\\"'), 2);
+
+    expect(result.isEscaped).toBe(true);
+  });
+
   it('detects escaped JSON strings as a normal result state', () => {
     const result = inspectEscapedJsonString('"{\\"name\\":\\"test\\"}"', 2);
 

@@ -50,4 +50,5 @@ public final class ErrorCode {
     public static final String NETWORK_SSRF_BLOCKED = "NETWORK_SSRF_BLOCKED";
     public static final String NETWORK_INVALID_INPUT = "NETWORK_INVALID_INPUT";
     public static final String NETWORK_RATE_LIMITED = "NETWORK_RATE_LIMITED";
+    public static final String NETWORK_HTTP_FETCH_FAILED = "NETWORK_HTTP_FETCH_FAILED";
 }

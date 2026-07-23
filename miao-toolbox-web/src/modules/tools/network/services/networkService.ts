@@ -249,3 +249,139 @@ export async function whoisQuery(params: WhoisQueryParams): Promise<WhoisQueryRe
   );
   return response.data.data;
 }
+
+// ── SSL/TLS 证书分析 ──
+
+export interface SslCertificateField {
+  key: string;
+  value: string;
+}
+
+export interface SslCertificateInfo {
+  index: number;
+  subject: string;
+  issuer: string;
+  serialNumber: string;
+  notBefore: string;
+  notAfter: string;
+  daysRemaining: number;
+  expired: boolean;
+  signatureAlgorithm: string;
+  publicKeyAlgorithm: string;
+  publicKeySize: number;
+  san: string[];
+  fields: SslCertificateField[];
+}
+
+export interface SslAnalyzerResult {
+  host: string;
+  port: number;
+  resolvedIp: string;
+  protocol: string;
+  cipherSuite: string;
+  peerVerified: boolean;
+  certificateError: string | null;
+  chain: SslCertificateInfo[];
+  handshakeTimeMs: number;
+  success: boolean;
+  errorMessage: string | null;
+}
+
+export interface SslAnalyzerParams {
+  host: string;
+  port?: number;
+  timeoutMs?: number;
+}
+
+export async function sslAnalyze(params: SslAnalyzerParams): Promise<SslAnalyzerResult> {
+  const response = await axiosInstance.post<ApiEnvelope<SslAnalyzerResult>>(
+    '/api/network/inspector/ssl-analyzer',
+    {
+      host: params.host,
+      port: params.port,
+      timeoutMs: params.timeoutMs,
+    },
+    { timeout: 60_000 },
+  );
+  return response.data.data;
+}
+
+// ── HTTP Header 分析 ──
+
+export interface HttpHeaderField {
+  key: string;
+  value: string;
+}
+
+export interface HttpHeaderAnalyzerResult {
+  url: string;
+  statusCode: number;
+  statusText: string;
+  finalUrl: string;
+  elapsedMs: number;
+  categories: Record<string, HttpHeaderField[]>;
+  missingSecurityHeaders: string[];
+  success: boolean;
+  errorMessage: string | null;
+}
+
+export interface HttpHeaderAnalyzerParams {
+  url: string;
+  timeoutMs?: number;
+}
+
+export async function httpHeaderAnalyze(
+  params: HttpHeaderAnalyzerParams,
+): Promise<HttpHeaderAnalyzerResult> {
+  const response = await axiosInstance.post<ApiEnvelope<HttpHeaderAnalyzerResult>>(
+    '/api/network/inspector/http-header',
+    {
+      url: params.url,
+      timeoutMs: params.timeoutMs,
+    },
+    { timeout: 60_000 },
+  );
+  return response.data.data;
+}
+
+// ── IP 信誉检查 ──
+
+export interface IpReputationReport {
+  reportedAt: string | null;
+  comment: string | null;
+  categories: number[];
+}
+
+export interface IpReputationResult {
+  ip: string;
+  abuseConfidenceScore: number;
+  totalReports: number;
+  lastReportedAt: string | null;
+  isPublic: boolean;
+  isWhitelisted: boolean;
+  domain: string | null;
+  usageType: string | null;
+  countryCode: string | null;
+  isp: string | null;
+  reports: IpReputationReport[];
+  configured: boolean;
+  success: boolean;
+  message: string | null;
+}
+
+export interface IpReputationParams {
+  ip: string;
+  maxAgeInDays?: number;
+}
+
+export async function ipReputation(params: IpReputationParams): Promise<IpReputationResult> {
+  const response = await axiosInstance.post<ApiEnvelope<IpReputationResult>>(
+    '/api/network/inspector/ip-reputation',
+    {
+      ip: params.ip,
+      maxAgeInDays: params.maxAgeInDays,
+    },
+    { timeout: 60_000 },
+  );
+  return response.data.data;
+}
