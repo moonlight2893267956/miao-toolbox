@@ -1,7 +1,7 @@
 /* ══════════════════════════════════════════════════════════════
-   TabBar — 纯白顶栏 + 稳妥切换
-   - 整条顶栏纯白，与内容不割裂
-   - 切换只改颜色/底线，不做阴影/位移过渡，避免闪烁
+   TabBar — 纯白顶栏 + 激活态指示条
+   - 激活态由每个 Tab 的 ::after 伪元素显示，天然跟随当前 tab
+   - 定位不再依赖 JS 计算，避免 Dropdown 包装层导致偏移
    ══════════════════════════════════════════════════════════════ */
 
 /* 全宽白底外壳（盖住内容区两侧的米色底） */
@@ -56,6 +56,7 @@
   min-height: var(--tab-h);
   flex: 1 1 auto;
   min-width: 0;
+  position: relative;
   /* 去掉 mask，避免横向滚动/重绘时边缘闪一下 */
   mask-image: none;
 }
@@ -63,6 +64,7 @@
 .miao-tabbar-scroll::-webkit-scrollbar {
   display: none;
 }
+
 
 /* ─── 更多 Tab ─── */
 .miao-tabbar-more {
@@ -152,7 +154,7 @@
 }
 
 /* ─── 单个 Tab ───
-   切换只改 color / 底线 / font-weight，不做 box-shadow、transform 过渡
+   激活态由 ::after 伪元素显示紫色指示条，tab 自身无 border-bottom
 */
 .miao-tab {
   position: relative;
@@ -171,13 +173,11 @@
   cursor: pointer;
   user-select: none;
   border: none;
-  border-bottom: 2px solid transparent;
-  /* 仅颜色类属性，避免阴影/位移切换时闪 */
+  /* 颜色 + 背景从容过渡 */
   transition:
-    color 100ms ease,
-    background-color 100ms ease,
-    border-bottom-color 100ms ease;
-  flex: 0 1 auto;
+    color 260ms ease,
+    background-color 260ms ease;
+  flex: 0 0 auto;
   min-width: 0;
   max-width: 176px;
 }
@@ -195,16 +195,27 @@
 .miao-tab.is-active {
   color: var(--tab-active-text);
   font-weight: 700;
-  background: transparent;
-  border-bottom-color: var(--tab-accent);
-  box-shadow: none;
+  background: color-mix(in srgb, var(--tab-accent) 6%, transparent);
   z-index: 1;
 }
 
-/* 不用 ::after 动画条，避免切换时伪元素插拔闪烁 */
+/* 激活态指示条：直接作为 tab 的伪元素，跟随当前 tab 布局，定位绝对可靠 */
 .miao-tab.is-active::after {
-  content: none;
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  border-radius: 2px 2px 0 0;
+  background: var(--tab-accent);
+  box-shadow: 0 1px 6px color-mix(in srgb, var(--tab-accent) 35%, transparent);
+  pointer-events: none;
+  z-index: 2;
 }
+
+
+/* 固定 tab 指示条不需要收窄，由 JS 精确测量 */
 
 .miao-tab.is-active .miao-tab-label {
   color: var(--tab-active-text);
@@ -233,8 +244,7 @@
   opacity: 0.75;
   flex-shrink: 0;
   color: inherit;
-  /* 无 transform 过渡 */
-  transition: color 100ms ease, opacity 100ms ease;
+  transition: color 260ms ease, opacity 260ms ease;
 }
 
 .miao-tab:hover .miao-tab-icon {
@@ -268,7 +278,7 @@
   padding: 0;
   line-height: 1;
   font-size: 10px;
-  transition: background 100ms ease, color 100ms ease, opacity 100ms ease;
+  transition: background 140ms ease, color 140ms ease, opacity 220ms ease;
   opacity: 0;
   pointer-events: none;
   flex-shrink: 0;
@@ -285,6 +295,7 @@
   background: var(--miao-danger-bg, rgba(255, 77, 79, 0.12));
   color: var(--miao-danger, #ff4d4f);
   opacity: 1;
+  transform: scale(1.1);
 }
 
 /* ─── 下拉菜单 ─── */
@@ -346,6 +357,11 @@
     opacity: 1;
     pointer-events: auto;
   }
+
+  /* 禁用滑动指示条的 spring 动画，退化为瞬间切换 */
+  .miao-tab-indicator {
+    transition: none !important;
+  }
 }
 
 /* ─── 暗色 ─── */
@@ -359,7 +375,12 @@
 }
 
 [data-theme='dark'] .miao-tab.is-active {
-  border-bottom-color: var(--tab-accent);
+  background: color-mix(in srgb, var(--tab-accent) 10%, transparent);
+}
+
+[data-theme='dark'] .miao-tab-indicator {
+  background: var(--tab-accent);
+  box-shadow: 0 1px 8px color-mix(in srgb, var(--tab-accent) 40%, transparent);
 }
 
 [data-theme='dark'] .miao-tabbar-dropdown .ant-dropdown-menu,

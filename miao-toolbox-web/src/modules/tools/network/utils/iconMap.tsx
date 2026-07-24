@@ -102,7 +102,6 @@ export const NETWORK_TOOL_ICON_BY_ID: Record<string, string> = {
   'sitemap-parser': 'PartitionOutlined',
   'url-parser': 'LinkOutlined',
   'web-scraper': 'Html5Outlined',
-  'webhook-receiver': 'ThunderboltOutlined',
   'base64-codec': 'CodeOutlined',
   'data-format': 'SwapOutlined',
   'file-hash': 'SafetyCertificateOutlined',

@@ -42,6 +42,8 @@ const WhoisTool = lazy(() => import('./inspector/Whois/WhoisTool'));
 const SslAnalyzerTool = lazy(() => import('./inspector/SslAnalyzer/SslAnalyzerTool'));
 const HttpHeaderTool = lazy(() => import('./inspector/HttpHeader/HttpHeaderTool'));
 const IpReputationTool = lazy(() => import('./inspector/IpReputation/IpReputationTool'));
+const HttpRequestBuilderTool = lazy(() => import('./inspector/HttpRequestBuilder/HttpRequestBuilderTool'));
+const WebhookTool = lazy(() => import('./inspector/WebhookTool'));
 
 const IMPLEMENTED_TOOLS: Record<string, React.LazyExoticComponent<React.FC>> = {
   'base64-codec': CodecSuiteTool,
@@ -70,6 +72,8 @@ const IMPLEMENTED_TOOLS: Record<string, React.LazyExoticComponent<React.FC>> = {
   'ssl-analyzer': SslAnalyzerTool,
   'http-header': HttpHeaderTool,
   'ip-reputation': IpReputationTool,
+  'http-request-builder': HttpRequestBuilderTool,
+  'webhook': WebhookTool,
 };
 
 function ToolChrome({

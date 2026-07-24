@@ -80,6 +80,7 @@ function tabReducer(state: TabState, action: TabAction): TabState {
           Object.keys(patch).length > 0
             ? state.tabs.map((t) => (t.key === action.tab.key ? { ...t, ...patch } : t))
             : state.tabs;
+        // 保持 tab 顺序稳定，不再 MRU 置前
         return {
           ...state,
           tabs,
@@ -89,9 +90,12 @@ function tabReducer(state: TabState, action: TabAction): TabState {
             : state.history,
         };
       }
+      // 新 Tab：固定项保持最前，新 Tab 直接置顶非固定区
+      const pinned = state.tabs.filter((t) => t.pinned);
+      const nonPinned = state.tabs.filter((t) => !t.pinned);
       return {
         ...state,
-        tabs: [...state.tabs, action.tab],
+        tabs: [...pinned, action.tab, ...nonPinned],
         activeKey: action.tab.key,
         history: pushHistory(state.history, action.tab.key),
       };
@@ -235,6 +239,7 @@ function findFallback(history: string[], closedKey: string, remaining: TabItem[]
 }
 
 // ── 持久化（刷新后保留 Tab） ─────────────────────────────
+
 const TAB_STORAGE_KEY = 'miao-tabs-v1';
 
 interface PersistedTab {

@@ -1,14 +1,12 @@
 /** @jsxImportSource react */
-import React, { useRef, useCallback, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { CloseOutlined, PushpinOutlined, EllipsisOutlined } from '@ant-design/icons';
 import { Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import { useTabs, isTabbable } from '../../contexts/TabContext';
+import type { TabItem } from '../../contexts/TabContext';
 import './tabbar.css';
-
-/** Tab 栏最多展示的 tab 数量，超出部分收入「更多」下拉（顺序与 state.tabs 一致，不做视觉交换） */
-const MAX_VISIBLE_TABS = 7;
 
 const TabBar: React.FC = () => {
   const { state, closeTab, switchTab, pinTab, closeOtherTabs, closeRightTabs, closeLeftTabs, closeAllTabs } = useTabs();
@@ -16,6 +14,8 @@ const TabBar: React.FC = () => {
   const location = useLocation();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [offscreenTabs, setOffscreenTabs] = useState<TabItem[]>([]);
+  const tabElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const onClose = useCallback(
     (e: React.MouseEvent, key: string) => {
@@ -148,31 +148,71 @@ const TabBar: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.activeKey, state.tabs, location.pathname]);
 
-  /* 可见 / 隐藏分割：若激活 tab 在隐藏区，将其与可见区末尾交换，确保当前 tab 始终可见 */
-  const { visibleTabs, hiddenTabs } = useMemo(() => {
-    const all = state.tabs;
-    if (all.length <= MAX_VISIBLE_TABS) {
-      return { visibleTabs: all, hiddenTabs: [] as typeof all };
+  /** 计算当前滚动视口外（左/右侧被隐藏）的 tab 列表 */
+  const updateOffscreen = useCallback(() => {
+    const scrollEl = scrollRef.current;
+    if (!scrollEl || state.tabs.length === 0) {
+      setOffscreenTabs([]);
+      return;
     }
-    const activeIdx = all.findIndex((t) => t.key === state.activeKey);
-    // 激活 tab 在隐藏区（≥ MAX_VISIBLE_TABS），与可见区末尾交换
-    if (activeIdx >= MAX_VISIBLE_TABS) {
-      const arr = [...all];
-      const lastVisibleIdx = MAX_VISIBLE_TABS - 1;
-      [arr[lastVisibleIdx], arr[activeIdx]] = [arr[activeIdx], arr[lastVisibleIdx]];
-      return {
-        visibleTabs: arr.slice(0, MAX_VISIBLE_TABS),
-        hiddenTabs: arr.slice(MAX_VISIBLE_TABS),
-      };
+    const left = scrollEl.scrollLeft;
+    const right = left + scrollEl.clientWidth;
+    const offscreen: TabItem[] = [];
+    for (const tab of state.tabs) {
+      const el = tabElsRef.current.get(tab.key);
+      if (!el) continue;
+      const elLeft = el.offsetLeft;
+      const elRight = elLeft + el.offsetWidth;
+      // 允许 1px 浮点容差
+      if (elRight > right + 1 || elLeft < left - 1) {
+        offscreen.push(tab);
+      }
     }
-    return {
-      visibleTabs: all.slice(0, MAX_VISIBLE_TABS),
-      hiddenTabs: all.slice(MAX_VISIBLE_TABS),
-    };
-  }, [state.tabs, state.activeKey]);
+    setOffscreenTabs(offscreen);
+  }, [state.tabs]);
 
-  // 「更多」下拉：隐藏 tab + 关闭按钮（可关时）
-  const moreMenuItems: MenuProps['items'] = hiddenTabs.map((tab) => ({
+  // 滚动容器尺寸变化 → 重新测量视口外 tab
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => updateOffscreen());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [updateOffscreen]);
+
+  // 滚动时实时更新 offscreen
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => updateOffscreen();
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [updateOffscreen]);
+
+  // tab 集合/尺寸变化时重新计算视口外 tab
+  useLayoutEffect(() => {
+    updateOffscreen();
+  }, [updateOffscreen]);
+
+  // 激活 tab 变化（含刷新后恢复）时，若不在可视区则平滑滚动入视
+  useEffect(() => {
+    const scrollEl = scrollRef.current;
+    const activeEl = state.activeKey ? tabElsRef.current.get(state.activeKey) : undefined;
+    if (!scrollEl || !activeEl) return;
+    const scrollLeft = scrollEl.scrollLeft;
+    const containerWidth = scrollEl.clientWidth;
+    const elLeft = activeEl.offsetLeft;
+    const elRight = elLeft + activeEl.offsetWidth;
+    const padding = 8;
+    if (elLeft < scrollLeft) {
+      scrollEl.scrollTo({ left: Math.max(0, elLeft - padding), behavior: 'smooth' });
+    } else if (elRight > scrollLeft + containerWidth) {
+      scrollEl.scrollTo({ left: elRight - containerWidth + padding, behavior: 'smooth' });
+    }
+  }, [state.activeKey]);
+
+  // 「更多」下拉：只列当前视口外（被滚动隐藏）的 tab
+  const moreMenuItems: MenuProps['items'] = offscreenTabs.map((tab) => ({
     key: tab.key,
     className: tab.key === state.activeKey ? 'is-active-item' : undefined,
     label: (
@@ -216,7 +256,7 @@ const TabBar: React.FC = () => {
     <div className="miao-tabbar-shell">
       <div className="miao-tabbar" role="tablist">
         <div className="miao-tabbar-scroll" ref={scrollRef} onWheel={onWheel}>
-          {visibleTabs.map((tab) => {
+          {state.tabs.map((tab) => {
             const isActive = tab.key === state.activeKey;
             const canClose = tab.closable && !tab.pinned;
 
@@ -232,6 +272,10 @@ const TabBar: React.FC = () => {
               >
                 <div
                   data-tab-key={tab.key}
+                  ref={(node) => {
+                    if (node) tabElsRef.current.set(tab.key, node);
+                    else tabElsRef.current.delete(tab.key);
+                  }}
                   className={
                     'miao-tab' +
                     (isActive ? ' is-active' : '') +
@@ -275,7 +319,7 @@ const TabBar: React.FC = () => {
           })}
         </div>
 
-        {hiddenTabs.length > 0 && (
+        {offscreenTabs.length > 0 && (
           <Dropdown
             menu={{ items: moreMenuItems, onClick: handleMoreClick }}
             trigger={['click']}
@@ -286,13 +330,13 @@ const TabBar: React.FC = () => {
             <button
               className={
                 'miao-tabbar-more' +
-                (hiddenTabs.some((t) => t.key === state.activeKey) ? ' is-active-hidden' : '')
+                (offscreenTabs.some((t) => t.key === state.activeKey) ? ' is-active-hidden' : '')
               }
               type="button"
               aria-label="更多标签"
             >
               <EllipsisOutlined />
-              <span className="miao-tabbar-more-count">{hiddenTabs.length}</span>
+              <span className="miao-tabbar-more-count">{offscreenTabs.length}</span>
             </button>
           </Dropdown>
         )}

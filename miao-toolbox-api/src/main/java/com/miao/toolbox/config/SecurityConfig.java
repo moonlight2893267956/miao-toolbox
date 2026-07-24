@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import java.nio.charset.StandardCharsets;
@@ -79,6 +80,9 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/error"
                         ).permitAll()
+                        // Webhook 接收端点为公开接口（第三方回调，无登录态/签名），仅 POST 公开；
+                        // SSE 订阅（GET）仍需登录，防止他人凭 hookId 窃听。
+                        .requestMatchers(HttpMethod.POST, "/api/network/webhook/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
                         .anyRequest().authenticated()
                 );

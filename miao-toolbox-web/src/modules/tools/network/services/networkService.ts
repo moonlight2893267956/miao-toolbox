@@ -385,3 +385,239 @@ export async function ipReputation(params: IpReputationParams): Promise<IpReputa
   );
   return response.data.data;
 }
+
+// ── HTTP 请求构建器 ──
+
+export interface HttpRequestHeaderItem {
+  name: string;
+  value: string;
+}
+
+export interface HttpRequestBuilderResult {
+  statusCode: number;
+  statusText: string;
+  finalUrl: string;
+  headers: HttpRequestHeaderItem[];
+  body: string | null;
+  bodyBytes: number;
+  truncated: boolean;
+  elapsedMs: number;
+  success: boolean;
+  errorMessage: string | null;
+}
+
+export interface HttpRequestBuilderParams {
+  url: string;
+  method?: string;
+  headers?: HttpRequestHeaderItem[];
+  bodyType?: string;
+  body?: string;
+  timeoutMs?: number;
+}
+
+export async function httpRequestBuilder(
+  params: HttpRequestBuilderParams,
+): Promise<HttpRequestBuilderResult> {
+  const response = await axiosInstance.post<ApiEnvelope<HttpRequestBuilderResult>>(
+    '/api/network/inspector/http-request-builder',
+    {
+      url: params.url,
+      method: params.method,
+      headers: params.headers,
+      bodyType: params.bodyType,
+      body: params.body,
+      timeoutMs: params.timeoutMs,
+    },
+    { timeout: 60_000 },
+  );
+  return response.data.data;
+}
+
+// ── Webhook 接收器 ──
+
+export interface WebhookCreateResponse {
+  hookId: string;
+  url: string;
+  expiresAt: number;
+}
+
+export interface WebhookCustomResponse {
+  statusCode: number;
+  body: string | null;
+  headers?: Record<string, string>;
+}
+
+export interface WebhookInfo {
+  hookId: string;
+  createdAt: number;
+  expiresAt: number;
+  requestCount: number;
+  customResponse: WebhookCustomResponse | null;
+}
+
+export interface WebhookHistoryItem {
+  id: string;
+  receivedAt: number;
+  method: string;
+  sourceIp: string;
+  path: string;
+  queryParams: Record<string, string>;
+  headers: Record<string, string>;
+  body: string | null;
+  sizeBytes: number;
+  /** 端点本次实际返回的 HTTP 状态码（旧数据可能缺失） */
+  responseStatusCode?: number;
+  /** 端点本次实际返回的响应头（旧数据可能缺失） */
+  responseHeaders?: Record<string, string>;
+  /** 端点本次实际返回的响应体（旧数据可能缺失） */
+  responseBody?: string | null;
+}
+
+/** 创建临时 Webhook 端点（TTL 24h），返回 hookId 与可公开访问的 URL。 */
+export async function createWebhook(): Promise<WebhookCreateResponse> {
+  const response = await axiosInstance.post<ApiEnvelope<WebhookCreateResponse>>(
+    '/api/network/webhook/create',
+    {},
+    { timeout: 30_000 },
+  );
+  return response.data.data;
+}
+
+/** 读取端点信息（剩余时间、已接收数量、自定义响应）。 */
+export async function getWebhookInfo(hookId: string): Promise<WebhookInfo> {
+  const response = await axiosInstance.get<ApiEnvelope<WebhookInfo>>(
+    `/api/network/webhook/${hookId}`,
+    { timeout: 30_000 },
+  );
+  return response.data.data;
+}
+
+/** 读取最近请求历史（最新在前）。 */
+export async function getWebhookHistory(hookId: string): Promise<WebhookHistoryItem[]> {
+  const response = await axiosInstance.get<ApiEnvelope<WebhookHistoryItem[]>>(
+    `/api/network/webhook/${hookId}/history`,
+    { timeout: 30_000 },
+  );
+  return response.data.data ?? [];
+}
+
+/** 保存/清除自定义响应（statusCode<=0 视为清除）。 */
+export async function saveWebhookResponse(
+  hookId: string,
+  data: WebhookCustomResponse,
+): Promise<void> {
+  await axiosInstance.put<ApiEnvelope<void>>(
+    `/api/network/webhook/${hookId}/response`,
+    data,
+    { timeout: 30_000 },
+  );
+}
+
+/** 删除端点及其历史。 */
+export async function deleteWebhook(hookId: string): Promise<void> {
+  await axiosInstance.delete<ApiEnvelope<void>>(
+    `/api/network/webhook/${hookId}`,
+    { timeout: 30_000 },
+  );
+}
+
+/**
+ * SSE 实时订阅 Webhook 请求推送。返回 abort 函数。
+ *
+ * <p>该端点已整体豁免网关签名/防重放校验；此处仍带登录 token 与签名 header（无害）。
+ * 连接因服务端 30min 超时或网络中断而关闭后，会自动重连（除非调用方主动 abort）。
+ */
+export function subscribeWebhook(
+  hookId: string,
+  handlers: {
+    onRequest?: (item: WebhookHistoryItem) => void;
+    onError?: (msg: string) => void;
+  },
+): () => void {
+  const controller = new AbortController();
+  let stopped = false;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const connect = () => {
+    if (stopped) return;
+    void (async () => {
+      try {
+        const token = getAccessToken();
+        const signingKey = getSigningKey();
+        const headers: Record<string, string> = {
+          Accept: 'text/event-stream',
+        };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        if (signingKey && token) {
+          const timestamp = Date.now().toString();
+          const nonce = crypto.randomUUID();
+          const data = timestamp + nonce;
+          headers['X-Request-Timestamp'] = timestamp;
+          headers['X-Request-Nonce'] = nonce;
+          headers['X-Request-Signature'] = await hmacSha256Hex(signingKey, data);
+        }
+
+        const res = await fetch(`/api/network/webhook/${hookId}/stream`, {
+          method: 'GET',
+          headers,
+          credentials: 'include',
+          signal: controller.signal,
+        });
+        if (!res.ok || !res.body) {
+          handlers.onError?.(`订阅失败 HTTP ${res.status}`);
+          return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let eventName = 'message';
+        let dataLines: string[] = [];
+
+        const flush = () => {
+          if (!dataLines.length) return;
+          const data = dataLines.join('\n');
+          dataLines = [];
+          const name = eventName;
+          eventName = 'message';
+          try {
+            if (name === 'request') handlers.onRequest?.(JSON.parse(data) as WebhookHistoryItem);
+            else if (name === 'error') {
+              const o = JSON.parse(data) as { message?: string };
+              handlers.onError?.(o.message || '订阅出错');
+            }
+          } catch {
+            /* ignore parse */
+          }
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split('\n');
+          buffer = parts.pop() ?? '';
+          for (const line of parts) {
+            if (line.startsWith('event:')) eventName = line.slice(6).trim();
+            else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+            else if (line === '') flush();
+          }
+        }
+        flush();
+        if (!stopped) reconnectTimer = setTimeout(connect, 1000);
+      } catch (e) {
+        if ((e as Error).name === 'AbortError' || stopped) return;
+        handlers.onError?.(e instanceof Error ? e.message : '订阅中断');
+        reconnectTimer = setTimeout(connect, 2000);
+      }
+    })();
+  };
+
+  connect();
+
+  return () => {
+    stopped = true;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    controller.abort();
+  };
+}

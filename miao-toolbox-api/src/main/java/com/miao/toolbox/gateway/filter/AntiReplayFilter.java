@@ -60,7 +60,8 @@ public class AntiReplayFilter extends OncePerRequestFilter {
                 || path.startsWith("/api/auth/oauth/")
                 || path.startsWith("/actuator")
                 || path.startsWith("/swagger-ui")
-                || path.startsWith("/v3/api-docs");
+                || path.startsWith("/v3/api-docs")
+                || path.startsWith("/api/network/webhook/");
     }
 
     @Override

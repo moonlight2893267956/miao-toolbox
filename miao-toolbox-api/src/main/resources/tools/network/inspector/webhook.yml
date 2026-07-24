@@ -1,0 +1,7 @@
+id: webhook
+name: Webhook 接收器
+category: inspector
+phase: 2
+description: 临时公开端点，实时接收并查看第三方回调请求
+icon: ThunderboltOutlined
+route: /tools/network/inspector/webhook
