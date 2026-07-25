@@ -89,7 +89,7 @@ export function resolveNetworkIcon(name?: string, className?: string): React.Rea
 export const NETWORK_TOOL_ICON_BY_ID: Record<string, string> = {
   'network-assistant': 'RobotOutlined',
   'cookie-analyzer': 'CookieOutlined',
-  'cors-checker': 'NodeIndexOutlined',
+  'cors-checker': 'ApiOutlined',
   'diff-checker': 'DiffOutlined',
   'email-header': 'MailOutlined',
   'graphql-tester': 'ClusterOutlined',
@@ -98,7 +98,7 @@ export const NETWORK_TOOL_ICON_BY_ID: Record<string, string> = {
   'openapi-viewer': 'ApiOutlined',
   'robots-txt': 'RobotOutlined',
   'rss-parser': 'RssOutlined',
-  'security-header': 'SecurityScanOutlined',
+  'security-header': 'SafetyCertificateOutlined',
   'sitemap-parser': 'PartitionOutlined',
   'url-parser': 'LinkOutlined',
   'web-scraper': 'Html5Outlined',

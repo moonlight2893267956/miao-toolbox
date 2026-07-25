@@ -621,3 +621,76 @@ export function subscribeWebhook(
     controller.abort();
   };
 }
+
+/* ===================== CORS 策略检查器 ===================== */
+
+export interface CorsIssue {
+  severity: string;
+  message: string;
+  fix?: string;
+}
+
+export interface CorsCheckRequest {
+  url: string;
+  origin?: string;
+}
+
+export interface CorsCheckResult {
+  success: boolean;
+  errorMessage?: string;
+  finalUrl?: string;
+  statusCode: number;
+  allowOrigin?: string;
+  allowMethods?: string;
+  allowHeaders?: string;
+  allowCredentials?: string;
+  allowed: boolean;
+  issues: CorsIssue[];
+}
+
+/** CORS 策略检查：服务端发 OPTIONS 预检并返回 Access-Control-Allow-* 分析。 */
+export async function checkCors(req: CorsCheckRequest): Promise<CorsCheckResult> {
+  const response = await axiosInstance.post<ApiEnvelope<CorsCheckResult>>(
+    '/api/network/inspector/cors-security/cors',
+    req,
+    { timeout: 20_000 },
+  );
+  return response.data.data;
+}
+
+/* ===================== 安全头检查器 ===================== */
+
+export interface SecurityHeaderCheckRequest {
+  url: string;
+  timeoutMs?: number;
+}
+
+export interface SecurityHeaderItem {
+  name: string;
+  present: boolean;
+  value?: string | null;
+  severity: string;
+  recommendation?: string;
+}
+
+export interface SecurityHeaderCheckResponse {
+  success: boolean;
+  errorMessage?: string;
+  finalUrl?: string;
+  statusCode: number;
+  items: SecurityHeaderItem[];
+  score: number;
+  grade: string;
+}
+
+/** 安全响应头检查：逐项检查关键安全头并给出 A-F 综合等级。 */
+export async function checkSecurityHeader(
+  req: SecurityHeaderCheckRequest,
+): Promise<SecurityHeaderCheckResponse> {
+  const response = await axiosInstance.post<ApiEnvelope<SecurityHeaderCheckResponse>>(
+    '/api/network/inspector/cors-security/security-header',
+    req,
+    { timeout: 20_000 },
+  );
+  return response.data.data;
+}

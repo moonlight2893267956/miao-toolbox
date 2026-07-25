@@ -1,10 +1,12 @@
 package com.miao.toolbox.network.infrastructure;
 
+import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.exception.BusinessException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Dns;
@@ -54,11 +56,30 @@ public class HttpFetcher {
 
     /** 发起一次 GET 请求并抓取响应头。 */
     public HttpFetchResult fetch(String url, long timeoutMs) {
+        return fetch(url, "GET", null, timeoutMs);
+    }
+
+    /**
+     * 发起指定方法、可带自定义请求头的 HTTP 请求并抓取响应头（SSRF 安全）。
+     * 主要用于 CORS 预检（OPTIONS + 自定义 Origin）。仅允许无 body 的方法
+     * （GET / HEAD / OPTIONS / TRACE），避免被滥用为写入型探测。
+     *
+     * @param url          目标 URL（仅 http/https）
+     * @param method       HTTP 方法（自动转大写）
+     * @param extraHeaders 自定义请求头（可为 null）
+     * @param timeoutMs    超时（毫秒），<=0 使用默认
+     */
+    public HttpFetchResult fetch(String url, String method, Map<String, String> extraHeaders, long timeoutMs) {
         // 预校验 host（SSRF）：直接抛 BusinessException，上抛到 controller 全局异常。
         URI uri = URI.create(url);
         String host = uri.getHost();
         if (host != null && !host.isEmpty()) {
             ssrfProtector.resolveAndValidate(host);
+        }
+        String upperMethod = method == null || method.isBlank() ? "GET" : method.trim().toUpperCase(java.util.Locale.ROOT);
+        if (!Set.of("GET", "HEAD", "OPTIONS", "TRACE").contains(upperMethod)) {
+            throw new BusinessException(ErrorCode.NETWORK_INVALID_INPUT,
+                    "仅支持 GET/HEAD/OPTIONS/TRACE 方法", 400);
         }
 
         long connectMs = timeoutMs > 0 ? timeoutMs : NetworkTimeoutConfig.HTTP_FETCH.toMillis();
@@ -67,11 +88,14 @@ public class HttpFetcher {
             .readTimeout(connectMs, TimeUnit.MILLISECONDS)
             .build();
 
-        Request request = new Request.Builder()
+        Request.Builder rb = new Request.Builder()
             .url(url)
             .header("User-Agent", USER_AGENT)
-            .header("Accept", "*/*")
-            .build();
+            .header("Accept", "*/*");
+        if (extraHeaders != null) {
+            extraHeaders.forEach(rb::header);
+        }
+        Request request = rb.method(upperMethod, null).build();
 
         long start = System.nanoTime();
         try (Response response = scoped.newCall(request).execute()) {
