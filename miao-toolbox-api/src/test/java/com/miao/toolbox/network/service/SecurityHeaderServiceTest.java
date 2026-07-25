@@ -36,7 +36,7 @@ class SecurityHeaderServiceTest {
     private SecurityHeaderService service;
 
     private HttpFetchResult result(Map<String, String> headers) {
-        return new HttpFetchResult(200, "OK", "https://example.com", headers, 15L);
+        return new HttpFetchResult(200, "OK", "https://example.com", headers, 15L, null);
     }
 
     @Test

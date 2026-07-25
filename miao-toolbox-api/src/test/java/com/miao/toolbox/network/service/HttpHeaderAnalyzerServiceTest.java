@@ -106,7 +106,7 @@ class HttpHeaderAnalyzerServiceTest {
             "Cache-Control", "max-age=3600"
         );
         when(httpFetcher.fetch(anyString(), anyLong()))
-            .thenReturn(new HttpFetcher.HttpFetchResult(200, "OK", "https://example.com/", headers, 50));
+            .thenReturn(new HttpFetcher.HttpFetchResult(200, "OK", "https://example.com/", headers, 50, null));
 
         HttpHeaderAnalyzerResponse resp = service.analyze(req("https://example.com", null));
         assertTrue(resp.isSuccess());

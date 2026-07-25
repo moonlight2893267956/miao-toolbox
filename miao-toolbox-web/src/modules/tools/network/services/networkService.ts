@@ -694,3 +694,171 @@ export async function checkSecurityHeader(
   );
   return response.data.data;
 }
+
+/* ===================== GraphQL 查询测试器 ===================== */
+
+export interface GraphqlProxyRequest {
+  endpoint: string;
+  query: string;
+  operationName?: string;
+  variables?: string;
+  headers?: Record<string, string>;
+}
+
+export interface GraphqlProxyResult {
+  statusCode: number;
+  headers: Record<string, string>;
+  body: string;
+  elapsedMs: number;
+}
+
+/** GraphQL 代理：服务端以 POST 转发查询，返回状态码/响应头/JSON 响应体。 */
+export async function proxyGraphql(req: GraphqlProxyRequest): Promise<GraphqlProxyResult> {
+  const response = await axiosInstance.post<ApiEnvelope<GraphqlProxyResult>>(
+    '/api/network/inspector/graphql/proxy',
+    req,
+    { timeout: 30_000 },
+  );
+  return response.data.data;
+}
+
+/* ===================== WebSocket 测试器 ===================== */
+
+export interface WebSocketConnectRequest {
+  url: string;
+  subprotocols?: string;
+  headers?: Record<string, string>;
+}
+
+export interface WebSocketEvent {
+  type: string;
+  message?: string;
+  code?: number;
+  reason?: string;
+  timestamp?: number;
+}
+
+/** 建立到目标的 WebSocket 连接，返回会话 ID。 */
+export async function connectWebSocket(req: WebSocketConnectRequest): Promise<string> {
+  const response = await axiosInstance.post<ApiEnvelope<{ sessionId: string }>>(
+    '/api/network/inspector/websocket/connect',
+    req,
+    { timeout: 30_000 },
+  );
+  return response.data.data.sessionId;
+}
+
+/** 通过该会话发送文本消息。 */
+export async function sendWebSocket(sessionId: string, message: string): Promise<void> {
+  await axiosInstance.post<ApiEnvelope<void>>(
+    '/api/network/inspector/websocket/send',
+    { sessionId, message },
+    { timeout: 10_000 },
+  );
+}
+
+/** 主动断开该会话。 */
+export async function disconnectWebSocket(sessionId: string): Promise<void> {
+  await axiosInstance.post<ApiEnvelope<void>>(
+    '/api/network/inspector/websocket/disconnect',
+    { sessionId },
+    { timeout: 10_000 },
+  );
+}
+
+/**
+ * SSE 实时订阅 WebSocket 事件流。返回 abort 函数。
+ * 事件名（event:）即 WebSocketEvent.type，data 为 JSON 序列化的 WebSocketEvent。
+ */
+export function subscribeWebSocketStream(
+  sessionId: string,
+  handlers: {
+    onEvent?: (e: WebSocketEvent) => void;
+    onError?: (msg: string) => void;
+  },
+): () => void {
+  const controller = new AbortController();
+  let stopped = false;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const connect = () => {
+    if (stopped) return;
+    void (async () => {
+      try {
+        const token = getAccessToken();
+        const signingKey = getSigningKey();
+        const headers: Record<string, string> = {
+          Accept: 'text/event-stream',
+        };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        if (signingKey && token) {
+          const timestamp = Date.now().toString();
+          const nonce = crypto.randomUUID();
+          const data = timestamp + nonce;
+          headers['X-Request-Timestamp'] = timestamp;
+          headers['X-Request-Nonce'] = nonce;
+          headers['X-Request-Signature'] = await hmacSha256Hex(signingKey, data);
+        }
+
+        const res = await fetch(`/api/network/inspector/websocket/${sessionId}/stream`, {
+          method: 'GET',
+          headers,
+          credentials: 'include',
+          signal: controller.signal,
+        });
+        if (!res.ok || !res.body) {
+          handlers.onError?.(`订阅失败 HTTP ${res.status}`);
+          return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let eventName = 'message';
+        let dataLines: string[] = [];
+
+        const flush = () => {
+          if (!dataLines.length) return;
+          const data = dataLines.join('\n');
+          dataLines = [];
+          const name = eventName;
+          eventName = 'message';
+          try {
+            const parsed = JSON.parse(data) as WebSocketEvent;
+            if (!parsed.type) parsed.type = name;
+            handlers.onEvent?.(parsed);
+          } catch {
+            /* ignore parse */
+          }
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split('\n');
+          buffer = parts.pop() ?? '';
+          for (const line of parts) {
+            if (line.startsWith('event:')) eventName = line.slice(6).trim();
+            else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+            else if (line === '') flush();
+          }
+        }
+        flush();
+        if (!stopped) reconnectTimer = setTimeout(connect, 1000);
+      } catch (e) {
+        if ((e as Error).name === 'AbortError' || stopped) return;
+        handlers.onError?.(e instanceof Error ? e.message : '订阅中断');
+        reconnectTimer = setTimeout(connect, 2000);
+      }
+    })();
+  };
+
+  connect();
+
+  return () => {
+    stopped = true;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    controller.abort();
+  };
+}

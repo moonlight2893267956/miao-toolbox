@@ -2,6 +2,6 @@ id: websocket-tester
 name: WebSocket 测试器
 category: inspector
 phase: 2
-description: WebSocket 实时收发消息
-icon: SyncOutlined
+description: 建立 WebSocket 连接，实时收发消息，支持自定义消息与 30s 空闲自动断开
+icon: ThunderboltOutlined
 route: /tools/network/inspector/websocket-tester

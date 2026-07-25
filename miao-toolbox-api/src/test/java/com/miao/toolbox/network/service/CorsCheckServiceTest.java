@@ -35,7 +35,7 @@ class CorsCheckServiceTest {
     private CorsCheckService service;
 
     private HttpFetchResult result(Map<String, String> headers) {
-        return new HttpFetchResult(204, "No Content", "https://api.example.com", headers, 12L);
+        return new HttpFetchResult(204, "No Content", "https://api.example.com", headers, 12L, null);
     }
 
     @Test

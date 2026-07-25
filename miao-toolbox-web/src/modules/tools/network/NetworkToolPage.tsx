@@ -46,6 +46,8 @@ const HttpRequestBuilderTool = lazy(() => import('./inspector/HttpRequestBuilder
 const WebhookTool = lazy(() => import('./inspector/WebhookTool'));
 const CorsCheckerTool = lazy(() => import('./inspector/CorsChecker/CorsCheckerTool'));
 const SecurityHeaderTool = lazy(() => import('./inspector/SecurityHeader/SecurityHeaderTool'));
+const GraphqlProxyTool = lazy(() => import('./inspector/GraphqlProxy/GraphqlProxyTool'));
+const WebSocketTesterTool = lazy(() => import('./inspector/WebSocketTester/WebSocketTesterTool'));
 
 const IMPLEMENTED_TOOLS: Record<string, React.LazyExoticComponent<React.FC>> = {
   'base64-codec': CodecSuiteTool,
@@ -78,6 +80,8 @@ const IMPLEMENTED_TOOLS: Record<string, React.LazyExoticComponent<React.FC>> = {
   'webhook': WebhookTool,
   'cors-checker': CorsCheckerTool,
   'security-header': SecurityHeaderTool,
+  'graphql-proxy': GraphqlProxyTool,
+  'websocket-tester': WebSocketTesterTool,
 };
 
 function ToolChrome({

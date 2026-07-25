@@ -1,7 +1,7 @@
 id: cors-checker
 name: CORS 策略检查器
 category: inspector
-phase: 3
+phase: 2
 description: 服务端发送 OPTIONS 预检，分析 Access-Control-Allow-* 并给出跨域修复建议
 icon: ApiOutlined
 route: /tools/network/inspector/cors-checker

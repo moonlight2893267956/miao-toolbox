@@ -92,7 +92,7 @@ export const NETWORK_TOOL_ICON_BY_ID: Record<string, string> = {
   'cors-checker': 'ApiOutlined',
   'diff-checker': 'DiffOutlined',
   'email-header': 'MailOutlined',
-  'graphql-tester': 'ClusterOutlined',
+  'graphql-proxy': 'CodeOutlined',
   'http-request-builder': 'SendOutlined',
   'log-parser': 'FileSearchOutlined',
   'openapi-viewer': 'ApiOutlined',
@@ -121,7 +121,7 @@ export const NETWORK_TOOL_ICON_BY_ID: Record<string, string> = {
   'ip-reputation': 'AlertOutlined',
   'ssl-analyzer': 'SafetyCertificateOutlined',
   'tcp-ping': 'RadarChartOutlined',
-  'websocket-tester': 'SyncOutlined',
+  'websocket-tester': 'ThunderboltOutlined',
   whois: 'IdcardOutlined',
 };
 

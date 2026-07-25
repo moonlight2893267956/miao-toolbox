@@ -1,0 +1,7 @@
+id: graphql-proxy
+name: GraphQL 查询测试器
+category: inspector
+phase: 2
+description: 代理转发 GraphQL 查询（支持 Variables 与自定义 Header），展示 JSON 响应
+icon: CodeOutlined
+route: /tools/network/inspector/graphql-proxy

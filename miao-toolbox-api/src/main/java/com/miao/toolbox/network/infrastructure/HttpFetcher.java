@@ -110,7 +110,75 @@ public class HttpFetcher {
                 response.message(),
                 response.request().url().toString(),
                 headerMap,
-                elapsedMs
+                elapsedMs,
+                null
+            );
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+            throw new HttpFetchException("HTTP 请求失败: " + e.getMessage(), e, elapsedMs);
+        }
+    }
+
+    /**
+     * 发起带请求体的 HTTP 请求（SSRF 安全）。用于 GraphQL 代理（POST + JSON body）。
+     * 仅允许写入型方法（POST/PUT/PATCH），其余无 body 场景走
+     * {@link #fetch(String, String, Map, long)}。同样复用自定义 DNS 做 SSRF 防护，
+     * 不跟随重定向，避免重定向绕过校验。
+     */
+    public HttpFetchResult fetchWithBody(String url, String method, Map<String, String> extraHeaders,
+                                         String body, long timeoutMs) {
+        URI uri = URI.create(url);
+        String host = uri.getHost();
+        if (host != null && !host.isEmpty()) {
+            ssrfProtector.resolveAndValidate(host);
+        }
+        String upperMethod = method == null || method.isBlank() ? "POST"
+                : method.trim().toUpperCase(java.util.Locale.ROOT);
+        if (!Set.of("POST", "PUT", "PATCH").contains(upperMethod)) {
+            throw new BusinessException(ErrorCode.NETWORK_INVALID_INPUT, "仅支持 POST/PUT/PATCH 方法", 400);
+        }
+        long connectMs = timeoutMs > 0 ? timeoutMs : NetworkTimeoutConfig.HTTP_FETCH.toMillis();
+        OkHttpClient scoped = client.newBuilder()
+            .connectTimeout(connectMs, TimeUnit.MILLISECONDS)
+            .readTimeout(connectMs, TimeUnit.MILLISECONDS)
+            .build();
+        okhttp3.MediaType jsonType = okhttp3.MediaType.parse("application/json");
+        okhttp3.RequestBody reqBody = body == null
+                ? okhttp3.RequestBody.create("", jsonType)
+                : okhttp3.RequestBody.create(body, jsonType);
+        Request.Builder rb = new Request.Builder()
+            .url(url)
+            .header("User-Agent", USER_AGENT)
+            .header("Accept", "application/json");
+        if (extraHeaders != null) {
+            extraHeaders.forEach(rb::header);
+        }
+        Request request = rb.method(upperMethod, reqBody).build();
+        long start = System.nanoTime();
+        try (Response response = scoped.newCall(request).execute()) {
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+            Map<String, String> headerMap = new java.util.LinkedHashMap<>();
+            Headers headers = response.headers();
+            for (String name : headers.names()) {
+                headerMap.put(name, headers.get(name));
+            }
+            String respBody = "";
+            try {
+                if (response.body() != null) {
+                    respBody = response.body().string();
+                }
+            } catch (Exception ignored) {
+                // 读取响应体失败时不影响状态码/响应头返回
+            }
+            return new HttpFetchResult(
+                response.code(),
+                response.message(),
+                response.request().url().toString(),
+                headerMap,
+                elapsedMs,
+                respBody
             );
         } catch (BusinessException e) {
             throw e;
@@ -126,7 +194,8 @@ public class HttpFetcher {
         String statusText,
         String finalUrl,
         Map<String, String> headers,
-        long elapsedMs
+        long elapsedMs,
+        String body
     ) {}
 
     /** 抓取异常（携带已耗时，便于上层映射）。 */

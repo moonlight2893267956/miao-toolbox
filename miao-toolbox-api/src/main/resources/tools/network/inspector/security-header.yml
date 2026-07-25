@@ -1,7 +1,7 @@
 id: security-header
 name: 安全头检查器
 category: inspector
-phase: 3
+phase: 2
 description: 逐项检查 HSTS/CSP/X-Frame-Options 等安全响应头，给出 A-F 综合安全等级
 icon: SafetyCertificateOutlined
 route: /tools/network/inspector/security-header
