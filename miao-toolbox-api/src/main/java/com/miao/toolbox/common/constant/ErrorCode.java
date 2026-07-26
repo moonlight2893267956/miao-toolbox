@@ -31,6 +31,11 @@ public final class ErrorCode {
     public static final String ROUTE_NOT_FOUND = "ROUTE_NOT_FOUND";
     public static final String ROUTE_FORBIDDEN = "ROUTE_FORBIDDEN";
 
+    // Invite errors
+    public static final String INVITE_TOKEN_INVALID = "INVITE_TOKEN_INVALID";
+    public static final String INVITE_TOKEN_EXPIRED = "INVITE_TOKEN_EXPIRED";
+    public static final String INVITE_ROLE_NOT_INVITABLE = "INVITE_ROLE_NOT_INVITABLE";
+
     // System errors
     public static final String SYSTEM_ERROR = "SYSTEM_ERROR";
 

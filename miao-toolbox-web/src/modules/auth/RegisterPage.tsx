@@ -1,7 +1,7 @@
 import React from 'react';
-import { Form, Input, Button, Typography, message } from 'antd';
-import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { Form, Input, Button, Typography, message, Alert } from 'antd';
+import { UserOutlined, LockOutlined, GiftOutlined } from '@ant-design/icons';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import AuthShell from './AuthShell';
 
@@ -16,12 +16,52 @@ interface RegisterFormValues {
 const RegisterPage: React.FC = () => {
   const [form] = Form.useForm<RegisterFormValues>();
   const [loading, setLoading] = React.useState(false);
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  const inviteToken = searchParams.get('invite') || '';
+  const [inviteLoading, setInviteLoading] = React.useState(Boolean(inviteToken));
+  const [inviteValid, setInviteValid] = React.useState<boolean | null>(inviteToken ? null : false);
+  const [inviteRoleName, setInviteRoleName] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!inviteToken) {
+      setInviteValid(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const preview = await authService.previewInvite(inviteToken);
+        if (cancelled) return;
+        setInviteValid(preview.valid);
+        setInviteRoleName(preview.roleName);
+      } catch {
+        if (!cancelled) {
+          setInviteValid(false);
+          setInviteRoleName(null);
+        }
+      } finally {
+        if (!cancelled) setInviteLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [inviteToken]);
+
+  const inviteInvalid = Boolean(inviteToken) && inviteValid === false;
+
   const handleSubmit = async (values: RegisterFormValues) => {
+    if (inviteInvalid) {
+      message.error('邀请链接无效或已过期，请重新获取');
+      return;
+    }
     setLoading(true);
     try {
-      await authService.register({ username: values.username, password: values.password });
+      await authService.register({
+        username: values.username,
+        password: values.password,
+        inviteToken: inviteToken || undefined,
+      });
       message.success('注册成功，请登录');
       navigate('/login');
     } catch (error: any) {
@@ -31,6 +71,9 @@ const RegisterPage: React.FC = () => {
         message.error('用户名已存在');
       } else if (code === 'VALIDATION_FAILED') {
         message.error(response?.message || '输入校验失败');
+      } else if (code === 'INVITE_TOKEN_INVALID' || code === 'INVITE_TOKEN_EXPIRED') {
+        message.error('邀请链接无效或已过期，请重新获取');
+        setInviteValid(false);
       } else {
         message.error('注册失败，请重试');
       }
@@ -41,6 +84,28 @@ const RegisterPage: React.FC = () => {
 
   return (
     <AuthShell title="创建账号" subtitle="加入阿渺工具箱，开始集中管理你的 AI 工具">
+        {inviteToken && (
+          <div style={{ marginBottom: 20 }}>
+            {inviteLoading ? (
+              <Alert type="info" showIcon message="正在校验邀请链接…" />
+            ) : inviteValid ? (
+              <Alert
+                type="success"
+                showIcon
+                icon={<GiftOutlined />}
+                message={`受「${inviteRoleName ?? '该'}」角色邀请注册`}
+                description="通过此链接注册后，你将自动获得该角色权限。"
+              />
+            ) : (
+              <Alert
+                type="error"
+                showIcon
+                message="邀请链接无效或已过期"
+                description="该链接无法使用，请向邀请人重新获取。"
+              />
+            )}
+          </div>
+        )}
         <Form
           form={form}
           onFinish={handleSubmit}
@@ -99,7 +164,7 @@ const RegisterPage: React.FC = () => {
           </Form.Item>
 
           <Form.Item style={{ marginBottom: 16 }}>
-            <Button type="primary" htmlType="submit" loading={loading} block>
+            <Button type="primary" htmlType="submit" loading={loading} block disabled={inviteInvalid || inviteLoading}>
               注册
             </Button>
           </Form.Item>

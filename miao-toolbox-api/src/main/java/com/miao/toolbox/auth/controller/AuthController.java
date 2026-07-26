@@ -9,6 +9,8 @@ import com.miao.toolbox.auth.entity.User;
 import com.miao.toolbox.auth.service.AuthService;
 import com.miao.toolbox.auth.service.RouteAccessService;
 import com.miao.toolbox.common.response.ApiResponse;
+import com.miao.toolbox.invite.dto.InvitePreviewResponse;
+import com.miao.toolbox.invite.service.InviteService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,12 +27,18 @@ public class AuthController {
 
     private final AuthService authService;
     private final RouteAccessService routeAccessService;
+    private final InviteService inviteService;
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<Void>> register(@Valid @RequestBody RegisterRequest request) {
         authService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(null));
+    }
+
+    @GetMapping("/invite/preview")
+    public ResponseEntity<ApiResponse<InvitePreviewResponse>> previewInvite(@RequestParam String token) {
+        return ResponseEntity.ok(ApiResponse.success(inviteService.preview(token)));
     }
 
     @PostMapping("/login")

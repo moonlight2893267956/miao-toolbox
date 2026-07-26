@@ -10,6 +10,7 @@ import com.miao.toolbox.auth.repository.RefreshTokenRepository;
 import com.miao.toolbox.auth.repository.RoleRepository;
 import com.miao.toolbox.auth.repository.UserRepository;
 import com.miao.toolbox.common.constant.ErrorCode;
+import com.miao.toolbox.invite.service.InviteService;
 import com.miao.toolbox.common.constant.RedisKey;
 import com.miao.toolbox.common.exception.AuthException;
 import com.miao.toolbox.common.exception.BusinessException;
@@ -50,6 +51,7 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final RoleRepository roleRepository;
     private final JwtService jwtService;
+    private final InviteService inviteService;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Autowired(required = false)
@@ -59,11 +61,12 @@ public class AuthService {
     private boolean cookieSecure;
 
     public AuthService(UserRepository userRepository, RefreshTokenRepository refreshTokenRepository,
-                       RoleRepository roleRepository, JwtService jwtService) {
+                       RoleRepository roleRepository, JwtService jwtService, InviteService inviteService) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.roleRepository = roleRepository;
         this.jwtService = jwtService;
+        this.inviteService = inviteService;
     }
 
     @Transactional
@@ -79,10 +82,19 @@ public class AuthService {
         Role userRole = roleRepository.findByCode("USER")
                 .orElseThrow(() -> new BusinessException(ErrorCode.SYSTEM_ERROR, "系统角色配置异常", 500));
 
+        // 携带有效邀请令牌时，用户自动获得对应角色；否则使用默认 USER 角色
+        Role assignedRole = userRole;
+        if (request.getInviteToken() != null && !request.getInviteToken().isBlank()) {
+            Role inviteRole = inviteService.resolveRole(request.getInviteToken());
+            if (inviteRole != null) {
+                assignedRole = inviteRole;
+            }
+        }
+
         User user = User.builder()
                 .username(request.getUsername())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .roles(Set.of(userRole))
+                .roles(Set.of(assignedRole))
                 .isEnabled(true)
                 .mustChangePassword(false)
                 .loginFailCount(0)

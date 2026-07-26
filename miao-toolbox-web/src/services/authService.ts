@@ -8,6 +8,12 @@ export interface LoginParams {
 export interface RegisterParams {
   username: string;
   password: string;
+  inviteToken?: string;
+}
+
+export interface InvitePreview {
+  valid: boolean;
+  roleName: string | null;
 }
 
 export interface RoleBrief {
@@ -41,6 +47,11 @@ export const authService = {
 
   async register(params: RegisterParams): Promise<void> {
     await axiosInstance.post('/api/auth/register', params);
+  },
+
+  async previewInvite(token: string): Promise<InvitePreview> {
+    const response = await axiosInstance.get('/api/auth/invite/preview', { params: { token } });
+    return response.data.data;
   },
 
   async refresh(): Promise<LoginResult> {

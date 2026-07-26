@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Popconfirm, message, Input, Modal, Form, Tag, Space } from 'antd';
-import { PlusOutlined, DeleteOutlined, EditOutlined, ReloadOutlined, SafetyCertificateOutlined, TeamOutlined, LockOutlined } from '@ant-design/icons';
+import { Button, Popconfirm, message, Input, Modal, Form, Tag, Space, InputNumber, Alert } from 'antd';
+import { PlusOutlined, DeleteOutlined, EditOutlined, ReloadOutlined, SafetyCertificateOutlined, TeamOutlined, LockOutlined, ShareAltOutlined, CopyOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import axiosInstance from '../../services/axiosInstance';
+import { inviteService, type InviteInfo } from '../../services/inviteService';
 import PageFadeIn from '../../components/shared/PageFadeIn';
 import AdminPageHeader from './components/AdminPageHeader';
 import './components/admin.css';
@@ -25,7 +26,8 @@ const RoleCard: React.FC<{
   onEdit: (role: RoleItem) => void;
   onDelete: (role: RoleItem) => void;
   onUserCountClick: (code: string) => void;
-}> = ({ role, index, onEdit, onDelete, onUserCountClick }) => {
+  onInvite: (role: RoleItem) => void;
+}> = ({ role, index, onEdit, onDelete, onUserCountClick, onInvite }) => {
   const userCount = role.userCount ?? 0;
 
   return (
@@ -156,6 +158,15 @@ const RoleCard: React.FC<{
               <Button
                 size="small"
                 type="text"
+                icon={<ShareAltOutlined />}
+                onClick={() => onInvite(role)}
+                style={{ color: 'var(--miao-text-secondary)', fontSize: 12 }}
+              >
+                邀请
+              </Button>
+              <Button
+                size="small"
+                type="text"
                 icon={<EditOutlined />}
                 onClick={() => onEdit(role)}
                 style={{ color: 'var(--miao-text-secondary)', fontSize: 12 }}
@@ -202,6 +213,14 @@ const RoleManagePage: React.FC = () => {
   const [editingRole, setEditingRole] = useState<RoleItem | null>(null);
   const [form] = Form.useForm();
   const navigate = useNavigate();
+
+  // 邀请链接弹窗状态
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [invitingRole, setInvitingRole] = useState<RoleItem | null>(null);
+  const [inviteDays, setInviteDays] = useState(7);
+  const [inviteResult, setInviteResult] = useState<InviteInfo | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   const fetchRoles = useCallback(async () => {
     setLoading(true);
@@ -258,6 +277,38 @@ const RoleManagePage: React.FC = () => {
     setEditingRole(null);
     form.resetFields();
     setModalOpen(true);
+  };
+
+  const openInviteModal = (role: RoleItem) => {
+    setInvitingRole(role);
+    setInviteDays(7);
+    setInviteResult(null);
+    setInviteError(null);
+    setInviteModalOpen(true);
+  };
+
+  const handleCreateInvite = async () => {
+    if (!invitingRole) return;
+    setInviteLoading(true);
+    setInviteError(null);
+    try {
+      const info = await inviteService.createInvite(invitingRole.id, { expiresInDays: inviteDays });
+      setInviteResult(info);
+    } catch (err: any) {
+      setInviteError(err?.response?.data?.message || '生成邀请链接失败');
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const copyInviteLink = async (token: string) => {
+    const link = `${window.location.origin}/register?invite=${token}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      message.success('邀请链接已复制');
+    } catch {
+      message.error('复制失败，请手动复制');
+    }
   };
 
   const openEditModal = (role: RoleItem) => {
@@ -327,6 +378,7 @@ const RoleManagePage: React.FC = () => {
                 onEdit={openEditModal}
                 onDelete={handleDelete}
                 onUserCountClick={(code) => navigate(`/admin/users?role=${encodeURIComponent(code)}`)}
+                onInvite={openInviteModal}
               />
             ))}
           </div>
@@ -364,6 +416,7 @@ const RoleManagePage: React.FC = () => {
                 onEdit={openEditModal}
                 onDelete={handleDelete}
                 onUserCountClick={(code) => navigate(`/admin/users?role=${encodeURIComponent(code)}`)}
+                onInvite={openInviteModal}
               />
             ))}
           </div>
@@ -420,6 +473,66 @@ const RoleManagePage: React.FC = () => {
             <Input.TextArea rows={3} placeholder="角色描述（可选）" maxLength={100} />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 邀请链接弹窗 */}
+      <Modal
+        title={`邀请加入「${invitingRole?.name ?? ''}」角色`}
+        open={inviteModalOpen}
+        onCancel={() => setInviteModalOpen(false)}
+        footer={inviteResult ? [
+          <Button key="close" type="primary" onClick={() => setInviteModalOpen(false)}>完成</Button>,
+        ] : [
+          <Button key="cancel" onClick={() => setInviteModalOpen(false)}>取消</Button>,
+          <Button key="ok" type="primary" loading={inviteLoading} onClick={handleCreateInvite}>生成邀请链接</Button>,
+        ]}
+      >
+        {!inviteResult ? (
+          <div>
+            <p style={{ color: 'var(--miao-text-secondary)', fontSize: 13, marginBottom: 16 }}>
+              生成一条邀请链接，成员通过该链接注册后将自动获得「{invitingRole?.name}」角色。
+              链接仅在有效期内可用，过期后失效。
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 13, color: 'var(--miao-text-secondary)', whiteSpace: 'nowrap' }}>有效期（天）</span>
+              <InputNumber
+                min={1}
+                max={365}
+                value={inviteDays}
+                onChange={(v) => setInviteDays(typeof v === 'number' ? v : 7)}
+                style={{ width: 120 }}
+              />
+            </div>
+            {inviteError && (
+              <Alert type="error" showIcon message={inviteError} style={{ marginTop: 16 }} />
+            )}
+          </div>
+        ) : (
+          <div>
+            <Alert
+              type="success"
+              showIcon
+              message="邀请链接已生成"
+              style={{ marginBottom: 16 }}
+            />
+            <div style={{ fontSize: 13, color: 'var(--miao-text-secondary)', marginBottom: 8 }}>
+              有效期至：{new Date(inviteResult.expiresAt).toLocaleString('zh-CN')}
+            </div>
+            <Input
+              readOnly
+              value={`${window.location.origin}/register?invite=${inviteResult.token}`}
+              addonAfter={
+                <CopyOutlined
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => copyInviteLink(inviteResult.token)}
+                />
+              }
+            />
+            <div style={{ fontSize: 12, color: 'var(--miao-text-tertiary)', marginTop: 8 }}>
+              请通过安全渠道将链接发送给受邀成员；链接可被多人使用，请妥善保管。
+            </div>
+          </div>
+        )}
       </Modal>
     </PageFadeIn>
   );

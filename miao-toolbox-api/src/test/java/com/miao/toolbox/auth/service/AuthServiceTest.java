@@ -11,6 +11,8 @@ import com.miao.toolbox.auth.repository.RoleRepository;
 import com.miao.toolbox.auth.repository.UserRepository;
 import com.miao.toolbox.common.exception.AuthException;
 import com.miao.toolbox.common.exception.BusinessException;
+import com.miao.toolbox.common.constant.ErrorCode;
+import com.miao.toolbox.invite.service.InviteService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +48,7 @@ class AuthServiceTest {
     @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private RoleRepository roleRepository;
     @Mock private JwtService jwtService;
+    @Mock private InviteService inviteService;
     @Mock private HttpServletResponse response;
     @InjectMocks private AuthService authService;
 
@@ -145,6 +148,58 @@ class AuthServiceTest {
             assertThatThrownBy(() -> authService.register(request))
                     .isInstanceOf(BusinessException.class)
                     .extracting("errorCode").isEqualTo("VALIDATION_FAILED");
+        }
+
+        @Test
+        @DisplayName("携带有效邀请令牌 → 用户被分配邀请角色")
+        void register_withValidInviteToken_assignsInviteRole() {
+            when(userRepository.existsByUsername("invited")).thenReturn(false);
+
+            Role inviteRole = Role.builder().id(5L).code("EDITOR").name("编辑").isSystem(false).build();
+            when(inviteService.resolveRole("valid-token")).thenReturn(inviteRole);
+
+            RegisterRequest request = new RegisterRequest();
+            request.setUsername("invited");
+            request.setPassword("Password1");
+            request.setInviteToken("valid-token");
+
+            assertThatCode(() -> authService.register(request)).doesNotThrowAnyException();
+            verify(userRepository).save(argThat(user ->
+                    user.getRoles() != null && user.getRoles().contains(inviteRole)));
+            verify(inviteService).resolveRole("valid-token");
+        }
+
+        @Test
+        @DisplayName("邀请令牌无效 → 抛出异常并中断注册")
+        void register_withInvalidInviteToken_throws() {
+            when(userRepository.existsByUsername("invited")).thenReturn(false);
+            when(inviteService.resolveRole("bad-token"))
+                    .thenThrow(new BusinessException(ErrorCode.INVITE_TOKEN_INVALID, "邀请链接无效或不存在", 400));
+
+            RegisterRequest request = new RegisterRequest();
+            request.setUsername("invited");
+            request.setPassword("Password1");
+            request.setInviteToken("bad-token");
+
+            assertThatThrownBy(() -> authService.register(request))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.INVITE_TOKEN_INVALID);
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("无邀请令牌 → 仍分配 USER 角色")
+        void register_withoutInviteToken_assignsUserRole() {
+            when(userRepository.existsByUsername("plain")).thenReturn(false);
+
+            RegisterRequest request = new RegisterRequest();
+            request.setUsername("plain");
+            request.setPassword("Password1");
+
+            assertThatCode(() -> authService.register(request)).doesNotThrowAnyException();
+            verify(inviteService, never()).resolveRole(any());
+            verify(userRepository).save(argThat(user ->
+                    user.getRoles() != null && user.getRoles().contains(userRole)));
         }
     }
 

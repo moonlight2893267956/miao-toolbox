@@ -16,4 +16,7 @@ public class RegisterRequest {
     @NotBlank(message = "密码不能为空")
     @Size(min = 8, max = 128, message = "密码长度不少于8位")
     private String password;
+
+    /** 可选：角色邀请令牌。携带有效令牌注册时，用户自动获得对应角色。 */
+    private String inviteToken;
 }
