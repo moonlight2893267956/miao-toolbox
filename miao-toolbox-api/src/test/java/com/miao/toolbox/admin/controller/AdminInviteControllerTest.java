@@ -9,10 +9,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.miao.toolbox.auth.entity.User;
 import com.miao.toolbox.invite.dto.CreateInviteRequest;
 import com.miao.toolbox.invite.dto.InviteResponse;
 import com.miao.toolbox.invite.service.InviteService;
 import java.time.LocalDateTime;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -40,10 +43,18 @@ class AdminInviteControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(adminInviteController).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(adminInviteController)
+                .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
+                .build();
+        User operator = User.builder().id(1L).username("admin").build();
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("admin", null,
+                new UsernamePasswordAuthenticationToken(operator, null,
                         java.util.List.of(() -> "ROLE_SUPER_ADMIN")));
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -62,7 +73,6 @@ class AdminInviteControllerTest {
         when(inviteService.createInvite(eq(5L), eq(1L), eq(7))).thenReturn(response);
 
         mockMvc.perform(post("/api/admin/roles/5/invites")
-                        .requestAttr("userId", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -82,7 +92,6 @@ class AdminInviteControllerTest {
         when(inviteService.createInvite(eq(5L), eq(1L), any(Integer.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/admin/roles/5/invites")
-                        .requestAttr("userId", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isOk())
