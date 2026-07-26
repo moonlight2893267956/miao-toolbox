@@ -58,6 +58,7 @@ public class AntiReplayFilter extends OncePerRequestFilter {
                 || path.startsWith("/api/auth/register")
                 || path.startsWith("/api/auth/refresh")
                 || path.startsWith("/api/auth/oauth/")
+                || path.startsWith("/api/auth/invite/")
                 || path.startsWith("/actuator")
                 || path.startsWith("/swagger-ui")
                 || path.startsWith("/v3/api-docs")
