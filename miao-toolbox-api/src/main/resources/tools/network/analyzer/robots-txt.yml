@@ -1,7 +1,8 @@
 id: robots-txt
 name: robots.txt 解析器
+description: 输入域名，服务端抓取 robots.txt 并解析 Allow/Disallow/Sitemap 规则；可检查指定路径是否允许抓取。
+icon: RobotOutlined
 category: analyzer
 phase: 2
-description: robots.txt 规则解析与路径检查
-icon: RobotOutlined
 route: /tools/network/analyzer/robots-txt
+tags: [robots, 抓取规则, 权限]

@@ -27,6 +27,7 @@ import {
   RobotOutlined,
   SafetyCertificateOutlined,
   SafetyOutlined,
+  ScanOutlined,
   SearchOutlined,
   SecurityScanOutlined,
   SendOutlined,
@@ -63,6 +64,7 @@ const ICON_MAP: Record<string, React.ComponentType> = {
   RobotOutlined,
   SafetyCertificateOutlined,
   SafetyOutlined,
+  ScanOutlined,
   SearchOutlined,
   SecurityScanOutlined,
   SendOutlined,
@@ -121,6 +123,7 @@ export const NETWORK_TOOL_ICON_BY_ID: Record<string, string> = {
   'ip-reputation': 'AlertOutlined',
   'ssl-analyzer': 'SafetyCertificateOutlined',
   'tcp-ping': 'RadarChartOutlined',
+  'port-scan': 'ScanOutlined',
   'websocket-tester': 'ThunderboltOutlined',
   whois: 'IdcardOutlined',
 };

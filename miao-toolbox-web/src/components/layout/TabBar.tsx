@@ -16,6 +16,7 @@ const TabBar: React.FC = () => {
   const [moreOpen, setMoreOpen] = useState(false);
   const [offscreenTabs, setOffscreenTabs] = useState<TabItem[]>([]);
   const tabElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const indicatorRef = useRef<HTMLSpanElement>(null);
 
   const onClose = useCallback(
     (e: React.MouseEvent, key: string) => {
@@ -148,6 +149,17 @@ const TabBar: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.activeKey, state.tabs, location.pathname]);
 
+  /** 计算 el 到 container 内容区左边缘的累计偏移，兼容 Dropdown 等中间包装层 */
+  const getOffsetLeft = useCallback((el: HTMLElement, container: HTMLElement): number => {
+    let left = 0;
+    let node: HTMLElement | null = el;
+    while (node && node !== container) {
+      left += node.offsetLeft;
+      node = node.offsetParent as HTMLElement | null;
+    }
+    return left;
+  }, []);
+
   /** 计算当前滚动视口外（左/右侧被隐藏）的 tab 列表 */
   const updateOffscreen = useCallback(() => {
     const scrollEl = scrollRef.current;
@@ -161,7 +173,7 @@ const TabBar: React.FC = () => {
     for (const tab of state.tabs) {
       const el = tabElsRef.current.get(tab.key);
       if (!el) continue;
-      const elLeft = el.offsetLeft;
+      const elLeft = getOffsetLeft(el, scrollEl);
       const elRight = elLeft + el.offsetWidth;
       // 允许 1px 浮点容差
       if (elRight > right + 1 || elLeft < left - 1) {
@@ -169,18 +181,37 @@ const TabBar: React.FC = () => {
       }
     }
     setOffscreenTabs(offscreen);
-  }, [state.tabs]);
+  }, [state.tabs, getOffsetLeft]);
 
-  // 滚动容器尺寸变化 → 重新测量视口外 tab
+  /** 更新滑动指示条的位置与宽度 */
+  const updateIndicator = useCallback(() => {
+    const el = indicatorRef.current;
+    const activeEl = state.activeKey ? tabElsRef.current.get(state.activeKey) : undefined;
+    const scrollEl = scrollRef.current;
+    if (!el || !activeEl || !scrollEl) {
+      if (el) el.style.opacity = '0';
+      return;
+    }
+    const left = getOffsetLeft(activeEl, scrollEl);
+    const width = activeEl.offsetWidth;
+    el.style.left = `${left}px`;
+    el.style.width = `${width}px`;
+    el.style.opacity = '1';
+  }, [state.activeKey, getOffsetLeft]);
+
+  // 滚动容器尺寸变化 → 重新测量视口外 tab 与指示条
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => updateOffscreen());
+    const ro = new ResizeObserver(() => {
+      updateOffscreen();
+      updateIndicator();
+    });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [updateOffscreen]);
+  }, [updateOffscreen, updateIndicator]);
 
-  // 滚动时实时更新 offscreen
+  // 滚动时实时更新 offscreen（指示条相对于内容区绝对定位，滚动时无需更新）
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -189,10 +220,11 @@ const TabBar: React.FC = () => {
     return () => el.removeEventListener('scroll', onScroll);
   }, [updateOffscreen]);
 
-  // tab 集合/尺寸变化时重新计算视口外 tab
+  // tab 集合/尺寸变化或激活 tab 变化时，重新计算 offscreen 与指示条
   useLayoutEffect(() => {
     updateOffscreen();
-  }, [updateOffscreen]);
+    updateIndicator();
+  }, [updateOffscreen, updateIndicator]);
 
   // 激活 tab 变化（含刷新后恢复）时，若不在可视区则平滑滚动入视
   useEffect(() => {
@@ -201,7 +233,7 @@ const TabBar: React.FC = () => {
     if (!scrollEl || !activeEl) return;
     const scrollLeft = scrollEl.scrollLeft;
     const containerWidth = scrollEl.clientWidth;
-    const elLeft = activeEl.offsetLeft;
+    const elLeft = getOffsetLeft(activeEl, scrollEl);
     const elRight = elLeft + activeEl.offsetWidth;
     const padding = 8;
     if (elLeft < scrollLeft) {
@@ -209,7 +241,7 @@ const TabBar: React.FC = () => {
     } else if (elRight > scrollLeft + containerWidth) {
       scrollEl.scrollTo({ left: elRight - containerWidth + padding, behavior: 'smooth' });
     }
-  }, [state.activeKey]);
+  }, [state.activeKey, getOffsetLeft]);
 
   // 「更多」下拉：只列当前视口外（被滚动隐藏）的 tab
   const moreMenuItems: MenuProps['items'] = offscreenTabs.map((tab) => ({
@@ -317,6 +349,8 @@ const TabBar: React.FC = () => {
               </Dropdown>
             );
           })}
+          {/* 滑动指示条：单例元素，left/width + CSS transition 驱动平滑滑动 */}
+          <span ref={indicatorRef} className="miao-tab-indicator" />
         </div>
 
         {offscreenTabs.length > 0 && (

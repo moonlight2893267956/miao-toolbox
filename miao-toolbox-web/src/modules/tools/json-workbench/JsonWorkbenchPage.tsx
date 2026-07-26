@@ -39,6 +39,7 @@ import { loadHistory, captureSnapshot, deleteSnapshot, clearHistory } from './ut
 import type { JsonSnapshot } from './utils/jsonWorkbenchHistory';
 import ToolPageHeader from '../../../components/shared/ToolPageHeader';
 import { loadPageState, savePageState } from '../../../shared/utils/tabPageStorage';
+import { consumeJsonFromBridge, onBridgeEvent } from '../../../shared/toolBridge';
 import './json-workbench.css';
 
 // ─── 初始状态 ──────────────────────────────────────────
@@ -78,10 +79,13 @@ function loadInitialJsonState(): JsonWorkbenchState {
     searchQuery?: string;
     searchMode?: SearchMode;
   }>(PAGE_KEY);
-  if (!loaded) return initialState;
+  const bridge = consumeJsonFromBridge();
+  if (!loaded) {
+    return bridge ? { ...initialState, rawJson: bridge } : initialState;
+  }
   return {
     ...initialState,
-    rawJson: typeof loaded.rawJson === 'string' ? loaded.rawJson : '',
+    rawJson: bridge ?? (typeof loaded.rawJson === 'string' ? loaded.rawJson : ''),
     viewMode:
       loaded.viewMode === 'tree' || loaded.viewMode === 'raw' || loaded.viewMode === 'split'
         ? loaded.viewMode
@@ -500,6 +504,14 @@ export default function JsonWorkbenchPage() {
     // 仅在首屏执行
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // KeepAlive 场景：页面已挂载时，通过自定义事件接收桥接数据
+  useEffect(() => {
+    return onBridgeEvent((rawJson) => {
+      dispatch({ type: 'JSON_WB_SET_RAW', payload: rawJson });
+      parse(rawJson, 1, undefined, { preserveExpandedIds: false }).catch(() => {});
+    });
+  }, [parse]);
   const { repair: aiRepair, reset: resetAi, loading: aiLoading, result: aiResult, error: aiError } = useAiRepair();
   const [scrollTarget, setScrollTarget] = useState<number | null>(null);
   const [expandedArrayPaths, setExpandedArrayPaths] = useState<Set<string>>(new Set());

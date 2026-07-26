@@ -177,6 +177,155 @@ export function tcpPingStream(
   return () => controller.abort();
 }
 
+// ── 端口扫描器 ──
+
+export interface PortScanProbe {
+  port: number;
+  open: boolean;
+  latencyMs?: number | null;
+  service?: string | null;
+  errorCode?: string | null;
+  message?: string | null;
+}
+
+export interface PortScanResult {
+  host: string;
+  resolvedIp?: string | null;
+  totalPorts: number;
+  openCount: number;
+  closedCount: number;
+  portRange: string;
+  elapsedMs: number;
+  probes: PortScanProbe[];
+}
+
+export interface PortScanParams {
+  host: string;
+  portRange?: string;
+  concurrency?: number;
+  timeoutMs?: number;
+}
+
+export async function portScan(params: PortScanParams): Promise<PortScanResult> {
+  const response = await axiosInstance.post<ApiEnvelope<PortScanResult>>(
+    '/api/network/inspector/port-scan',
+    {
+      host: params.host,
+      portRange: params.portRange ?? 'common',
+      concurrency: params.concurrency ?? 10,
+      timeoutMs: params.timeoutMs ?? 3000,
+    },
+    { timeout: 300_000 },
+  );
+  return response.data.data;
+}
+
+/**
+ * SSE 流式端口扫描，每完成一个端口推送 probe，最后推送 summary + done。
+ * 返回 abort 函数。
+ */
+export function portScanStream(
+  params: PortScanParams,
+  handlers: {
+    onProbe?: (p: PortScanProbe) => void;
+    onSummary?: (s: PortScanResult) => void;
+    onDone?: () => void;
+    onError?: (msg: string) => void;
+  },
+): () => void {
+  const controller = new AbortController();
+  const bodyObj = {
+    host: params.host,
+    portRange: params.portRange ?? 'common',
+    concurrency: params.concurrency ?? 10,
+    timeoutMs: params.timeoutMs ?? 3000,
+  };
+  const body = JSON.stringify(bodyObj);
+
+  void (async () => {
+    try {
+      const token = getAccessToken();
+      const signingKey = getSigningKey();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+      };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      if (signingKey && token) {
+        const timestamp = Date.now().toString();
+        const nonce = crypto.randomUUID();
+        headers['X-Request-Timestamp'] = timestamp;
+        headers['X-Request-Nonce'] = nonce;
+        headers['X-Request-Signature'] = await hmacSha256Hex(
+          signingKey,
+          timestamp + nonce + body,
+        );
+      }
+
+      const res = await fetch('/api/network/inspector/port-scan/stream', {
+        method: 'POST',
+        headers,
+        body,
+        credentials: 'include',
+        signal: controller.signal,
+      });
+      if (!res.ok || !res.body) {
+        handlers.onError?.(`请求失败 HTTP ${res.status}`);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let eventName = 'message';
+      let dataLines: string[] = [];
+
+      const flush = () => {
+        if (!dataLines.length) return;
+        const data = dataLines.join('\n');
+        dataLines = [];
+        const name = eventName;
+        eventName = 'message';
+        try {
+          if (name === 'probe') handlers.onProbe?.(JSON.parse(data) as PortScanProbe);
+          else if (name === 'summary') handlers.onSummary?.(JSON.parse(data) as PortScanResult);
+          else if (name === 'done') handlers.onDone?.();
+          else if (name === 'error') {
+            const o = JSON.parse(data) as { message?: string };
+            handlers.onError?.(o.message || '端口扫描失败');
+          }
+        } catch {
+          /* ignore parse */
+        }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n');
+        buffer = parts.pop() ?? '';
+        for (const line of parts) {
+          if (line.startsWith('event:')) {
+            eventName = line.slice(6).trim();
+          } else if (line.startsWith('data:')) {
+            dataLines.push(line.slice(5).trim());
+          } else if (line === '') {
+            flush();
+          }
+        }
+      }
+      flush();
+      handlers.onDone?.();
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') return;
+      handlers.onError?.(e instanceof Error ? e.message : '端口扫描中断');
+    }
+  })();
+
+  return () => controller.abort();
+}
+
 // ── DNS 查询 ──
 
 export interface DnsRecordResult {
@@ -861,4 +1010,130 @@ export function subscribeWebSocketStream(
     if (reconnectTimer) clearTimeout(reconnectTimer);
     controller.abort();
   };
+}
+
+/* ===================== 网页内容抓取与解析（Story 3.11） ===================== */
+
+// ── Web 抓取器 ──
+
+export interface WebScrapeMatch {
+  text: string | null;
+  attrValue: string | null;
+}
+
+export interface WebScrapeResult {
+  matches: WebScrapeMatch[];
+  mode: string;
+  total: number;
+}
+
+export interface WebScrapeParams {
+  url: string;
+  selector: string;
+  mode?: 'text' | 'attr';
+  attribute?: string;
+}
+
+export async function webScrape(params: WebScrapeParams): Promise<WebScrapeResult> {
+  const response = await axiosInstance.post<ApiEnvelope<WebScrapeResult>>(
+    '/api/network/parser/web-scraper',
+    {
+      url: params.url,
+      selector: params.selector,
+      mode: params.mode ?? 'text',
+      attribute: params.attribute,
+    },
+    { timeout: 30_000 },
+  );
+  return response.data.data;
+}
+
+// ── RSS / Atom 解析器 ──
+
+export interface RssChannel {
+  title: string | null;
+  link: string | null;
+  description: string | null;
+}
+
+export interface RssItem {
+  title: string | null;
+  link: string | null;
+  pubDate: string | null;
+  summary: string | null;
+}
+
+export interface RssParserResult {
+  channel: RssChannel | null;
+  items: RssItem[];
+}
+
+export interface RssParserParams {
+  url: string;
+}
+
+export async function parseRss(params: RssParserParams): Promise<RssParserResult> {
+  const response = await axiosInstance.post<ApiEnvelope<RssParserResult>>(
+    '/api/network/parser/rss-parser',
+    { url: params.url },
+    { timeout: 30_000 },
+  );
+  return response.data.data;
+}
+
+// ── Sitemap 解析器 ──
+
+export interface SitemapUrl {
+  loc: string | null;
+  lastmod: string | null;
+  priority: string | null;
+  changefreq: string | null;
+}
+
+export interface SitemapParserResult {
+  urls: SitemapUrl[];
+  isIndex: boolean;
+  total: number;
+}
+
+export interface SitemapParserParams {
+  url: string;
+}
+
+export async function parseSitemap(params: SitemapParserParams): Promise<SitemapParserResult> {
+  const response = await axiosInstance.post<ApiEnvelope<SitemapParserResult>>(
+    '/api/network/parser/sitemap-parser',
+    { url: params.url },
+    { timeout: 30_000 },
+  );
+  return response.data.data;
+}
+
+// ── robots.txt 解析器 ──
+
+export interface RobotsGroup {
+  userAgent: string;
+  allow: string[];
+  disallow: string[];
+}
+
+export interface RobotsParserResult {
+  groups: RobotsGroup[];
+  sitemaps: string[];
+  pathAllowed: boolean | null;
+  matchedRule: string | null;
+}
+
+export interface RobotsParserParams {
+  domain: string;
+  path?: string;
+}
+
+export async function parseRobots(params: RobotsParserParams): Promise<RobotsParserResult> {
+  const response = await axiosInstance.post<ApiEnvelope<RobotsParserResult>>(
+    '/api/network/parser/robots-txt',
+    { domain: params.domain, path: params.path },
+    { timeout: 30_000 },
+  );
+  return response.data.data;
 }

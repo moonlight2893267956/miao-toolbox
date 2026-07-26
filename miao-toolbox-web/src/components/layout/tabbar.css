@@ -1,7 +1,8 @@
 /* ══════════════════════════════════════════════════════════════
-   TabBar — 纯白顶栏 + 激活态指示条
-   - 激活态由每个 Tab 的 ::after 伪元素显示，天然跟随当前 tab
-   - 定位不再依赖 JS 计算，避免 Dropdown 包装层导致偏移
+   TabBar — 纯白顶栏 + 滑动指示条
+   - 单例 .miao-tab-indicator 通过 JS 设置 left/width
+   - CSS transition 驱动 left/width 变化，切换时平滑滑动
+   - JS 使用 offsetParent 循环计算，兼容 Dropdown 包装层
    ══════════════════════════════════════════════════════════════ */
 
 /* 全宽白底外壳（盖住内容区两侧的米色底） */
@@ -154,7 +155,7 @@
 }
 
 /* ─── 单个 Tab ───
-   激活态由 ::after 伪元素显示紫色指示条，tab 自身无 border-bottom
+   激活态由 .miao-tab-indicator 滑动指示条显示，tab 自身无 border-bottom
 */
 .miao-tab {
   position: relative;
@@ -199,17 +200,24 @@
   z-index: 1;
 }
 
-/* 激活态指示条：直接作为 tab 的伪元素，跟随当前 tab 布局，定位绝对可靠 */
-.miao-tab.is-active::after {
-  content: '';
+/* ─── 滑动指示条 ───
+   单例元素（.miao-tabbar-scroll 的子级），JS 设置 left/width，
+   CSS transition 驱动平滑滑动。相对于滚动容器内容区绝对定位，
+   因此滚动时天然跟随 active tab，无需逐帧更新。
+*/
+.miao-tab-indicator {
   position: absolute;
   bottom: 0;
   left: 0;
-  right: 0;
+  width: 0;
   height: 2.5px;
   border-radius: 2px 2px 0 0;
   background: var(--tab-accent);
   box-shadow: 0 1px 6px color-mix(in srgb, var(--tab-accent) 35%, transparent);
+  transition:
+    left 320ms cubic-bezier(0.4, 0, 0.2, 1),
+    width 260ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 200ms ease;
   pointer-events: none;
   z-index: 2;
 }

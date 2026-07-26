@@ -1,7 +1,8 @@
 id: rss-parser
-name: RSS 订阅解析器
+name: RSS 解析器
+description: 输入 RSS 2.0 / Atom Feed URL，服务端抓取并解析频道信息与文章列表。
+icon: RssOutlined
 category: analyzer
 phase: 2
-description: RSS 2.0/Atom Feed 解析
-icon: RssOutlined
 route: /tools/network/analyzer/rss-parser
+tags: [RSS, Atom, Feed, 订阅]

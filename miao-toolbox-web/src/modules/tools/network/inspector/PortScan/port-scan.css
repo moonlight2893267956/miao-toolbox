@@ -1,0 +1,343 @@
+/* ── 端口扫描器 ── */
+
+.ps-empty {
+  color: var(--miao-text-tertiary, #999);
+  text-align: center;
+  padding: 32px 0;
+  font-size: 14px;
+}
+
+.ps {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── 统计条 ── */
+.ps-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ps-stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--miao-bg-secondary, #f5f5f5);
+  color: var(--miao-text-secondary, #666);
+  letter-spacing: 0.01em;
+}
+
+.ps-stat-k {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.5;
+  margin-right: 2px;
+  font-weight: 600;
+}
+
+.ps-stat-chip--target {
+  background: var(--miao-brand-bg, #e6f4ff);
+  color: var(--miao-brand, #1677ff);
+  font-weight: 700;
+}
+
+.ps-stat-chip--range {
+  background: var(--miao-bg-secondary, #f0f0f0);
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 12px;
+}
+
+.ps-stat-chip--ok {
+  background: #f6ffed;
+  color: var(--miao-success, #52c41a);
+  font-weight: 700;
+}
+
+.ps-stat-chip--closed {
+  background: #fff1f0;
+  color: var(--miao-error, #ff4d4f);
+  font-weight: 600;
+}
+
+.ps-stat-chip--loading {
+  background: #e6f4ff;
+  color: var(--miao-brand, #1677ff);
+}
+
+.ps-stat-chip--time {
+  background: transparent;
+  color: var(--miao-text-tertiary, #999);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  padding: 5px 8px;
+}
+
+/* ── 进度条 ── */
+.ps-progress {
+  height: 3px;
+  background: var(--miao-bg-secondary, #f0f0f0);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.ps-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--miao-brand, #1677ff), #69b1ff);
+  border-radius: 2px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── 区块 ── */
+.ps-section {
+  margin-top: 4px;
+}
+
+.ps-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--miao-text-primary, #333);
+}
+
+/* ── 开放端口网格 ── */
+.ps-port-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+/* ── 开放端口卡片 ── */
+.ps-port-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--miao-border-secondary, #f0f0f0);
+  background: var(--miao-bg-primary, #fff);
+  transition: box-shadow 0.2s, border-color 0.2s, transform 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+
+.ps-port-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 3px 0 0 3px;
+}
+
+.ps-port-card:hover {
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+.ps-port-card--open {
+  background: linear-gradient(135deg, #f6ffed 0%, #feffe6 100%);
+  border-color: #b7eb8f;
+}
+
+.ps-port-card--open::before {
+  background: var(--miao-success, #52c41a);
+}
+
+.ps-port-card--open:hover {
+  border-color: var(--miao-success, #52c41a);
+  box-shadow: 0 3px 12px rgba(82, 196, 26, 0.12);
+}
+
+.ps-port-num {
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--miao-text-primary, #333);
+  min-width: 44px;
+  line-height: 1;
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+}
+
+.ps-port-card--open .ps-port-num {
+  color: var(--miao-success, #389e0d);
+}
+
+.ps-port-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.ps-port-service {
+  font-size: 12px !important;
+  margin: 0 !important;
+  line-height: 20px !important;
+  border-radius: 4px !important;
+  font-weight: 500 !important;
+}
+
+.ps-port-latency {
+  font-size: 11px;
+  color: var(--miao-text-tertiary, #999);
+  font-variant-numeric: tabular-nums;
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+}
+
+/* ── 关闭端口 — 标签流 ── */
+.ps-closed-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.ps-closed-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--miao-bg-secondary, #fafafa);
+  border: 1px solid var(--miao-border-secondary, #f0f0f0);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--miao-text-secondary, #888);
+  cursor: default;
+  transition: background 0.15s, border-color 0.15s;
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+}
+
+.ps-closed-tag:hover {
+  background: #fff1f0;
+  border-color: #ffccc7;
+  color: var(--miao-error, #ff4d4f);
+}
+
+.ps-closed-tag__port {
+  font-weight: 700;
+  color: var(--miao-text-primary, #555);
+}
+
+.ps-closed-tag__sep {
+  margin: 0 3px;
+  opacity: 0.3;
+  font-weight: 300;
+}
+
+.ps-closed-tag__status {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* ── 折叠区块 ── */
+.ps-section--closed {
+  border-top: 1px solid var(--miao-border-secondary, #f0f0f0);
+  padding-top: 16px;
+}
+
+.ps-section--closed summary {
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 0;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ps-section--closed summary::-webkit-details-marker {
+  display: none;
+}
+
+.ps-section--closed summary::before {
+  content: '▸';
+  font-size: 12px;
+  color: var(--miao-text-tertiary, #999);
+  transition: transform 0.2s;
+  display: inline-block;
+  width: 14px;
+  text-align: center;
+}
+
+.ps-section--closed[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.ps-section--closed summary:hover {
+  color: var(--miao-brand, #1677ff);
+}
+
+.ps-section--closed summary:hover::before {
+  color: var(--miao-brand, #1677ff);
+}
+
+/* ── 暗色模式 ── */
+@media (prefers-color-scheme: dark) {
+  .ps-stat-chip {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--miao-text-secondary, #aaa);
+  }
+
+  .ps-stat-chip--target {
+    background: rgba(22, 119, 255, 0.15);
+  }
+
+  .ps-stat-chip--ok {
+    background: rgba(82, 196, 26, 0.12);
+  }
+
+  .ps-stat-chip--closed {
+    background: rgba(255, 77, 79, 0.12);
+  }
+
+  .ps-stat-chip--loading {
+    background: rgba(22, 119, 255, 0.12);
+  }
+
+  .ps-port-card {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .ps-port-card--open {
+    background: linear-gradient(135deg, rgba(82, 196, 26, 0.08) 0%, rgba(82, 196, 26, 0.03) 100%);
+    border-color: rgba(82, 196, 26, 0.25);
+  }
+
+  .ps-port-card--open:hover {
+    box-shadow: 0 3px 12px rgba(82, 196, 26, 0.08);
+  }
+
+  .ps-closed-tag {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .ps-closed-tag:hover {
+    background: rgba(255, 77, 79, 0.1);
+    border-color: rgba(255, 77, 79, 0.25);
+  }
+
+  .ps-closed-tag__port {
+    color: var(--miao-text-secondary, #ccc);
+  }
+
+  .ps-section--closed {
+    border-top-color: rgba(255, 255, 255, 0.06);
+  }
+}

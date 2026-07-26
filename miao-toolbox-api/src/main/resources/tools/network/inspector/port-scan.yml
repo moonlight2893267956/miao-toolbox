@@ -1,0 +1,7 @@
+id: port-scan
+name: 端口扫描器
+category: inspector
+phase: 2
+description: 扫描目标主机的端口开放状态，支持端口范围与常见端口预设，自动识别常见服务
+icon: ScanOutlined
+route: /tools/network/inspector/port-scan

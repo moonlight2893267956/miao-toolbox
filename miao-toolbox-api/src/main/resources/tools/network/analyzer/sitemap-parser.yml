@@ -1,7 +1,8 @@
 id: sitemap-parser
 name: Sitemap 解析器
+description: 输入 sitemap.xml URL，解析所有 URL 及 lastmod/priority/changefreq，支持 Sitemap Index 并统计总数。
+icon: PartitionOutlined
 category: analyzer
 phase: 2
-description: Sitemap URL 列表与元数据统计
-icon: PartitionOutlined
 route: /tools/network/analyzer/sitemap-parser
+tags: [Sitemap, SEO, 站点地图]

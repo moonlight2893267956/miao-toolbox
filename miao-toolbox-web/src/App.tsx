@@ -23,6 +23,7 @@ const CryptoPage = lazy(() => import('./modules/tools/crypto/CryptoPage'));
 const TranslatePage = lazy(() => import('./modules/tools/translate'));
 const RegexTesterPage = lazy(() => import('./modules/tools/regex-tester'));
 const CronEditorPage = lazy(() => import('./modules/tools/cron-editor'));
+const PhpLogExtractorPage = lazy(() => import('./modules/tools/php-log-extractor'));
 const NetworkToolLayoutPreview = lazy(() => import('./modules/tools/network/NetworkToolLayoutPreview'));
 const NetworkToolList = lazy(() => import('./modules/tools/network/NetworkToolList'));
 const NetworkToolPage = lazy(() => import('./modules/tools/network/NetworkToolPage'));
@@ -88,6 +89,7 @@ function AppRoutes() {
         <Route path="tools/translate" element={<RequireRoute code="TOOL_TRANSLATE"><TranslatePage /></RequireRoute>} />
         <Route path="tools/regex-tester" element={<RequireRoute code="TOOL_REGEX_TESTER"><RegexTesterPage /></RequireRoute>} />
         <Route path="tools/cron-editor" element={<RequireRoute code="TOOL_CRON_EDITOR"><CronEditorPage /></RequireRoute>} />
+        <Route path="tools/php-log-extractor" element={<RequireRoute code="TOOL_PHP_LOG_EXTRACTOR"><PhpLogExtractorPage /></RequireRoute>} />
         <Route
           path="tools/network"
           element={

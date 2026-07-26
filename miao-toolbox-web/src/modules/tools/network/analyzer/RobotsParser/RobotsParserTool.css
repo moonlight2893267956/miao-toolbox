@@ -1,0 +1,370 @@
+/* robots.txt 解析器 — 抓取权限检视台
+ * 主色取品牌紫（与主风格一致），辅以 amber 作规则点缀；
+ * 暗色由 :root[data-theme='dark'] 自动切换。 */
+
+.rb-tool {
+  --tool-accent: var(--miao-brand);
+  --rb-2: var(--miao-accent-tool-amber);
+  --rb-soft: color-mix(in srgb, var(--tool-accent) 9%, transparent);
+  --rb-line: color-mix(in srgb, var(--tool-accent) 30%, transparent);
+  --rb-glow: color-mix(in srgb, var(--tool-accent) 20%, transparent);
+}
+
+.rb-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* ── 仿浏览器地址栏（内联可编辑域名） ── */
+.rb-chrome {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, var(--rb-soft), transparent),
+    var(--miao-bg-elevated);
+  border: 1px solid var(--rb-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.rb-dots {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+  margin-right: 4px;
+}
+
+.rb-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.rb-dot--r { background: #ff5f57; }
+.rb-dot--y { background: #febc2e; }
+.rb-dot--g { background: #28c840; }
+
+.rb-proto,
+.rb-path-echo {
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--miao-text-secondary);
+  white-space: nowrap;
+}
+
+.rb-addr.ant-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 2px 2px !important;
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--miao-text-primary);
+}
+
+.rb-addr.ant-input::placeholder {
+  color: var(--miao-text-secondary);
+  opacity: 0.7;
+}
+
+/* ── 路径输入行 ── */
+.rb-pathrow {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.rb-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--miao-text-secondary);
+}
+
+/* ── 执行按钮 ── */
+.rb-tool .rb-run.ant-btn {
+  height: 44px;
+  font-size: 14px;
+  font-weight: 800;
+  border-radius: 12px;
+  border: none !important;
+  color: var(--miao-on-brand) !important;
+  background: linear-gradient(135deg, var(--tool-accent), var(--rb-2)) !important;
+  box-shadow: 0 10px 24px var(--rb-glow) !important;
+  position: relative;
+  overflow: hidden;
+  transition: transform 160ms var(--ntl-ease, ease), box-shadow 160ms ease, filter 160ms ease;
+}
+
+.rb-tool .rb-run.ant-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px var(--rb-glow) !important;
+  filter: saturate(1.05);
+}
+
+.rb-tool .rb-run.ant-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.rb-tool .rb-run.ant-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none !important;
+}
+
+.rb-tool .rb-run.ant-btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: skewX(-18deg);
+  transition: left 600ms ease;
+}
+
+.rb-tool .rb-run.ant-btn:hover:not(:disabled)::after {
+  left: 120%;
+}
+
+/* ── 结果区 ── */
+.rb-result {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* 权限裁定横幅 */
+.rb-verdict {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid;
+  animation: rb-pop 320ms var(--ntl-ease, ease) both;
+}
+
+.rb-verdict-ic {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 18px;
+}
+
+.rb-verdict-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rb-verdict-title {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.rb-verdict-desc {
+  font-size: 12.5px;
+  font-weight: 600;
+  opacity: 0.85;
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace);
+  word-break: break-all;
+}
+
+.rb-verdict--allow {
+  background: var(--miao-success-bg);
+  border-color: color-mix(in srgb, var(--miao-success) 36%, transparent);
+  color: var(--miao-success-text);
+}
+
+.rb-verdict--allow .rb-verdict-ic {
+  background: color-mix(in srgb, var(--miao-success) 20%, transparent);
+  color: var(--miao-success);
+}
+
+.rb-verdict--deny {
+  background: var(--miao-error-bg);
+  border-color: color-mix(in srgb, var(--miao-error) 36%, transparent);
+  color: var(--miao-error-text);
+}
+
+.rb-verdict--deny .rb-verdict-ic {
+  background: color-mix(in srgb, var(--miao-error) 20%, transparent);
+  color: var(--miao-error);
+}
+
+/* 规则组卡片 */
+.rb-group {
+  border-radius: 12px !important;
+  border: 1px solid var(--miao-border) !important;
+  background: var(--miao-bg-elevated) !important;
+  box-shadow: var(--miao-shadow-soft) !important;
+  overflow: hidden;
+  animation: rb-rise 340ms var(--ntl-ease, ease) both;
+}
+
+.rb-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--rb-soft);
+  border-bottom: 1px solid var(--rb-line);
+}
+
+.rb-ua-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--miao-text-secondary);
+}
+
+.rb-ua {
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--tool-accent);
+  background: var(--rb-soft);
+  border: 1px solid var(--rb-line);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+.rb-group-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rb-rule {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--miao-border);
+  border-left: 3px solid var(--miao-border);
+  background: var(--miao-bg-elevated);
+}
+
+.rb-rule--allow {
+  border-left-color: var(--miao-success);
+  background: color-mix(in srgb, var(--miao-success) 5%, transparent);
+}
+
+.rb-rule--disallow {
+  border-left-color: var(--miao-error);
+  background: color-mix(in srgb, var(--miao-error) 5%, transparent);
+}
+
+.rb-rule-tag {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+  margin-top: 2px;
+}
+
+.rb-rule--allow .rb-rule-tag {
+  color: var(--miao-success-text);
+  background: color-mix(in srgb, var(--miao-success) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--miao-success) 34%, transparent);
+}
+
+.rb-rule--disallow .rb-rule-tag {
+  color: var(--miao-error-text);
+  background: color-mix(in srgb, var(--miao-error) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--miao-error) 34%, transparent);
+}
+
+.rb-rule-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.rb-rule-tag-item {
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 6px;
+  color: var(--miao-text-primary);
+  background: var(--miao-bg-elevated);
+  border: 1px solid var(--miao-border);
+}
+
+.rb-rule-none {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--miao-text-secondary);
+  opacity: 0.7;
+}
+
+/* Sitemap 引用 */
+.rb-sitemaps {
+  border-top: 1px dashed var(--rb-line);
+  padding-top: 12px;
+}
+
+.rb-sitemaps-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--miao-text-secondary);
+  margin-bottom: 6px;
+}
+
+.rb-sitemap-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--tool-accent);
+  word-break: break-all;
+}
+
+.rb-sitemap-link:hover {
+  text-decoration: underline;
+}
+
+@keyframes rb-pop {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes rb-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 640px) {
+  .rb-rule { flex-direction: column; gap: 6px; }
+}

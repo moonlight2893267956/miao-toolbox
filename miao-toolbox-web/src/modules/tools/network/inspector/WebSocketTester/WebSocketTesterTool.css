@@ -1,0 +1,392 @@
+/**
+ * WebSocket 测试器 — 终端控制台风格
+ * 复用 NetworkToolLayout 的 token（--ntl-accent / --miao-*），亮暗主题自适应。
+ */
+
+/* ---------- 状态徽标（页头 extra） ---------- */
+.wst-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--miao-border);
+  background: var(--miao-bg-elevated);
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: var(--miao-font-body);
+  --wst-dot: var(--miao-text-tertiary);
+  --wst-dot-soft: color-mix(in srgb, var(--miao-text-tertiary) 22%, transparent);
+}
+
+.wst-status--busy {
+  --wst-dot: var(--ntl-accent);
+  --wst-dot-soft: color-mix(in srgb, var(--ntl-accent) 22%, transparent);
+  border-color: color-mix(in srgb, var(--ntl-accent) 38%, transparent);
+  color: var(--ntl-accent);
+}
+
+.wst-status--live {
+  --wst-dot: var(--miao-success, #52c41a);
+  --wst-dot-soft: color-mix(in srgb, var(--miao-success, #52c41a) 22%, transparent);
+  border-color: color-mix(in srgb, var(--miao-success, #52c41a) 38%, transparent);
+  color: var(--miao-success, #52c41a);
+}
+
+.wst-status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--wst-dot);
+  box-shadow: 0 0 0 0 var(--wst-dot-soft);
+  animation: wst-pulse 1.6s ease-out infinite;
+}
+
+.wst-status--idle .wst-status-dot {
+  animation: none;
+}
+
+@keyframes wst-pulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--wst-dot-soft);
+  }
+  70% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+/* ---------- 输入区分组 ---------- */
+.wst-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wst-group-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--miao-text-secondary);
+  text-transform: none;
+}
+
+.wst-group-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  transform: rotate(45deg);
+  background: var(--ntl-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ntl-accent) 16%, transparent);
+}
+
+.wst-group-dot--send {
+  background: var(--miao-success, #52c41a);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--miao-success, #52c41a) 16%, transparent);
+}
+
+.wst-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 0;
+  color: var(--miao-text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wst-divider::before,
+.wst-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--miao-border),
+    transparent
+  );
+}
+
+/* ---------- 结果控制台 ---------- */
+.wst-console-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wst-console-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ntl-accent) 5%, transparent);
+  border: 1px solid var(--miao-border);
+}
+
+.wst-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--miao-font-body);
+  color: var(--miao-text-secondary);
+}
+
+.wst-stat b {
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace);
+  font-size: 13px;
+  color: var(--miao-text-primary);
+  min-width: 1ch;
+  text-align: center;
+}
+
+.wst-stat--muted {
+  margin-left: auto;
+  font-style: italic;
+  color: var(--miao-text-tertiary);
+}
+
+.wst-stat-ico {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+}
+
+.wst-stat-ico--up {
+  border-bottom: 6px solid var(--ntl-accent);
+}
+
+.wst-stat-ico--down {
+  border-top: 6px solid var(--miao-success, #52c41a);
+}
+
+/* 终端面板本体：淡网格底，营造"控制台"氛围 */
+.wst-console {
+  --wst-rail: var(--miao-text-tertiary);
+  position: relative;
+  max-height: 420px;
+  min-height: 140px;
+  overflow: auto;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--miao-border);
+  background-color: var(--miao-bg-muted, rgba(0, 0, 0, 0.03));
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--miao-border) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--miao-border) 45%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: -1px -1px;
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace);
+}
+
+.wst-console-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 116px;
+  padding: 6px 4px;
+  font-size: 13px;
+  color: var(--miao-text-secondary);
+}
+
+.wst-prompt {
+  color: var(--ntl-accent);
+  font-weight: 700;
+}
+
+/* ---------- 单条日志 ---------- */
+.wst-line {
+  --wst-rail: var(--miao-text-tertiary);
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 5px 10px 5px 14px;
+  margin: 0 -14px;
+  border-left: 3px solid var(--wst-rail);
+  animation: wst-fade-up 0.26s var(--ntl-ease, ease) both;
+}
+
+.wst-line::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--wst-rail);
+  opacity: 0.18;
+}
+
+.wst-line[data-type='connected'] {
+  --wst-rail: var(--miao-success, #52c41a);
+}
+.wst-line[data-type='sent'] {
+  --wst-rail: var(--ntl-accent);
+}
+.wst-line[data-type='received'] {
+  --wst-rail: var(--miao-success, #52c41a);
+}
+.wst-line[data-type='closing'] {
+  --wst-rail: var(--miao-warning, #faad14);
+}
+.wst-line[data-type='closed'] {
+  --wst-rail: var(--miao-text-tertiary);
+}
+.wst-line[data-type='error'] {
+  --wst-rail: var(--ant-color-error, #ff4d4f);
+}
+
+.wst-line-time {
+  flex-shrink: 0;
+  font-size: 11.5px;
+  color: var(--miao-text-tertiary);
+  letter-spacing: 0.01em;
+}
+
+.wst-line-type {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 1px 7px;
+  border-radius: 5px;
+  color: var(--wst-rail);
+  background: color-mix(in srgb, var(--wst-rail) 14%, transparent);
+  text-transform: lowercase;
+}
+
+.wst-line-msg {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--miao-text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.wst-line-msg--muted {
+  color: var(--miao-text-secondary);
+}
+
+@keyframes wst-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* addonBefore 标签：等宽大写、字符间距、淡灰；与下方终端日志风格统一 */
+.wst-field-group .ant-input-group .ant-input-group-addon {
+  position: relative;
+  background: transparent !important;
+  border: none !important;
+  color: var(--miao-text-tertiary) !important;
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace) !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase;
+  padding: 0 14px 0 4px !important;
+  min-width: 62px;
+  text-align: left;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+}
+
+.wst-field-group .ant-input-group .ant-input-group-addon::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: color-mix(in srgb, var(--ntl-accent) 28%, transparent);
+}
+
+.wst-field-group .ant-input-group .ant-input-group-addon:focus,
+.wst-field-group .ant-input-group .ant-input-group-addon:hover {
+  background: transparent !important;
+}
+
+/* 输入区文字：等宽体 + 略增水平内边距，呼吸感更足 */
+.wst-field-group .ant-input {
+  font-family: var(--miao-font-mono, ui-monospace, Menlo, monospace) !important;
+  font-size: 13.5px !important;
+  letter-spacing: 0.01em;
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+}
+
+/* 发送区：独立布局，输入框 + 固定宽度 ghost 按钮，与"建立连接"主按钮形成层级 */
+.wst-send-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.wst-send-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.wst-send-input .ant-input {
+  border-top-right-radius: 10px !important;
+  border-bottom-right-radius: 10px !important;
+}
+
+.wst-send-btn {
+  flex: 0 0 auto;
+  min-width: 90px;
+  height: auto;
+  padding: 0 14px !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  letter-spacing: 0.02em;
+  border-radius: 10px !important;
+  border: 1px solid color-mix(in srgb, var(--ntl-accent) 45%, var(--miao-border)) !important;
+  color: var(--ntl-accent) !important;
+  background: var(--miao-bg-elevated) !important;
+  box-shadow: none !important;
+}
+
+.wst-send-btn:not(:disabled):hover,
+.wst-send-btn:not(:disabled):focus {
+  background: color-mix(in srgb, var(--ntl-accent) 12%, var(--miao-bg-elevated)) !important;
+  border-color: var(--ntl-accent) !important;
+  color: var(--ntl-accent) !important;
+}
+
+.wst-send-btn:disabled {
+  background: color-mix(in srgb, var(--miao-bg-muted) 60%, transparent) !important;
+  border-color: var(--miao-border) !important;
+  color: var(--miao-text-secondary) !important;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wst-status-dot,
+  .wst-line {
+    animation: none;
+  }
+}

@@ -88,6 +88,13 @@
 			<version>4.12.0</version>
 		</dependency>
 
+		<!-- HTML / XML 解析：用于 Web 抓取、RSS / Sitemap 解析（robots.txt 为文本解析） -->
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+			<version>1.18.1</version>
+		</dependency>
+
 		<!-- JWT -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>

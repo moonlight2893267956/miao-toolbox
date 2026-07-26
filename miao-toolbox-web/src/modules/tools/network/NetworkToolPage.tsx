@@ -29,6 +29,10 @@ const OpenApiViewerTool = lazy(() => import('./analyzer/OpenApiViewer/OpenApiVie
 const EmailHeaderTool = lazy(() => import('./analyzer/EmailHeader/EmailHeaderTool'));
 const LogParserTool = lazy(() => import('./analyzer/LogParser/LogParserTool'));
 const DiffCheckerTool = lazy(() => import('./analyzer/DiffChecker/DiffCheckerTool'));
+const WebScraperTool = lazy(() => import('./analyzer/WebScraper/WebScraperTool'));
+const RssParserTool = lazy(() => import('./analyzer/RssParser/RssParserTool'));
+const SitemapParserTool = lazy(() => import('./analyzer/SitemapParser/SitemapParserTool'));
+const RobotsParserTool = lazy(() => import('./analyzer/RobotsParser/RobotsParserTool'));
 const CurlGeneratorTool = lazy(() => import('./generator/CurlGenerator/CurlGeneratorTool'));
 const CidrCalculatorTool = lazy(() => import('./generator/CidrCalculator/CidrCalculatorTool'));
 const JwtDebuggerTool = lazy(() => import('./generator/JwtDebugger/JwtDebuggerTool'));
@@ -48,6 +52,7 @@ const CorsCheckerTool = lazy(() => import('./inspector/CorsChecker/CorsCheckerTo
 const SecurityHeaderTool = lazy(() => import('./inspector/SecurityHeader/SecurityHeaderTool'));
 const GraphqlProxyTool = lazy(() => import('./inspector/GraphqlProxy/GraphqlProxyTool'));
 const WebSocketTesterTool = lazy(() => import('./inspector/WebSocketTester/WebSocketTesterTool'));
+const PortScanTool = lazy(() => import('./inspector/PortScan/PortScanTool'));
 
 const IMPLEMENTED_TOOLS: Record<string, React.LazyExoticComponent<React.FC>> = {
   'base64-codec': CodecSuiteTool,
@@ -82,6 +87,11 @@ const IMPLEMENTED_TOOLS: Record<string, React.LazyExoticComponent<React.FC>> = {
   'security-header': SecurityHeaderTool,
   'graphql-proxy': GraphqlProxyTool,
   'websocket-tester': WebSocketTesterTool,
+  'port-scan': PortScanTool,
+  'web-scraper': WebScraperTool,
+  'rss-parser': RssParserTool,
+  'sitemap-parser': SitemapParserTool,
+  'robots-txt': RobotsParserTool,
 };
 
 function ToolChrome({
