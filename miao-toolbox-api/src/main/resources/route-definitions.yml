@@ -55,6 +55,14 @@ routes:
     sortOrder: 7
     adminRoute: false
     enabled: true
+  - code: TOOL_PHP_LOG_EXTRACTOR
+    name: PHP 日志提取器
+    path: /tools/php-log-extractor
+    category: TOOL
+    icon: FileSearchOutlined
+    sortOrder: 8
+    adminRoute: false
+    enabled: true
   - code: PAGE_SETTINGS
     name: 个人设置
     path: /settings
