@@ -173,6 +173,32 @@ function extractParamOrResult(text: string, key: string): PhpValue {
     try { return phpUnserialize(raw); } catch { /* fallthrough */ }
   }
 
+  // s:length:"..." — 按 PHP 声明的字节长度读取，避免正则非贪婪匹配被 JSON 内部引号打断
+  if (/^s:\d+:"/.test(raw)) {
+    try {
+      const parsed = phpUnserialize(raw);
+      if (typeof parsed === 'string') {
+        // 尝试解析为 JSON
+        try { return JSON.parse(parsed); } catch { /* */ }
+        // 修复：日志里 JSON 字符串常含有真实的换行符/制表符（PHP serialize 时未转义），
+        // 这种控制字符会让 JSON.parse 报 "Bad control character"。
+        // 策略：先把未转义的控制字符替换为 JSON 转义序列，再解析。
+        const sanitized = parsed
+          .replace(/\r\n/g, '\n')
+          .replace(/[\n\t]/g, (m) => (m === '\n' ? '\\n' : '\\t'));
+        try { return JSON.parse(sanitized); } catch { /* */ }
+        const inner = extractJSONFromString(parsed);
+        if (inner) {
+          try { return JSON.parse(inner); } catch { /* */ }
+          try { return JSON.parse(inner.replace(/\\"/g, '"')); } catch { /* */ }
+        }
+        return parsed;
+      }
+      return parsed;
+    } catch { /* fallthrough */ }
+  }
+
+  // 兜底：raw 中可能嵌套了 s:... 的片段
   const sAll = [...raw.matchAll(/s:\d+:"([\s\S]*?)";/g)];
   if (sAll.length) {
     const target = /^param$/i.test(key) ? sAll[0][1] : sAll[sAll.length - 1][1];

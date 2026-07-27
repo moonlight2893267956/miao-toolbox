@@ -361,9 +361,17 @@
 }
 
 /* ---- JSON 面板 ---- */
+.ple-json,
+.ple-json * {
+  /* 全局 * 设了 user-select: none，且会直接命中内部 <span>（JSON 文本就在这类 span 里），
+     直接命中规则的优先级高于从 .ple-json 继承的值，因此必须同时覆盖内部元素。 */
+  -webkit-user-select: text;
+  user-select: text;
+}
 .ple-json {
   margin: 0;
   padding: 14px 16px;
+  cursor: text;
   font-family: var(--ple-font-mono);
   font-size: 12.5px;
   line-height: 1.55;
