@@ -147,74 +147,87 @@ a {
 .miao-auth-page {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: minmax(360px, 0.95fr) minmax(420px, 1.05fr);
-  background: var(--miao-bg);
+  grid-template-columns: minmax(420px, 1.25fr) minmax(400px, 0.75fr);
+  background: #0a0c14;
 }
 
-:root[data-theme='dark'] .miao-auth-page {
-  background: var(--ant-color-bg-layout);
-}
-
+/* ---- Left: Hero illustration ---- */
 .miao-auth-brand {
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 56px;
-  color: #fff;
-  background: #211a52;
+  padding: 48px;
+  color: #f7f9ff;
 }
 
-.miao-auth-brand::before {
-  content: '';
+.miao-auth-hero-bg {
   position: absolute;
-  inset: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--miao-radius-xl);
+  inset: 0;
+  background-image: url('/images/auth-hero.png');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.85;
+}
+
+.miao-auth-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(105deg, rgba(8, 11, 22, 0.88) 0%, rgba(10, 12, 20, 0.55) 55%, rgba(10, 12, 20, 0.35) 100%),
+    linear-gradient(to top, rgba(8, 11, 22, 0.9) 0%, transparent 35%);
   pointer-events: none;
 }
 
-.miao-auth-brand > * {
+.miao-auth-hero-content {
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  max-width: 560px;
 }
 
-.miao-brand-mark {
-  width: 44px;
-  height: 44px;
-  display: inline-flex;
+.miao-auth-logo-row {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  border-radius: var(--miao-radius-lg);
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-  font-size: 22px;
-  font-weight: 700;
+  gap: 14px;
 }
 
 .miao-brand-mark-img {
-  width: 52px;
-  height: 52px;
-  border-radius: var(--miao-radius-lg);
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
   object-fit: contain;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.miao-auth-logo-text {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: rgba(247, 249, 255, 0.92);
 }
 
 .miao-auth-copy {
-  max-width: 460px;
+  margin-top: auto;
+  padding-bottom: 28px;
 }
 
-.miao-auth-copy h1 {
-  margin: 28px 0 16px;
-  font-family: var(--miao-display-font);
-  font-size: 42px;
-  line-height: 1.18;
-  letter-spacing: 0;
+.miao-auth-eyebrow {
+  display: block;
+  margin-bottom: 14px;
+  font-family: var(--miao-font-mono);
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #00d4ff;
 }
 
 .miao-auth-copy p {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.72);
+  margin: 0 0 28px;
+  color: rgba(247, 249, 255, 0.7);
   font-size: 16px;
   line-height: 1.75;
 }
@@ -223,76 +236,184 @@ a {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 28px;
 }
 
 .miao-auth-badge {
-  padding: 7px 12px;
+  padding: 6px 14px;
   border-radius: 999px;
-  color: rgba(255, 255, 255, 0.86);
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  font-size: 13px;
+  color: rgba(247, 249, 255, 0.8);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .miao-auth-footnote {
   width: fit-content;
-  padding: 7px 12px;
+  padding: 6px 14px;
   border-radius: 999px;
-  color: rgba(255, 255, 255, 0.74);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  font-size: 13px;
+  color: rgba(247, 249, 255, 0.45);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: var(--miao-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
+/* ---- Right: Glass form panel ---- */
 .miao-auth-panel-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 48px 24px;
+  padding: 48px 40px;
+  background: #0a0c14;
 }
 
 .miao-auth-panel {
   width: min(420px, 100%);
-  padding: 36px;
-  border-radius: var(--miao-radius-xl);
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(92, 79, 208, 0.12);
-  box-shadow: 0 18px 50px rgba(55, 47, 111, 0.12);
-  backdrop-filter: blur(18px);
+  padding: 40px;
+  border-radius: 16px;
+  background: rgba(17, 20, 30, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .miao-auth-panel.miao-password-panel {
   width: min(440px, 100%);
 }
 
-:root[data-theme='dark'] .miao-auth-panel {
-  background: rgba(29, 27, 44, 0.86);
-  border-color: rgba(162, 155, 254, 0.16);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
-}
-
 .miao-auth-panel h2 {
   margin: 0;
-  font-family: var(--miao-display-font);
-  font-size: 32px;
+  font-size: 26px;
   font-weight: 700;
   line-height: 1.25;
-  letter-spacing: 0;
+  color: #f7f9ff;
 }
 
 .miao-auth-subtitle {
   display: block;
   margin-top: 8px;
+  font-size: 14px;
+  color: rgba(247, 249, 255, 0.45);
 }
 
 .miao-auth-heading {
-  margin-bottom: 30px;
+  margin-bottom: 28px;
 }
 
 .miao-password-panel .miao-auth-heading {
   margin-bottom: 22px;
 }
+
+/* Ant Design overrides inside dark panel */
+.miao-auth-panel .ant-form-item-label > label {
+  color: rgba(247, 249, 255, 0.55) !important;
+  font-size: 13px;
+}
+
+.miao-auth-panel .ant-input,
+.miao-auth-panel .ant-input-password,
+.miao-auth-panel .ant-input-affix-wrapper {
+  background: rgba(0, 0, 0, 0.22) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #f7f9ff !important;
+  border-radius: 8px !important;
+}
+
+.miao-auth-panel .ant-input::placeholder,
+.miao-auth-panel .ant-input-password input::placeholder {
+  color: rgba(247, 249, 255, 0.25) !important;
+}
+
+.miao-auth-panel .ant-input:focus,
+.miao-auth-panel .ant-input-affix-wrapper:focus,
+.miao-auth-panel .ant-input-affix-wrapper-focused {
+  border-color: rgba(0, 212, 255, 0.6) !important;
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.08) !important;
+}
+
+.miao-auth-panel .ant-btn-primary {
+  background: linear-gradient(90deg, #00d4ff, #0ea5e9) !important;
+  border: none !important;
+  color: #05070a !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 18px rgba(0, 212, 255, 0.18) !important;
+  transition: all 0.2s ease;
+}
+
+.miao-auth-panel .ant-btn-primary:hover {
+  box-shadow: 0 6px 24px rgba(0, 212, 255, 0.3) !important;
+  filter: brightness(1.06);
+}
+
+.miao-auth-panel .ant-typography,
+.miao-auth-panel .ant-typography-secondary {
+  color: rgba(247, 249, 255, 0.7) !important;
+}
+
+.miao-auth-panel a {
+  color: #38bdf8;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.miao-auth-panel a:hover,
+.miao-auth-panel a:focus {
+  color: #7dd3fc;
+  text-decoration: underline;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 991px) {
+  .miao-auth-page {
+    grid-template-columns: 1fr;
+  }
+
+  .miao-auth-brand {
+    min-height: 320px;
+    padding: 36px 28px;
+  }
+
+  .miao-auth-hero-bg {
+    opacity: 0.75;
+  }
+
+  .miao-auth-copy p {
+    max-width: 480px;
+  }
+
+  .miao-auth-panel-wrap {
+    padding: 32px 24px;
+  }
+}
+
+@media (max-width: 767px) {
+  .miao-auth-page {
+    grid-template-columns: 1fr;
+    background: #0a0c14;
+  }
+
+  .miao-auth-brand {
+    display: none;
+  }
+
+  .miao-auth-panel-wrap {
+    padding: 24px 16px;
+  }
+
+  .miao-auth-panel {
+    padding: 28px 22px;
+    border-radius: 14px;
+  }
+}
+
 
 .miao-password-intro {
   display: flex;
@@ -1041,12 +1162,20 @@ a {
   }
 
   .miao-auth-brand {
-    min-height: 280px;
+    min-height: 320px;
     padding: 36px 28px;
   }
 
-  .miao-auth-copy h1 {
-    font-size: 34px;
+  .miao-auth-hero-bg {
+    opacity: 0.75;
+  }
+
+  .miao-auth-copy p {
+    max-width: 480px;
+  }
+
+  .miao-auth-panel-wrap {
+    padding: 32px 24px;
   }
 }
 
@@ -1084,8 +1213,8 @@ a {
 
 @media (max-width: 767px) {
   .miao-auth-page {
-    min-height: 100vh;
-    background: var(--ant-color-bg-layout);
+    grid-template-columns: 1fr;
+    background: #0a0c14;
   }
 
   .miao-auth-brand {
@@ -1093,11 +1222,12 @@ a {
   }
 
   .miao-auth-panel-wrap {
-    padding: 28px 16px;
+    padding: 24px 16px;
   }
 
   .miao-auth-panel {
     padding: 28px 22px;
+    border-radius: 14px;
   }
 
   .miao-password-rules {
