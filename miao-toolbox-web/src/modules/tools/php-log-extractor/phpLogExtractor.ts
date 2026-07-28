@@ -6,12 +6,31 @@
 
 /* ---------- PHP unserialize ---------- */
 
+/** 字符串切分策略：auto=容错扫描；utf-8/gbk/latin1=按声明字节数 + 对应编码映射精确切分 */
+export type SerializeEncoding = 'auto' | 'utf-8' | 'gbk' | 'latin1';
+
 type PhpValue = string | number | boolean | null | PhpValue[] | PhpObject;
 interface PhpObject {
   [key: string]: PhpValue;
 }
 
-export function phpUnserialize(data: string): PhpValue {
+/** 计算单个字符在指定编码下的字节数（用于按 declaredLen 字节推进指针） */
+function charByteLength(ch: string, encoding: SerializeEncoding): number {
+  if (encoding === 'latin1') return 1;
+  if (encoding === 'gbk') return ch.charCodeAt(0) > 0x7f ? 2 : 1;
+  // utf-8
+  const c = ch.charCodeAt(0);
+  if (c > 0xffff) return 4;
+  if (c > 0x7ff) return 3;
+  if (c > 0x7f) return 2;
+  return 1;
+}
+
+export function phpUnserialize(
+  data: string,
+  opts: { encoding?: SerializeEncoding } = {},
+): PhpValue {
+  const encoding = opts.encoding ?? 'auto';
   let i = 0;
 
   function skipWs(): void {
@@ -54,20 +73,49 @@ export function phpUnserialize(data: string): PhpValue {
     }
 
     if (type === 's') {
-      i += 2;
-      readUntil(':');
-      i++;
+      i += 2; // skip 's:'
+      const lenStr = readUntil(':');
+      const declaredLen = parseInt(lenStr, 10);
+      i++; // skip ':'
       if (data[i] === '"') i++;
       const start = i;
-      while (i < data.length) {
-        if (data[i] === '"' && data[i + 1] === ';') {
-          const str = data.slice(start, i);
-          i += 2;
-          return str;
+
+      if (encoding === 'auto') {
+        // 自动容错：扫描到真正的 `";` 终止符，忽略声明长度偏差
+        // （常见于混合/GBK 编码日志，声明字节数与实际不符）。
+        while (i < data.length) {
+          if (data[i] === '"' && data[i + 1] === ';') break;
+          i++;
         }
-        i++;
+      } else if (!isNaN(declaredLen) && declaredLen >= 0) {
+        // 按声明字节数 + 所选编码的字节映射推进字符指针：
+        // Latin-1 每字符 1 字节；GBK 中文 2 字节；UTF-8 中文 3 字节。
+        let bytesLeft = declaredLen;
+        while (i < data.length && bytesLeft > 0) {
+          if (data[i] === '\\' && i + 1 < data.length) {
+            // PHP serialize 转义序列（\" \\ \n …）在源文本中占 2 字符，目标 1 字节
+            i += 2;
+            bytesLeft -= 1;
+            continue;
+          }
+          const bl = charByteLength(data[i], encoding);
+          if (bl > bytesLeft) break;
+          i += 1;
+          bytesLeft -= bl;
+        }
+      } else {
+        // 兜底：声明长度非法时回退到扫描 `";`
+        while (i < data.length) {
+          if (data[i] === '"' && data[i + 1] === ';') break;
+          i++;
+        }
       }
-      return data.slice(start);
+
+      const str = data.slice(start, i);
+      // 跳过结尾 `";`
+      if (data[i] === '"') i++;
+      if (data[i] === ';') i++;
+      return str;
     }
 
     if (type === 'a') {
@@ -158,7 +206,11 @@ function extractJSONFromString(s: string): string | null {
 
 /* ---------- 提取 param / result ---------- */
 
-function extractParamOrResult(text: string, key: string): PhpValue {
+function extractParamOrResult(
+  text: string,
+  key: string,
+  encoding: SerializeEncoding = 'auto',
+): PhpValue {
   const regex = new RegExp(
     `\\[?${key}(?:\\s*from\\s*cache)?(?:\\[[^\\]]*\\])?\\]?\\s*:\\s*([\\s\\S]*)`,
     'i',
@@ -170,13 +222,13 @@ function extractParamOrResult(text: string, key: string): PhpValue {
   raw = raw.replace(/^\^SAFE\^/, '');
 
   if (/^a:\d+:/.test(raw)) {
-    try { return phpUnserialize(raw); } catch { /* fallthrough */ }
+    try { return phpUnserialize(raw, { encoding }); } catch { /* fallthrough */ }
   }
 
   // s:length:"..." — 按 PHP 声明的字节长度读取，避免正则非贪婪匹配被 JSON 内部引号打断
   if (/^s:\d+:"/.test(raw)) {
     try {
-      const parsed = phpUnserialize(raw);
+      const parsed = phpUnserialize(raw, { encoding });
       if (typeof parsed === 'string') {
         // 尝试解析为 JSON
         try { return JSON.parse(parsed); } catch { /* */ }
@@ -217,7 +269,7 @@ function extractParamOrResult(text: string, key: string): PhpValue {
 
   const aMatch = raw.match(/a:\d+:\{[\s\S]*\}$/);
   if (aMatch) {
-    try { return phpUnserialize(aMatch[0]); } catch { /* */ }
+    try { return phpUnserialize(aMatch[0], { encoding }); } catch { /* */ }
   }
 
   return raw;
@@ -280,6 +332,12 @@ function deepParseJSONStrings(value: PhpValue): PhpValue {
 export interface ParsePhpLogOptions {
   /** 是否把嵌套的 JSON 字符串自动解析为对象（默认 true）。关闭时原样展示字符串内容。 */
   deepParse?: boolean;
+  /**
+   * 字符串切分策略（默认 'auto'）。
+   * - 'auto'：容错扫描 `";` 终止符，忽略声明长度偏差（混合/GBK 编码日志）
+   * - 'utf-8' / 'gbk' / 'latin1'：按声明字节数 + 对应编码字节映射精确切分
+   */
+  encoding?: SerializeEncoding;
 }
 
 export function parsePhpLog(
@@ -295,6 +353,7 @@ export function parsePhpLog(
     if (!m) return null;
     let pos = m.index + m[0].length;
     while (pos < src.length && /\s/.test(src[pos])) pos++;
+    if (src[pos] === ';') pos++; // 跳过键名后的分号（s:N:"name";a:...）
     if (src[pos] === 'a') {
       const braceStart = src.indexOf('{', pos);
       if (braceStart === -1) return null;
@@ -317,13 +376,13 @@ export function parsePhpLog(
   let inputParsed: PhpValue = null;
   let outputParsed: PhpValue = null;
 
-  try { if (inputFragment) inputParsed = phpUnserialize(inputFragment); } catch { /* */ }
-  try { if (outputFragment) outputParsed = phpUnserialize(outputFragment); } catch { /* */ }
+  const { deepParse = true, encoding = 'auto' } = options;
 
-  if (!inputParsed) inputParsed = extractParamOrResult(text, 'param');
-  if (!outputParsed) outputParsed = extractParamOrResult(text, 'result');
+  try { if (inputFragment) inputParsed = phpUnserialize(inputFragment, { encoding }); } catch { /* */ }
+  try { if (outputFragment) outputParsed = phpUnserialize(outputFragment, { encoding }); } catch { /* */ }
 
-  const { deepParse = true } = options;
+  if (!inputParsed) inputParsed = extractParamOrResult(text, 'param', encoding);
+  if (!outputParsed) outputParsed = extractParamOrResult(text, 'result', encoding);
 
   return {
     input: deepParse ? deepParseJSONStrings(inputParsed) : inputParsed,

@@ -64,6 +64,7 @@ const initialState: JsonWorkbenchState = {
   aiLoading: false,
   aiResult: null,
   indentSize: 2,
+  wordWrap: true,
   repairPreview: null,
   repairError: null,
   largeFileHintDismissed: false,
@@ -75,6 +76,7 @@ function loadInitialJsonState(): JsonWorkbenchState {
     rawJson?: string;
     viewMode?: ViewMode;
     indentSize?: 2 | 4;
+    wordWrap?: boolean;
     schemaJson?: string | null;
     searchQuery?: string;
     searchMode?: SearchMode;
@@ -91,6 +93,7 @@ function loadInitialJsonState(): JsonWorkbenchState {
         ? loaded.viewMode
         : 'split',
     indentSize: loaded.indentSize === 4 ? 4 : 2,
+    wordWrap: loaded.wordWrap !== false,
     schemaJson: typeof loaded.schemaJson === 'string' ? loaded.schemaJson : null,
     searchQuery: typeof loaded.searchQuery === 'string' ? loaded.searchQuery : '',
     searchMode:
@@ -236,6 +239,8 @@ function jsonWbReducer(state: JsonWorkbenchState, action: JsonWbAction): JsonWor
     }
     case 'JSON_WB_SET_INDENT_SIZE':
       return { ...state, indentSize: action.payload };
+    case 'JSON_WB_SET_WORD_WRAP':
+      return { ...state, wordWrap: action.payload };
     case 'JSON_WB_REPAIR_SUCCESS':
       return { ...state, repairPreview: action.payload, repairError: null };
     case 'JSON_WB_REPAIR_FAIL':
@@ -251,7 +256,7 @@ function jsonWbReducer(state: JsonWorkbenchState, action: JsonWbAction): JsonWor
 
 // ─── 工具栏 ────────────────────────────────────────────
 
-function Toolbar({ viewMode, onViewModeChange, onSave, canSave, hasData, hasRawInput, canFormat, isEscapedJson, indentSize, onFormat, onCompress, onEscapeCompact, onUnescape, onIndentChange, showError, onRepair, onCopyPretty, onCopyCompact, hasSchema, onSchemaClear, parseProgress, fileSize, schemaMenuItems, onOpenHistory }: {
+function Toolbar({ viewMode, onViewModeChange, onSave, canSave, hasData, hasRawInput, canFormat, isEscapedJson, indentSize, wordWrap, onWordWrapChange, onFormat, onCompress, onEscapeCompact, onUnescape, onIndentChange, showError, onRepair, onCopyPretty, onCopyCompact, hasSchema, onSchemaClear, parseProgress, fileSize, schemaMenuItems, onOpenHistory }: {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
   onSave: () => void;
@@ -261,6 +266,8 @@ function Toolbar({ viewMode, onViewModeChange, onSave, canSave, hasData, hasRawI
   canFormat: boolean;
   isEscapedJson: boolean;
   indentSize: 2 | 4;
+  wordWrap: boolean;
+  onWordWrapChange: (value: boolean) => void;
   onFormat: () => void;
   onCompress: () => void;
   onEscapeCompact: () => void;
@@ -292,27 +299,29 @@ function Toolbar({ viewMode, onViewModeChange, onSave, canSave, hasData, hasRawI
           </button>
         )}
         {(canFormat || hasRawInput) && parseProgress === 0 && (
-          <div className="jw-format-group">
-            <Tooltip title="格式化 (Ctrl+Shift+F)">
-              <button className="jw-format-btn" onClick={onFormat} disabled={!canFormat}>
-                格式化
-              </button>
-            </Tooltip>
-            <Tooltip title="压缩为单行 (Ctrl+Shift+K)">
-              <button className="jw-format-btn" onClick={onCompress} disabled={!canFormat}>
-                压缩
-              </button>
-            </Tooltip>
-            <Tooltip title="压缩转义 (Ctrl+Shift+E)">
-              <button className="jw-format-btn jw-format-btn--wide" onClick={onEscapeCompact} disabled={!canFormat || isEscapedJson}>
-                压缩转义
-              </button>
-            </Tooltip>
-            <Tooltip title="反转义 (Ctrl+Shift+U)">
-              <button className="jw-format-btn jw-format-btn--wide" onClick={onUnescape}>
-                反转义
-              </button>
-            </Tooltip>
+          <>
+            <div className="jw-format-group">
+              <Tooltip title="格式化 (Ctrl+Shift+F)">
+                <button className="jw-format-btn" onClick={onFormat} disabled={!canFormat}>
+                  格式化
+                </button>
+              </Tooltip>
+              <Tooltip title="压缩为单行 (Ctrl+Shift+K)">
+                <button className="jw-format-btn" onClick={onCompress} disabled={!canFormat}>
+                  压缩
+                </button>
+              </Tooltip>
+              <Tooltip title="压缩转义 (Ctrl+Shift+E)">
+                <button className="jw-format-btn jw-format-btn--wide" onClick={onEscapeCompact} disabled={!canFormat || isEscapedJson}>
+                  压缩转义
+                </button>
+              </Tooltip>
+              <Tooltip title="反转义 (Ctrl+Shift+U)">
+                <button className="jw-format-btn jw-format-btn--wide" onClick={onUnescape}>
+                  反转义
+                </button>
+              </Tooltip>
+            </div>
             <div className="jw-indent-select">
               <button
                 className={`jw-indent-btn ${indentSize === 2 ? 'jw-indent-btn--active' : ''}`}
@@ -329,7 +338,31 @@ function Toolbar({ viewMode, onViewModeChange, onSave, canSave, hasData, hasRawI
                 4空格
               </button>
             </div>
-          </div>
+            <Tooltip title={wordWrap ? '自动换行：开（长行折行）' : '自动换行：关（单行水平滚动）'}>
+              <button
+                className={`jw-wrap-toggle ${wordWrap ? 'jw-wrap-toggle--active' : ''}`}
+                onClick={() => onWordWrapChange(!wordWrap)}
+                aria-pressed={wordWrap}
+                aria-label="切换自动换行"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <path d="M3 12h15a3 3 0 1 1 0 6h-4" />
+                  <path d="m16 16-2 2 2 2" />
+                </svg>
+              </button>
+            </Tooltip>
+          </>
         )}
         {parseProgress > 0 && parseProgress < 100 && (
           <div className="jw-progress-bar">
@@ -480,6 +513,7 @@ export default function JsonWorkbenchPage() {
       rawJson: state.rawJson,
       viewMode: state.viewMode,
       indentSize: state.indentSize,
+      wordWrap: state.wordWrap,
       schemaJson: state.schemaJson,
       searchQuery: state.searchQuery,
       searchMode: state.searchMode,
@@ -554,6 +588,11 @@ export default function JsonWorkbenchPage() {
 
   const handleViewModeChange = useCallback((mode: ViewMode) => {
     dispatch({ type: 'JSON_WB_SET_VIEW_MODE', payload: mode });
+  }, []);
+
+  // 换行（自动折行）开关
+  const handleWordWrapChange = useCallback((value: boolean) => {
+    dispatch({ type: 'JSON_WB_SET_WORD_WRAP', payload: value });
   }, []);
 
   const handleRawChange = useCallback(
@@ -1139,6 +1178,7 @@ export default function JsonWorkbenchPage() {
       parseError={state.parseError}
       scrollTarget={scrollTarget}
       onScrollTargetHandled={handleScrollTargetHandled}
+      wordWrap={state.wordWrap}
     />
   );
 
@@ -1164,6 +1204,8 @@ export default function JsonWorkbenchPage() {
         onEscapeCompact={handleEscapeCompact}
         onUnescape={handleUnescape}
         onIndentChange={handleIndentChange}
+        wordWrap={state.wordWrap}
+        onWordWrapChange={handleWordWrapChange}
         showError={showError}
         onRepair={handleRepair}
         onCopyPretty={handleCopyPretty}

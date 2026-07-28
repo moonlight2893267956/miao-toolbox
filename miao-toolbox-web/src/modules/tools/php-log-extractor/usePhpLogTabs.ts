@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadPageState, savePageState } from '../../../shared/utils/tabPageStorage';
-import type { PhpLogExtractResult } from './phpLogExtractor';
+import type { PhpLogExtractResult, SerializeEncoding } from './phpLogExtractor';
 
 /* ---------- 类型 ---------- */
 
@@ -15,6 +15,8 @@ export interface PhpLogTab {
   name: string;
   input: string;
   deepParse: boolean;
+  /** 字符串切分策略：auto / utf-8 / gbk / latin1 */
+  encoding: SerializeEncoding;
   result: PhpLogExtractResult | null;
 }
 
@@ -35,7 +37,7 @@ function nextId(): string {
 }
 
 function createTab(name: string): PhpLogTab {
-  return { id: nextId(), name, input: '', deepParse: true, result: null };
+  return { id: nextId(), name, input: '', deepParse: true, encoding: 'auto', result: null };
 }
 
 function defaultState(): TabsState {
@@ -151,6 +153,16 @@ export function usePhpLogTabs() {
     [updateTabs],
   );
 
+  const updateTabEncoding = useCallback(
+    (id: string, encoding: SerializeEncoding) => {
+      updateTabs((prev) => ({
+        ...prev,
+        tabs: prev.tabs.map((t) => (t.id === id ? { ...t, encoding } : t)),
+      }));
+    },
+    [updateTabs],
+  );
+
   const updateTabResult = useCallback(
     (id: string, result: PhpLogExtractResult | null) => {
       updateTabs((prev) => ({
@@ -172,5 +184,6 @@ export function usePhpLogTabs() {
     updateTabInput,
     updateTabDeepParse,
     updateTabResult,
+    updateTabEncoding,
   };
 }

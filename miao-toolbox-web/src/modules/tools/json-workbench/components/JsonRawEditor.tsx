@@ -18,11 +18,15 @@ interface JsonRawEditorProps {
   parseError: ParseError | null;
   scrollTarget: number | null;
   onScrollTargetHandled: () => void;
+  /** 是否自动换行（false = 单行展示，水平滚动） */
+  wordWrap?: boolean;
 }
 
 // ─── Compartment 用于动态切换主题 ────────────────────────
 
 const themeCompartment = new Compartment();
+// 自动换行（word-wrap）开关，可在运行时动态切换
+const wrapCompartment = new Compartment();
 
 // ─── 亮色/暗色主题 ─────────────────────────────────────
 
@@ -80,6 +84,7 @@ export default function JsonRawEditor({
   onChange,
   scrollTarget,
   onScrollTargetHandled,
+  wordWrap = true,
 }: JsonRawEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -127,12 +132,12 @@ export default function JsonRawEditor({
           indentWithTab,
         ]),
         themeCompartment.of(getThemeExtensions()),
+        wrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !isExternalUpdateRef.current) {
             onChangeRef.current(update.state.doc.toString());
           }
         }),
-        EditorView.lineWrapping,
       ],
     });
 
@@ -166,6 +171,16 @@ export default function JsonRawEditor({
     });
     isExternalUpdateRef.current = false;
   }, [value]);
+
+  // ─── 自动换行开关（word-wrap）切换 ──────────────────
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: wrapCompartment.reconfigure(wordWrap ? EditorView.lineWrapping : []),
+    });
+  }, [wordWrap]);
 
   // ─── 滚动到目标行（AC-4） ─────────────────────────────
 

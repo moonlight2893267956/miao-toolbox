@@ -329,6 +329,40 @@
   opacity: 0.45;
 }
 
+/* 换行（自动换行）图标开关按钮 */
+.jw-wrap-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--jw-border);
+  border-radius: var(--miao-radius-sm);
+  background: var(--jw-chrome);
+  color: var(--miao-text-tertiary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.jw-wrap-toggle:hover {
+  color: var(--tool-accent);
+  background: var(--tool-accent-7);
+  border-color: var(--tool-accent-24);
+}
+
+.jw-wrap-toggle--active {
+  color: var(--tool-accent);
+  background: var(--tool-accent-11);
+  border-color: var(--tool-accent-24);
+}
+
+.jw-wrap-toggle--active:hover {
+  color: var(--tool-accent);
+  background: var(--tool-accent-13);
+  border-color: var(--tool-accent-32);
+}
+
 .jw-format-btn:disabled:hover {
   background: transparent;
   color: var(--miao-text-tertiary);

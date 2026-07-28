@@ -19,13 +19,15 @@ import {
   CaretDownOutlined,
   CaretRightOutlined,
   ExportOutlined,
+  CodeOutlined,
 } from '@ant-design/icons';
-import { message, Switch, Tooltip } from 'antd';
+import { message, Select, Switch, Tooltip } from 'antd';
 import {
   parsePhpLog,
   syntaxHighlightJSON,
   SAMPLE_PHP_LOG,
   type PhpLogExtractResult,
+  type SerializeEncoding,
 } from './phpLogExtractor';
 import { usePhpLogTabs } from './usePhpLogTabs';
 import { sendJsonToWorkbench } from '../../../shared/toolBridge';
@@ -119,6 +121,7 @@ const PhpLogExtractorPage: React.FC = () => {
     renameTab,
     updateTabInput,
     updateTabDeepParse,
+    updateTabEncoding,
     updateTabResult,
   } = usePhpLogTabs();
 
@@ -143,7 +146,10 @@ const PhpLogExtractorPage: React.FC = () => {
     }
     setLoading(true);
     setTimeout(() => {
-      updateTabResult(activeTab.id, parsePhpLog(activeTab.input, { deepParse: activeTab.deepParse }));
+      updateTabResult(
+        activeTab.id,
+        parsePhpLog(activeTab.input, { deepParse: activeTab.deepParse, encoding: activeTab.encoding }),
+      );
       setLoading(false);
     }, 30);
   };
@@ -282,16 +288,39 @@ const PhpLogExtractorPage: React.FC = () => {
       <section className="ple-input-section">
         <div className="ple-section-label">
           日志内容
+          <span className="ple-options-group">
           <Tooltip title="开启：把嵌套的 JSON 字符串自动解析为对象树；关闭：原样展示字符串（保留转义）">
             <span className="ple-option">
+              <ThunderboltOutlined className="ple-option-icon" />
               <Switch
                 size="small"
+                className={activeTab.deepParse ? 'ple-switch--on' : ''}
                 checked={activeTab.deepParse}
                 onChange={(v) => updateTabDeepParse(activeTab.id, v)}
               />
-              <span className="ple-option-label">自动解析嵌套 JSON</span>
+              <span className="ple-option-label">自动解析 JSON</span>
             </span>
           </Tooltip>
+          <Tooltip title="选择 PHP 序列化字符串的编码切分策略：自动容错（默认，兼容声明长度不符的混合/GBK 日志）、UTF-8、GBK（中文 2 字节）、Latin-1（ISO-8859-1）">
+            <span className="ple-option">
+              <CodeOutlined className="ple-option-icon" />
+              <span className="ple-option-label">编码</span>
+              <Select
+                size="small"
+                className="ple-select"
+                value={activeTab.encoding}
+                onChange={(v) => updateTabEncoding(activeTab.id, v as SerializeEncoding)}
+                style={{ minWidth: 110 }}
+                options={[
+                  { value: 'auto', label: '自动容错（推荐）' },
+                  { value: 'utf-8', label: 'UTF-8' },
+                  { value: 'gbk', label: 'GBK' },
+                  { value: 'latin1', label: 'Latin-1' },
+                ]}
+              />
+            </span>
+          </Tooltip>
+          </span>
         </div>
         <textarea
           ref={inputRef}
