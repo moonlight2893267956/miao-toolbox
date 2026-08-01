@@ -10,6 +10,7 @@ import {
   TranslationOutlined,
   CodeSandboxOutlined,
   ScheduleOutlined,
+  BugOutlined,
 } from '@ant-design/icons';
 
 /**
@@ -18,6 +19,21 @@ import {
  * - `coming-soon`：暂未接入，仅展示占位
  */
 export type ToolCategory = 'available' | 'coming-soon';
+
+/**
+ * 工具功能分组：用于侧栏和工作台首页的子分类展示。
+ * 顺序决定侧栏中的排列先后。
+ */
+export type ToolGroup = 'dev' | 'log' | 'text' | 'ai' | 'other';
+
+/** 分组元数据：标签与排序 */
+export const TOOL_GROUPS: Record<ToolGroup, { label: string; order: number }> = {
+  dev:   { label: '开发工具', order: 0 },
+  log:   { label: '日志解析', order: 1 },
+  text:  { label: '文本处理', order: 2 },
+  ai:    { label: 'AI 创作',  order: 3 },
+  other: { label: '其他',     order: 99 },
+};
 
 /**
  * 工具元数据：纯数据描述，可在工具页、侧边栏、概览等多处复用。
@@ -42,6 +58,8 @@ export interface ToolMeta {
   routeCode?: string;
   /** 工具分类（用于分组） */
   category: ToolCategory;
+  /** 功能分组（用于侧栏/工作台子分类），未指定时归入 'other' */
+  group?: ToolGroup;
   /** 是否已可用（`category === 'available'` 的便捷布尔） */
   available: boolean;
   /** 强调色（用于光晕和交互反馈） */
@@ -67,6 +85,7 @@ export const toolsRegistry: ToolMeta[] = [
     path: '/tools/text-compare',
     routeCode: 'TOOL_TEXT_COMPARE',
     category: 'available',
+    group: 'text',
     available: true,
     accentColor: '#5c4fd0',
     iconBg: 'rgba(92,79,208,0.12)',
@@ -81,6 +100,7 @@ export const toolsRegistry: ToolMeta[] = [
     path: '/tools/crypto',
     routeCode: 'TOOL_CRYPTO',
     category: 'available',
+    group: 'dev',
     available: true,
     accentColor: '#8b5cf6',
     iconBg: 'rgba(139,92,246,0.12)',
@@ -95,6 +115,7 @@ export const toolsRegistry: ToolMeta[] = [
     path: '/tools/json-workbench',
     routeCode: 'TOOL_JSON_WORKBENCH',
     category: 'available',
+    group: 'dev',
     available: true,
     accentColor: '#6366f1',
     iconBg: 'rgba(99,102,241,0.12)',
@@ -109,6 +130,7 @@ export const toolsRegistry: ToolMeta[] = [
     path: '/tools/translate',
     routeCode: 'TOOL_TRANSLATE',
     category: 'available',
+    group: 'text',
     available: true,
     accentColor: '#0ea5e9',
     iconBg: 'rgba(14,165,233,0.12)',
@@ -123,6 +145,7 @@ export const toolsRegistry: ToolMeta[] = [
     path: '/tools/regex-tester',
     routeCode: 'TOOL_REGEX_TESTER',
     category: 'available',
+    group: 'dev',
     available: true,
     accentColor: '#ec4899',
     iconBg: 'rgba(236,72,153,0.12)',
@@ -137,20 +160,22 @@ export const toolsRegistry: ToolMeta[] = [
     path: '/tools/cron-editor',
     routeCode: 'TOOL_CRON_EDITOR',
     category: 'available',
+    group: 'dev',
     available: true,
     accentColor: '#14b8a6',
     iconBg: 'rgba(20,184,166,0.12)',
   },
   {
     key: 'php-log-extractor',
-    title: 'PHP 日志提取器',
-    description: '从含 PHP 序列化的日志中提取 inputdata / outputdata / param / result，纯前端解析。',
+    title: '收银台日志提取器',
+    description: '从收银台日志中提取 inputdata / outputdata / param / result，纯前端解析。',
     icon: FileTextOutlined,
     status: '可用',
-    tags: ['PHP', '日志', '开发工具'],
+    tags: ['PHP', '日志', '日志解析'],
     path: '/tools/php-log-extractor',
     routeCode: 'TOOL_PHP_LOG_EXTRACTOR',
     category: 'available',
+    group: 'log',
     available: true,
     accentColor: '#f59e0b',
     iconBg: 'rgba(245,158,11,0.12)',
@@ -165,9 +190,25 @@ export const toolsRegistry: ToolMeta[] = [
     path: '/tools/network',
     routeCode: 'TOOL_NETWORK_TOOLBOX',
     category: 'available',
+    group: 'dev',
     available: true,
     accentColor: '#2563eb',
     iconBg: 'rgba(37,99,235,0.12)',
+  },
+  {
+    key: 'ral-log-parser',
+    title: 'RAL 日志解析器',
+    description: '粘贴 RAL 日志，一键获得结构化指标表格与 AI 异常解读，快速定位超时、连接失败等异常调用。',
+    icon: BugOutlined,
+    status: '可用',
+    tags: ['RAL', '日志', '日志解析'],
+    path: '/tools/ral-log-parser',
+    routeCode: 'TOOL_RAL_LOG_PARSER',
+    category: 'available',
+    group: 'log',
+    available: true,
+    accentColor: '#ef4444',
+    iconBg: 'rgba(239,68,68,0.12)',
   },
   {
     key: 'image',
@@ -178,6 +219,7 @@ export const toolsRegistry: ToolMeta[] = [
     tags: ['图像', '创作', 'AIGC'],
     path: null,
     category: 'coming-soon',
+    group: 'ai',
     available: false,
     accentColor: '#22d3ee',
     iconBg: 'rgba(34,211,238,0.12)',
@@ -191,6 +233,7 @@ export const toolsRegistry: ToolMeta[] = [
     tags: ['语音', '内容', 'TTS'],
     path: null,
     category: 'coming-soon',
+    group: 'ai',
     available: false,
     accentColor: '#10b981',
     iconBg: 'rgba(16,185,129,0.12)',

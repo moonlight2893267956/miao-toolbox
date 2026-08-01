@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Input, message } from 'antd';
 import { SearchOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toolsRegistry, getToolsByCategory } from './registry';
+import { toolsRegistry, getToolsByCategory, TOOL_GROUPS, type ToolGroup } from './registry';
 import type { ToolMeta } from './registry';
 import { isSuperAdmin, useAuth } from '../../contexts/AuthContext';
 import { useTabs, isTabbable, makeTabKey } from '../../contexts/TabContext';

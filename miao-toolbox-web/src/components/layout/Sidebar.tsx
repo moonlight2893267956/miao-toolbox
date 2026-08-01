@@ -20,7 +20,7 @@ import {
   resolveTabIcon,
   resolveTabLabel,
 } from '../../contexts/TabContext';
-import { toolsRegistry } from '../../modules/tools/registry';
+import { toolsRegistry, TOOL_GROUPS, type ToolGroup } from '../../modules/tools/registry';
 import UserDropdown from './UserDropdown';
 import './sidebar.css';
 
@@ -40,11 +40,20 @@ interface NavItem {
   badgeType?: 'count' | 'dot';
 }
 
+/** Sub-group within a section (e.g. "开发工具", "文本处理") */
+interface NavSubgroup {
+  group: string;
+  label: string;
+  items: NavItem[];
+}
+
 /** Section group */
 interface NavSection {
   key: string;
   label: string;
   items: NavItem[];
+  /** Optional sub-groups for finer categorization within this section */
+  subgroups?: NavSubgroup[];
 }
 
 const Sidebar: React.FC = () => {
@@ -80,6 +89,31 @@ const Sidebar: React.FC = () => {
       routeCode: t.routeCode,
     }));
 
+    // 按 group 聚合工具，保持 TOOL_GROUPS 定义的顺序
+    const groupOrder = (Object.keys(TOOL_GROUPS) as ToolGroup[]).sort(
+      (a, b) => TOOL_GROUPS[a].order - TOOL_GROUPS[b].order
+    );
+    const grouped: { group: ToolGroup; label: string; items: NavItem[] }[] = [];
+    const groupMap = new Map<ToolGroup, number>();
+
+    for (const tool of availableTools) {
+      const g: ToolGroup = tool.group ?? 'other';
+      if (!groupMap.has(g)) {
+        groupMap.set(g, grouped.length);
+        grouped.push({ group: g, label: TOOL_GROUPS[g].label, items: [] });
+      }
+      grouped[groupMap.get(g)!].items.push({
+        key: tool.key,
+        icon: <tool.icon />,
+        label: tool.title,
+        path: tool.path!,
+        routeCode: tool.routeCode,
+      });
+    }
+
+    // 按 TOOL_GROUPS 排序
+    grouped.sort((a, b) => TOOL_GROUPS[a.group].order - TOOL_GROUPS[b.group].order);
+
     const adminItems: NavItem[] = [
       { key: 'admin-dashboard', icon: <DashboardOutlined />, label: '仪表盘', path: '/admin/dashboard', routeCode: 'ADMIN_DASHBOARD' },
       { key: 'admin-invocations', icon: <RobotOutlined />, label: 'AI 调用日志', path: '/admin/invocations', routeCode: 'ADMIN_INVOCATIONS' },
@@ -96,9 +130,10 @@ const Sidebar: React.FC = () => {
           { key: 'home', icon: <HomeOutlined />, label: '工作台', path: '/tools' },
         ],
       },
-      ...(toolItems.length > 0 ? [{
+      ...(grouped.length > 0 ? [{
         key: 'tools',
         label: 'Tools',
+        subgroups: grouped,
         items: toolItems,
       }] : []),
       ...(adminItems.length > 0
@@ -122,6 +157,62 @@ const Sidebar: React.FC = () => {
     }
     return 'home';
   }, [sections, location.pathname]);
+
+  // ── Render a single nav item (shared between subgroup & flat layouts) ──
+  const renderNavItem = (item: NavItem) => {
+    const isActive = item.key === activeKey;
+    const navItem = (
+      <li
+        key={item.key}
+        className={`miao-nav-item${isActive ? ' miao-nav-item-active' : ''}`}
+        onClick={() => {
+          if (!item.path) return;
+          if (isTabbable(item.path)) {
+            openTab({
+              key: makeTabKey(item.path),
+              label: item.label || resolveTabLabel(item.path),
+              path: item.path,
+              icon: item.icon ?? resolveTabIcon(item.path),
+              closable: true,
+            });
+          }
+          navigate(item.path);
+        }}
+        role="button"
+        tabIndex={0}
+        aria-current={isActive ? 'page' : undefined}
+      >
+        <span className="miao-nav-icon">{item.icon}</span>
+        <span className="miao-nav-label-clip">
+          <span className="miao-nav-label">{item.label}</span>
+        </span>
+        {item.badgeType === 'dot' && (
+          <span className="miao-nav-badge-clip">
+            <span className="miao-nav-badge miao-nav-badge-dot" />
+          </span>
+        )}
+        {item.badgeType === 'count' && item.badge !== undefined && (
+          <span className="miao-nav-badge-clip">
+            <span className="miao-nav-badge miao-nav-badge-count">{item.badge}</span>
+          </span>
+        )}
+      </li>
+    );
+
+    if (collapsed) {
+      return (
+        <Tooltip
+          key={item.key}
+          title={item.label}
+          placement="right"
+          overlayClassName="miao-nav-item-tooltip"
+        >
+          {navItem}
+        </Tooltip>
+      );
+    }
+    return navItem;
+  };
 
   // ── Stagger slide animation: CSS owns the final values, JS only tunes delay ──
   useLayoutEffect(() => {
@@ -214,64 +305,23 @@ const Sidebar: React.FC = () => {
               <div className="miao-sidebar-section">
                 <div className="miao-sidebar-section-label">{section.label}</div>
               </div>
-              <ul className="miao-sidebar-nav">
-                {section.items.map((item) => {
-                  const isActive = item.key === activeKey;
-                  const navItem = (
-                    <li
-                      key={item.key}
-                      className={`miao-nav-item${isActive ? ' miao-nav-item-active' : ''}`}
-                      onClick={() => {
-                        if (!item.path) return;
-                        // 路径可纳入 Tab 时先 openTab，否则直接导航
-                        if (isTabbable(item.path)) {
-                          openTab({
-                            key: makeTabKey(item.path),
-                            label: item.label || resolveTabLabel(item.path),
-                            path: item.path,
-                            // admin 项本身有 icon；工具页走 resolveTabIcon
-                            icon: item.icon ?? resolveTabIcon(item.path),
-                            closable: true,
-                          });
-                        }
-                        navigate(item.path);
-                      }}
-                      role="button"
-                      tabIndex={0}
-                      aria-current={isActive ? 'page' : undefined}
-                    >
-                      <span className="miao-nav-icon">{item.icon}</span>
-                      <span className="miao-nav-label-clip">
-                        <span className="miao-nav-label">{item.label}</span>
-                      </span>
-                      {item.badgeType === 'dot' && (
-                        <span className="miao-nav-badge-clip">
-                          <span className="miao-nav-badge miao-nav-badge-dot" />
-                        </span>
-                      )}
-                      {item.badgeType === 'count' && item.badge !== undefined && (
-                        <span className="miao-nav-badge-clip">
-                          <span className="miao-nav-badge miao-nav-badge-count">{item.badge}</span>
-                        </span>
-                      )}
-                    </li>
-                  );
-
-                  if (collapsed) {
-                    return (
-                      <Tooltip
-                        key={item.key}
-                        title={item.label}
-                        placement="right"
-                        overlayClassName="miao-nav-item-tooltip"
-                      >
-                        {navItem}
-                      </Tooltip>
-                    );
-                  }
-                  return navItem;
-                })}
-              </ul>
+              {section.subgroups ? (
+                // 按 subgroup 渲染：每个子分组有标题 + 工具列表
+                section.subgroups.map((sg) => (
+                  <React.Fragment key={sg.group}>
+                    <div className="miao-sidebar-subgroup">
+                      <div className="miao-sidebar-subgroup-label">{sg.label}</div>
+                    </div>
+                    <ul className="miao-sidebar-nav">
+                      {sg.items.map((item) => renderNavItem(item))}
+                    </ul>
+                  </React.Fragment>
+                ))
+              ) : (
+                <ul className="miao-sidebar-nav">
+                  {section.items.map((item) => renderNavItem(item))}
+                </ul>
+              )}
             </React.Fragment>
           ))}
         </div>

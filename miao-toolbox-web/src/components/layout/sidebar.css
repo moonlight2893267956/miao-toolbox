@@ -236,6 +236,58 @@
   transform: translateX(-8px);
 }
 
+/* ── Sub-group label ──
+   与 section 标题的差异：
+   - section  是 mono + 大写 + letter-spacing（系统类目）
+   - subgroup 是 sans + 中文（功能域），前加主色圆点作锚点
+   字重与字号比 section 略大、比 nav-item 略小，形成三级视觉权重 */
+.miao-sidebar-subgroup {
+  margin: 18px 20px 6px;
+  padding: 0;
+  flex: 0 0 auto;
+  overflow: hidden;
+  transition:
+    height var(--miao-sidebar-motion),
+    margin var(--miao-sidebar-motion),
+    opacity var(--miao-sidebar-item-motion),
+    transform var(--miao-sidebar-item-motion);
+  transition-delay: var(--item-delay, 0ms);
+}
+.miao-sidebar-subgroup-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* 改用 body 字体：mono 字体对中文支持弱，sans 让 "开发工具" 显示更自然 */
+  font-family: var(--miao-font-body);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--miao-sidebar-subgroup-label);
+  padding: 0 8px;
+  white-space: nowrap;
+  /* 中文环境优化：禁用 system fallback 字体加粗，保留设计稿字重 */
+  font-feature-settings: "tnum" 1;
+  -webkit-font-smoothing: antialiased;
+}
+/* 左侧主色圆点 + 柔光晕，作为分组的视觉锚点 */
+.miao-sidebar-subgroup-label::before {
+  content: '';
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--miao-sidebar-active-color);
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--miao-sidebar-active-color) 16%, transparent);
+  transition: box-shadow 180ms ease, background-color 180ms ease;
+}
+.ant-layout-sider-collapsed .miao-sidebar-subgroup {
+  height: 0;
+  margin: 0;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-6px);
+}
+
 /* ── Nav list ── */
 .miao-sidebar-nav {
   margin: 6px 12px 0;
@@ -769,6 +821,7 @@
   --miao-sidebar-active-bar: linear-gradient(180deg, #5C4FD0 0%, #8b7def 60%, #d97020 100%);
   --miao-sidebar-active-color: #5C4FD0;
   --miao-sidebar-section-label: #b0aab8;
+  --miao-sidebar-subgroup-label: rgba(26, 26, 62, 0.55);
   --miao-sidebar-brand-text: #1a1a3e;
   --miao-sidebar-badge-bg: rgba(92, 79, 208, 0.10);
   --miao-sidebar-badge-text: #5C4FD0;
@@ -794,6 +847,7 @@
   --miao-sidebar-active-bar: linear-gradient(180deg, #A29BFE 0%, #7c6fe8 60%, #d97020 100%);
   --miao-sidebar-active-color: #A29BFE;
   --miao-sidebar-section-label: rgba(255, 255, 255, 0.22);
+  --miao-sidebar-subgroup-label: rgba(255, 255, 255, 0.42);
   --miao-sidebar-brand-text: #f0f0f5;
   --miao-sidebar-badge-bg: rgba(162, 155, 254, 0.15);
   --miao-sidebar-badge-text: #A29BFE;

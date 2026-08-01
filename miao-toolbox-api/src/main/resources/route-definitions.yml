@@ -56,11 +56,19 @@ routes:
     adminRoute: false
     enabled: true
   - code: TOOL_PHP_LOG_EXTRACTOR
-    name: PHP 日志提取器
+    name: 收银台日志提取器
     path: /tools/php-log-extractor
     category: TOOL
     icon: FileSearchOutlined
     sortOrder: 8
+    adminRoute: false
+    enabled: true
+  - code: TOOL_RAL_LOG_PARSER
+    name: RAL 日志解析器
+    path: /tools/ral-log-parser
+    category: TOOL
+    icon: BugOutlined
+    sortOrder: 9
     adminRoute: false
     enabled: true
   - code: PAGE_SETTINGS
