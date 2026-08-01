@@ -90,9 +90,6 @@ const Sidebar: React.FC = () => {
     }));
 
     // 按 group 聚合工具，保持 TOOL_GROUPS 定义的顺序
-    const groupOrder = (Object.keys(TOOL_GROUPS) as ToolGroup[]).sort(
-      (a, b) => TOOL_GROUPS[a].order - TOOL_GROUPS[b].order
-    );
     const grouped: { group: ToolGroup; label: string; items: NavItem[] }[] = [];
     const groupMap = new Map<ToolGroup, number>();
 
