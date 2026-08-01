@@ -20,6 +20,8 @@ interface JsonRawEditorProps {
   onScrollTargetHandled: () => void;
   /** 是否自动换行（false = 单行展示，水平滚动） */
   wordWrap?: boolean;
+  /** 是否显示行号（gutter 行号列） */
+  showLineNumbers?: boolean;
 }
 
 // ─── Compartment 用于动态切换主题 ────────────────────────
@@ -27,6 +29,8 @@ interface JsonRawEditorProps {
 const themeCompartment = new Compartment();
 // 自动换行（word-wrap）开关，可在运行时动态切换
 const wrapCompartment = new Compartment();
+// 行号（gutter）开关，可在运行时动态切换
+const lineNumberCompartment = new Compartment();
 
 // ─── 亮色/暗色主题 ─────────────────────────────────────
 
@@ -85,6 +89,7 @@ export default function JsonRawEditor({
   scrollTarget,
   onScrollTargetHandled,
   wordWrap = true,
+  showLineNumbers = true,
 }: JsonRawEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -110,7 +115,7 @@ export default function JsonRawEditor({
     const state = EditorState.create({
       doc: value,
       extensions: [
-        lineNumbers(),
+        lineNumberCompartment.of(showLineNumbers ? lineNumbers() : []),
         highlightActiveLineGutter(),
         highlightActiveLine(),
         history(),
@@ -181,6 +186,16 @@ export default function JsonRawEditor({
       effects: wrapCompartment.reconfigure(wordWrap ? EditorView.lineWrapping : []),
     });
   }, [wordWrap]);
+
+  // ─── 行号（gutter）开关切换 ──────────────────────
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: lineNumberCompartment.reconfigure(showLineNumbers ? lineNumbers() : []),
+    });
+  }, [showLineNumbers]);
 
   // ─── 滚动到目标行（AC-4） ─────────────────────────────
 

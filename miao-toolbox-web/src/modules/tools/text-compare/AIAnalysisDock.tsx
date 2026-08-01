@@ -1,16 +1,18 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SparkleIcon, RefreshIcon, TraceIcon, CloseIcon } from './icons';
 import { useDiffContext } from './useDiffContext';
 import { useAIAnalysis } from './useAIAnalysis';
+import { diffFullscreenStore } from './diffFullscreenStore';
 
 /**
- * AI 变更分析 — 浮动 Dock + 右侧抽屉
+ * AI 变更分析 — 右侧边缘侧拉把手 + 抽屉
  *
  * 布局策略：
- * - 默认折叠：右下角圆形浮动按钮（Dock）
- * - 点击展开：从右侧滑出 400px 抽屉
+ * - 默认收起：右侧边缘中部一条竖向「AI 分析」拉手（Edge Tab），贴边不遮挡内容
+ * - 点击拉出：从右侧滑出 400px 抽屉，拉手被抽屉覆盖
  * - 不占用 DiffViewer 主体空间，桌面端始终可见
  *
  * 视觉：与主色 warm/cool 协调的渐变（取代之前的纯紫）
@@ -22,6 +24,12 @@ const AIAnalysisDock: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [traceId, setTraceId] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
+  // 订阅全屏状态：差异结果全屏时彻底隐藏 dock 与 drawer，避免遮挡
+  const [diffFullscreen, setDiffFullscreen] = useState(() => diffFullscreenStore.get());
+  useEffect(() => diffFullscreenStore.subscribe(setDiffFullscreen), []);
+  // 订阅路由：本工具被 KeepAlive 隐藏（切到其它 tab）时，Portal 浮层需同步隐藏
+  const location = useLocation();
+  const isActivePage = location.pathname.startsWith('/tools/text-compare');
   const lastResultRef = useRef<string>(''); // 上次结果缓存，切换 diff 时保留
 
   const hunks = state.diffResult?.hunks ?? [];
@@ -64,6 +72,13 @@ const AIAnalysisDock: React.FC = () => {
     setCompleted(true);
   }, [cancelStream]);
 
+  // 差异结果处于全屏模式时：彻底隐藏 dock 与 drawer，避免遮挡
+  if (diffFullscreen) return null;
+
+  // 本工具非活跃 tab（被 KeepAlive 隐藏）时：Portal 浮层脱离 AppLayout 的
+  // display:none 控制，需在此主动隐藏，否则切走 tab 浮窗仍可见
+  if (!isActivePage) return null;
+
   // 没有对比结果时不显示
   if (!hasResult) return null;
 
@@ -71,24 +86,26 @@ const AIAnalysisDock: React.FC = () => {
   // stacking context，避免 drawer 顶部被 TabBar 等上层元素遮挡。
   return createPortal(
     <>
-      {/* Floating Dock Button — 右下角 */}
+      {/* Floating Action Button — 右侧中部圆形按钮，点击从右侧拉出抽屉 */}
       <AnimatePresence>
         {!open && (
           <motion.button
-            className="ai-dock-btn"
+            className="ai-fab"
             onClick={() => setOpen(true)}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            initial={{ scale: 0.7, opacity: 0, x: 28 }}
+            animate={{ scale: 1, opacity: 1, x: 0 }}
+            exit={{ scale: 0.7, opacity: 0, x: 28 }}
+            transition={{ type: 'spring', stiffness: 360, damping: 22 }}
             aria-label="打开 AI 变更分析"
+            title="AI 变更分析"
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.94 }}
           >
-            <span className="ai-dock-btn-icon">
+            <span className="ai-fab-icon">
               <SparkleIcon size={20} />
             </span>
-            <span className="ai-dock-btn-label">AI 分析</span>
-            {!hasContent && <span className="ai-dock-btn-hint">点击生成</span>}
-            {streaming && <span className="ai-dock-btn-pulse" />}
+            {hasContent && !streaming && <span className="ai-fab-dot" />}
+            {streaming && <span className="ai-fab-pulse" />}
           </motion.button>
         )}
       </AnimatePresence>

@@ -9,8 +9,9 @@ import {
   CodeOutlined,
   SaveOutlined,
   HistoryOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
-import { message, Tooltip, Dropdown, Modal, Input } from 'antd';
+import { message, Tooltip, Dropdown, Modal, Input, Popover, Switch } from 'antd';
 import type { MenuProps } from 'antd';
 import type {
   JsonNode,
@@ -65,6 +66,7 @@ const initialState: JsonWorkbenchState = {
   aiResult: null,
   indentSize: 2,
   wordWrap: true,
+  showLineNumbers: true,
   repairPreview: null,
   repairError: null,
   largeFileHintDismissed: false,
@@ -77,6 +79,7 @@ function loadInitialJsonState(): JsonWorkbenchState {
     viewMode?: ViewMode;
     indentSize?: 2 | 4;
     wordWrap?: boolean;
+    showLineNumbers?: boolean;
     schemaJson?: string | null;
     searchQuery?: string;
     searchMode?: SearchMode;
@@ -94,6 +97,7 @@ function loadInitialJsonState(): JsonWorkbenchState {
         : 'split',
     indentSize: loaded.indentSize === 4 ? 4 : 2,
     wordWrap: loaded.wordWrap !== false,
+    showLineNumbers: loaded.showLineNumbers !== false,
     schemaJson: typeof loaded.schemaJson === 'string' ? loaded.schemaJson : null,
     searchQuery: typeof loaded.searchQuery === 'string' ? loaded.searchQuery : '',
     searchMode:
@@ -241,6 +245,8 @@ function jsonWbReducer(state: JsonWorkbenchState, action: JsonWbAction): JsonWor
       return { ...state, indentSize: action.payload };
     case 'JSON_WB_SET_WORD_WRAP':
       return { ...state, wordWrap: action.payload };
+    case 'JSON_WB_SET_SHOW_LINE_NUMBERS':
+      return { ...state, showLineNumbers: action.payload };
     case 'JSON_WB_REPAIR_SUCCESS':
       return { ...state, repairPreview: action.payload, repairError: null };
     case 'JSON_WB_REPAIR_FAIL':
@@ -256,7 +262,7 @@ function jsonWbReducer(state: JsonWorkbenchState, action: JsonWbAction): JsonWor
 
 // ─── 工具栏 ────────────────────────────────────────────
 
-function Toolbar({ viewMode, onViewModeChange, onSave, canSave, hasData, hasRawInput, canFormat, isEscapedJson, indentSize, wordWrap, onWordWrapChange, onFormat, onCompress, onEscapeCompact, onUnescape, onIndentChange, showError, onRepair, onCopyPretty, onCopyCompact, hasSchema, onSchemaClear, parseProgress, fileSize, schemaMenuItems, onOpenHistory }: {
+function Toolbar({ viewMode, onViewModeChange, onSave, canSave, hasData, hasRawInput, canFormat, isEscapedJson, indentSize, wordWrap, onWordWrapChange, showLineNumbers, onShowLineNumbersChange, onFormat, onCompress, onEscapeCompact, onUnescape, onIndentChange, showError, onRepair, onCopyPretty, onCopyCompact, hasSchema, onSchemaClear, parseProgress, fileSize, schemaMenuItems, onOpenHistory }: {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
   onSave: () => void;
@@ -268,6 +274,8 @@ function Toolbar({ viewMode, onViewModeChange, onSave, canSave, hasData, hasRawI
   indentSize: 2 | 4;
   wordWrap: boolean;
   onWordWrapChange: (value: boolean) => void;
+  showLineNumbers: boolean;
+  onShowLineNumbersChange: (value: boolean) => void;
   onFormat: () => void;
   onCompress: () => void;
   onEscapeCompact: () => void;
@@ -338,30 +346,31 @@ function Toolbar({ viewMode, onViewModeChange, onSave, canSave, hasData, hasRawI
                 4空格
               </button>
             </div>
-            <Tooltip title={wordWrap ? '自动换行：开（长行折行）' : '自动换行：关（单行水平滚动）'}>
-              <button
-                className={`jw-wrap-toggle ${wordWrap ? 'jw-wrap-toggle--active' : ''}`}
-                onClick={() => onWordWrapChange(!wordWrap)}
-                aria-pressed={wordWrap}
-                aria-label="切换自动换行"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
+            <Popover
+              trigger="click"
+              placement="bottomRight"
+              content={
+                <div className="jw-display-popover">
+                  <div className="jw-display-popover__row">
+                    <span className="jw-display-popover__label">自动换行</span>
+                    <Switch size="small" checked={wordWrap} onChange={onWordWrapChange} />
+                  </div>
+                  <div className="jw-display-popover__row">
+                    <span className="jw-display-popover__label">行号</span>
+                    <Switch size="small" checked={showLineNumbers} onChange={onShowLineNumbersChange} />
+                  </div>
+                </div>
+              }
+            >
+              <Tooltip title="显示偏好（换行 / 行号）">
+                <button
+                  className={`jw-pref-btn ${wordWrap || showLineNumbers ? 'jw-pref-btn--active' : ''}`}
+                  aria-label="显示偏好"
                 >
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <path d="M3 12h15a3 3 0 1 1 0 6h-4" />
-                  <path d="m16 16-2 2 2 2" />
-                </svg>
-              </button>
-            </Tooltip>
+                  <SettingOutlined />
+                </button>
+              </Tooltip>
+            </Popover>
           </>
         )}
         {parseProgress > 0 && parseProgress < 100 && (
@@ -378,14 +387,20 @@ function Toolbar({ viewMode, onViewModeChange, onSave, canSave, hasData, hasRawI
           </span>
         )}
         {hasData && !showError && parseProgress === 0 && (
-          <>
-            <button className="jw-copy-btn" onClick={onCopyPretty} title="复制美化版 (Ctrl+Shift+C)">
-              复制美化
+          <Dropdown
+            menu={{
+              items: [
+                { key: 'pretty', label: '复制美化 (Ctrl+Shift+C)', onClick: onCopyPretty },
+                { key: 'compact', label: '复制压缩 (Ctrl+Shift+M)', onClick: onCopyCompact },
+              ],
+            }}
+            trigger={['click']}
+            placement="bottomRight"
+          >
+            <button className="jw-copy-btn jw-copy-btn--dropdown" title="复制当前内容">
+              复制 ▾
             </button>
-            <button className="jw-copy-btn" onClick={onCopyCompact} title="复制压缩版 (Ctrl+Shift+M)">
-              复制压缩
-            </button>
-          </>
+          </Dropdown>
         )}
         {hasSchema ? (
           <Tooltip title="点击清除校验规则">
@@ -514,6 +529,7 @@ export default function JsonWorkbenchPage() {
       viewMode: state.viewMode,
       indentSize: state.indentSize,
       wordWrap: state.wordWrap,
+      showLineNumbers: state.showLineNumbers,
       schemaJson: state.schemaJson,
       searchQuery: state.searchQuery,
       searchMode: state.searchMode,
@@ -522,6 +538,8 @@ export default function JsonWorkbenchPage() {
     state.rawJson,
     state.viewMode,
     state.indentSize,
+    state.wordWrap,
+    state.showLineNumbers,
     state.schemaJson,
     state.searchQuery,
     state.searchMode,
@@ -593,6 +611,11 @@ export default function JsonWorkbenchPage() {
   // 换行（自动折行）开关
   const handleWordWrapChange = useCallback((value: boolean) => {
     dispatch({ type: 'JSON_WB_SET_WORD_WRAP', payload: value });
+  }, []);
+
+  // 行号显示开关
+  const handleShowLineNumbersChange = useCallback((value: boolean) => {
+    dispatch({ type: 'JSON_WB_SET_SHOW_LINE_NUMBERS', payload: value });
   }, []);
 
   const handleRawChange = useCallback(
@@ -1179,6 +1202,7 @@ export default function JsonWorkbenchPage() {
       scrollTarget={scrollTarget}
       onScrollTargetHandled={handleScrollTargetHandled}
       wordWrap={state.wordWrap}
+      showLineNumbers={state.showLineNumbers}
     />
   );
 
@@ -1206,6 +1230,8 @@ export default function JsonWorkbenchPage() {
         onIndentChange={handleIndentChange}
         wordWrap={state.wordWrap}
         onWordWrapChange={handleWordWrapChange}
+        showLineNumbers={state.showLineNumbers}
+        onShowLineNumbersChange={handleShowLineNumbersChange}
         showError={showError}
         onRepair={handleRepair}
         onCopyPretty={handleCopyPretty}

@@ -329,8 +329,8 @@
   opacity: 0.45;
 }
 
-/* 换行（自动换行）图标开关按钮 */
-.jw-wrap-toggle {
+/* 显示偏好：折叠为 Popover，trigger 为图标按钮（任一开启时高亮） */
+.jw-pref-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -343,24 +343,39 @@
   color: var(--miao-text-tertiary);
   cursor: pointer;
   transition: all 0.2s ease;
+  font-size: 14px;
 }
 
-.jw-wrap-toggle:hover {
+.jw-pref-btn:hover {
   color: var(--tool-accent);
   background: var(--tool-accent-7);
   border-color: var(--tool-accent-24);
 }
 
-.jw-wrap-toggle--active {
+.jw-pref-btn--active {
   color: var(--tool-accent);
   background: var(--tool-accent-11);
   border-color: var(--tool-accent-24);
 }
 
-.jw-wrap-toggle--active:hover {
-  color: var(--tool-accent);
-  background: var(--tool-accent-13);
-  border-color: var(--tool-accent-32);
+.jw-display-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0;
+  min-width: 180px;
+}
+
+.jw-display-popover__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.jw-display-popover__label {
+  font-size: 13px;
+  color: var(--miao-text-primary);
 }
 
 .jw-format-btn:disabled:hover {
@@ -408,6 +423,19 @@
 
 .jw-copy-btn:active {
   transform: scale(0.97);
+}
+
+/* 复制下拉按钮（折叠复制美化 / 复制压缩 为单个 ▾ 按钮） */
+.jw-copy-btn--dropdown {
+  display: inline-flex;
+  align-items: center;
+}
+
+.jw-copy-group .jw-copy-btn:hover {
+  color: var(--tool-accent);
+  border-color: transparent;
+  background: var(--tool-accent-7);
+  box-shadow: none;
 }
 
 /* ─── Schema 按钮 — 圆角胶囊 ──────────────────────── */

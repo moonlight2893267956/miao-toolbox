@@ -127,6 +127,8 @@ export interface JsonWorkbenchState {
   indentSize: 2 | 4;
   /** 编辑器是否自动换行（false = 一行展示，水平滚动） */
   wordWrap: boolean;
+  /** 编辑器是否显示行号（gutter 行号列） */
+  showLineNumbers: boolean;
   /** 修复预览（null = 无预览） */
   repairPreview: RepairResult | null;
   /** 修复错误信息 */
@@ -165,6 +167,7 @@ export type JsonWbAction =
   | { type: 'JSON_WB_ENSURE_EXPANDED'; payload: string[] }
   | { type: 'JSON_WB_SET_INDENT_SIZE'; payload: 2 | 4 }
   | { type: 'JSON_WB_SET_WORD_WRAP'; payload: boolean }
+  | { type: 'JSON_WB_SET_SHOW_LINE_NUMBERS'; payload: boolean }
   | { type: 'JSON_WB_REPAIR_SUCCESS'; payload: RepairResult }
   | { type: 'JSON_WB_REPAIR_FAIL'; payload: string }
   | { type: 'JSON_WB_SET_REPAIR_PREVIEW'; payload: RepairResult | null }
