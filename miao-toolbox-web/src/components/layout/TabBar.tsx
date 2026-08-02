@@ -93,9 +93,7 @@ const SortableTab: React.FC<SortableTabProps> = ({
         }
         style={style}
         onClick={() => onClick(tab.key, tab.path)}
-        role="tab"
         aria-selected={isActive}
-        tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
@@ -107,6 +105,8 @@ const SortableTab: React.FC<SortableTabProps> = ({
         }}
         {...attributes}
         {...listeners}
+        role="tab"
+        tabIndex={0}
       >
         {/* 拖拽手柄区域：icon + label 可拖拽，close 按钮不触发拖拽 */}
         <span className="miao-tab-drag-handle" ref={setActivatorNodeRef}>
