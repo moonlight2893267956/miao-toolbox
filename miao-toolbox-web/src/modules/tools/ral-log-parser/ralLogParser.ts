@@ -43,8 +43,12 @@ export interface RalCallRecord {
   errNo: number;
   /** curl 错误码 */
   curlCode: number;
+  /** curl 错误描述（URL 解码后） */
+  curlErrmsg: string;
   /** 协议返回码 */
   protCode: number;
+  /** 错误信息 */
+  errInfo: string;
   /** 远端 IP */
   remoteIp: string;
   /** 读超时配置 ms */
@@ -55,8 +59,8 @@ export interface RalCallRecord {
   reqLen: number;
   /** 响应长度 */
   resLen: number;
-  /** 重试次数 */
-  retry: number;
+  /** 重试信息（原始格式如 0/2） */
+  retry: string;
   /** 是否为异常调用 */
   isAbnormal: boolean;
   /** 异常原因列表 */
@@ -114,7 +118,7 @@ export const DEFAULT_ANOMALY_CONFIG: RalAnomalyConfig = {
   checkLogLevel: true,
   checkErrNo: true,
   checkCurlCode: true,
-  checkProtCode: true,
+  checkProtCode: false,
   checkCostOverRtimeout: true,
   checkCostThreshold: false,
   costThreshold: 3000,
@@ -169,7 +173,8 @@ function extractFields(line: string): Record<string, string> {
   // RAL 日志格式：key1=value1 key2=value2 ...
   // 值可能包含空格（如 URI），所以用更精细的匹配
   // 匹配模式：word=非空格序列 或 word="带引号的值"
-  const regex = /(\w+)=(?:"([^"]*)"|(\S+))/g;
+  // 注意：值里不应包含日志行结尾的 `]`，所以排除它
+  const regex = /(\w+)=(?:"([^"]*)"|(\S+?))(?=\s|$|\])/g;
   let match;
   while ((match = regex.exec(line)) !== null) {
     const key = match[1];
@@ -180,11 +185,30 @@ function extractFields(line: string): Record<string, string> {
   return fields;
 }
 
-/** 提取时间戳：行首的 [timestamp] 或 YYYY-MM-DD HH:mm:ss 格式 */
+/** 安全地 URL 解码（容错处理） */
+function safeDecode(s: string): string {
+  if (!s) return s;
+  try {
+    return decodeURIComponent(s.replace(/\+/g, ' '));
+  } catch {
+    return s.replace(/\+/g, ' ');
+  }
+}
+
+/** 提取时间戳：支持多种 RAL 日志时间格式 */
 function extractTimestamp(line: string): string {
-  // 匹配 [2026-08-01 10:00:01.123] 或 2026-08-01 10:00:01.123
-  const tsMatch = line.match(/\[?(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d+)?)\]?/);
-  return tsMatch ? tsMatch[1] : '';
+  // 格式1: [2026-08-01 10:00:01.123] 或 2026-08-01 10:00:01.123（带年份）
+  const fullMatch = line.match(/\[?(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d+)?)\]?/);
+  if (fullMatch) return fullMatch[1];
+
+  // 格式2: NOTICE: 07-31 17:36:48: 或 07-31 17:36:48（无年份，MM-DD HH:mm:ss）
+  const shortMatch = line.match(/(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/);
+  if (shortMatch) {
+    const year = new Date().getFullYear();
+    return `${year}-${shortMatch[1]}`;
+  }
+
+  return '';
 }
 
 /** 提取日志级别 */
@@ -195,10 +219,10 @@ function extractLogLevel(line: string): string {
   return level === 'WARN' ? 'WARNING' : level;
 }
 
-/** 安全解析数字 */
+/** 安全解析数字（支持小数，如 cost=2.643） */
 function parseNum(val: string | undefined, defaultVal = 0): number {
   if (val === undefined || val === '') return defaultVal;
-  const n = parseInt(val, 10);
+  const n = parseFloat(val);
   return isNaN(n) ? defaultVal : n;
 }
 
@@ -251,13 +275,15 @@ export function parseRalLog(text: string, config: RalAnomalyConfig = DEFAULT_ANO
         unpack: parseNum(fields.unpack),
         errNo: parseNum(fields.err_no),
         curlCode: parseNum(fields.curl_code),
+        curlErrmsg: safeDecode(fields.curl_errmsg || ''),
         protCode: parseNum(fields.prot_code),
+        errInfo: safeDecode(fields.err_info || ''),
         remoteIp: fields.remote_ip || '',
         rtimeout: parseNum(fields.rtimeout),
         localIp: fields.local_ip || '',
         reqLen: parseNum(fields.req_len),
         resLen: parseNum(fields.res_len),
-        retry: parseNum(fields.retry),
+        retry: fields.retry || '',
         rawLine: line.trim(),
         allFields: fields,
         parseFailed: false,
@@ -296,13 +322,15 @@ export function parseRalLog(text: string, config: RalAnomalyConfig = DEFAULT_ANO
         unpack: 0,
         errNo: 0,
         curlCode: 0,
+        curlErrmsg: '',
         protCode: 0,
+        errInfo: '',
         remoteIp: '',
         rtimeout: 0,
         localIp: '',
         reqLen: 0,
         resLen: 0,
-        retry: 0,
+        retry: '',
         isAbnormal: false,
         abnormalReasons: [],
         parseFailed: true,
@@ -324,9 +352,9 @@ export function parseRalLog(text: string, config: RalAnomalyConfig = DEFAULT_ANO
 
 /* ---------- 示例日志 ---------- */
 
-export const SAMPLE_RAL_LOG = `[2026-08-01 10:00:01.123] WARNING log_type=E_SUM caller=RAL service=ris-variable method=POST uri=/api/variable/get cost=6002 connect=3 talk=6000 read=5998 write=1 pack=0 unpack=1 err_no=8 curl_code=28 prot_code=0 remote_ip=10.0.1.100 rtimeout=2000 local_ip=10.0.0.5 req_len=256 res_len=0 retry=0
-[2026-08-01 10:00:01.456] INFO log_type=E_SUM caller=RAL service=pay-core method=POST uri=/api/pay/create cost=45 connect=2 talk=42 read=38 write=3 pack=1 unpack=1 err_no=0 curl_code=0 prot_code=200 remote_ip=10.0.2.50 rtimeout=3000 local_ip=10.0.0.5 req_len=512 res_len=1024 retry=0
-[2026-08-01 10:00:02.789] WARNING log_type=E_SUM caller=RAL service=pay-core method=POST uri=/api/pay/query cost=3502 connect=5 talk=3490 read=3480 write=8 pack=2 unpack=5 err_no=0 curl_code=0 prot_code=200 remote_ip=10.0.2.50 rtimeout=3000 local_ip=10.0.0.5 req_len=128 res_len=2048 retry=1
-[2026-08-01 10:00:03.012] INFO log_type=E_SUM caller=RAL service=user-center method=GET uri=/api/user/info cost=12 connect=1 talk=10 read=8 write=1 pack=0 unpack=1 err_no=0 curl_code=0 prot_code=200 remote_ip=10.0.3.20 rtimeout=5000 local_ip=10.0.0.5 req_len=64 res_len=512 retry=0
-[2026-08-01 10:00:03.345] ERROR log_type=E_SUM caller=RAL service=risk-control method=POST uri=/api/risk/check cost=50 connect=3 talk=45 read=40 write=4 pack=1 unpack=1 err_no=1001 curl_code=0 prot_code=503 remote_ip=10.0.4.10 rtimeout=1000 local_ip=10.0.0.5 req_len=256 res_len=128 retry=0
-[2026-08-01 10:00:04.567] INFO log_type=E_SUM caller=RAL service=pay-core method=POST uri=/api/pay/create cost=38 connect=2 talk=35 read=30 write=3 pack=1 unpack=1 err_no=0 curl_code=0 prot_code=200 remote_ip=10.0.2.50 rtimeout=3000 local_ip=10.0.0.5 req_len=512 res_len=1024 retry=0`;
+export const SAMPLE_RAL_LOG = `NOTICE: 07-31 17:36:48:  ral-worker * 50445 [/home/work/ral/rpc.cpp:385][logid=3208470061 log_type=E_SUM caller=RAL service=feature_genmap method=get cost=2.643 talk=2.577 connect=0.730 write=0.022 read=1.821 pack=0.025 unpack=0.022 err_no=0 prot_code=0 remote_ip=10.106.70.5:5000 rtimeout=2000 local_ip=10.107.71.81 req_len=278 res_len=391 retry=0]
+NOTICE: 07-31 17:36:48:  ral-worker * 50445 [/home/work/ral/rpc.cpp:385][logid=3208470061 log_type=E_SUM caller=RAL service=payserverquery method=query_receive_info cost=8.371 talk=8.306 connect=0.722 write=0.015 read=7.566 pack=0.016 unpack=0.035 err_no=0 prot_code=0 remote_ip=10.106.70.5:8004 rtimeout=2000 local_ip=10.107.71.81 req_len=332 res_len=1985 retry=0]
+NOTICE: 07-31 17:36:48:  ral-worker * 50445 [/home/work/ral/rpc.cpp:385][logid=3208470061 log_type=E_SUM caller=RAL service=dxm-session method=POST conv=string prot=http cost=24.757 talk=24.745 connect=1.490 write=0.000 read=24.725 pack=0.001 unpack=0.001 err_no=0 curl_code=0 prot_code=200 remote_ip=30.32.0.70:8033 rtimeout=2000 local_ip=10.107.71.81 uri=/api/session req_len=591 res_len=626 retry=0]
+WARNING: 07-31 17:36:49:  ral-worker * 50445 [/home/work/ral/rpc.cpp:385][logid=3208470062 log_type=E_SUM caller=RAL service=usercenter method=POST conv=string prot=http cost=3024.5 talk=3018.2 connect=1.2 write=0.0 read=3016.8 pack=0.1 unpack=0.1 err_no=0 curl_code=0 prot_code=200 remote_ip=10.106.70.5:8212 rtimeout=2000 local_ip=10.107.71.81 uri=/usercenter/format/user req_len=153 res_len=121 retry=0]
+ERROR: 07-31 17:36:50:  ral-worker * 50445 [/home/work/ral/rpc.cpp:385][logid=3208470063 log_type=E_SUM caller=RAL service=risk-control method=POST conv=string prot=http cost=50.3 talk=45.1 connect=3.0 write=0.4 read=40.2 pack=1.0 unpack=1.0 err_no=1001 curl_code=0 prot_code=503 remote_ip=10.106.70.5:8215 rtimeout=1000 local_ip=10.107.71.81 uri=/api/risk/check req_len=256 res_len=128 retry=0]
+NOTICE: 07-31 17:36:50:  ral-worker * 50445 [/home/work/ral/rpc.cpp:385][logid=3208470064 log_type=E_SUM caller=RAL service=payapi method=POST conv=form prot=http cost=7.627 talk=7.611 connect=0.677 write=0.000 read=7.606 pack=0.005 unpack=0.000 err_no=0 curl_code=0 prot_code=200 remote_ip=10.106.70.5:8211 rtimeout=5000 local_ip=10.107.71.81 uri=/payapi/discountserver/marketwords req_len=113 res_len=84 retry=0]`;

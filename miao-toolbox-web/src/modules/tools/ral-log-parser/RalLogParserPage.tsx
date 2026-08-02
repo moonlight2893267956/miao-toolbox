@@ -4,6 +4,7 @@ import {
   Popover,
   Switch,
   InputNumber,
+  Tooltip,
 } from 'antd';
 import {
   BugOutlined,
@@ -33,6 +34,14 @@ import {
 import { useRalLogTabs } from './useRalLogTabs';
 import './ral-log-parser.css';
 
+/* ---------- 工具函数 ---------- */
+
+/** 格式化耗时数值：整数不显示小数点，小数最多保留3位 */
+function fmtMs(v: number): string {
+  if (v % 1 === 0) return String(v);
+  return v.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+}
+
 /* ---------- 耗时分解条组件 ---------- */
 
 function CostBreakdownBar({ record }: { record: RalCallRecord }) {
@@ -49,13 +58,23 @@ function CostBreakdownBar({ record }: { record: RalCallRecord }) {
     <Popover
       content={
         <div className="ral-popover-breakdown">
-          {segments.map(s => (
-            <div key={s.label} className="ral-popover-row">
-              <span className="ral-popover-dot" style={{ background: s.color }} />
-              <span className="ral-popover-label">{s.label}</span>
-              <span className="ral-popover-value">{s.value}ms</span>
-            </div>
-          ))}
+          {segments.map(s => {
+            const pct = total > 0 ? (s.value / total) * 100 : 0;
+            return (
+              <div key={s.label} className="ral-popover-row">
+                <span className="ral-popover-dot" style={{ background: s.color }} />
+                <span className="ral-popover-label">{s.label}</span>
+                <div className="ral-popover-track">
+                  <div
+                    className="ral-popover-track-fill"
+                    style={{ width: `${pct}%`, backgroundColor: s.color }}
+                  />
+                </div>
+                <span className="ral-popover-value">{s.value}ms</span>
+                <span className="ral-popover-pct">{pct.toFixed(0)}%</span>
+              </div>
+            );
+          })}
           <div className="ral-popover-total">
             <span>total</span>
             <span>{record.cost}ms</span>
@@ -344,23 +363,36 @@ export function RalLogParserPage() {
       title: '#',
       dataIndex: 'index',
       key: 'index',
-      width: 44,
+      width: 48,
       fixed: 'left',
+      onCell: (record) => ({
+        className: record.isAbnormal ? 'ral-cell-abnormal' : '',
+      }),
       render: (v: number) => <span className="ral-cell-idx">{String(v).padStart(2, '0')}</span>,
     },
     {
       title: '时间',
       dataIndex: 'timestamp',
       key: 'timestamp',
-      width: 170,
+      width: 166,
       ellipsis: true,
-      render: (v: string) => <span className="ral-cell-mono">{v}</span>,
+      onCell: (record) => ({
+        className: record.isAbnormal ? 'ral-cell-abnormal' : '',
+      }),
+      render: (v: string) => (
+        <Tooltip title={v} placement="topLeft" overlayClassName="ral-cell-tooltip">
+          <span className="ral-cell-mono ral-cell-ellipsis">{v}</span>
+        </Tooltip>
+      ),
     },
     {
       title: '类型',
       dataIndex: 'logType',
       key: 'logType',
       width: 68,
+      onCell: (record) => ({
+        className: record.isAbnormal ? 'ral-cell-abnormal' : '',
+      }),
       render: (v: string) => (
         <span className={`ral-type-tag ral-type-tag--${v === 'E_SUM' ? 'sum' : 'talk'}`}>{v}</span>
       ),
@@ -369,70 +401,105 @@ export function RalLogParserPage() {
       title: '服务',
       dataIndex: 'service',
       key: 'service',
-      width: 130,
+      width: 126,
       ellipsis: true,
-      render: (v: string) => <span className="ral-cell-service">{v}</span>,
+      onCell: (record) => ({
+        className: record.isAbnormal ? 'ral-cell-abnormal' : '',
+      }),
+      render: (v: string) => (
+        <Tooltip title={v} placement="topLeft" overlayClassName="ral-cell-tooltip">
+          <span className="ral-cell-service ral-cell-ellipsis">{v}</span>
+        </Tooltip>
+      ),
     },
     {
       title: '方法',
       dataIndex: 'method',
       key: 'method',
-      width: 64,
+      width: 120,
+      onCell: (record) => ({
+        className: record.isAbnormal ? 'ral-cell-abnormal' : '',
+      }),
       render: (v: string) => <span className="ral-cell-method">{v}</span>,
     },
     {
       title: 'URI',
       dataIndex: 'uri',
       key: 'uri',
-      width: 180,
+      width: 280,
       ellipsis: true,
-      render: (v: string) => <span className="ral-cell-mono">{v}</span>,
+      onCell: (record) => ({
+        className: record.isAbnormal ? 'ral-cell-abnormal' : '',
+      }),
+      render: (v: string) => (
+        <Tooltip title={v} placement="topLeft" overlayClassName="ral-cell-tooltip">
+          <span className="ral-cell-mono ral-cell-ellipsis">{v}</span>
+        </Tooltip>
+      ),
     },
     {
       title: 'cost',
       dataIndex: 'cost',
       key: 'cost',
-      width: 160,
+      width: 210,
       sorter: (a, b) => a.cost - b.cost,
-      render: (cost: number, record) => (
-        <div className="ral-cost-cell">
-          <span className={`ral-cost-value ${cost > 1000 ? 'ral-cost-value--high' : cost > 500 ? 'ral-cost-value--warn' : ''}`}>
-            {cost}<span className="ral-cost-unit">ms</span>
-          </span>
-          <CostBreakdownBar record={record} />
-        </div>
-      ),
+      onCell: (record) => ({
+        className: record.isAbnormal ? 'ral-cell-abnormal' : '',
+      }),
+      render: (cost: number, record) => {
+        const display = fmtMs(cost);
+        return (
+          <div className="ral-cost-cell">
+            <span className={`ral-cost-value ${cost > 1000 ? 'ral-cost-value--high' : cost > 500 ? 'ral-cost-value--warn' : ''}`}>
+              {display}<span className="ral-cost-unit">ms</span>
+            </span>
+            <CostBreakdownBar record={record} />
+          </div>
+        );
+      },
     },
     {
       title: 'connect',
       dataIndex: 'connect',
       key: 'connect',
-      width: 76,
+      width: 92,
       sorter: (a, b) => a.connect - b.connect,
-      render: (v: number) => <span className={`ral-cell-ms ${v > 100 ? 'ral-cell-ms--warn' : ''}`}>{v}ms</span>,
+      onCell: (record) => ({
+        className: record.isAbnormal ? 'ral-cell-abnormal' : '',
+      }),
+      render: (v: number) => <span className={`ral-cell-ms ${v > 100 ? 'ral-cell-ms--warn' : ''}`}>{fmtMs(v)}ms</span>,
     },
     {
       title: 'talk',
       dataIndex: 'talk',
       key: 'talk',
-      width: 76,
+      width: 92,
       sorter: (a, b) => a.talk - b.talk,
-      render: (v: number) => <span className={`ral-cell-ms ${v > 1000 ? 'ral-cell-ms--high' : ''}`}>{v}ms</span>,
+      onCell: (record) => ({
+        className: record.isAbnormal ? 'ral-cell-abnormal' : '',
+      }),
+      render: (v: number) => <span className={`ral-cell-ms ${v > 1000 ? 'ral-cell-ms--high' : ''}`}>{fmtMs(v)}ms</span>,
     },
     {
       title: 'read',
       dataIndex: 'read',
       key: 'read',
-      width: 76,
+      width: 92,
       sorter: (a, b) => a.read - b.read,
-      render: (v: number) => <span className={`ral-cell-ms ${v > 1000 ? 'ral-cell-ms--high' : ''}`}>{v}ms</span>,
+      onCell: (record) => ({
+        className: record.isAbnormal ? 'ral-cell-abnormal' : '',
+      }),
+      render: (v: number) => <span className={`ral-cell-ms ${v > 1000 ? 'ral-cell-ms--high' : ''}`}>{fmtMs(v)}ms</span>,
     },
     {
       title: 'err_no',
       dataIndex: 'errNo',
       key: 'errNo',
-      width: 72,
+      width: 78,
       sorter: (a, b) => a.errNo - b.errNo,
+      onCell: (record) => ({
+        className: record.isAbnormal ? 'ral-cell-abnormal' : '',
+      }),
       render: (v: number) => v !== 0
         ? <span className="ral-cell-error">{v}</span>
         : <span className="ral-cell-muted">0</span>,
@@ -441,8 +508,11 @@ export function RalLogParserPage() {
       title: 'curl_code',
       dataIndex: 'curlCode',
       key: 'curlCode',
-      width: 80,
+      width: 112,
       sorter: (a, b) => a.curlCode - b.curlCode,
+      onCell: (record) => ({
+        className: record.isAbnormal ? 'ral-cell-abnormal' : '',
+      }),
       render: (v: number) => v !== 0
         ? <span className="ral-cell-error">{v}</span>
         : <span className="ral-cell-muted">0</span>,
@@ -451,8 +521,11 @@ export function RalLogParserPage() {
       title: 'prot_code',
       dataIndex: 'protCode',
       key: 'protCode',
-      width: 80,
+      width: 112,
       sorter: (a, b) => a.protCode - b.protCode,
+      onCell: (record) => ({
+        className: record.isAbnormal ? 'ral-cell-abnormal' : '',
+      }),
       render: (v: number) => (v >= 400 || v === 0) && v !== 200
         ? <span className="ral-cell-error">{v}</span>
         : <span className="ral-cell-muted">{v}</span>,
@@ -461,16 +534,79 @@ export function RalLogParserPage() {
       title: '远端 IP',
       dataIndex: 'remoteIp',
       key: 'remoteIp',
-      width: 126,
-      render: (v: string) => <span className="ral-cell-mono">{v}</span>,
+      width: 132,
+      ellipsis: true,
+      onCell: (record) => ({
+        className: record.isAbnormal ? 'ral-cell-abnormal' : '',
+      }),
+      render: (v: string) => (
+        <Tooltip title={v} placement="topLeft" overlayClassName="ral-cell-tooltip">
+          <span className="ral-cell-mono ral-cell-ellipsis">{v}</span>
+        </Tooltip>
+      ),
     },
     {
       title: 'rtimeout',
       dataIndex: 'rtimeout',
       key: 'rtimeout',
-      width: 80,
+      width: 88,
       sorter: (a, b) => a.rtimeout - b.rtimeout,
-      render: (v: number) => <span className="ral-cell-muted">{v}ms</span>,
+      onCell: (record) => ({
+        className: record.isAbnormal ? 'ral-cell-abnormal' : '',
+      }),
+      render: (v: number) => <span className="ral-cell-muted">{fmtMs(v)}ms</span>,
+    },
+    {
+      title: 'retry',
+      dataIndex: 'retry',
+      key: 'retry',
+      width: 64,
+      onCell: (record) => ({
+        className: record.isAbnormal ? 'ral-cell-abnormal' : '',
+      }),
+      render: (v: string | number) => {
+        const s = String(v ?? '');
+        if (!s) return <span className="ral-cell-muted">-</span>;
+        const parts = s.split('/');
+        if (parts.length === 2 && parts[0] !== '0') {
+          return <span className="ral-cell-error">{s}</span>;
+        }
+        return <span className="ral-cell-muted">{s}</span>;
+      },
+    },
+    {
+      title: 'curl_errmsg',
+      dataIndex: 'curlErrmsg',
+      key: 'curlErrmsg',
+      width: 200,
+      ellipsis: true,
+      onCell: (record) => ({
+        className: record.isAbnormal ? 'ral-cell-abnormal' : '',
+      }),
+      render: (v: string) => v
+        ? (
+          <Tooltip title={v} placement="topLeft" overlayClassName="ral-cell-tooltip ral-cell-tooltip--error">
+            <span className="ral-cell-error ral-cell-ellipsis">{v}</span>
+          </Tooltip>
+        )
+        : <span className="ral-cell-muted">-</span>,
+    },
+    {
+      title: 'err_info',
+      dataIndex: 'errInfo',
+      key: 'errInfo',
+      width: 160,
+      ellipsis: true,
+      onCell: (record) => ({
+        className: record.isAbnormal ? 'ral-cell-abnormal' : '',
+      }),
+      render: (v: string) => v
+        ? (
+          <Tooltip title={v} placement="topLeft" overlayClassName="ral-cell-tooltip ral-cell-tooltip--error">
+            <span className="ral-cell-error ral-cell-ellipsis">{v}</span>
+          </Tooltip>
+        )
+        : <span className="ral-cell-muted">-</span>,
     },
   ];
 
@@ -672,7 +808,7 @@ export function RalLogParserPage() {
                   dataSource={displayRecords}
                   rowKey="index"
                   size="small"
-                  scroll={{ x: 1600 }}
+                  scroll={{ x: 2200 }}
                   pagination={displayRecords.length > 50 ? { pageSize: 50 } : false}
                   rowClassName={record =>
                     record.isAbnormal
@@ -696,32 +832,92 @@ export function RalLogParserPage() {
                           onClick={e => onExpand(record, e)}
                         />
                       ),
-                    expandedRowRender: record => (
-                      <div className="ral-expanded-row">
-                        <div className="ral-expanded-section">
-                          <div className="ral-expanded-label">原始日志</div>
-                          <pre className="ral-raw-log">{record.rawLine}</pre>
-                        </div>
-                        {record.abnormalReasons.length > 0 && (
+                    expandedRowRender: record => {
+                      const fieldEntries = Object.entries(record.allFields);
+                      const abnormalKeySet = new Set<string>();
+                      if (record.isAbnormal) {
+                        ['cost', 'err_no', 'curl_code', 'prot_code', 'rtimeout', 'log_type', 'curl_errmsg', 'err_info'].forEach(k => abnormalKeySet.add(k));
+                      }
+                      return (
+                        <div className="ral-expanded-row">
+                          {/* 关键错误信息摘要 */}
+                          {(record.curlErrmsg || record.errInfo) && (
+                            <div className="ral-expanded-section">
+                              <div className="ral-expanded-label">错误摘要</div>
+                              <div className="ral-error-summary">
+                                {record.curlErrmsg && (
+                                  <div className="ral-error-line">
+                                    <span className="ral-error-key">curl_errmsg</span>
+                                    <span className="ral-error-val">{record.curlErrmsg}</span>
+                                  </div>
+                                )}
+                                {record.errInfo && (
+                                  <div className="ral-error-line">
+                                    <span className="ral-error-key">err_info</span>
+                                    <span className="ral-error-val">{record.errInfo}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                           <div className="ral-expanded-section">
-                            <div className="ral-expanded-label">异常原因</div>
-                            <div className="ral-reason-tags">
-                              {record.abnormalReasons.map((r, i) => (
-                                <span key={i} className="ral-reason-tag">{r}</span>
+                            <div className="ral-expanded-label">原始日志</div>
+                            <div className="ral-raw-log">
+                              {(() => {
+                                const line = record.rawLine;
+                                const regex = /(\w+)=(?:"([^"]*)"|(\S+))/g;
+                                const parts: React.ReactNode[] = [];
+                                let lastIdx = 0;
+                                let m: RegExpExecArray | null;
+                                let key = 0;
+                                while ((m = regex.exec(line)) !== null) {
+                                  if (m.index > lastIdx) {
+                                    parts.push(<span key={`pre-${key++}`} className="ral-log-prefix">{line.substring(lastIdx, m.index)}</span>);
+                                  }
+                                  const k = m[1];
+                                  const v = m[2] !== undefined ? m[2] : m[3];
+                                  const cls = abnormalKeySet.has(k) ? 'ral-log-key ral-log-key--abnormal' : 'ral-log-key';
+                                  parts.push(
+                                    <span key={`kv-${key++}`}>
+                                      <span className={cls}>{k}</span>
+                                      <span className="ral-log-eq">=</span>
+                                      <span className="ral-log-value">{v}</span>
+                                      <span className="ral-log-sep"> </span>
+                                    </span>
+                                  );
+                                  lastIdx = regex.lastIndex;
+                                }
+                                if (lastIdx < line.length) {
+                                  parts.push(<span key={`suf-${key++}`} className="ral-log-prefix">{line.substring(lastIdx)}</span>);
+                                }
+                                return parts;
+                              })()}
+                            </div>
+                          </div>
+                          {record.abnormalReasons.length > 0 && (
+                            <div className="ral-expanded-section">
+                              <div className="ral-expanded-label">异常原因</div>
+                              <div className="ral-reason-tags">
+                                {record.abnormalReasons.map((r, i) => (
+                                  <span key={i} className="ral-reason-tag">{r}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <div className="ral-expanded-section">
+                            <div className="ral-expanded-label">全量字段（{fieldEntries.length}）</div>
+                            <div className="ral-all-fields">
+                              {fieldEntries.map(([k, v]) => (
+                                <div key={k} className={`ral-field-row ${abnormalKeySet.has(k) ? 'ral-field-row--abnormal' : ''}`}>
+                                  <span className="ral-field-key">{k}</span>
+                                  <span className="ral-field-value">{v}</span>
+                                </div>
                               ))}
                             </div>
                           </div>
-                        )}
-                        <div className="ral-expanded-section">
-                          <div className="ral-expanded-label">全量字段</div>
-                          <pre className="ral-all-fields">
-                            {Object.entries(record.allFields)
-                              .map(([k, v]) => `${k}=${v}`)
-                              .join('\n')}
-                          </pre>
                         </div>
-                      </div>
-                    ),
+                      );
+                    },
                   }}
                 />
               </div>

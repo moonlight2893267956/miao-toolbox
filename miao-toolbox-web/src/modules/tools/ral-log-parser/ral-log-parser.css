@@ -3,6 +3,15 @@
    设计令牌统一引用 --miao-* 全局体系；强调色取自 registry (red #ef4444)。
    ============================================================ */
 
+:root {
+  /* 耗时分解条色板：Popover 挂载在 body，需全局可用 */
+  --ral-blue: #3b82f6;
+  --ral-violet: #8b5cf6;
+  --ral-amber: #f59e0b;
+  --ral-green: #10b981;
+  --ral-indigo: #6366f1;
+}
+
 /* ============================================================
    外壳：全屏工作台（与 PHP 日志提取器一致）
    ============================================================ */
@@ -724,7 +733,7 @@
   color: var(--ral-ink-soft);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 8px 10px;
+  padding: 8px 8px;
   white-space: nowrap;
 }
 
@@ -734,7 +743,7 @@
 
 .ral-table-wrap .ant-table-tbody > tr > td {
   border-bottom: 1px solid color-mix(in srgb, var(--miao-border) 60%, transparent);
-  padding: 7px 10px;
+  padding: 7px 8px;
   font-size: 12.5px;
   color: var(--ral-ink);
   transition: background 150ms ease;
@@ -805,6 +814,41 @@
   font-size: 12.5px;
 }
 
+.ral-cell-ellipsis {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+/* ---- Tooltip 样式 ---- */
+.ral-cell-tooltip .ant-tooltip-inner {
+  max-width: 560px;
+  padding: 10px 12px;
+  font-family: var(--ral-font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  border-radius: 8px;
+  background: rgba(30, 41, 59, 0.96);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.ral-cell-tooltip .ant-tooltip-arrow::before {
+  background: rgba(30, 41, 59, 0.96);
+}
+
+.ral-cell-tooltip--error .ant-tooltip-inner {
+  background: rgba(127, 29, 29, 0.96);
+}
+
+.ral-cell-tooltip--error .ant-tooltip-arrow::before {
+  background: rgba(127, 29, 29, 0.96);
+}
+
 .ral-cell-method {
   font-family: var(--ral-font-mono);
   font-size: 11px;
@@ -870,14 +914,18 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  height: 22px;
+  padding-right: 8px;
 }
 
 .ral-cost-value {
   font-family: var(--ral-font-mono);
   font-size: 12px;
   font-weight: 600;
-  min-width: 52px;
+  width: 84px;
+  flex-shrink: 0;
   text-align: right;
+  white-space: nowrap;
 }
 
 .ral-cost-unit {
@@ -901,12 +949,15 @@
 .ral-cost-bar {
   display: flex;
   height: 8px;
-  width: 80px;
+  width: 100px;
   border-radius: 4px;
   overflow: hidden;
   background-color: var(--miao-bg-muted);
   cursor: pointer;
   transition: transform 150ms ease;
+  align-self: center;
+  flex-shrink: 0;
+  margin-right: 8px;
 }
 
 .ral-cost-bar:hover {
@@ -920,15 +971,19 @@
 }
 
 /* ---- Popover 分解详情 ---- */
+.ral-breakdown-popover .ant-popover-inner {
+  min-width: 260px;
+}
+
 .ral-popover-breakdown {
-  min-width: 180px;
+  min-width: 240px;
 }
 
 .ral-popover-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .ral-popover-dot {
@@ -939,9 +994,26 @@
 }
 
 .ral-popover-label {
-  flex: 1;
+  width: 56px;
+  flex-shrink: 0;
   font-size: 12px;
   color: var(--ral-ink-soft);
+}
+
+.ral-popover-track {
+  flex: 1;
+  height: 6px;
+  background-color: var(--miao-bg-muted);
+  border-radius: 3px;
+  overflow: hidden;
+  min-width: 60px;
+}
+
+.ral-popover-track-fill {
+  height: 100%;
+  border-radius: 3px;
+  min-width: 2px;
+  transition: width 200ms ease;
 }
 
 .ral-popover-value {
@@ -949,6 +1021,16 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--ral-ink);
+  min-width: 44px;
+  text-align: right;
+}
+
+.ral-popover-pct {
+  font-family: var(--ral-font-mono);
+  font-size: 11px;
+  color: var(--ral-ink-soft);
+  min-width: 32px;
+  text-align: right;
 }
 
 .ral-popover-total {
@@ -963,24 +1045,87 @@
 }
 
 /* ============================================================
-   异常行高亮
+   异常行高亮（onCell → ral-cell-abnormal + rowClassName 兜底）
+   ============================================================
+   antd 6 固定列类名：ant-table-cell-fix / -fix-start / -fix-end
+   旧 antd 4/5：ant-table-cell-fix-left / -fix-right（兼容保留）
    ============================================================ */
-.ral-row-abnormal > td {
-  background-color: color-mix(in srgb, var(--tool-accent) 6%, transparent) !important;
+
+/* 普通单元格：浅红透明 */
+.ral-table-wrap .ant-table-tbody td.ral-cell-abnormal,
+.ral-table-wrap .ant-table-tbody tr.ral-row-abnormal > td {
+  background-color: color-mix(in srgb, var(--tool-accent) 8%, transparent) !important;
   border-left: 3px solid var(--tool-accent);
 }
 
-.ral-row-abnormal:hover > td {
-  background-color: color-mix(in srgb, var(--tool-accent) 10%, transparent) !important;
+/* 固定列（左/右 + 展开列）：不透明实色，覆盖 antd sticky 背景 */
+.ral-table-wrap .ant-table-tbody td.ral-cell-abnormal.ant-table-cell-fix,
+.ral-table-wrap .ant-table-tbody td.ral-cell-abnormal.ant-table-cell-fix-start,
+.ral-table-wrap .ant-table-tbody td.ral-cell-abnormal.ant-table-cell-fix-end,
+.ral-table-wrap .ant-table-tbody tr.ral-row-abnormal > td.ant-table-cell-fix,
+.ral-table-wrap .ant-table-tbody tr.ral-row-abnormal > td.ant-table-cell-fix-start,
+.ral-table-wrap .ant-table-tbody tr.ral-row-abnormal > td.ant-table-cell-fix-end,
+.ral-table-wrap .ant-table-tbody td.ral-cell-abnormal.ant-table-cell-fix-left,
+.ral-table-wrap .ant-table-tbody td.ral-cell-abnormal.ant-table-cell-fix-right,
+.ral-table-wrap .ant-table-tbody tr.ral-row-abnormal > td.ant-table-cell-fix-left,
+.ral-table-wrap .ant-table-tbody tr.ral-row-abnormal > td.ant-table-cell-fix-right {
+  background-color: color-mix(in srgb, var(--tool-accent) 22%, var(--miao-bg-elevated)) !important;
+}
+
+/* hover 态 */
+.ral-table-wrap .ant-table-tbody tr:hover td.ral-cell-abnormal,
+.ral-table-wrap .ant-table-tbody tr.ral-row-abnormal:hover > td {
+  background-color: color-mix(in srgb, var(--tool-accent) 14%, transparent) !important;
+}
+
+.ral-table-wrap .ant-table-tbody tr:hover td.ral-cell-abnormal.ant-table-cell-fix,
+.ral-table-wrap .ant-table-tbody tr:hover td.ral-cell-abnormal.ant-table-cell-fix-start,
+.ral-table-wrap .ant-table-tbody tr:hover td.ral-cell-abnormal.ant-table-cell-fix-end,
+.ral-table-wrap .ant-table-tbody tr.ral-row-abnormal:hover > td.ant-table-cell-fix,
+.ral-table-wrap .ant-table-tbody tr.ral-row-abnormal:hover > td.ant-table-cell-fix-start,
+.ral-table-wrap .ant-table-tbody tr.ral-row-abnormal:hover > td.ant-table-cell-fix-end,
+.ral-table-wrap .ant-table-tbody tr:hover td.ral-cell-abnormal.ant-table-cell-fix-left,
+.ral-table-wrap .ant-table-tbody tr:hover td.ral-cell-abnormal.ant-table-cell-fix-right,
+.ral-table-wrap .ant-table-tbody tr.ral-row-abnormal:hover > td.ant-table-cell-fix-left,
+.ral-table-wrap .ant-table-tbody tr.ral-row-abnormal:hover > td.ant-table-cell-fix-right {
+  background-color: color-mix(in srgb, var(--tool-accent) 28%, var(--miao-bg-elevated)) !important;
 }
 
 /* 解析失败行 */
-.ral-row-parse-failed > td {
-  background-color: color-mix(in srgb, var(--miao-amber) 6%, transparent) !important;
+.ral-table-wrap .ant-table-tbody td.ral-cell-parse-failed,
+.ral-table-wrap .ant-table-tbody tr.ral-row-parse-failed > td {
+  background-color: color-mix(in srgb, var(--miao-amber) 8%, transparent) !important;
 }
 
-.ral-row-parse-failed:hover > td {
-  background-color: color-mix(in srgb, var(--miao-amber) 10%, transparent) !important;
+.ral-table-wrap .ant-table-tbody td.ral-cell-parse-failed.ant-table-cell-fix,
+.ral-table-wrap .ant-table-tbody td.ral-cell-parse-failed.ant-table-cell-fix-start,
+.ral-table-wrap .ant-table-tbody td.ral-cell-parse-failed.ant-table-cell-fix-end,
+.ral-table-wrap .ant-table-tbody tr.ral-row-parse-failed > td.ant-table-cell-fix,
+.ral-table-wrap .ant-table-tbody tr.ral-row-parse-failed > td.ant-table-cell-fix-start,
+.ral-table-wrap .ant-table-tbody tr.ral-row-parse-failed > td.ant-table-cell-fix-end,
+.ral-table-wrap .ant-table-tbody td.ral-cell-parse-failed.ant-table-cell-fix-left,
+.ral-table-wrap .ant-table-tbody td.ral-cell-parse-failed.ant-table-cell-fix-right,
+.ral-table-wrap .ant-table-tbody tr.ral-row-parse-failed > td.ant-table-cell-fix-left,
+.ral-table-wrap .ant-table-tbody tr.ral-row-parse-failed > td.ant-table-cell-fix-right {
+  background-color: color-mix(in srgb, var(--miao-amber) 22%, var(--miao-bg-elevated)) !important;
+}
+
+.ral-table-wrap .ant-table-tbody tr:hover td.ral-cell-parse-failed,
+.ral-table-wrap .ant-table-tbody tr.ral-row-parse-failed:hover > td {
+  background-color: color-mix(in srgb, var(--miao-amber) 14%, transparent) !important;
+}
+
+.ral-table-wrap .ant-table-tbody tr:hover td.ral-cell-parse-failed.ant-table-cell-fix,
+.ral-table-wrap .ant-table-tbody tr:hover td.ral-cell-parse-failed.ant-table-cell-fix-start,
+.ral-table-wrap .ant-table-tbody tr:hover td.ral-cell-parse-failed.ant-table-cell-fix-end,
+.ral-table-wrap .ant-table-tbody tr.ral-row-parse-failed:hover > td.ant-table-cell-fix,
+.ral-table-wrap .ant-table-tbody tr.ral-row-parse-failed:hover > td.ant-table-cell-fix-start,
+.ral-table-wrap .ant-table-tbody tr.ral-row-parse-failed:hover > td.ant-table-cell-fix-end,
+.ral-table-wrap .ant-table-tbody tr:hover td.ral-cell-parse-failed.ant-table-cell-fix-left,
+.ral-table-wrap .ant-table-tbody tr:hover td.ral-cell-parse-failed.ant-table-cell-fix-right,
+.ral-table-wrap .ant-table-tbody tr.ral-row-parse-failed:hover > td.ant-table-cell-fix-left,
+.ral-table-wrap .ant-table-tbody tr.ral-row-parse-failed:hover > td.ant-table-cell-fix-right {
+  background-color: color-mix(in srgb, var(--miao-amber) 28%, var(--miao-bg-elevated)) !important;
 }
 
 /* ============================================================
@@ -1007,33 +1152,179 @@
   letter-spacing: 0.04em;
 }
 
-.ral-raw-log,
-.ral-all-fields {
-  margin: 0;
+/* ---- 错误摘要 ---- */
+.ral-error-summary {
   padding: 10px 14px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tool-accent) 6%, var(--miao-bg));
+  border: 1px solid color-mix(in srgb, var(--tool-accent) 20%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ral-error-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--ral-font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ral-error-key {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--tool-accent);
+  min-width: 90px;
+}
+
+.ral-error-val {
+  color: var(--ral-ink);
+  word-break: break-all;
+}
+
+.ral-raw-log {
+  margin: 0;
+  padding: 12px 14px;
   border-radius: 8px;
   font-family: var(--ral-font-mono);
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.75;
   white-space: pre-wrap;
-  word-break: break-all;
-  max-height: 200px;
+  word-break: break-word;
+  max-height: 240px;
   overflow-y: auto;
   color: #e2e8f0;
   background: #0f1117;
+  border: 1px solid rgba(148, 163, 184, 0.15);
 }
 
-[data-theme='light'] .ral-raw-log,
-[data-theme='light'] .ral-all-fields {
+[data-theme='light'] .ral-raw-log {
   color: #1e293b;
   background: #f8fafc;
   border: 1px solid var(--miao-border);
 }
 
+.ral-log-prefix {
+  color: #94a3b8;
+}
+
+[data-theme='light'] .ral-log-prefix {
+  color: #64748b;
+}
+
+.ral-log-key {
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+[data-theme='light'] .ral-log-key {
+  color: #2563eb;
+}
+
+.ral-log-key--abnormal {
+  color: #f87171;
+  font-weight: 700;
+}
+
+[data-theme='light'] .ral-log-key--abnormal {
+  color: #dc2626;
+}
+
+.ral-log-eq {
+  color: #94a3b8;
+  margin: 0 1px;
+}
+
+[data-theme='light'] .ral-log-eq {
+  color: #64748b;
+}
+
+.ral-log-value {
+  color: #cbd5e1;
+}
+
+[data-theme='light'] .ral-log-value {
+  color: #334155;
+}
+
+.ral-log-sep {
+  color: transparent;
+  user-select: none;
+}
+
 .ral-all-fields {
-  max-height: 150px;
-  columns: 2;
-  column-gap: 24px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #0f1117;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 4px 16px;
+}
+
+[data-theme='light'] .ral-all-fields {
+  background: #f8fafc;
+  border: 1px solid var(--miao-border);
+}
+
+.ral-field-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-family: var(--ral-font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  min-width: 0;
+}
+
+.ral-field-row:hover {
+  background: rgba(96, 165, 250, 0.08);
+}
+
+[data-theme='light'] .ral-field-row:hover {
+  background: rgba(37, 99, 235, 0.06);
+}
+
+.ral-field-row--abnormal {
+  background: rgba(248, 113, 113, 0.08);
+}
+
+[data-theme='light'] .ral-field-row--abnormal {
+  background: rgba(220, 38, 38, 0.06);
+}
+
+.ral-field-key {
+  color: #60a5fa;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+[data-theme='light'] .ral-field-key {
+  color: #2563eb;
+}
+
+.ral-field-row--abnormal .ral-field-key {
+  color: #f87171;
+}
+
+[data-theme='light'] .ral-field-row--abnormal .ral-field-key {
+  color: #dc2626;
+}
+
+.ral-field-value {
+  color: #cbd5e1;
+  word-break: break-all;
+  min-width: 0;
+}
+
+[data-theme='light'] .ral-field-value {
+  color: #334155;
 }
 
 .ral-raw-log,
