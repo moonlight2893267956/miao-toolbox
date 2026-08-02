@@ -146,11 +146,11 @@ const PhpLogExtractorPage: React.FC = () => {
     }
     setLoading(true);
     setTimeout(() => {
-      updateTabResult(
-        activeTab.id,
-        parsePhpLog(activeTab.input, { deepParse: activeTab.deepParse, encoding: activeTab.encoding }),
-      );
+      const parsed = parsePhpLog(activeTab.input, { deepParse: activeTab.deepParse, encoding: activeTab.encoding });
+      updateTabResult(activeTab.id, parsed);
       setLoading(false);
+      const count = (parsed.input ? 1 : 0) + (parsed.output ? 1 : 0) + (parsed.param ? 1 : 0) + (parsed.result ? 1 : 0);
+      message.success(`解析成功，提取 ${count} 个数据块`);
     }, 30);
   };
 

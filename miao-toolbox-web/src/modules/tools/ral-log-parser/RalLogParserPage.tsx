@@ -5,6 +5,7 @@ import {
   Switch,
   InputNumber,
   Tooltip,
+  message,
 } from 'antd';
 import {
   BugOutlined,
@@ -308,6 +309,7 @@ export function RalLogParserPage() {
       const parseResult = parseRalLog(logText, anomalyConfig);
       updateTabResult(activeTab.id, parseResult);
       setLoading(false);
+      message.success(`解析成功，共 ${parseResult.records.length} 条 RAL 记录`);
     }, 50);
   }, [logText, activeTab.id, updateTabResult, anomalyConfig]);
 
