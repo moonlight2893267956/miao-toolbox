@@ -4,12 +4,163 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { CloseOutlined, PushpinOutlined, EllipsisOutlined } from '@ant-design/icons';
 import { Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTabs, isTabbable } from '../../contexts/TabContext';
 import type { TabItem } from '../../contexts/TabContext';
 import './tabbar.css';
 
+/* ─── 可排序的单个 Tab ─── */
+interface SortableTabProps {
+  tab: TabItem;
+  isActive: boolean;
+  canClose: boolean;
+  onClick: (key: string, path: string) => void;
+  onClose: (e: React.MouseEvent, key: string) => void;
+  buildMenuItems: (key: string) => MenuProps['items'];
+  handleMenuClick: (menuKey: string, tabKey: string) => void;
+  tabElsRef: React.MutableRefObject<Map<string, HTMLDivElement>>;
+}
+
+const SortableTab: React.FC<SortableTabProps> = ({
+  tab,
+  isActive,
+  canClose,
+  onClick,
+  onClose,
+  buildMenuItems,
+  handleMenuClick,
+  tabElsRef,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: tab.key,
+    strategy: horizontalListSortingStrategy,
+  });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.4 : undefined,
+  };
+
+  return (
+    <Dropdown
+      trigger={['contextMenu']}
+      menu={{
+        items: buildMenuItems(tab.key),
+        onClick: ({ key: menuKey }) => handleMenuClick(menuKey, tab.key),
+      }}
+      overlayClassName="miao-tabbar-dropdown"
+    >
+      <div
+        ref={(node) => {
+          setNodeRef(node);
+          if (node) tabElsRef.current.set(tab.key, node);
+          else tabElsRef.current.delete(tab.key);
+        }}
+        data-tab-key={tab.key}
+        className={
+          'miao-tab' +
+          (isActive ? ' is-active' : '') +
+          (tab.pinned ? ' is-pinned' : '') +
+          (isDragging ? ' is-dragging' : '')
+        }
+        style={style}
+        onClick={() => onClick(tab.key, tab.path)}
+        role="tab"
+        aria-selected={isActive}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick(tab.key, tab.path);
+          }
+          if (e.key === 'Delete' && canClose) {
+            onClose(e as unknown as React.MouseEvent, tab.key);
+          }
+        }}
+        {...attributes}
+        {...listeners}
+      >
+        {/* 拖拽手柄区域：icon + label 可拖拽，close 按钮不触发拖拽 */}
+        <span className="miao-tab-drag-handle" ref={setActivatorNodeRef}>
+          {tab.icon && <span className="miao-tab-icon">{tab.icon}</span>}
+          <span className="miao-tab-label">{tab.label}</span>
+        </span>
+        {tab.pinned && (
+          <span className="miao-tab-pin">
+            <PushpinOutlined />
+          </span>
+        )}
+        {canClose && (
+          <button
+            className="miao-tab-close"
+            onClick={(e) => onClose(e, tab.key)}
+            title="关闭标签"
+            aria-label="关闭标签"
+            type="button"
+          >
+            <CloseOutlined />
+          </button>
+        )}
+      </div>
+    </Dropdown>
+  );
+};
+
+/* ─── DragOverlay 中渲染的「浮动 Tab」─── */
+interface DragOverlayTabProps {
+  tab: TabItem;
+  isActive: boolean;
+}
+
+const DragOverlayTab: React.FC<DragOverlayTabProps> = ({ tab, isActive }) => (
+  <div
+    className={
+      'miao-tab miao-tab-drag-overlay' +
+      (isActive ? ' is-active' : '') +
+      (tab.pinned ? ' is-pinned' : '')
+    }
+  >
+    {tab.icon && <span className="miao-tab-icon">{tab.icon}</span>}
+    <span className="miao-tab-label">{tab.label}</span>
+    {tab.pinned && (
+      <span className="miao-tab-pin">
+        <PushpinOutlined />
+      </span>
+    )}
+  </div>
+);
+
+/* ─── 主 TabBar 组件 ─── */
 const TabBar: React.FC = () => {
-  const { state, closeTab, switchTab, pinTab, closeOtherTabs, closeRightTabs, closeLeftTabs, closeAllTabs } = useTabs();
+  const { state, closeTab, switchTab, pinTab, closeOtherTabs, closeRightTabs, closeLeftTabs, closeAllTabs, reorderTabs } = useTabs();
   const navigate = useNavigate();
   const location = useLocation();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -18,16 +169,29 @@ const TabBar: React.FC = () => {
   const tabElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const indicatorRef = useRef<HTMLSpanElement>(null);
 
+  // dnd-kit 状态
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const activeTab = activeId ? state.tabs.find((t) => t.key === activeId) : null;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 4,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
   const onClose = useCallback(
     (e: React.MouseEvent, key: string) => {
       e.stopPropagation();
       e.preventDefault();
       const closing = state.tabs.find((t) => t.key === key);
-      // 先算出关闭后的回退路径，避免 URL 仍停在已关页签上被 AppLayout 重新 openTab
       let fallbackPath: string | null = null;
       if (closing && (state.activeKey === key || location.pathname === closing.path)) {
         const remaining = state.tabs.filter((t) => t.key !== key);
-        // 与 reducer 一致：优先 history 中仍存在的 key
         for (let i = state.history.length - 1; i >= 0; i--) {
           const h = state.history[i];
           if (h !== key && remaining.some((t) => t.key === h)) {
@@ -65,7 +229,6 @@ const TabBar: React.FC = () => {
     el.scrollBy({ left: e.deltaY, behavior: 'smooth' });
   }, []);
 
-  /** 构建右键菜单项（antd v6 使用 items API，避免旧版 Menu.Item 崩溃白屏） */
   const buildMenuItems = useCallback(
     (key: string): MenuProps['items'] => {
       const idx = state.tabs.findIndex((t) => t.key === key);
@@ -118,7 +281,7 @@ const TabBar: React.FC = () => {
     [closeTab, closeOtherTabs, closeRightTabs, closeLeftTabs, closeAllTabs, pinTab, state.tabs],
   );
 
-  // 地址栏优先：路由变化时同步激活 Tab；在非 tab 路径（如工作台）仅取消高亮
+  // 地址栏优先：路由变化时同步激活 Tab
   useEffect(() => {
     const currentTab = state.tabs.find((t) => t.path === location.pathname);
     if (currentTab) {
@@ -128,8 +291,6 @@ const TabBar: React.FC = () => {
     }
   }, [location.pathname, state.tabs, state.activeKey, switchTab]);
 
-  // 仅当「当前 URL 对应的 Tab 刚被关掉」时，才 navigate 到新的 activeTab。
-  // 切勿在「用户导航到尚未建 Tab 的新路径」时回跳旧 Tab（否则会劫持 page.goto / 侧栏跳转）。
   const prevTabPathsRef = useRef<Set<string>>(new Set(state.tabs.map((t) => t.path)));
   useEffect(() => {
     const nextPaths = new Set(state.tabs.map((t) => t.path));
@@ -139,7 +300,6 @@ const TabBar: React.FC = () => {
     prevTabPathsRef.current = nextPaths;
 
     if (!isTabbable(path)) return;
-    // 仅：该 path 之前在 tabs 里、现在没了 → 视为关闭导致
     if (!(wasOpen && !stillOpen)) return;
 
     const activeTab = state.tabs.find((t) => t.key === state.activeKey);
@@ -149,7 +309,6 @@ const TabBar: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.activeKey, state.tabs, location.pathname]);
 
-  /** 计算 el 到 container 内容区左边缘的累计偏移，兼容 Dropdown 等中间包装层 */
   const getOffsetLeft = useCallback((el: HTMLElement, container: HTMLElement): number => {
     let left = 0;
     let node: HTMLElement | null = el;
@@ -160,7 +319,6 @@ const TabBar: React.FC = () => {
     return left;
   }, []);
 
-  /** 计算当前滚动视口外（左/右侧被隐藏）的 tab 列表 */
   const updateOffscreen = useCallback(() => {
     const scrollEl = scrollRef.current;
     if (!scrollEl || state.tabs.length === 0) {
@@ -175,7 +333,6 @@ const TabBar: React.FC = () => {
       if (!el) continue;
       const elLeft = getOffsetLeft(el, scrollEl);
       const elRight = elLeft + el.offsetWidth;
-      // 允许 1px 浮点容差
       if (elRight > right + 1 || elLeft < left - 1) {
         offscreen.push(tab);
       }
@@ -183,7 +340,6 @@ const TabBar: React.FC = () => {
     setOffscreenTabs(offscreen);
   }, [state.tabs, getOffsetLeft]);
 
-  /** 更新滑动指示条的位置与宽度 */
   const updateIndicator = useCallback(() => {
     const el = indicatorRef.current;
     const activeEl = state.activeKey ? tabElsRef.current.get(state.activeKey) : undefined;
@@ -199,7 +355,6 @@ const TabBar: React.FC = () => {
     el.style.opacity = '1';
   }, [state.activeKey, getOffsetLeft]);
 
-  // 滚动容器尺寸变化 → 重新测量视口外 tab 与指示条
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
@@ -211,7 +366,6 @@ const TabBar: React.FC = () => {
     return () => ro.disconnect();
   }, [updateOffscreen, updateIndicator]);
 
-  // 滚动时实时更新 offscreen（指示条相对于内容区绝对定位，滚动时无需更新）
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -220,13 +374,11 @@ const TabBar: React.FC = () => {
     return () => el.removeEventListener('scroll', onScroll);
   }, [updateOffscreen]);
 
-  // tab 集合/尺寸变化或激活 tab 变化时，重新计算 offscreen 与指示条
   useLayoutEffect(() => {
     updateOffscreen();
     updateIndicator();
   }, [updateOffscreen, updateIndicator]);
 
-  // 激活 tab 变化（含刷新后恢复）时，若不在可视区则平滑滚动入视
   useEffect(() => {
     const scrollEl = scrollRef.current;
     const activeEl = state.activeKey ? tabElsRef.current.get(state.activeKey) : undefined;
@@ -243,7 +395,35 @@ const TabBar: React.FC = () => {
     }
   }, [state.activeKey, getOffsetLeft]);
 
-  // 「更多」下拉：只列当前视口外（被滚动隐藏）的 tab
+  // dnd-kit 事件处理
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  }, []);
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      setActiveId(null);
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      const fromIndex = state.tabs.findIndex((t) => t.key === active.id);
+      const toIndex = state.tabs.findIndex((t) => t.key === over.id);
+      if (fromIndex === -1 || toIndex === -1) return;
+
+      // 分区约束：pinned 只能在 pinned 区内排序，非 pinned 只能在非 pinned 区内排序
+      const fromTab = state.tabs[fromIndex];
+      const toTab = state.tabs[toIndex];
+      if (fromTab.pinned !== toTab.pinned) return;
+
+      reorderTabs(fromIndex, toIndex);
+    },
+    [state.tabs, reorderTabs],
+  );
+
+  const handleDragCancel = useCallback(() => {
+    setActiveId(null);
+  }, []);
+
   const moreMenuItems: MenuProps['items'] = offscreenTabs.map((tab) => ({
     key: tab.key,
     className: tab.key === state.activeKey ? 'is-active-item' : undefined,
@@ -284,74 +464,68 @@ const TabBar: React.FC = () => {
 
   if (state.tabs.length === 0) return null;
 
+  const tabKeys = state.tabs.map((t) => t.key);
+
   return (
     <div className="miao-tabbar-shell">
       <div className="miao-tabbar" role="tablist">
-        <div className="miao-tabbar-scroll" ref={scrollRef} onWheel={onWheel}>
-          {state.tabs.map((tab) => {
-            const isActive = tab.key === state.activeKey;
-            const canClose = tab.closable && !tab.pinned;
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          <SortableContext items={tabKeys} strategy={horizontalListSortingStrategy}>
+            <div className="miao-tabbar-scroll" ref={scrollRef} onWheel={onWheel}>
+              <AnimatePresence initial={false}>
+                {state.tabs.map((tab) => {
+                  const isActive = tab.key === state.activeKey;
+                  const canClose = tab.closable && !tab.pinned;
 
-            return (
-              <Dropdown
-                key={tab.key}
-                trigger={['contextMenu']}
-                menu={{
-                  items: buildMenuItems(tab.key),
-                  onClick: ({ key: menuKey }) => handleMenuClick(menuKey, tab.key),
-                }}
-                overlayClassName="miao-tabbar-dropdown"
-              >
-                <div
-                  data-tab-key={tab.key}
-                  ref={(node) => {
-                    if (node) tabElsRef.current.set(tab.key, node);
-                    else tabElsRef.current.delete(tab.key);
-                  }}
-                  className={
-                    'miao-tab' +
-                    (isActive ? ' is-active' : '') +
-                    (tab.pinned ? ' is-pinned' : '')
-                  }
-                  onClick={() => onClick(tab.key, tab.path)}
-                  role="tab"
-                  aria-selected={isActive}
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onClick(tab.key, tab.path);
-                    }
-                    if (e.key === 'Delete' && canClose) {
-                      closeTab(tab.key);
-                    }
-                  }}
-                >
-                  {tab.icon && <span className="miao-tab-icon">{tab.icon}</span>}
-                  <span className="miao-tab-label">{tab.label}</span>
-                  {tab.pinned && (
-                    <span className="miao-tab-pin">
-                      <PushpinOutlined />
-                    </span>
-                  )}
-                  {canClose && (
-                    <button
-                      className="miao-tab-close"
-                      onClick={(e) => onClose(e, tab.key)}
-                      title="关闭标签"
-                      aria-label="关闭标签"
-                      type="button"
+                  return (
+                    <motion.div
+                      key={tab.key}
+                      layout
+                      initial={false}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.85 }}
+                      transition={{
+                        layout: { type: 'spring', stiffness: 350, damping: 30 },
+                        opacity: { duration: 0.15 },
+                        scale: { duration: 0.15 },
+                      }}
+                      className="miao-tab-motion-wrapper"
                     >
-                      <CloseOutlined />
-                    </button>
-                  )}
-                </div>
-              </Dropdown>
-            );
-          })}
-          {/* 滑动指示条：单例元素，left/width + CSS transition 驱动平滑滑动 */}
-          <span ref={indicatorRef} className="miao-tab-indicator" />
-        </div>
+                      <SortableTab
+                        tab={tab}
+                        isActive={isActive}
+                        canClose={canClose}
+                        onClick={onClick}
+                        onClose={onClose}
+                        buildMenuItems={buildMenuItems}
+                        handleMenuClick={handleMenuClick}
+                        tabElsRef={tabElsRef}
+                      />
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+              {/* 滑动指示条 */}
+              <span ref={indicatorRef} className="miao-tab-indicator" />
+            </div>
+          </SortableContext>
+
+          {/* DragOverlay：拖拽时浮在原位上方的「幽灵 Tab」 */}
+          <DragOverlay dropAnimation={{
+            duration: 250,
+            easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+          }}>
+            {activeId && activeTab ? (
+              <DragOverlayTab tab={activeTab} isActive={activeTab.key === state.activeKey} />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
 
         {offscreenTabs.length > 0 && (
           <Dropdown

@@ -75,4 +75,17 @@ export const authService = {
   getGoogleOAuthUrl(): string {
     return '/api/auth/oauth/google';
   },
+
+  /**
+   * 构建带 state 的 OAuth 注册 URL。
+   * state 中编码 inviteToken，后端回调时可解析并绑定邀请角色。
+   * 格式：invite=xxx （base64 编码，避免特殊字符问题）
+   */
+  getOAuthRegisterUrl(provider: 'github' | 'google', inviteToken?: string): string {
+    const baseUrl = `/api/auth/oauth/${provider}`;
+    if (!inviteToken) return baseUrl;
+    const statePayload = btoa(JSON.stringify({ invite: inviteToken }));
+    const separator = baseUrl.includes('?') ? '&' : '?';
+    return `${baseUrl}${separator}state=${encodeURIComponent(statePayload)}`;
+  },
 };

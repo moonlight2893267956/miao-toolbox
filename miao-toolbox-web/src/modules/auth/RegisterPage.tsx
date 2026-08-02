@@ -1,6 +1,6 @@
 import React from 'react';
-import { Form, Input, Button, Typography, message, Alert } from 'antd';
-import { UserOutlined, LockOutlined, GiftOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Divider, Typography, message } from 'antd';
+import { UserOutlined, LockOutlined, GiftOutlined, GithubOutlined, GoogleOutlined, ExclamationCircleOutlined, LoadingOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import AuthShell from './AuthShell';
@@ -13,11 +13,57 @@ interface RegisterFormValues {
   confirmPassword: string;
 }
 
+/* 邀请提示卡：深色玻璃质感，含加载/有效/无效三种状态 */
+const InviteCard: React.FC<{
+  loading: boolean;
+  valid: boolean | null;
+  roleName: string | null;
+}> = ({ loading, valid, roleName }) => {
+  type Variant = { className: string; icon: React.ReactNode; title: React.ReactNode; desc: string };
+
+  const variant: Variant = loading
+    ? {
+        className: 'miao-invite-card is-loading',
+        icon: <LoadingOutlined />,
+        title: '正在校验邀请链接',
+        desc: '请稍候，正在验证该邀请的有效性',
+      }
+    : valid
+    ? {
+        className: 'miao-invite-card',
+        icon: <GiftOutlined />,
+        title: (
+          <>
+            受 <strong>{roleName ?? '该'}</strong> 角色邀请注册
+          </>
+        ),
+        desc: '通过此链接注册后，你将自动获得该角色权限',
+      }
+    : {
+        className: 'miao-invite-card is-invalid',
+        icon: <ExclamationCircleOutlined />,
+        title: '邀请链接无效或已过期',
+        desc: '该链接无法使用，请向邀请人重新获取',
+      };
+
+  return (
+    <div className={variant.className} role="status">
+      <span className="miao-invite-card-icon">{variant.icon}</span>
+      <div className="miao-invite-card-body">
+        <div className="miao-invite-card-title">{variant.title}</div>
+        <div className="miao-invite-card-desc">{variant.desc}</div>
+      </div>
+    </div>
+  );
+};
+
 const RegisterPage: React.FC = () => {
   const [form] = Form.useForm<RegisterFormValues>();
   const [loading, setLoading] = React.useState(false);
+  const [oauthLoading, setOauthLoading] = React.useState<'github' | 'google' | null>(null);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const safetyTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const inviteToken = searchParams.get('invite') || '';
   const [inviteLoading, setInviteLoading] = React.useState(Boolean(inviteToken));
@@ -47,6 +93,15 @@ const RegisterPage: React.FC = () => {
     })();
     return () => { cancelled = true; };
   }, [inviteToken]);
+
+  // 组件卸载时清除安全定时器
+  React.useEffect(() => {
+    return () => {
+      if (safetyTimerRef.current) {
+        clearTimeout(safetyTimerRef.current);
+      }
+    };
+  }, []);
 
   const inviteInvalid = Boolean(inviteToken) && inviteValid === false;
 
@@ -82,29 +137,33 @@ const RegisterPage: React.FC = () => {
     }
   };
 
+  const handleOAuthRegister = (provider: 'github' | 'google') => {
+    if (inviteInvalid) {
+      message.error('邀请链接无效或已过期，无法使用第三方注册');
+      return;
+    }
+    setOauthLoading(provider);
+    // 将 inviteToken 存入 sessionStorage，以便 OAuthCallback 在回调时恢复
+    if (inviteToken) {
+      sessionStorage.setItem('oauth_invite_token', inviteToken);
+    }
+    // 安全超时：如果 10 秒内没有离开页面，说明 OAuth 跳转失败，重置 loading
+    safetyTimerRef.current = setTimeout(() => {
+      setOauthLoading(null);
+      message.error('OAuth 服务暂时不可用，请稍后重试');
+    }, 10000);
+    // 跳转到带 state 的 OAuth URL，state 中编码 inviteToken
+    window.location.href = authService.getOAuthRegisterUrl(provider, inviteToken || undefined);
+  };
+
   return (
     <AuthShell title="创建账号" subtitle="加入阿渺工具箱，开始集中管理你的 AI 工具">
         {inviteToken && (
-          <div style={{ marginBottom: 20 }}>
-            {inviteLoading ? (
-              <Alert type="info" showIcon message="正在校验邀请链接…" />
-            ) : inviteValid ? (
-              <Alert
-                type="success"
-                showIcon
-                icon={<GiftOutlined />}
-                message={`受「${inviteRoleName ?? '该'}」角色邀请注册`}
-                description="通过此链接注册后，你将自动获得该角色权限。"
-              />
-            ) : (
-              <Alert
-                type="error"
-                showIcon
-                message="邀请链接无效或已过期"
-                description="该链接无法使用，请向邀请人重新获取。"
-              />
-            )}
-          </div>
+          <InviteCard
+            loading={inviteLoading}
+            valid={inviteValid}
+            roleName={inviteRoleName}
+          />
         )}
         <Form
           form={form}
@@ -121,7 +180,7 @@ const RegisterPage: React.FC = () => {
               { pattern: /^[a-zA-Z0-9_]+$/, message: '用户名只能包含字母、数字和下划线' },
             ]}
           >
-            <Input prefix={<UserOutlined />} placeholder="用户名" />
+            <Input prefix={<UserOutlined />} placeholder="用户名" autoComplete="username" />
           </Form.Item>
 
           <Form.Item
@@ -142,7 +201,7 @@ const RegisterPage: React.FC = () => {
               },
             ]}
           >
-            <Input.Password prefix={<LockOutlined />} placeholder="密码（至少8位，包含字母和数字）" />
+            <Input.Password prefix={<LockOutlined />} placeholder="密码（至少8位，包含字母和数字）" autoComplete="new-password" />
           </Form.Item>
 
           <Form.Item
@@ -160,15 +219,38 @@ const RegisterPage: React.FC = () => {
               }),
             ]}
           >
-            <Input.Password prefix={<LockOutlined />} placeholder="确认密码" />
+            <Input.Password prefix={<LockOutlined />} placeholder="确认密码" autoComplete="new-password" />
           </Form.Item>
 
           <Form.Item style={{ marginBottom: 16 }}>
             <Button type="primary" htmlType="submit" loading={loading} block disabled={inviteInvalid || inviteLoading}>
-              注册
+              创建账号
             </Button>
           </Form.Item>
         </Form>
+
+        <Divider style={{ margin: '16px 0' }}>或使用第三方账号注册</Divider>
+
+        <button
+          type="button"
+          className="miao-auth-social-btn"
+          disabled={oauthLoading !== null || inviteInvalid || inviteLoading}
+          onClick={() => handleOAuthRegister('github')}
+        >
+          {oauthLoading === 'github' ? <LoadingOutlined /> : <GithubOutlined />}
+          <span>使用 GitHub 注册</span>
+        </button>
+
+        <button
+          type="button"
+          className="miao-auth-social-btn"
+          disabled={oauthLoading !== null || inviteInvalid || inviteLoading}
+          onClick={() => handleOAuthRegister('google')}
+          style={{ marginBottom: 16 }}
+        >
+          {oauthLoading === 'google' ? <LoadingOutlined /> : <GoogleOutlined />}
+          <span>使用 Google 注册</span>
+        </button>
 
         <div style={{ textAlign: 'center' }}>
           <Text type="secondary">

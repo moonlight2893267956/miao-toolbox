@@ -49,7 +49,8 @@ type TabAction =
   | { type: 'CLOSE_RIGHT_TABS'; key: string }
   | { type: 'CLOSE_LEFT_TABS'; key: string }
   | { type: 'CLOSE_ALL_TABS' }
-  | { type: 'UPDATE_TAB'; key: string; updates: Partial<Omit<TabItem, 'key'>> };
+  | { type: 'UPDATE_TAB'; key: string; updates: Partial<Omit<TabItem, 'key'>> }
+  | { type: 'REORDER_TABS'; fromIndex: number; toIndex: number };
 
 const initialState: TabState = {
   tabs: [],
@@ -215,6 +216,17 @@ function tabReducer(state: TabState, action: TabAction): TabState {
         }),
       };
     }
+    case 'REORDER_TABS': {
+      const { fromIndex, toIndex } = action;
+      if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return state;
+      const tabs = [...state.tabs];
+      const [moved] = tabs.splice(fromIndex, 1);
+      tabs.splice(toIndex, 0, moved);
+      // 保持 pinned 在前约束：如果拖拽导致 pinned 出现在非 pinned 之后，自动修正
+      const pinned = tabs.filter((t) => t.pinned);
+      const nonPinned = tabs.filter((t) => !t.pinned);
+      return { ...state, tabs: [...pinned, ...nonPinned] };
+    }
     default:
       return state;
   }
@@ -308,6 +320,7 @@ interface TabContextValue {
   closeLeftTabs: (key: string) => void;
   closeAllTabs: () => void;
   updateTab: (key: string, updates: Partial<Omit<TabItem, 'key'>>) => void;
+  reorderTabs: (fromIndex: number, toIndex: number) => void;
 }
 
 const TabContext = createContext<TabContextValue | null>(null);
@@ -378,6 +391,10 @@ export const TabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     dispatch({ type: 'CLOSE_ALL_TABS' });
   }, []);
 
+  const reorderTabs = useCallback((fromIndex: number, toIndex: number) => {
+    dispatch({ type: 'REORDER_TABS', fromIndex, toIndex });
+  }, []);
+
   const value = useMemo(
     () => ({
       state,
@@ -390,8 +407,9 @@ export const TabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       closeLeftTabs,
       closeAllTabs,
       updateTab,
+      reorderTabs,
     }),
-    [state, openTab, closeTab, switchTab, pinTab, closeOtherTabs, closeRightTabs, closeLeftTabs, closeAllTabs, updateTab],
+    [state, openTab, closeTab, switchTab, pinTab, closeOtherTabs, closeRightTabs, closeLeftTabs, closeAllTabs, updateTab, reorderTabs],
   );
 
   return <TabContext.Provider value={value}>{children}</TabContext.Provider>;

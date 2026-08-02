@@ -114,31 +114,26 @@ const LoginPage: React.FC = () => {
 
         <Divider style={{ margin: '16px 0' }}>或</Divider>
 
-        <div className="miao-auth-social-link" style={{ marginBottom: 12 }}>
-          <Button
-            block
-            size="large"
-            icon={<GithubOutlined />}
-            loading={oauthLoading === 'github'}
-            disabled={oauthLoading !== null}
-            onClick={() => handleOAuthClick('github')}
-          >
-            使用 GitHub 登录
-          </Button>
-        </div>
+        <button
+          type="button"
+          className="miao-auth-social-btn"
+          disabled={oauthLoading !== null}
+          onClick={() => handleOAuthClick('github')}
+        >
+          <GithubOutlined />
+          <span>使用 GitHub 登录</span>
+        </button>
 
-        <div className="miao-auth-social-link" style={{ marginBottom: 16 }}>
-          <Button
-            block
-            size="large"
-            icon={<GoogleOutlined />}
-            loading={oauthLoading === 'google'}
-            disabled={oauthLoading !== null}
-            onClick={() => handleOAuthClick('google')}
-          >
-            使用 Google 登录
-          </Button>
-        </div>
+        <button
+          type="button"
+          className="miao-auth-social-btn"
+          disabled={oauthLoading !== null}
+          onClick={() => handleOAuthClick('google')}
+          style={{ marginBottom: 16 }}
+        >
+          <GoogleOutlined />
+          <span>使用 Google 登录</span>
+        </button>
 
         <div style={{ textAlign: 'center' }}>
           <Text type="secondary">

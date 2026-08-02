@@ -24,6 +24,12 @@ const OAuthCallback: React.FC = () => {
     const hash = window.location.hash.substring(1);
     const params = new URLSearchParams(hash);
 
+    // 恢复邀请注册场景的 inviteToken
+    const inviteToken = sessionStorage.getItem('oauth_invite_token');
+    if (inviteToken) {
+      sessionStorage.removeItem('oauth_invite_token');
+    }
+
     const errorParam = params.get('error');
     if (errorParam) {
       const reasonParam = params.get('reason');
@@ -73,6 +79,11 @@ const OAuthCallback: React.FC = () => {
       }, mustChangePassword);
 
       window.history.replaceState(null, '', window.location.pathname);
+
+      // 邀请注册场景：提示角色绑定成功
+      if (inviteToken) {
+        message.success('注册成功，邀请角色已绑定');
+      }
 
       if (mustChangePassword) {
         message.warning('首次登录，请设置密码');
