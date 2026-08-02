@@ -884,7 +884,6 @@
   font-family: var(--miao-font-mono);
   font-size: 13px;
   line-height: 24px;
-  min-width: 100%;
 }
 
 .jw-node-row {
@@ -893,7 +892,6 @@
   box-sizing: border-box;
   width: 100%;
   min-height: 28px;
-  min-width: 100%;
   padding-top: 2px;
   padding-bottom: 2px;
   padding-right: 12px;
@@ -902,6 +900,7 @@
   transition: background 0.15s;
   user-select: none;
   position: relative;
+  overflow: hidden;
 }
 
 .jw-node-row--with-type-badge {
@@ -986,6 +985,9 @@
   color: var(--miao-text-primary);
   font-weight: 500;
   flex-shrink: 0;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Key 可编辑态（双击编辑键名） */
