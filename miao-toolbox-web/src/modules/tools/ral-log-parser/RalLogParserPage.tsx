@@ -869,16 +869,17 @@ export function RalLogParserPage() {
                                 const parts: React.ReactNode[] = [];
                                 let lastIdx = 0;
                                 let m: RegExpExecArray | null;
-                                let key = 0;
+                                let keySeq = 0;
+                                const nextKey = (prefix: string) => `${prefix}-${keySeq++}`;
                                 while ((m = regex.exec(line)) !== null) {
                                   if (m.index > lastIdx) {
-                                    parts.push(<span key={`pre-${key++}`} className="ral-log-prefix">{line.substring(lastIdx, m.index)}</span>);
+                                    parts.push(<span key={nextKey('pre')} className="ral-log-prefix">{line.substring(lastIdx, m.index)}</span>);
                                   }
                                   const k = m[1];
                                   const v = m[2] !== undefined ? m[2] : m[3];
                                   const cls = abnormalKeySet.has(k) ? 'ral-log-key ral-log-key--abnormal' : 'ral-log-key';
                                   parts.push(
-                                    <span key={`kv-${key++}`}>
+                                    <span key={nextKey('kv')}>
                                       <span className={cls}>{k}</span>
                                       <span className="ral-log-eq">=</span>
                                       <span className="ral-log-value">{v}</span>
@@ -888,7 +889,7 @@ export function RalLogParserPage() {
                                   lastIdx = regex.lastIndex;
                                 }
                                 if (lastIdx < line.length) {
-                                  parts.push(<span key={`suf-${key++}`} className="ral-log-prefix">{line.substring(lastIdx)}</span>);
+                                  parts.push(<span key={nextKey('suf')} className="ral-log-prefix">{line.substring(lastIdx)}</span>);
                                 }
                                 return parts;
                               })()}
