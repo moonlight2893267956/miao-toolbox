@@ -9,6 +9,7 @@ import com.miao.toolbox.auth.service.AuthService;
 import com.miao.toolbox.auth.service.JwtService;
 import com.miao.toolbox.common.exception.AuthException;
 import com.miao.toolbox.common.exception.BusinessException;
+import com.miao.toolbox.invite.service.InviteService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -46,6 +47,7 @@ class GoogleOAuthServiceTest {
     @Mock private RoleRepository roleRepository;
     @Mock private JwtService jwtService;
     @Mock private AuthService authService;
+    @Mock private InviteService inviteService;
     @Mock private RestTemplate restTemplate;
     @Mock private HttpServletResponse response;
     @InjectMocks private GoogleOAuthService googleOAuthService;
@@ -71,7 +73,7 @@ class GoogleOAuthServiceTest {
         @Test
         @DisplayName("URL 包含必要参数")
         void urlContainsRequiredParams() {
-            String url = googleOAuthService.buildAuthorizationUrl();
+            String url = googleOAuthService.buildAuthorizationUrl(null);
 
             assertThat(url).startsWith("https://accounts.google.com/o/oauth2/v2/auth");
             assertThat(url).contains("client_id=");
@@ -87,8 +89,8 @@ class GoogleOAuthServiceTest {
             // generateSigningKey 默认返回固定 mock 值，需要让每次返回不同值
             when(jwtService.generateSigningKey()).thenReturn("state-key-1", "state-key-2");
 
-            String url1 = googleOAuthService.buildAuthorizationUrl();
-            String url2 = googleOAuthService.buildAuthorizationUrl();
+            String url1 = googleOAuthService.buildAuthorizationUrl(null);
+            String url2 = googleOAuthService.buildAuthorizationUrl(null);
 
             // 提取 state 参数
             String state1 = url1.replaceAll(".*state=([^&]+).*", "$1");
@@ -139,7 +141,7 @@ class GoogleOAuthServiceTest {
         @DisplayName("state 已使用过（重放）→ 抛出登录失败异常")
         void replayedStateThrowsException() {
             // 先构造一个有效的回调，使用掉 state
-            String state = googleOAuthService.buildAuthorizationUrl()
+            String state = googleOAuthService.buildAuthorizationUrl(null)
                     .replaceAll(".*state=([^&]+).*", "$1");
 
             // 模拟 token 交换和用户信息获取
@@ -164,7 +166,7 @@ class GoogleOAuthServiceTest {
         @Test
         @DisplayName("首次 Google 登录 → 自动创建用户")
         void firstLoginCreatesUser() {
-            String state = googleOAuthService.buildAuthorizationUrl()
+            String state = googleOAuthService.buildAuthorizationUrl(null)
                     .replaceAll(".*state=([^&]+).*", "$1");
 
             // 模拟 token 交换
@@ -201,7 +203,7 @@ class GoogleOAuthServiceTest {
         @Test
         @DisplayName("已有用户 → 直接返回 token")
         void existingUserReturnsToken() {
-            String state = googleOAuthService.buildAuthorizationUrl()
+            String state = googleOAuthService.buildAuthorizationUrl(null)
                     .replaceAll(".*state=([^&]+).*", "$1");
 
             when(restTemplate.postForEntity(eq("https://oauth2.googleapis.com/token"), any(), eq(Map.class)))
@@ -275,7 +277,7 @@ class GoogleOAuthServiceTest {
         @Test
         @DisplayName("账号被禁用 → 拒绝登录")
         void disabledUserRejected() {
-            String state = googleOAuthService.buildAuthorizationUrl()
+            String state = googleOAuthService.buildAuthorizationUrl(null)
                     .replaceAll(".*state=([^&]+).*", "$1");
 
             when(restTemplate.postForEntity(eq("https://oauth2.googleapis.com/token"), any(), eq(Map.class)))
@@ -298,7 +300,7 @@ class GoogleOAuthServiceTest {
         @Test
         @DisplayName("账号被锁定 → 拒绝登录")
         void lockedUserRejected() {
-            String state = googleOAuthService.buildAuthorizationUrl()
+            String state = googleOAuthService.buildAuthorizationUrl(null)
                     .replaceAll(".*state=([^&]+).*", "$1");
 
             when(restTemplate.postForEntity(eq("https://oauth2.googleapis.com/token"), any(), eq(Map.class)))
@@ -321,7 +323,7 @@ class GoogleOAuthServiceTest {
         @Test
         @DisplayName("并发创建 DataIntegrityViolation → 重试查找成功")
         void concurrentCreationRetriesFind() {
-            String state = googleOAuthService.buildAuthorizationUrl()
+            String state = googleOAuthService.buildAuthorizationUrl(null)
                     .replaceAll(".*state=([^&]+).*", "$1");
 
             when(restTemplate.postForEntity(eq("https://oauth2.googleapis.com/token"), any(), eq(Map.class)))
@@ -365,7 +367,7 @@ class GoogleOAuthServiceTest {
                     .thenReturn(ResponseEntity.ok(Map.of("error", "invalid_grant")));
 
             assertThatThrownBy(() -> {
-                String state = googleOAuthService.buildAuthorizationUrl()
+                String state = googleOAuthService.buildAuthorizationUrl(null)
                         .replaceAll(".*state=([^&]+).*", "$1");
                 // 需要 mock fetchGoogleUser 使之不会先被调用
                 // 实际上 exchangeCodeForToken 在 handleCallback 内部调用
@@ -383,7 +385,7 @@ class GoogleOAuthServiceTest {
                     .thenThrow(new HttpClientErrorException(HttpStatus.BAD_REQUEST));
 
             assertThatThrownBy(() -> {
-                String state = googleOAuthService.buildAuthorizationUrl()
+                String state = googleOAuthService.buildAuthorizationUrl(null)
                         .replaceAll(".*state=([^&]+).*", "$1");
                 googleOAuthService.handleCallback("code", state, response);
             }).isInstanceOf(AuthException.class);
@@ -397,7 +399,7 @@ class GoogleOAuthServiceTest {
         @Test
         @DisplayName("API 错误 → 抛出登录失败异常")
         void apiErrorThrowsException() {
-            String state = googleOAuthService.buildAuthorizationUrl()
+            String state = googleOAuthService.buildAuthorizationUrl(null)
                     .replaceAll(".*state=([^&]+).*", "$1");
 
             when(restTemplate.postForEntity(eq("https://oauth2.googleapis.com/token"), any(), eq(Map.class)))
@@ -417,7 +419,7 @@ class GoogleOAuthServiceTest {
         @Test
         @DisplayName("纯中文名 → 使用 google_ + sub 后6位")
         void chineseNameUsesSubSuffix() {
-            String state = googleOAuthService.buildAuthorizationUrl()
+            String state = googleOAuthService.buildAuthorizationUrl(null)
                     .replaceAll(".*state=([^&]+).*", "$1");
 
             when(restTemplate.postForEntity(eq("https://oauth2.googleapis.com/token"), any(), eq(Map.class)))
@@ -447,7 +449,7 @@ class GoogleOAuthServiceTest {
         @Test
         @DisplayName("用户名冲突时自动追加序号")
         void usernameConflictAppendsNumber() {
-            String state = googleOAuthService.buildAuthorizationUrl()
+            String state = googleOAuthService.buildAuthorizationUrl(null)
                     .replaceAll(".*state=([^&]+).*", "$1");
 
             when(restTemplate.postForEntity(eq("https://oauth2.googleapis.com/token"), any(), eq(Map.class)))

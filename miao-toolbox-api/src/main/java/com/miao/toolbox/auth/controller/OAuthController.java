@@ -18,7 +18,9 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -35,15 +37,17 @@ public class OAuthController {
     @GetMapping("/github")
     public void authorizeGithub(
             @RequestParam(value = "bind", required = false, defaultValue = "false") boolean bind,
+            @RequestParam(value = "state", required = false) String frontendState,
             @AuthenticationPrincipal Object principal,
             HttpServletResponse response) throws IOException {
+        String inviteToken = extractInviteToken(frontendState);
         String redirectUrl;
         if (bind && principal instanceof User user) {
             redirectUrl = gitHubOAuthService.buildBindAuthorizationUrl(user.getId());
         } else {
-            redirectUrl = gitHubOAuthService.buildAuthorizationUrl();
+            redirectUrl = gitHubOAuthService.buildAuthorizationUrl(inviteToken);
         }
-        log.info("OAuth authorize: bind={}, redirecting to GitHub", bind);
+        log.info("OAuth authorize: bind={}, inviteToken={}, redirecting to GitHub", bind, inviteToken != null ? "***" : "null");
         response.sendRedirect(redirectUrl);
     }
 
@@ -85,15 +89,17 @@ public class OAuthController {
     @GetMapping("/google")
     public void authorizeGoogle(
             @RequestParam(value = "bind", required = false, defaultValue = "false") boolean bind,
+            @RequestParam(value = "state", required = false) String frontendState,
             @AuthenticationPrincipal Object principal,
             HttpServletResponse response) throws IOException {
+        String inviteToken = extractInviteToken(frontendState);
         String redirectUrl;
         if (bind && principal instanceof User user) {
             redirectUrl = googleOAuthService.buildBindAuthorizationUrl(user.getId());
         } else {
-            redirectUrl = googleOAuthService.buildAuthorizationUrl();
+            redirectUrl = googleOAuthService.buildAuthorizationUrl(inviteToken);
         }
-        log.info("OAuth authorize: bind={}, redirecting to Google", bind);
+        log.info("OAuth authorize: bind={}, inviteToken={}, redirecting to Google", bind, inviteToken != null ? "***" : "null");
         response.sendRedirect(redirectUrl);
     }
 
@@ -162,5 +168,24 @@ public class OAuthController {
             fragment += "&mustChangePassword=true";
         }
         return fragment;
+    }
+
+    /**
+     * 从前端传来的 state 参数中提取 inviteToken。
+     * 前端格式：base64(JSON({invite: "token"}))，由 authService.getOAuthRegisterUrl 生成。
+     */
+    private String extractInviteToken(String frontendState) {
+        if (frontendState == null || frontendState.isBlank()) {
+            return null;
+        }
+        try {
+            String decoded = new String(Base64.getDecoder().decode(frontendState), StandardCharsets.UTF_8);
+            @SuppressWarnings("unchecked")
+            Map<String, String> payload = new com.fasterxml.jackson.databind.ObjectMapper().readValue(decoded, Map.class);
+            return payload.get("invite");
+        } catch (Exception e) {
+            log.debug("Failed to extract inviteToken from frontend state, ignoring: {}", e.getMessage());
+            return null;
+        }
     }
 }

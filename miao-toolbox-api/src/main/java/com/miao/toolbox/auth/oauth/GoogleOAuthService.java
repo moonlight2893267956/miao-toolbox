@@ -10,6 +10,7 @@ import com.miao.toolbox.auth.service.JwtService;
 import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.exception.AuthException;
 import com.miao.toolbox.common.exception.BusinessException;
+import com.miao.toolbox.invite.service.InviteService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -51,6 +52,7 @@ public class GoogleOAuthService {
     private final RoleRepository roleRepository;
     private final JwtService jwtService;
     private final AuthService authService;
+    private final InviteService inviteService;
     private final RestTemplate restTemplate;
 
     // 定时清理过期 state 条目，防止内存泄漏
@@ -63,12 +65,13 @@ public class GoogleOAuthService {
 
     public GoogleOAuthService(GoogleOAuthProperties googleOAuthProperties, UserRepository userRepository,
                               RoleRepository roleRepository, JwtService jwtService,
-                              AuthService authService, RestTemplate restTemplate) {
+                              AuthService authService, InviteService inviteService, RestTemplate restTemplate) {
         this.googleOAuthProperties = googleOAuthProperties;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.jwtService = jwtService;
         this.authService = authService;
+        this.inviteService = inviteService;
         this.restTemplate = restTemplate;
         // 每5分钟清理过期 state
         cleanupExecutor.scheduleAtFixedRate(this::evictExpiredStates, 5, 5, java.util.concurrent.TimeUnit.MINUTES);
@@ -88,9 +91,13 @@ public class GoogleOAuthService {
         });
     }
 
-    public String buildAuthorizationUrl() {
+    public String buildAuthorizationUrl(String inviteToken) {
         String state = jwtService.generateSigningKey();
-        stateStore.put(state, System.currentTimeMillis() + ",login,0");
+        String stateValue = System.currentTimeMillis() + ",login,0";
+        if (inviteToken != null && !inviteToken.isBlank()) {
+            stateValue += "," + inviteToken;
+        }
+        stateStore.put(state, stateValue);
 
         return GOOGLE_AUTH_URL
                 + "?client_id=" + URLEncoder.encode(googleOAuthProperties.getClientId(), StandardCharsets.UTF_8)
@@ -128,6 +135,8 @@ public class GoogleOAuthService {
         long stateCreatedAt = Long.parseLong(stateParts[0]);
         String mode = stateParts.length > 1 ? stateParts[1] : "login";
         long bindUserId = stateParts.length > 2 ? Long.parseLong(stateParts[2]) : 0;
+        // 邀请注册场景：从 state 中恢复 inviteToken（第4段）
+        String inviteToken = stateParts.length > 3 ? stateParts[3] : null;
 
         if (System.currentTimeMillis() - stateCreatedAt > STATE_TTL_MS) {
             log.warn("Google OAuth callback expired state parameter");
@@ -180,7 +189,7 @@ public class GoogleOAuthService {
         User user;
         try {
             user = userRepository.findByGoogleId(googleUser.getSub())
-                    .orElseGet(() -> createOAuthUser(googleUser));
+                    .orElseGet(() -> createOAuthUser(googleUser, inviteToken));
         } catch (DataIntegrityViolationException e) {
             log.warn("Concurrent Google OAuth user creation, retrying find");
             user = userRepository.findByGoogleId(googleUser.getSub())
@@ -308,18 +317,28 @@ public class GoogleOAuthService {
         throw AuthException.loginFailed();
     }
 
-    private User createOAuthUser(GoogleUser googleUser) {
+    private User createOAuthUser(GoogleUser googleUser, String inviteToken) {
         String username = generateUniqueUsername(googleUser.getName(), googleUser.getSub());
 
-        Role userRole = roleRepository.findByCode("USER")
-                .orElseThrow(() -> new BusinessException(ErrorCode.SYSTEM_ERROR, "系统角色配置异常", 500));
+        // 邀请注册场景：使用邀请令牌对应的角色；否则使用默认 USER 角色
+        Role assignedRole;
+        try {
+            Role inviteRole = inviteService.resolveRole(inviteToken);
+            assignedRole = inviteRole != null ? inviteRole : roleRepository.findByCode("USER")
+                    .orElseThrow(() -> new BusinessException(ErrorCode.SYSTEM_ERROR, "系统角色配置异常", 500));
+        } catch (BusinessException e) {
+            // 邀请令牌无效/过期时，回退到默认 USER 角色
+            log.warn("Google OAuth register with invalid invite token, falling back to USER role: {}", e.getMessage());
+            assignedRole = roleRepository.findByCode("USER")
+                    .orElseThrow(() -> new BusinessException(ErrorCode.SYSTEM_ERROR, "系统角色配置异常", 500));
+        }
 
         User user = User.builder()
                 .username(username)
                 .googleId(googleUser.getSub())
                 .googleUsername(googleUser.getName())
                 .email(googleUser.getEmail())
-                .roles(Set.of(userRole))
+                .roles(Set.of(assignedRole))
                 .isEnabled(true)
                 .mustChangePassword(true)
                 .loginFailCount(0)

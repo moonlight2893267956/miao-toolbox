@@ -8,6 +8,7 @@ import com.miao.toolbox.auth.repository.UserRepository;
 import com.miao.toolbox.auth.service.AuthService;
 import com.miao.toolbox.auth.service.JwtService;
 import com.miao.toolbox.common.exception.AuthException;
+import com.miao.toolbox.invite.service.InviteService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -44,6 +45,7 @@ class GitHubOAuthServiceTest {
     @Mock private RoleRepository roleRepository;
     @Mock private JwtService jwtService;
     @Mock private AuthService authService;
+    @Mock private InviteService inviteService;
     @Mock private RestTemplate restTemplate;
     @Mock private HttpServletResponse response;
     @InjectMocks private GitHubOAuthService gitHubOAuthService;
@@ -67,7 +69,7 @@ class GitHubOAuthServiceTest {
         void url_containsRequiredParams() {
             when(jwtService.generateSigningKey()).thenReturn("state123");
 
-            String url = gitHubOAuthService.buildAuthorizationUrl();
+            String url = gitHubOAuthService.buildAuthorizationUrl(null);
 
             assertThat(url).contains("client_id=test-client-id");
             assertThat(url).contains("state=");
@@ -79,8 +81,8 @@ class GitHubOAuthServiceTest {
         void state_isUnique() {
             when(jwtService.generateSigningKey()).thenReturn("state1", "state2");
 
-            String url1 = gitHubOAuthService.buildAuthorizationUrl();
-            String url2 = gitHubOAuthService.buildAuthorizationUrl();
+            String url1 = gitHubOAuthService.buildAuthorizationUrl(null);
+            String url2 = gitHubOAuthService.buildAuthorizationUrl(null);
 
             assertThat(url1).isNotEqualTo(url2);
         }
@@ -109,7 +111,7 @@ class GitHubOAuthServiceTest {
         void callback_expiredState() {
             // 先生成一个有效的 state
             when(jwtService.generateSigningKey()).thenReturn("valid-state");
-            gitHubOAuthService.buildAuthorizationUrl();
+            gitHubOAuthService.buildAuthorizationUrl(null);
 
             // 模拟过期：手动修改 stateStore 中的时间戳
             // 由于 stateStore 是 private 的，这里间接测试
@@ -122,7 +124,7 @@ class GitHubOAuthServiceTest {
         @DisplayName("state 已使用过（重放）→ 抛出登录失败异常")
         void callback_replayedState() {
             when(jwtService.generateSigningKey()).thenReturn("one-time-state");
-            gitHubOAuthService.buildAuthorizationUrl();
+            gitHubOAuthService.buildAuthorizationUrl(null);
 
             // 第一次使用时 mock GitHub API
             when(restTemplate.postForEntity(anyString(), any(), eq(Map.class)))
@@ -146,7 +148,7 @@ class GitHubOAuthServiceTest {
         @DisplayName("并发创建时 DataIntegrityViolation → 重试查找成功")
         void concurrentCreation_retryFind() {
             when(jwtService.generateSigningKey()).thenReturn("state-for-concurrent");
-            gitHubOAuthService.buildAuthorizationUrl();
+            gitHubOAuthService.buildAuthorizationUrl(null);
 
             User existingUser = User.builder()
                     .id(1L).username("ghuser").githubId("12345")
@@ -178,7 +180,7 @@ class GitHubOAuthServiceTest {
                     .thenReturn("new-signing-key");
             when(jwtService.generateAccessToken(anyLong(), anyString(), anyList())).thenReturn("mock-access-token");
             when(jwtService.generateRefreshToken(anyLong())).thenReturn("mock-refresh-token");
-            gitHubOAuthService.buildAuthorizationUrl();
+            gitHubOAuthService.buildAuthorizationUrl(null);
 
             // mock exchangeCodeForToken
             when(restTemplate.postForEntity(contains("github.com/login/oauth/access_token"), any(), eq(Map.class)))
