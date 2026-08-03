@@ -80,9 +80,14 @@ const OAuthCallback: React.FC = () => {
 
       window.history.replaceState(null, '', window.location.pathname);
 
-      // 邀请注册场景：提示角色绑定成功
+      // 邀请注册场景：根据实际返回的角色判断邀请角色是否绑定成功
       if (inviteToken) {
-        message.success('注册成功，邀请角色已绑定');
+        const hasNonUserRole = roles.some(r => r.code !== 'USER');
+        if (hasNonUserRole) {
+          message.success('注册成功，邀请角色已绑定');
+        } else {
+          message.warning('注册成功，但邀请角色绑定可能未生效，请联系管理员');
+        }
       }
 
       if (mustChangePassword) {

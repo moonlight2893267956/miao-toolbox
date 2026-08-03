@@ -861,14 +861,25 @@
 
 .tc-diff-content {
   flex: 1;
-  white-space: pre;
   min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .tc-diff-old-line,
 .tc-diff-new-line {
   display: flex;
   align-items: baseline;
+  min-width: 0;
+}
+
+.tc-diff-old-text,
+.tc-diff-new-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .tc-diff-marker-inline {
@@ -1586,6 +1597,8 @@
 
 .tc-diff-body {
   max-height: calc(28vh - 46px);
+  overflow-x: hidden;
+  overflow-y: auto;
   background: var(--tc-well);
   box-shadow: none;
 }

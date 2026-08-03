@@ -355,6 +355,12 @@ const TabBar: React.FC = () => {
     el.style.opacity = '1';
   }, [state.activeKey, getOffsetLeft]);
 
+  // 保持最新引用，供 AnimatePresence onExitComplete 使用
+  const updateIndicatorRef = useRef(updateIndicator);
+  const updateOffscreenRef = useRef(updateOffscreen);
+  updateIndicatorRef.current = updateIndicator;
+  updateOffscreenRef.current = updateOffscreen;
+
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
@@ -478,7 +484,16 @@ const TabBar: React.FC = () => {
         >
           <SortableContext items={tabKeys} strategy={horizontalListSortingStrategy}>
             <div className="miao-tabbar-scroll" ref={scrollRef} onWheel={onWheel}>
-              <AnimatePresence initial={false}>
+              <AnimatePresence
+                initial={false}
+                onExitComplete={() => {
+                  // 退出动画结束后 tab 真正移除，剩余 tab 位移，需重新计算指示条位置
+                  requestAnimationFrame(() => {
+                    updateIndicatorRef.current();
+                    updateOffscreenRef.current();
+                  });
+                }}
+              >
                 {state.tabs.map((tab) => {
                   const isActive = tab.key === state.activeKey;
                   const canClose = tab.closable && !tab.pinned;
