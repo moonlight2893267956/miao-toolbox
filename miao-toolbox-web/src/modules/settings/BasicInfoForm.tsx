@@ -43,6 +43,7 @@ const BasicInfoForm: React.FC = () => {
           email: userInfo.email,
           emailVerified: userInfo.emailVerified,
           roles: userInfo.roles,
+          githubUsername: userInfo.githubUsername ?? null,
         });
       } catch {
         if (!cancelled) {
@@ -78,6 +79,7 @@ const BasicInfoForm: React.FC = () => {
         email: userInfo.email,
         emailVerified: userInfo.emailVerified,
         roles: userInfo.roles,
+        githubUsername: userInfo.githubUsername ?? null,
       });
       setServerUsername(userInfo.username);
       form.setFieldsValue({ username: userInfo.username });

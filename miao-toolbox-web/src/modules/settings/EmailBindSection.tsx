@@ -107,7 +107,7 @@ export default function EmailBindSection({ user, onUserUpdate }: EmailBindSectio
             <div className="miao-settings-connection-info">
               <div className="miao-settings-connection-name">邮箱</div>
               <div className="miao-settings-connection-detail">
-                <CheckCircleOutlined /> 已绑定账号 <Typography.Text strong copyable={{ text: user.email }}>{user.email}</Typography.Text>
+                <CheckCircleOutlined /> 已绑定账号 <Typography.Text strong copyable={{ text: user.email ?? '' }}>{user.email}</Typography.Text>
               </div>
             </div>
           </div>

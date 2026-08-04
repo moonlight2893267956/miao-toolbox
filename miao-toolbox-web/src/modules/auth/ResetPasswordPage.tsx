@@ -316,7 +316,7 @@ const ResetPasswordPage: React.FC = () => {
         size="large"
         block
         loading={loading}
-        onClick={verifyAndProceed}
+        onClick={() => void verifyAndProceed()}
         disabled={code.join('').length !== 6}
       >
         验证并继续

@@ -44,6 +44,7 @@ export interface UserInfo {
   email: string | null;
   emailVerified: boolean;
   roles: RoleBrief[];
+  githubUsername: string | null;
 }
 
 export interface LoginResult {

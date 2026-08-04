@@ -1,6 +1,6 @@
 import React from 'react';
 import { Form, Input, Button, Divider, Tabs, message } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined, GiftOutlined, GithubOutlined, GoogleOutlined, ExclamationCircleOutlined, LoadingOutlined, SendOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined, MailOutlined, GiftOutlined, GithubOutlined, GoogleOutlined, ExclamationCircleOutlined, LoadingOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import AuthShell from './AuthShell';

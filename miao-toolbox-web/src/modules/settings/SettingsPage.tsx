@@ -19,6 +19,7 @@ import GitHubBindSection from './GitHubBindSection';
 import GoogleBindSection from './GoogleBindSection';
 import EmailBindSection from './EmailBindSection';
 import { useAuth } from '../../contexts/AuthContext';
+import { Typography } from 'antd';
 import './settings-page.css';
 
 type SettingsSection = 'profile' | 'password' | 'connections';
@@ -79,6 +80,7 @@ const SettingsPage: React.FC = () => {
                             ? <CheckCircleOutlined className="miao-settings-info-verified" />
                             : <CloseCircleOutlined className="miao-settings-info-unverified" />
                           }
+                          <Typography.Text copyable={{ text: userInfo.email ?? '' }} />
                         </>
                       ) : (
                         <span className="miao-settings-info-empty">未绑定</span>

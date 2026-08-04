@@ -78,6 +78,7 @@ const OAuthCallback: React.FC = () => {
         email: null,
         emailVerified: false,
         roles,
+        githubUsername: null,
       }, mustChangePassword);
 
       window.history.replaceState(null, '', window.location.pathname);
