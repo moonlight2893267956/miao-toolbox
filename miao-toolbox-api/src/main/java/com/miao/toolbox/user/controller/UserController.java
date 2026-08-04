@@ -1,7 +1,9 @@
 package com.miao.toolbox.user.controller;
 
 import com.miao.toolbox.auth.entity.User;
+import com.miao.toolbox.auth.dto.ResetPasswordRequest;
 import com.miao.toolbox.common.response.ApiResponse;
+import com.miao.toolbox.user.dto.BindEmailRequest;
 import com.miao.toolbox.user.dto.UpdatePasswordRequest;
 import com.miao.toolbox.user.dto.UpdateProfileRequest;
 import com.miao.toolbox.user.dto.UserInfoResponse;
@@ -92,5 +94,26 @@ public class UserController {
         }
         userService.unbindGoogle(user.getId());
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/me/bind-email")
+    public ResponseEntity<ApiResponse<UserInfoResponse>> bindEmail(
+            @Valid @RequestBody BindEmailRequest request,
+            @AuthenticationPrincipal Object principal) {
+        if (!(principal instanceof User user)) {
+            return ResponseEntity.status(401)
+                    .body(ApiResponse.error("AUTH_UNAUTHORIZED", "未认证", null));
+        }
+        return ResponseEntity.ok(ApiResponse.success(userService.bindEmail(user.getId(), request.email(), request.code())));
+    }
+
+    @DeleteMapping("/me/bind-email")
+    public ResponseEntity<ApiResponse<UserInfoResponse>> unbindEmail(
+            @AuthenticationPrincipal Object principal) {
+        if (!(principal instanceof User user)) {
+            return ResponseEntity.status(401)
+                    .body(ApiResponse.error("AUTH_UNAUTHORIZED", "未认证", null));
+        }
+        return ResponseEntity.ok(ApiResponse.success(userService.unbindEmail(user.getId())));
     }
 }

@@ -6,6 +6,7 @@ import com.miao.toolbox.auth.oauth.GitHubOAuthService;
 import com.miao.toolbox.auth.oauth.GoogleOAuthProperties;
 import com.miao.toolbox.auth.oauth.GoogleOAuthService;
 import com.miao.toolbox.auth.oauth.OAuthProperties;
+import com.miao.toolbox.auth.service.JwtService;
 import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.exception.AuthException;
 import com.miao.toolbox.common.exception.BusinessException;
@@ -43,6 +44,7 @@ class OAuthControllerTest {
     @Mock private GoogleOAuthService googleOAuthService;
     @Mock private OAuthProperties oAuthProperties;
     @Mock private GoogleOAuthProperties googleOAuthProperties;
+    @Mock private JwtService jwtService;
     @Mock private HttpServletResponse response;
 
     private OAuthController controller;
@@ -50,7 +52,7 @@ class OAuthControllerTest {
     @BeforeEach
     void setUp() {
         controller = new OAuthController(gitHubOAuthService, googleOAuthService,
-                oAuthProperties, googleOAuthProperties);
+                oAuthProperties, googleOAuthProperties, jwtService);
         when(oAuthProperties.getFrontendCallbackUrl()).thenReturn(FRONTEND_CALLBACK);
         when(googleOAuthProperties.getFrontendCallbackUrl()).thenReturn(FRONTEND_CALLBACK);
     }

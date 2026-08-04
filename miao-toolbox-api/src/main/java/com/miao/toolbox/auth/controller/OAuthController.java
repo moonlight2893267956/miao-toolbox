@@ -7,8 +7,11 @@ import com.miao.toolbox.auth.oauth.OAuthProperties;
 import com.miao.toolbox.auth.oauth.GoogleOAuthProperties;
 import com.miao.toolbox.auth.oauth.GitHubOAuthService;
 import com.miao.toolbox.auth.oauth.GoogleOAuthService;
+import com.miao.toolbox.auth.service.JwtService;
 import com.miao.toolbox.common.exception.AuthException;
 import com.miao.toolbox.common.exception.BusinessException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,21 +36,26 @@ public class OAuthController {
     private final GoogleOAuthService googleOAuthService;
     private final OAuthProperties oAuthProperties;
     private final GoogleOAuthProperties googleOAuthProperties;
+    private final JwtService jwtService;
 
     @GetMapping("/github")
     public void authorizeGithub(
             @RequestParam(value = "bind", required = false, defaultValue = "false") boolean bind,
             @RequestParam(value = "state", required = false) String frontendState,
             @AuthenticationPrincipal Object principal,
+            HttpServletRequest request,
             HttpServletResponse response) throws IOException {
         String inviteToken = extractInviteToken(frontendState);
         String redirectUrl;
-        if (bind && principal instanceof User user) {
-            redirectUrl = gitHubOAuthService.buildBindAuthorizationUrl(user.getId());
+        User bindUser = resolveBindUser(bind, principal, request);
+        if (bindUser != null) {
+            redirectUrl = gitHubOAuthService.buildBindAuthorizationUrl(bindUser.getId());
         } else {
             redirectUrl = gitHubOAuthService.buildAuthorizationUrl(inviteToken);
         }
         log.info("OAuth authorize: bind={}, inviteToken={}, redirecting to GitHub", bind, inviteToken != null ? "***" : "null");
+        // 清除绑定 cookie（一次性使用）
+        clearBindCookie(response);
         response.sendRedirect(redirectUrl);
     }
 
@@ -91,15 +99,19 @@ public class OAuthController {
             @RequestParam(value = "bind", required = false, defaultValue = "false") boolean bind,
             @RequestParam(value = "state", required = false) String frontendState,
             @AuthenticationPrincipal Object principal,
+            HttpServletRequest request,
             HttpServletResponse response) throws IOException {
         String inviteToken = extractInviteToken(frontendState);
         String redirectUrl;
-        if (bind && principal instanceof User user) {
-            redirectUrl = googleOAuthService.buildBindAuthorizationUrl(user.getId());
+        User bindUser = resolveBindUser(bind, principal, request);
+        if (bindUser != null) {
+            redirectUrl = googleOAuthService.buildBindAuthorizationUrl(bindUser.getId());
         } else {
             redirectUrl = googleOAuthService.buildAuthorizationUrl(inviteToken);
         }
         log.info("OAuth authorize: bind={}, inviteToken={}, redirecting to Google", bind, inviteToken != null ? "***" : "null");
+        // 清除绑定 cookie（一次性使用）
+        clearBindCookie(response);
         response.sendRedirect(redirectUrl);
     }
 
@@ -187,5 +199,63 @@ public class OAuthController {
             log.debug("Failed to extract inviteToken from frontend state, ignoring: {}", e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * 解析绑定场景下的当前用户。
+     * 优先使用 Spring Security 上下文中的已认证用户；
+     * 若不可用（OAuth 端点为 permitAll），则从前端写入的临时 cookie 中读取 JWT 并验证。
+     */
+    private User resolveBindUser(boolean bind, Object principal, HttpServletRequest request) {
+        if (!bind) return null;
+
+        // 1. 尝试从 Security 上下文获取
+        if (principal instanceof User user) {
+            return user;
+        }
+
+        // 2. 从临时 cookie 中读取 JWT
+        String token = extractCookieValue(request, "miao_bind_token");
+        if (token == null || token.isBlank()) {
+            log.warn("OAuth bind requested but no authenticated user and no bind cookie found");
+            return null;
+        }
+
+        try {
+            var claims = jwtService.validateAccessToken(token);
+            Long userId = jwtService.extractUserId(claims);
+            // 返回一个仅含 ID 的 User 对象，供 buildBindAuthorizationUrl 使用
+            User cookieUser = new User();
+            cookieUser.setId(userId);
+            log.info("OAuth bind user resolved from cookie: userId={}", userId);
+            return cookieUser;
+        } catch (Exception e) {
+            log.warn("OAuth bind cookie token validation failed: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 从请求 cookie 中提取指定名称的值。
+     */
+    private String extractCookieValue(HttpServletRequest request, String name) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) return null;
+        for (Cookie cookie : cookies) {
+            if (name.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 清除绑定用的临时 cookie（一次性使用后立即删除）。
+     */
+    private void clearBindCookie(HttpServletResponse response) {
+        Cookie cookie = new Cookie("miao_bind_token", "");
+        cookie.setPath("/api/auth/oauth");
+        cookie.setMaxAge(0);
+        response.addCookie(cookie);
     }
 }

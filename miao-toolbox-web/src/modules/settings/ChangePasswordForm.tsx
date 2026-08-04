@@ -50,37 +50,51 @@ const ChangePasswordForm: React.FC = () => {
       layout="vertical"
       requiredMark={false}
       size="large"
+      className="miao-settings-form"
     >
-      <Form.Item
-        name="oldPassword"
-        rules={[{ required: true, message: '请输入旧密码' }]}
-      >
-        <Input.Password prefix={<LockOutlined />} placeholder="旧密码" />
-      </Form.Item>
+      <div className="miao-settings-form-grid">
+        <Form.Item
+          name="oldPassword"
+          label="当前密码"
+          rules={[{ required: true, message: '请输入旧密码' }]}
+        >
+          <Input.Password
+            prefix={<LockOutlined />}
+            placeholder="请输入当前密码"
+            className="miao-settings-input"
+          />
+        </Form.Item>
 
-      <Form.Item
-        name="newPassword"
-        rules={[
-          { required: true, message: '请输入新密码' },
-          { min: 8, max: 72, message: '密码长度为8-72位' },
-          {
-            validator: (_, value: string) => {
-              if (!value) return Promise.resolve();
-              const hasLetter = /[a-zA-Z]/.test(value);
-              const hasDigit = /\d/.test(value);
-              if (!hasLetter || !hasDigit) {
-                return Promise.reject(new Error('密码须包含字母和数字'));
-              }
-              return Promise.resolve();
+        <Form.Item
+          name="newPassword"
+          label="新密码"
+          rules={[
+            { required: true, message: '请输入新密码' },
+            { min: 8, max: 72, message: '密码长度为8-72位' },
+            {
+              validator: (_, value: string) => {
+                if (!value) return Promise.resolve();
+                const hasLetter = /[a-zA-Z]/.test(value);
+                const hasDigit = /\d/.test(value);
+                if (!hasLetter || !hasDigit) {
+                  return Promise.reject(new Error('密码须包含字母和数字'));
+                }
+                return Promise.resolve();
+              },
             },
-          },
-        ]}
-      >
-        <Input.Password prefix={<LockOutlined />} placeholder="新密码（至少8位，包含字母和数字）" />
-      </Form.Item>
+          ]}
+        >
+          <Input.Password
+            prefix={<LockOutlined />}
+            placeholder="至少8位，包含字母和数字"
+            className="miao-settings-input"
+          />
+        </Form.Item>
+      </div>
 
       <Form.Item
         name="confirmPassword"
+        label="确认新密码"
         dependencies={['newPassword']}
         rules={[
           { required: true, message: '请确认新密码' },
@@ -94,11 +108,24 @@ const ChangePasswordForm: React.FC = () => {
           }),
         ]}
       >
-        <Input.Password prefix={<LockOutlined />} placeholder="确认新密码" />
+        <Input.Password
+          prefix={<LockOutlined />}
+          placeholder="请再次输入新密码"
+          className="miao-settings-input"
+        />
       </Form.Item>
 
-      <Form.Item>
-        <Button type="primary" htmlType="submit" loading={loading} block>
+      <div className="miao-password-hint">
+        密码建议包含大小写字母、数字和特殊符号，长度不少于 8 位。
+      </div>
+
+      <Form.Item className="miao-settings-form-actions">
+        <Button
+          type="primary"
+          htmlType="submit"
+          loading={loading}
+          className="miao-settings-submit"
+        >
           修改密码
         </Button>
       </Form.Item>

@@ -46,6 +46,16 @@ public final class ErrorCode {
     public static final String DIFF_FILE_NOT_FOUND = "DIFF_FILE_NOT_FOUND";
     public static final String DIFF_INVALID_REQUEST = "DIFF_INVALID_REQUEST";
 
+    // Email verification errors
+    public static final String EMAIL_SEND_FAILED = "EMAIL_SEND_FAILED";
+    public static final String EMAIL_CODE_EXPIRED = "EMAIL_CODE_EXPIRED";
+    public static final String EMAIL_CODE_INVALID = "EMAIL_CODE_INVALID";
+    public static final String EMAIL_CODE_RATE_LIMIT = "EMAIL_CODE_RATE_LIMIT";
+    public static final String EMAIL_VERIFY_RATE_LIMIT = "EMAIL_VERIFY_RATE_LIMIT";
+    public static final String EMAIL_NOT_SET = "EMAIL_NOT_SET";
+    public static final String EMAIL_ALREADY_VERIFIED = "EMAIL_ALREADY_VERIFIED";
+    public static final String EMAIL_CODE_PURPOSE_MISMATCH = "EMAIL_CODE_PURPOSE_MISMATCH";
+
     // Network toolbox (server-side proxy tools)
     public static final String NETWORK_DNS_RESOLVE_FAILED = "NETWORK_DNS_RESOLVE_FAILED";
     public static final String NETWORK_CONNECTION_TIMEOUT = "NETWORK_CONNECTION_TIMEOUT";

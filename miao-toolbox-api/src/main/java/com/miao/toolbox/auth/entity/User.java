@@ -67,6 +67,9 @@ public class User {
     @Column(name = "signing_key")
     private String signingKey;
 
+    @Column(name = "email_verified", nullable = false)
+    private Boolean emailVerified = false;
+
     @Column(name = "login_fail_count", nullable = false)
     private Integer loginFailCount = 0;
 

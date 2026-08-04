@@ -12,4 +12,12 @@ public final class RedisKey {
     public static final String SIGNING_KEY_TRANSITION_PREFIX = "miao:signing:transition:";
     public static final String RATE_LIMIT_CUSTOM_PREFIX = "miao:ratelimit:custom:";
     public static final String USER_ROUTES_PREFIX = "miao:routes:user:";
+
+    // Email verification code
+    /** Verification code content, value = code:purpose, TTL = expire-minutes */
+    public static final String EMAIL_CODE_PREFIX = "miao:email:code:";
+    /** Hourly send count, value = count, TTL = 1h */
+    public static final String EMAIL_SEND_COUNT_PREFIX = "miao:email:send:count:";
+    /** Daily verify count, value = count, TTL = 24h */
+    public static final String EMAIL_VERIFY_COUNT_PREFIX = "miao:email:verify:count:";
 }

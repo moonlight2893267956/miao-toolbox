@@ -1,104 +1,114 @@
-import React from 'react';
-import { Button, Typography, Space, Alert, Spin, message } from 'antd';
-import { GoogleOutlined, LinkOutlined, DisconnectOutlined } from '@ant-design/icons';
+import React, { useEffect, useState } from 'react';
+import { Button, message, Modal, Typography } from 'antd';
+import { GoogleOutlined, CheckCircleOutlined, DisconnectOutlined } from '@ant-design/icons';
 import axiosInstance from '../../services/axiosInstance';
+import { authService } from '../../services/authService';
 
-const { Text } = Typography;
-
-interface UserInfo {
-  id: number;
-  username: string;
-  googleId: string | null;
-  googleUsername: string | null;
-  mustChangePassword: boolean;
+interface ConnectionInfo {
+  githubId?: string;
+  githubUsername?: string;
+  googleId?: string;
+  googleUsername?: string;
 }
 
 const GoogleBindSection: React.FC = () => {
-  const [userInfo, setUserInfo] = React.useState<UserInfo | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [unbindLoading, setUnbindLoading] = React.useState(false);
+  const [connectionInfo, setConnectionInfo] = useState<ConnectionInfo | null>(null);
+  const [unbinding, setUnbinding] = useState(false);
 
-  React.useEffect(() => {
-    const fetchUserInfo = async () => {
-      try {
-        const response = await axiosInstance.get('/api/users/me');
-        setUserInfo(response.data.data);
-      } catch {
-        message.error('获取用户信息失败');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUserInfo();
+  const fetchConnectionInfo = async () => {
+    try {
+      const response = await axiosInstance.get('/api/users/me');
+      const data = response.data.data;
+      setConnectionInfo({
+        githubId: data.githubId,
+        githubUsername: data.githubUsername,
+        googleId: data.googleId,
+        googleUsername: data.googleUsername,
+      });
+    } catch {
+      message.error('获取绑定信息失败');
+    }
+  };
+
+  useEffect(() => {
+    fetchConnectionInfo();
   }, []);
 
-  const handleBind = async () => {
-    try {
-      const response = await axiosInstance.post('/api/users/me/bind-google');
-      const oauthUrl = response.data.data;
-      sessionStorage.setItem('oauth_bind_mode', 'true');
-      window.location.href = oauthUrl;
-    } catch (error: any) {
-      const msg = error?.response?.data?.message;
-      message.error(msg || '获取绑定链接失败');
-    }
+  const handleBind = () => {
+    window.location.href = authService.getOAuthBindUrl('google');
   };
 
-  const handleUnbind = async () => {
-    setUnbindLoading(true);
-    try {
-      await axiosInstance.delete('/api/users/me/bind-google');
-      message.success('已解绑 Google 账号');
-      setUserInfo(prev => prev ? { ...prev, googleId: null, googleUsername: null } : null);
-    } catch {
-      message.error('解绑失败，请重试');
-    } finally {
-      setUnbindLoading(false);
-    }
+  const handleUnbind = () => {
+    Modal.confirm({
+      title: '解绑 Google 账号',
+      icon: null,
+      content: '解绑后将无法使用 Google 快速登录，确定继续吗？',
+      okText: '确定解绑',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      centered: true,
+      className: 'miao-settings-modal',
+      onOk: async () => {
+        setUnbinding(true);
+        try {
+          await axiosInstance.delete('/api/users/me/bind-google');
+          message.success('Google 账号解绑成功');
+          setConnectionInfo(prev => (prev ? { ...prev, googleId: undefined, googleUsername: undefined } : null));
+        } catch (error: any) {
+          message.error(error?.response?.data?.message || 'Google 账号解绑失败');
+        } finally {
+          setUnbinding(false);
+        }
+      },
+    });
   };
 
-  if (loading) {
-    return <Spin />;
-  }
-
-  const isBound = !!(userInfo?.googleId);
+  const isBound = !!connectionInfo?.googleId;
+  const username = connectionInfo?.googleUsername || connectionInfo?.googleId;
 
   return (
-    <div>
-      {isBound ? (
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <Alert
-            type="success"
-            showIcon
-            icon={<LinkOutlined />}
-            message={
-              <Space>
-                <Text>已绑定 Google 账号：<strong>{userInfo?.googleUsername || 'Google 用户'}</strong></Text>
-              </Space>
-            }
-          />
-          <Button
-            danger
-            icon={<DisconnectOutlined />}
-            onClick={handleUnbind}
-            loading={unbindLoading}
-          >
-            解绑 Google
-          </Button>
-        </Space>
-      ) : (
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <Text type="secondary">绑定 Google 账号后可使用 Google 一键登录</Text>
-          <Button
-            type="primary"
-            icon={<GoogleOutlined />}
-            onClick={handleBind}
-            style={{ borderRadius: 10 }}
-          >
-            绑定 Google
-          </Button>
-        </Space>
-      )}
+    <div className={`miao-settings-connection ${isBound ? 'is-bound' : ''}`}>
+      <div className="miao-settings-connection-main">
+        <div className="miao-settings-connection-brand">
+          <div className="miao-settings-connection-logo is-google">
+            <GoogleOutlined />
+          </div>
+          <div className="miao-settings-connection-info">
+            <div className="miao-settings-connection-name">Google</div>
+            {isBound ? (
+              <div className="miao-settings-connection-detail">
+                <CheckCircleOutlined /> 已绑定账号 <Typography.Text strong copyable={{ text: username }}>{username}</Typography.Text>
+              </div>
+            ) : (
+              <div className="miao-settings-connection-detail">未绑定，可使用 Google 一键登录</div>
+            )}
+          </div>
+        </div>
+
+        <div className="miao-settings-connection-actions">
+          {isBound ? (
+            <Button
+              danger
+              ghost
+              icon={<DisconnectOutlined />}
+              loading={unbinding}
+              onClick={handleUnbind}
+              className="miao-settings-connection-btn"
+            >
+              解除绑定
+            </Button>
+          ) : (
+            <Button
+              type="primary"
+              icon={<GoogleOutlined />}
+              onClick={handleBind}
+              className="miao-settings-connection-btn is-google"
+            >
+              绑定 Google
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

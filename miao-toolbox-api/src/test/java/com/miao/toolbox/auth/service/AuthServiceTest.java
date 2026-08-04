@@ -1,8 +1,10 @@
 package com.miao.toolbox.auth.service;
 
+import com.miao.toolbox.auth.dto.EmailRegisterRequest;
 import com.miao.toolbox.auth.dto.LoginRequest;
 import com.miao.toolbox.auth.dto.LoginResponse;
 import com.miao.toolbox.auth.dto.RegisterRequest;
+import com.miao.toolbox.auth.enums.EmailCodePurpose;
 import com.miao.toolbox.auth.entity.RefreshToken;
 import com.miao.toolbox.auth.entity.Role;
 import com.miao.toolbox.auth.entity.User;
@@ -29,6 +31,8 @@ import org.mockito.quality.Strictness;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import org.springframework.test.util.ReflectionTestUtils;
+
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -49,8 +53,9 @@ class AuthServiceTest {
     @Mock private RoleRepository roleRepository;
     @Mock private JwtService jwtService;
     @Mock private InviteService inviteService;
+    @Mock private EmailCodeService emailCodeService;
     @Mock private HttpServletResponse response;
-    @InjectMocks private AuthService authService;
+    private AuthService authService;
 
     private User enabledUser;
     private User disabledUser;
@@ -82,6 +87,8 @@ class AuthServiceTest {
 
         lenient().when(jwtService.getRefreshTokenExpiryMs()).thenReturn(7 * 24 * 60 * 60 * 1000L);
         lenient().when(roleRepository.findByCode("USER")).thenReturn(Optional.of(userRole));
+
+        authService = new AuthService(userRepository, refreshTokenRepository, roleRepository, jwtService, inviteService, emailCodeService);
     }
 
     // ========== 注册测试 ==========
@@ -385,6 +392,255 @@ class AuthServiceTest {
         void logout_nullToken() {
             assertThatCode(() -> authService.logout(null, response)).doesNotThrowAnyException();
             verify(refreshTokenRepository, never()).delete(any());
+        }
+    }
+
+    // ========== 邮箱注册测试 ==========
+
+    @Nested
+    @DisplayName("emailRegister 邮箱注册")
+    class EmailRegisterTests {
+
+        private EmailRegisterRequest buildRequest() {
+            EmailRegisterRequest req = new EmailRegisterRequest();
+            req.setEmail("test@example.com");
+            req.setUsername("newuser");
+            req.setPassword("Password1");
+            req.setCode("123456");
+            return req;
+        }
+
+        @Test
+        @DisplayName("邮箱注册成功 - 自动登录返回 token")
+        void emailRegister_success() {
+            EmailRegisterRequest request = buildRequest();
+            when(emailCodeService.verifyCode("test@example.com", "123456", EmailCodePurpose.REGISTER)).thenReturn(true);
+            when(userRepository.existsByUsername("newuser")).thenReturn(false);
+            when(userRepository.findByEmailAndEmailVerifiedTrue("test@example.com")).thenReturn(Optional.empty());
+            when(jwtService.generateSigningKey()).thenReturn("signkey");
+            when(jwtService.generateAccessToken(anyLong(), anyString(), anyList())).thenReturn("access-token");
+            when(jwtService.generateRefreshToken(anyLong())).thenReturn("refresh-token");
+            when(jwtService.getRefreshTokenExpiryMs()).thenReturn(7 * 24 * 60 * 60 * 1000L);
+            when(refreshTokenRepository.findByUserIdOrderByCreatedAtAsc(anyLong())).thenReturn(List.of());
+            // save 回填 ID
+            when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+                User u = invocation.getArgument(0);
+                if (u.getId() == null) {
+                    ReflectionTestUtils.setField(u, "id", 1L);
+                }
+                return u;
+            });
+
+            LoginResponse result = authService.emailRegister(request, response);
+
+            assertThat(result.getAccessToken()).isEqualTo("access-token");
+            assertThat(result.getSigningKey()).isEqualTo("signkey");
+            assertThat(result.getUser().getUsername()).isEqualTo("newuser");
+            verify(userRepository, times(2)).save(any(User.class));
+        }
+
+        @Test
+        @DisplayName("验证码错误 → 抛出异常")
+        void emailRegister_invalidCode() {
+            EmailRegisterRequest request = buildRequest();
+            when(emailCodeService.verifyCode("test@example.com", "123456", EmailCodePurpose.REGISTER)).thenReturn(false);
+
+            assertThatThrownBy(() -> authService.emailRegister(request, response))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.EMAIL_CODE_INVALID);
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("用户名已存在 → 抛出异常")
+        void emailRegister_duplicateUsername() {
+            EmailRegisterRequest request = buildRequest();
+            when(emailCodeService.verifyCode("test@example.com", "123456", EmailCodePurpose.REGISTER)).thenReturn(true);
+            when(userRepository.existsByUsername("newuser")).thenReturn(true);
+
+            assertThatThrownBy(() -> authService.emailRegister(request, response))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.USER_ALREADY_EXISTS);
+        }
+
+        @Test
+        @DisplayName("邮箱已被已验证用户绑定 → 抛出异常")
+        void emailRegister_emailAlreadyBound() {
+            EmailRegisterRequest request = buildRequest();
+            when(emailCodeService.verifyCode("test@example.com", "123456", EmailCodePurpose.REGISTER)).thenReturn(true);
+            when(userRepository.existsByUsername("newuser")).thenReturn(false);
+            when(userRepository.findByEmailAndEmailVerifiedTrue("test@example.com"))
+                    .thenReturn(Optional.of(mock(User.class)));
+
+            assertThatThrownBy(() -> authService.emailRegister(request, response))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.USER_ALREADY_EXISTS);
+        }
+
+        @Test
+        @DisplayName("密码不满足强度要求 → 抛出异常")
+        void emailRegister_weakPassword() {
+            EmailRegisterRequest request = buildRequest();
+            request.setPassword("password");
+            when(emailCodeService.verifyCode("test@example.com", "123456", EmailCodePurpose.REGISTER)).thenReturn(true);
+            when(userRepository.existsByUsername("newuser")).thenReturn(false);
+            when(userRepository.findByEmailAndEmailVerifiedTrue("test@example.com")).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> authService.emailRegister(request, response))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_FAILED);
+        }
+    }
+
+    // ========== 邮箱登录测试 ==========
+
+    @Nested
+    @DisplayName("login 邮箱登录")
+    class EmailLoginTests {
+
+        @Test
+        @DisplayName("使用邮箱登录 - 输入包含@，走邮箱查询")
+        void login_withEmail() {
+            User emailUser = User.builder()
+                    .id(10L).username("emailuser").email("user@example.com").passwordHash("$2a$10$hash")
+                    .emailVerified(true)
+                    .roles(Set.of(userRole)).isEnabled(true).mustChangePassword(false)
+                    .loginFailCount(0).createdAt(LocalDateTime.now(ZoneOffset.UTC))
+                    .updatedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
+
+            when(userRepository.findByEmailAndEmailVerifiedTrue("user@example.com")).thenReturn(Optional.of(emailUser));
+
+            LoginRequest req = new LoginRequest();
+            req.setUsername("user@example.com");
+            req.setPassword("wrong");
+
+            // 密码不匹配会抛 AuthException，但关键是验证走了邮箱查询路径
+            assertThatThrownBy(() -> authService.login(req, response))
+                    .isInstanceOf(AuthException.class);
+            verify(userRepository).findByEmailAndEmailVerifiedTrue("user@example.com");
+            verify(userRepository, never()).findByUsername(anyString());
+        }
+
+        @Test
+        @DisplayName("使用用户名登录 - 输入不含@，走用户名查询")
+        void login_withUsername() {
+            when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(enabledUser));
+
+            LoginRequest req = new LoginRequest();
+            req.setUsername("testuser");
+            req.setPassword("wrong");
+
+            assertThatThrownBy(() -> authService.login(req, response))
+                    .isInstanceOf(AuthException.class);
+            verify(userRepository).findByUsername("testuser");
+            verify(userRepository, never()).findByEmailAndEmailVerifiedTrue(anyString());
+        }
+
+        @Test
+        @DisplayName("邮箱未验证 → 登录失败")
+        void login_emailNotVerified() {
+            when(userRepository.findByEmailAndEmailVerifiedTrue("unverified@example.com")).thenReturn(Optional.empty());
+
+            LoginRequest req = new LoginRequest();
+            req.setUsername("unverified@example.com");
+            req.setPassword("Password1");
+
+            assertThatThrownBy(() -> authService.login(req, response))
+                    .isInstanceOf(AuthException.class)
+                    .hasMessageContaining("用户名或密码错误");
+        }
+    }
+
+    // ========== 邮箱重置密码测试 ==========
+
+    @Nested
+    @DisplayName("resetPassword 邮箱重置密码")
+    class ResetPasswordTests {
+
+        @Test
+        @DisplayName("重置密码成功 - 更新密码并清除所有 refresh token")
+        void resetPassword_success() {
+            User user = User.builder()
+                    .id(1L).username("testuser").email("test@qq.com").passwordHash("old-hash")
+                    .emailVerified(true)
+                    .roles(Set.of(userRole)).isEnabled(true).mustChangePassword(false)
+                    .loginFailCount(0).createdAt(LocalDateTime.now(ZoneOffset.UTC))
+                    .updatedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
+
+            when(emailCodeService.verifyCode("test@qq.com", "123456", EmailCodePurpose.RESET_PASSWORD)).thenReturn(true);
+            when(userRepository.findByEmailAndEmailVerifiedTrue("test@qq.com")).thenReturn(Optional.of(user));
+            when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(refreshTokenRepository.findByUserIdOrderByCreatedAtAsc(1L)).thenReturn(List.of());
+
+            assertThatCode(() -> authService.resetPassword("test@qq.com", "123456", "NewPass1"))
+                    .doesNotThrowAnyException();
+
+            verify(userRepository).save(argThat(u -> u.getPasswordHash() != null && !u.getPasswordHash().equals("old-hash")));
+            verify(refreshTokenRepository).findByUserIdOrderByCreatedAtAsc(1L);
+        }
+
+        @Test
+        @DisplayName("验证码错误 → 抛出异常")
+        void resetPassword_invalidCode() {
+            when(emailCodeService.verifyCode("test@qq.com", "wrong", EmailCodePurpose.RESET_PASSWORD)).thenReturn(false);
+
+            assertThatThrownBy(() -> authService.resetPassword("test@qq.com", "wrong", "NewPass1"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("验证码错误");
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("邮箱未注册 → 抛出异常")
+        void resetPassword_emailNotFound() {
+            when(emailCodeService.verifyCode("nobody@qq.com", "123456", EmailCodePurpose.RESET_PASSWORD)).thenReturn(true);
+            when(userRepository.findByEmailAndEmailVerifiedTrue("nobody@qq.com")).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> authService.resetPassword("nobody@qq.com", "123456", "NewPass1"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("该邮箱未注册");
+        }
+
+        @Test
+        @DisplayName("新密码不满足强度要求 → 抛出异常")
+        void resetPassword_weakPassword() {
+            User user = User.builder()
+                    .id(1L).username("testuser").email("test@qq.com").passwordHash("old-hash")
+                    .emailVerified(true)
+                    .roles(Set.of(userRole)).isEnabled(true).mustChangePassword(false)
+                    .loginFailCount(0).createdAt(LocalDateTime.now(ZoneOffset.UTC))
+                    .updatedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
+
+            when(emailCodeService.verifyCode("test@qq.com", "123456", EmailCodePurpose.RESET_PASSWORD)).thenReturn(true);
+            when(userRepository.findByEmailAndEmailVerifiedTrue("test@qq.com")).thenReturn(Optional.of(user));
+
+            assertThatThrownBy(() -> authService.resetPassword("test@qq.com", "123456", "weak"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("密码须包含");
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("重置密码后清除所有 refresh token")
+        void resetPassword_clearsRefreshTokens() {
+            User user = User.builder()
+                    .id(1L).username("testuser").email("test@qq.com").passwordHash("old-hash")
+                    .emailVerified(true)
+                    .roles(Set.of(userRole)).isEnabled(true).mustChangePassword(false)
+                    .loginFailCount(0).createdAt(LocalDateTime.now(ZoneOffset.UTC))
+                    .updatedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
+
+            RefreshToken t1 = RefreshToken.builder().id(1L).tokenHash("h1").userId(1L).build();
+            RefreshToken t2 = RefreshToken.builder().id(2L).tokenHash("h2").userId(1L).build();
+
+            when(emailCodeService.verifyCode("test@qq.com", "123456", EmailCodePurpose.RESET_PASSWORD)).thenReturn(true);
+            when(userRepository.findByEmailAndEmailVerifiedTrue("test@qq.com")).thenReturn(Optional.of(user));
+            when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(refreshTokenRepository.findByUserIdOrderByCreatedAtAsc(1L)).thenReturn(List.of(t1, t2));
+
+            authService.resetPassword("test@qq.com", "123456", "NewPass1");
+
+            verify(refreshTokenRepository).deleteAll(List.of(t1, t2));
         }
     }
 }

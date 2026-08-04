@@ -1,9 +1,11 @@
 package com.miao.toolbox.user.service;
 
 import com.miao.toolbox.auth.entity.User;
+import com.miao.toolbox.auth.enums.EmailCodePurpose;
 import com.miao.toolbox.auth.oauth.GitHubOAuthService;
 import com.miao.toolbox.auth.oauth.GoogleOAuthService;
 import com.miao.toolbox.auth.repository.UserRepository;
+import com.miao.toolbox.auth.service.EmailCodeService;
 import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.user.dto.UserInfoResponse;
@@ -26,6 +28,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final GitHubOAuthService gitHubOAuthService;
     private final GoogleOAuthService googleOAuthService;
+    private final EmailCodeService emailCodeService;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Transactional(readOnly = true)
@@ -64,6 +67,8 @@ public class UserService {
         return UserInfoResponse.builder()
                 .id(user.getId())
                 .username(user.getUsername())
+                .email(user.getEmail())
+                .emailVerified(Boolean.TRUE.equals(user.getEmailVerified()))
                 .roles(user.toRoleBriefs())
                 .githubId(user.getGithubId())
                 .githubUsername(user.getGithubUsername())
@@ -139,5 +144,57 @@ public class UserService {
             if (Character.isDigit(c)) hasDigit = true;
         }
         return hasLetter && hasDigit;
+    }
+
+    /**
+     * 绑定邮箱：校验验证码 → 设置邮箱 → 标记已验证
+     */
+    @Transactional
+    public UserInfoResponse bindEmail(Long userId, String email, String code) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在", 404));
+
+        // 已绑定邮箱不允许再绑
+        if (user.getEmail() != null && Boolean.TRUE.equals(user.getEmailVerified())) {
+            throw new BusinessException(ErrorCode.EMAIL_ALREADY_VERIFIED, "已绑定邮箱，如需更换请先解绑", 400);
+        }
+
+        // 校验验证码
+        boolean valid = emailCodeService.verifyCode(email, code, EmailCodePurpose.BIND_EMAIL);
+        if (!valid) {
+            throw new BusinessException(ErrorCode.EMAIL_CODE_INVALID, "验证码错误", 400);
+        }
+
+        // 邮箱唯一性校验
+        userRepository.findByEmailAndEmailVerifiedTrue(email).ifPresent(existing -> {
+            throw new BusinessException(ErrorCode.USER_ALREADY_EXISTS, "该邮箱已被其他账号绑定", 409);
+        });
+
+        user.setEmail(email);
+        user.setEmailVerified(true);
+        try {
+            userRepository.saveAndFlush(user);
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException(ErrorCode.USER_ALREADY_EXISTS, "该邮箱已被其他账号绑定", 409);
+        }
+        return toUserInfoResponse(user);
+    }
+
+    /**
+     * 解绑邮箱
+     */
+    @Transactional
+    public UserInfoResponse unbindEmail(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在", 404));
+
+        if (user.getEmail() == null) {
+            throw new BusinessException(ErrorCode.EMAIL_NOT_SET, "未绑定邮箱", 400);
+        }
+
+        user.setEmail(null);
+        user.setEmailVerified(false);
+        userRepository.save(user);
+        return toUserInfoResponse(user);
     }
 }

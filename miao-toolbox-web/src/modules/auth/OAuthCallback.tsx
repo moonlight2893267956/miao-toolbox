@@ -75,6 +75,8 @@ const OAuthCallback: React.FC = () => {
       login(token, signingKey, {
         id: userId,
         username: decodedUsername,
+        email: null,
+        emailVerified: false,
         roles,
       }, mustChangePassword);
 

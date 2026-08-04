@@ -22,6 +22,11 @@ spring:
     exclude:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+  mail:
+    host: localhost
+    port: 25
+    username: test
+    password: test
 
 miao:
   jwt:
@@ -40,3 +45,12 @@ miao:
     nonce-ttl-seconds: 300
   cors:
     allowed-origins: http://localhost:5173
+
+app:
+  mail:
+    from: noreply@test.com
+    code:
+      expire-minutes: 5
+      max-send-per-hour: 5
+      max-verify-per-day: 10
+      length: 6

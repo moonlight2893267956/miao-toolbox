@@ -2,9 +2,11 @@ package com.miao.toolbox.auth.controller;
 
 import com.miao.toolbox.auth.dto.ChangePasswordRequest;
 import com.miao.toolbox.auth.dto.AccessibleRoutesResponse;
+import com.miao.toolbox.auth.dto.EmailRegisterRequest;
 import com.miao.toolbox.auth.dto.LoginRequest;
 import com.miao.toolbox.auth.dto.LoginResponse;
 import com.miao.toolbox.auth.dto.RegisterRequest;
+import com.miao.toolbox.auth.dto.ResetPasswordRequest;
 import com.miao.toolbox.auth.entity.User;
 import com.miao.toolbox.auth.service.AuthService;
 import com.miao.toolbox.auth.service.RouteAccessService;
@@ -34,6 +36,15 @@ public class AuthController {
         authService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(null));
+    }
+
+    @PostMapping("/email/register")
+    public ResponseEntity<ApiResponse<LoginResponse>> emailRegister(
+            @Valid @RequestBody EmailRegisterRequest request,
+            HttpServletResponse response) {
+        LoginResponse loginResponse = authService.emailRegister(request, response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(loginResponse));
     }
 
     @GetMapping("/invite/preview")
@@ -95,6 +106,13 @@ public class AuthController {
                     .body(ApiResponse.error("VALIDATION_FAILED", "密码长度为8-72位", null));
         }
         authService.changePassword(user.getId(), request.getNewPassword());
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/email/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request.email(), request.code(), request.newPassword());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 }

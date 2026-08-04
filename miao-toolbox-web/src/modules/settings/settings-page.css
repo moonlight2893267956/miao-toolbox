@@ -1,0 +1,741 @@
+.miao-settings-dashboard {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 24px;
+  min-height: calc(100vh - var(--miao-header-height, 56px) - 40px);
+  padding: 24px;
+}
+
+@media (max-width: 768px) {
+  .miao-settings-dashboard {
+    grid-template-columns: 1fr;
+    padding: 16px;
+    gap: 16px;
+  }
+}
+
+/* ============= 侧边栏 ============= */
+.miao-settings-aside {
+  position: sticky;
+  top: calc(var(--miao-header-height, 56px) + 24px);
+  height: fit-content;
+  background: color-mix(in srgb, var(--miao-bg-elevated) 80%, transparent);
+  border: 1px solid var(--miao-border-subtle);
+  border-radius: 20px;
+  padding: 24px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--miao-text) 3%, transparent),
+    0 8px 32px color-mix(in srgb, var(--miao-text) 4%, transparent);
+}
+
+@media (max-width: 768px) {
+  .miao-settings-aside {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+  }
+}
+
+.miao-settings-profile-brief {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 20px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--miao-border-subtle);
+}
+
+.miao-settings-avatar {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  font-family: var(--miao-font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--miao-accent);
+  background-image: linear-gradient(135deg, rgba(255,255,255,0.25) 0%, transparent 60%);
+  box-shadow:
+    0 0 0 2px rgba(199,91,57,0.25),
+    0 6px 18px rgba(199,91,57,0.3);
+}
+
+[data-theme="dark"] .miao-settings-avatar {
+  box-shadow:
+    0 0 0 2px rgba(0,212,170,0.25),
+    0 6px 18px rgba(0,212,170,0.3);
+}
+
+.miao-settings-user-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.miao-settings-username {
+  margin: 0;
+  font-family: var(--miao-font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--miao-text);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.miao-settings-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.miao-settings-role-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.miao-settings-role-tag.is-user {
+  color: var(--miao-text-secondary);
+  background: var(--miao-bg-subtle);
+  border-color: var(--miao-border-subtle);
+}
+
+.miao-settings-role-tag.is-admin {
+  color: #a21caf;
+  background: color-mix(in srgb, #d946ef 12%, transparent);
+  border-color: color-mix(in srgb, #d946ef 28%, transparent);
+}
+
+.miao-settings-role-tag.is-beta {
+  color: #047857;
+  background: color-mix(in srgb, #34d399 14%, transparent);
+  border-color: color-mix(in srgb, #34d399 30%, transparent);
+}
+
+/* ============= 导航 ============= */
+.miao-settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+@media (max-width: 768px) {
+  .miao-settings-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+}
+
+.miao-settings-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--miao-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    transform 0.15s ease;
+}
+
+@media (max-width: 768px) {
+  .miao-settings-nav-item {
+    flex: 0 0 auto;
+    width: auto;
+    white-space: nowrap;
+  }
+}
+
+.miao-settings-nav-item:hover {
+  color: var(--miao-text);
+  background: var(--miao-bg-subtle);
+}
+
+.miao-settings-nav-item.is-active {
+  color: var(--miao-accent);
+  background: color-mix(in srgb, var(--miao-accent) 10%, transparent);
+}
+
+.miao-settings-nav-item:active {
+  transform: scale(0.98);
+}
+
+.miao-settings-nav-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--miao-bg-subtle);
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.miao-settings-nav-item.is-active .miao-settings-nav-icon {
+  background: color-mix(in srgb, var(--miao-accent) 18%, transparent);
+}
+
+.miao-settings-nav-indicator {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  width: 3px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--miao-accent);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (max-width: 768px) {
+  .miao-settings-nav-indicator {
+    display: none;
+  }
+}
+
+.miao-settings-nav-item.is-active .miao-settings-nav-indicator {
+  transform: translateY(-50%) scaleY(1);
+}
+
+/* ============= 主内容区 ============= */
+.miao-settings-main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.miao-settings-main-header {
+  padding: 4px 4px 8px;
+}
+
+.miao-settings-eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--miao-accent);
+  margin-bottom: 8px;
+}
+
+.miao-settings-main-title {
+  margin: 0;
+  font-family: var(--miao-font-display);
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--miao-text);
+  letter-spacing: -0.02em;
+}
+
+@media (max-width: 768px) {
+  .miao-settings-main-title {
+    font-size: 22px;
+  }
+}
+
+.miao-settings-main-desc {
+  margin: 8px 0 0;
+  color: var(--miao-text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 560px;
+}
+
+.miao-settings-content-wrapper {
+  animation: miaoSettingsFadeUp 0.35s ease both;
+}
+
+@keyframes miaoSettingsFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============= 卡片 ============= */
+.miao-settings-panels {
+  display: grid;
+  gap: 20px;
+}
+
+.miao-settings-card {
+  position: relative;
+  background: var(--miao-bg-elevated);
+  border: 1px solid var(--miao-border-subtle);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--miao-text) 3%, transparent),
+    0 8px 32px color-mix(in srgb, var(--miao-text) 4%, transparent);
+  transition:
+    box-shadow 0.25s ease,
+    transform 0.25s ease;
+}
+
+.miao-settings-card:hover {
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--miao-text) 4%, transparent),
+    0 14px 42px color-mix(in srgb, var(--miao-text) 7%, transparent);
+}
+
+.miao-settings-card--muted {
+  background: color-mix(in srgb, var(--miao-bg-elevated) 70%, var(--miao-bg));
+}
+
+.miao-settings-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 22px 24px 0;
+}
+
+.miao-settings-card-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  font-size: 20px;
+  color: var(--miao-accent);
+  background: color-mix(in srgb, var(--miao-accent) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--miao-accent) 18%, transparent);
+}
+
+.miao-settings-card-icon.is-github {
+  color: #24292f;
+  background: #f3f4f6;
+  box-shadow: inset 0 0 0 1px #d1d5db;
+}
+
+.miao-settings-card-icon.is-google {
+  color: #ea4335;
+  background: color-mix(in srgb, #ea4335 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #ea4335 18%, transparent);
+}
+
+.miao-settings-card-icon.is-email {
+  color: #6b7280;
+  background: #f3f4f6;
+  box-shadow: inset 0 0 0 1px #e5e7eb;
+}
+
+[data-theme="dark"] .miao-settings-card-icon.is-github {
+  color: #fff;
+  background: #30363d;
+  box-shadow: inset 0 0 0 1px #484f58;
+}
+
+[data-theme="dark"] .miao-settings-card-icon.is-email {
+  color: #9ca3af;
+  background: #1f2937;
+  box-shadow: inset 0 0 0 1px #374151;
+}
+
+.miao-settings-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--miao-text);
+}
+
+.miao-settings-card-desc {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--miao-text-secondary);
+  line-height: 1.5;
+}
+
+.miao-settings-card-body {
+  padding: 22px 24px 24px;
+}
+
+.miao-settings-readonly {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: var(--miao-bg-subtle);
+  border: 1px dashed var(--miao-border-subtle);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--miao-text-secondary);
+  font-family: var(--miao-font-mono);
+}
+
+/* ============= 表单 ============= */
+.miao-settings-form .ant-form-item-label > label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--miao-text);
+}
+
+.miao-settings-form .ant-form-item {
+  margin-bottom: 18px;
+}
+
+.miao-settings-form .ant-form-item:last-child {
+  margin-bottom: 0;
+}
+
+.miao-settings-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 20px;
+}
+
+@media (max-width: 768px) {
+  .miao-settings-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.miao-settings-input {
+  border-radius: 12px !important;
+  background: var(--miao-bg-subtle) !important;
+  border-color: var(--miao-border-subtle) !important;
+  box-shadow: none !important;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease !important;
+}
+
+.miao-settings-input:hover,
+.miao-settings-input:focus,
+.miao-settings-input-focused {
+  border-color: var(--miao-accent) !important;
+  background: var(--miao-bg-elevated) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--miao-accent) 12%, transparent) !important;
+}
+
+.miao-settings-input .ant-input-prefix {
+  color: var(--miao-text-tertiary);
+  margin-right: 10px;
+}
+
+.miao-settings-form-actions {
+  margin-top: 8px;
+}
+
+/* ── 个人信息展示网格 ── */
+.miao-settings-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+
+.miao-settings-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--miao-border-subtle);
+}
+
+.miao-settings-info-item:nth-child(odd) {
+  border-right: 1px solid var(--miao-border-subtle);
+}
+
+.miao-settings-info-item:nth-last-child(-n+2) {
+  border-bottom: none;
+}
+
+.miao-settings-info-label {
+  font-size: 12px;
+  color: var(--miao-text-tertiary);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.miao-settings-info-value {
+  font-size: 14px;
+  color: var(--miao-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+}
+
+.miao-settings-info-verified {
+  color: #52c41a;
+  font-size: 13px;
+}
+
+.miao-settings-info-unverified {
+  color: #faad14;
+  font-size: 13px;
+}
+
+.miao-settings-info-empty {
+  color: var(--miao-text-quaternary);
+  font-style: italic;
+}
+
+@media (max-width: 640px) {
+  .miao-settings-info-grid {
+    grid-template-columns: 1fr;
+  }
+  .miao-settings-info-item:nth-child(odd) {
+    border-right: none;
+  }
+}
+
+.miao-settings-submit {
+  height: 44px;
+  padding: 0 28px;
+  border-radius: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow:
+    0 4px 14px color-mix(in srgb, var(--miao-accent) 30%, transparent);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+}
+
+.miao-settings-submit:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 6px 20px color-mix(in srgb, var(--miao-accent) 40%, transparent);
+}
+
+.miao-settings-submit:active {
+  transform: translateY(0);
+}
+
+.miao-password-hint {
+  margin: -6px 0 18px;
+  font-size: 12px;
+  color: var(--miao-text-tertiary);
+  line-height: 1.5;
+}
+
+/* ============= 账号绑定 ============= */
+.miao-settings-connection {
+  border-radius: 16px;
+  padding: 18px 20px;
+  background: var(--miao-bg-subtle);
+  border: 1px solid var(--miao-border-subtle);
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.miao-settings-connection.is-bound {
+  background: color-mix(in srgb, var(--miao-success, #22c55e) 6%, var(--miao-bg-subtle));
+  border-color: color-mix(in srgb, var(--miao-success, #22c55e) 22%, var(--miao-border-subtle));
+}
+
+.miao-settings-connection-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.miao-settings-connection-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.miao-settings-connection-logo {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  color: #24292f;
+  background: #f3f4f6;
+  box-shadow: inset 0 0 0 1px #d1d5db;
+}
+
+.miao-settings-connection-logo.is-google {
+  color: #ea4335;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #e5e7eb;
+}
+
+.miao-settings-connection-logo.is-email {
+  color: #6b7280;
+  background: #f3f4f6;
+  box-shadow: inset 0 0 0 1px #e5e7eb;
+}
+
+[data-theme="dark"] .miao-settings-connection-logo {
+  color: #fff;
+  background: #30363d;
+  box-shadow: inset 0 0 0 1px #484f58;
+}
+
+[data-theme="dark"] .miao-settings-connection-logo.is-google {
+  color: #ea4335;
+  background: #1f1f1f;
+  box-shadow: inset 0 0 0 1px #484f58;
+}
+
+[data-theme="dark"] .miao-settings-connection-logo.is-email {
+  color: #9ca3af;
+  background: #1f2937;
+  box-shadow: inset 0 0 0 1px #374151;
+}
+
+.miao-settings-connection-info {
+  min-width: 0;
+}
+
+.miao-settings-connection-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--miao-text);
+}
+
+.miao-settings-connection-detail {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--miao-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.miao-settings-connection-detail .ant-typography {
+  color: var(--miao-text);
+}
+
+.miao-settings-connection-actions {
+  flex-shrink: 0;
+}
+
+.miao-settings-connection-btn {
+  height: 40px;
+  border-radius: 10px;
+  font-weight: 600;
+  padding: 0 18px;
+}
+
+.miao-settings-connection-btn.is-github {
+  background: #24292f;
+  border-color: #24292f;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(36, 41, 47, 0.3);
+}
+
+.miao-settings-connection-btn.is-github:hover {
+  background: #1b1f24;
+  border-color: #1b1f24;
+}
+
+.miao-settings-connection-btn.is-google {
+  background: #fff;
+  border-color: #e5e7eb;
+  color: #374151;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.miao-settings-connection-btn.is-google:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.miao-settings-connection-btn.is-email {
+  background: #4b5563;
+  border-color: #4b5563;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(75, 85, 99, 0.28);
+}
+
+.miao-settings-connection-btn.is-email:hover {
+  background: #374151;
+  border-color: #374151;
+}
+
+.miao-settings-connection-form {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--miao-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.miao-settings-connection-form .ant-space {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+[data-theme="dark"] .miao-settings-connection-btn.is-google {
+  background: #1f1f1f;
+  border-color: #484f58;
+  color: #e5e7eb;
+}
+
+.miao-settings-connection-skeleton {
+  height: 80px;
+  display: grid;
+  place-items: center;
+  color: var(--miao-text-secondary);
+  font-size: 14px;
+}
+
+/* ============= Modal 覆盖 ============= */
+.miao-settings-modal .ant-modal-content {
+  border-radius: 18px;
+  background: var(--miao-bg-elevated);
+}
+
+.miao-settings-modal .ant-modal-header {
+  background: transparent;
+  border-bottom: 1px solid var(--miao-border-subtle);
+}
+
+.miao-settings-modal .ant-modal-title {
+  font-weight: 700;
+}
+
+.miao-settings-modal .ant-modal-body {
+  color: var(--miao-text-secondary);
+}
+
+.miao-settings-modal .ant-modal-footer {
+  border-top: 1px solid var(--miao-border-subtle);
+}

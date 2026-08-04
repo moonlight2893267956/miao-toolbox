@@ -1,8 +1,10 @@
 package com.miao.toolbox.auth.service;
 
+import com.miao.toolbox.auth.dto.EmailRegisterRequest;
 import com.miao.toolbox.auth.dto.LoginRequest;
 import com.miao.toolbox.auth.dto.LoginResponse;
 import com.miao.toolbox.auth.dto.RegisterRequest;
+import com.miao.toolbox.auth.enums.EmailCodePurpose;
 import com.miao.toolbox.auth.entity.RefreshToken;
 import com.miao.toolbox.auth.entity.Role;
 import com.miao.toolbox.auth.entity.User;
@@ -52,6 +54,7 @@ public class AuthService {
     private final RoleRepository roleRepository;
     private final JwtService jwtService;
     private final InviteService inviteService;
+    private final EmailCodeService emailCodeService;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Autowired(required = false)
@@ -61,12 +64,14 @@ public class AuthService {
     private boolean cookieSecure;
 
     public AuthService(UserRepository userRepository, RefreshTokenRepository refreshTokenRepository,
-                       RoleRepository roleRepository, JwtService jwtService, InviteService inviteService) {
+                       RoleRepository roleRepository, JwtService jwtService, InviteService inviteService,
+                       EmailCodeService emailCodeService) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.roleRepository = roleRepository;
         this.jwtService = jwtService;
         this.inviteService = inviteService;
+        this.emailCodeService = emailCodeService;
     }
 
     @Transactional
@@ -105,10 +110,92 @@ public class AuthService {
         userRepository.save(user);
     }
 
+    /**
+     * 邮箱注册：验证码校验通过后创建用户并自动登录
+     */
+    @Transactional
+    public LoginResponse emailRegister(EmailRegisterRequest request, HttpServletResponse response) {
+        // 1. 校验验证码
+        boolean verified = emailCodeService.verifyCode(request.getEmail(), request.getCode(), EmailCodePurpose.REGISTER);
+        if (!verified) {
+            throw new BusinessException(ErrorCode.EMAIL_CODE_INVALID, "验证码错误", 400);
+        }
+
+        // 2. 用户名唯一性校验
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new BusinessException(ErrorCode.USER_ALREADY_EXISTS, "用户名已存在", 409);
+        }
+
+        // 3. 邮箱已被已验证用户绑定
+        if (userRepository.findByEmailAndEmailVerifiedTrue(request.getEmail()).isPresent()) {
+            throw new BusinessException(ErrorCode.USER_ALREADY_EXISTS, "该邮箱已被注册", 409);
+        }
+
+        // 4. 密码校验
+        if (!isValidPassword(request.getPassword())) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "密码须包含字母和数字，且不少于8位", 400);
+        }
+
+        // 5. 角色分配
+        Role userRole = roleRepository.findByCode("USER")
+                .orElseThrow(() -> new BusinessException(ErrorCode.SYSTEM_ERROR, "系统角色配置异常", 500));
+        Role assignedRole = userRole;
+        if (request.getInviteToken() != null && !request.getInviteToken().isBlank()) {
+            Role inviteRole = inviteService.resolveRole(request.getInviteToken());
+            if (inviteRole != null) {
+                assignedRole = inviteRole;
+            }
+        }
+
+        // 6. 创建用户（email_verified = true）
+        User user = User.builder()
+                .username(request.getUsername())
+                .email(request.getEmail())
+                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .emailVerified(true)
+                .roles(Set.of(assignedRole))
+                .isEnabled(true)
+                .mustChangePassword(false)
+                .loginFailCount(0)
+                .createdAt(LocalDateTime.now(ZoneOffset.UTC))
+                .updatedAt(LocalDateTime.now(ZoneOffset.UTC))
+                .build();
+        userRepository.save(user);
+
+        // 7. 自动登录
+        String signingKey = jwtService.generateSigningKey();
+        user.setSigningKey(signingKey);
+        user.setLastLoginAt(LocalDateTime.now(ZoneOffset.UTC));
+        userRepository.save(user);
+
+        String accessToken = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getRoleCodes());
+        String refreshToken = jwtService.generateRefreshToken(user.getId());
+        storeRefreshToken(user.getId(), refreshToken);
+        addRefreshTokenCookie(response, refreshToken);
+
+        return LoginResponse.builder()
+                .accessToken(accessToken)
+                .signingKey(signingKey)
+                .mustChangePassword(false)
+                .user(LoginResponse.UserInfo.builder()
+                        .id(user.getId())
+                        .username(user.getUsername())
+                        .roles(user.toRoleBriefs())
+                        .build())
+                .build();
+    }
+
     @Transactional
     public LoginResponse login(LoginRequest request, HttpServletResponse response) {
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(AuthException::loginFailed);
+        // 支持用户名或邮箱登录：输入包含 @ 视为邮箱
+        User user;
+        if (request.getUsername().contains("@")) {
+            user = userRepository.findByEmailAndEmailVerifiedTrue(request.getUsername())
+                    .orElseThrow(AuthException::loginFailed);
+        } else {
+            user = userRepository.findByUsername(request.getUsername())
+                    .orElseThrow(AuthException::loginFailed);
+        }
 
         // Check if account is locked
         if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(LocalDateTime.now(ZoneOffset.UTC))) {
@@ -317,6 +404,36 @@ public class AuthService {
             if (Character.isDigit(c)) hasDigit = true;
         }
         return hasLetter && hasDigit;
+    }
+
+    /**
+     * 邮箱重置密码：校验验证码 → 更新密码 → 清除所有 refresh token（强制重新登录）
+     */
+    @Transactional
+    public void resetPassword(String email, String code, String newPassword) {
+        // 1. 校验验证码
+        boolean verified = emailCodeService.verifyCode(email, code, EmailCodePurpose.RESET_PASSWORD);
+        if (!verified) {
+            throw new BusinessException(ErrorCode.EMAIL_CODE_INVALID, "验证码错误", 400);
+        }
+
+        // 2. 查找已验证邮箱对应的用户
+        User user = userRepository.findByEmailAndEmailVerifiedTrue(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "该邮箱未注册", 404));
+
+        // 3. 密码格式校验
+        if (!isValidPassword(newPassword)) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "密码须包含字母和数字，且不少于8位", 400);
+        }
+
+        // 4. 更新密码
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setMustChangePassword(false);
+        userRepository.save(user);
+
+        // 5. 清除所有 refresh token，强制重新登录
+        List<RefreshToken> tokens = refreshTokenRepository.findByUserIdOrderByCreatedAtAsc(user.getId());
+        refreshTokenRepository.deleteAll(tokens);
     }
 
     public void addRefreshTokenCookie(HttpServletResponse response, String token) {

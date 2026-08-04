@@ -12,6 +12,7 @@ import AppLayout from './components/layout/AppLayout';
 // 不再一次性拉取整个应用(含 antd 全家桶),显著缩短首屏与刷新耗时。
 const LoginPage = lazy(() => import('./modules/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./modules/auth/RegisterPage'));
+const ResetPasswordPage = lazy(() => import('./modules/auth/ResetPasswordPage'));
 const OAuthCallback = lazy(() => import('./modules/auth/OAuthCallback'));
 const ChangePasswordPage = lazy(() => import('./modules/auth/ChangePasswordPage'));
 const WelcomeSetupPage = lazy(() => import('./modules/auth/WelcomeSetupPage'));
@@ -57,6 +58,7 @@ function AppRoutes() {
       <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/oauth/callback" element={<OAuthCallback />} />
       <Route
         path="/change-password"

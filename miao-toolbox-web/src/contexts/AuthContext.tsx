@@ -52,6 +52,8 @@ export interface RoleBrief {
 export interface UserInfo {
   id: number;
   username: string;
+  email: string | null;
+  emailVerified: boolean;
   roles: RoleBrief[];
 }
 

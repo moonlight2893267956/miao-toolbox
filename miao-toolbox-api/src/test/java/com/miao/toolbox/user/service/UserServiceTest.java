@@ -1,9 +1,11 @@
 package com.miao.toolbox.user.service;
 
 import com.miao.toolbox.auth.entity.User;
+import com.miao.toolbox.auth.enums.EmailCodePurpose;
 import com.miao.toolbox.auth.oauth.GitHubOAuthService;
 import com.miao.toolbox.auth.oauth.GoogleOAuthService;
 import com.miao.toolbox.auth.repository.UserRepository;
+import com.miao.toolbox.auth.service.EmailCodeService;
 import com.miao.toolbox.common.exception.BusinessException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,6 +38,9 @@ class UserServiceTest {
 
     @Mock
     private GoogleOAuthService googleOAuthService;
+
+    @Mock
+    private EmailCodeService emailCodeService;
 
     @InjectMocks
     private UserService userService;
@@ -262,6 +267,99 @@ class UserServiceTest {
             assertThatThrownBy(() -> userService.unbindGithub(1L))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("未绑定");
+        }
+    }
+
+    @Nested
+    @DisplayName("邮箱绑定/解绑")
+    class EmailBindTests {
+
+        @Test
+        @DisplayName("绑定邮箱成功")
+        void bindEmailSuccess() {
+            testUser.setEmail(null);
+            testUser.setEmailVerified(false);
+
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+            when(emailCodeService.verifyCode("test@qq.com", "123456", EmailCodePurpose.BIND_EMAIL)).thenReturn(true);
+            when(userRepository.findByEmailAndEmailVerifiedTrue("test@qq.com")).thenReturn(Optional.empty());
+            when(userRepository.saveAndFlush(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            var result = userService.bindEmail(1L, "test@qq.com", "123456");
+
+            assertThat(result.getEmail()).isEqualTo("test@qq.com");
+            assertThat(result.isEmailVerified()).isTrue();
+        }
+
+        @Test
+        @DisplayName("已绑定邮箱时再绑定抛出异常")
+        void bindEmailAlreadyBound() {
+            testUser.setEmail("old@qq.com");
+            testUser.setEmailVerified(true);
+
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+
+            assertThatThrownBy(() -> userService.bindEmail(1L, "new@qq.com", "123456"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("已绑定邮箱");
+        }
+
+        @Test
+        @DisplayName("验证码错误时绑定抛出异常")
+        void bindEmailInvalidCode() {
+            testUser.setEmail(null);
+            testUser.setEmailVerified(false);
+
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+            when(emailCodeService.verifyCode("test@qq.com", "wrong", EmailCodePurpose.BIND_EMAIL)).thenReturn(false);
+
+            assertThatThrownBy(() -> userService.bindEmail(1L, "test@qq.com", "wrong"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("验证码错误");
+        }
+
+        @Test
+        @DisplayName("邮箱已被其他账号绑定时抛出异常")
+        void bindEmailAlreadyUsed() {
+            testUser.setEmail(null);
+            testUser.setEmailVerified(false);
+
+            User otherUser = User.builder().id(2L).email("test@qq.com").emailVerified(true).build();
+
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+            when(emailCodeService.verifyCode("test@qq.com", "123456", EmailCodePurpose.BIND_EMAIL)).thenReturn(true);
+            when(userRepository.findByEmailAndEmailVerifiedTrue("test@qq.com")).thenReturn(Optional.of(otherUser));
+
+            assertThatThrownBy(() -> userService.bindEmail(1L, "test@qq.com", "123456"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("已被其他账号绑定");
+        }
+
+        @Test
+        @DisplayName("解绑邮箱成功")
+        void unbindEmailSuccess() {
+            testUser.setEmail("test@qq.com");
+            testUser.setEmailVerified(true);
+
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+            when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            var result = userService.unbindEmail(1L);
+
+            assertThat(result.getEmail()).isNull();
+            assertThat(result.isEmailVerified()).isFalse();
+        }
+
+        @Test
+        @DisplayName("未绑定邮箱时解绑抛出异常")
+        void unbindEmailNotBound() {
+            testUser.setEmail(null);
+
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+
+            assertThatThrownBy(() -> userService.unbindEmail(1L))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("未绑定邮箱");
         }
     }
 }

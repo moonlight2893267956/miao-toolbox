@@ -9,6 +9,8 @@ export interface RoleBrief {
 export interface UserInfoData {
   id: number;
   username: string;
+  email: string | null;
+  emailVerified: boolean;
   roles: RoleBrief[];
   githubId: string | null;
   githubUsername: string | null;
@@ -46,5 +48,15 @@ export const userService = {
 
   async unbindGithub(): Promise<void> {
     await axiosInstance.delete('/api/users/me/bind-github');
+  },
+
+  async bindEmail(email: string, code: string): Promise<UserInfoData> {
+    const response = await axiosInstance.post('/api/users/me/bind-email', { email, code });
+    return response.data.data;
+  },
+
+  async unbindEmail(): Promise<UserInfoData> {
+    const response = await axiosInstance.delete('/api/users/me/bind-email');
+    return response.data.data;
   },
 };

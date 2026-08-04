@@ -1,13 +1,11 @@
 import React from 'react';
-import { Form, Input, Button, Divider, Typography, message } from 'antd';
+import { Form, Input, Button, Divider, message } from 'antd';
 import { GithubOutlined, GoogleOutlined, UserOutlined, LockOutlined } from '@ant-design/icons';
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { authService } from '../../services/authService';
 import AuthShell from './AuthShell';
 import LoginSuccessOverlay from '../../components/shared/LoginSuccessOverlay';
-
-const { Text } = Typography;
 
 interface LoginFormValues {
   username: string;
@@ -27,6 +25,14 @@ const LoginPage: React.FC = () => {
 
   // 优先从 location.state.from 读取重定向路径，其次从 redirect 查询参数读取
   const redirectPath = (location.state as any)?.from?.pathname || searchParams.get('redirect') || '/tools';
+
+  // 添加页面级 class 以激活专属样式覆写
+  React.useEffect(() => {
+    document.body.classList.add('miao-page-login');
+    return () => {
+      document.body.classList.remove('miao-page-login');
+    };
+  }, []);
 
   // 组件卸载时清除安全定时器
   React.useEffect(() => {
@@ -90,12 +96,10 @@ const LoginPage: React.FC = () => {
           <Form.Item
             name="username"
             rules={[
-              { required: true, message: '请输入用户名' },
-              { min: 3, max: 20, message: '用户名长度为3-20位' },
-              { pattern: /^[a-zA-Z0-9_]+$/, message: '用户名只能包含字母、数字和下划线' },
+              { required: true, message: '请输入用户名或邮箱' },
             ]}
           >
-            <Input prefix={<UserOutlined />} placeholder="用户名" />
+            <Input prefix={<UserOutlined />} placeholder="用户名或邮箱" />
           </Form.Item>
 
           <Form.Item
@@ -105,14 +109,18 @@ const LoginPage: React.FC = () => {
             <Input.Password prefix={<LockOutlined />} placeholder="密码" />
           </Form.Item>
 
-          <Form.Item style={{ marginBottom: 16 }}>
+          <Form.Item className="miao-login-submit-row">
             <Button type="primary" htmlType="submit" loading={loading} block>
               登录
             </Button>
           </Form.Item>
+
+          <div className="miao-login-forgot">
+            <Link to="/reset-password">忘记密码？</Link>
+          </div>
         </Form>
 
-        <Divider style={{ margin: '16px 0' }}>或</Divider>
+        <Divider className="miao-login-divider">或</Divider>
 
         <button
           type="button"
@@ -126,20 +134,17 @@ const LoginPage: React.FC = () => {
 
         <button
           type="button"
-          className="miao-auth-social-btn"
+          className="miao-auth-social-btn miao-auth-social-btn-last"
           disabled={oauthLoading !== null}
           onClick={() => handleOAuthClick('google')}
-          style={{ marginBottom: 16 }}
         >
           <GoogleOutlined />
           <span>使用 Google 登录</span>
         </button>
 
-        <div style={{ textAlign: 'center' }}>
-          <Text type="secondary">
-            还没有账号？{' '}
-            <a onClick={() => navigate('/register')}>注册账号</a>
-          </Text>
+        <div className="miao-login-footer">
+          还没有账号？{' '}
+          <a onClick={() => navigate('/register')}>注册账号</a>
         </div>
     </AuthShell>
   );

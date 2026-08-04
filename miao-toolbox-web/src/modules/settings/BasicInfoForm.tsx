@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Form, Input, Typography, message } from 'antd';
+import { Button, Form, Input, message } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { userService } from '../../services/userService';
@@ -40,11 +40,12 @@ const BasicInfoForm: React.FC = () => {
         updateUserInfo({
           id: userInfo.id,
           username: userInfo.username,
+          email: userInfo.email,
+          emailVerified: userInfo.emailVerified,
           roles: userInfo.roles,
         });
       } catch {
         if (!cancelled) {
-          // 加载失败时保持当前 AuthContext 中的用户名
           const fallback = state.userInfo?.username ?? '';
           setServerUsername(fallback);
           form.setFieldsValue({ username: fallback });
@@ -74,6 +75,8 @@ const BasicInfoForm: React.FC = () => {
       updateUserInfo({
         id: userInfo.id,
         username: userInfo.username,
+        email: userInfo.email,
+        emailVerified: userInfo.emailVerified,
         roles: userInfo.roles,
       });
       setServerUsername(userInfo.username);
@@ -95,36 +98,44 @@ const BasicInfoForm: React.FC = () => {
   };
 
   return (
-    <div>
-      <Typography.Title level={5} style={{ marginTop: 0 }}>
-        基本信息
-      </Typography.Title>
-      <Form
-        form={form}
-        onFinish={handleSubmit}
-        layout="vertical"
-        requiredMark={false}
-        size="large"
-      >
-        <Form.Item
-          label="用户名"
-          name="username"
-          rules={[
-            { required: true, message: '请输入用户名' },
-            { min: 3, max: 20, message: '用户名长度为3-20位' },
+    <Form
+      form={form}
+      onFinish={handleSubmit}
+      layout="vertical"
+      requiredMark={false}
+      size="large"
+      className="miao-settings-form"
+    >
+      <Form.Item
+        label="用户名"
+        name="username"
+        rules={[
+          { required: true, message: '请输入用户名' },
+          { min: 3, max: 20, message: '用户名长度为3-20位' },
           { pattern: /^[a-zA-Z0-9_]+$/, message: '用户名只能包含字母、数字和下划线' },
         ]}
       >
-          <Input prefix={<UserOutlined />} placeholder="用户名" maxLength={20} disabled={initializing} />
-        </Form.Item>
+        <Input
+          prefix={<UserOutlined />}
+          placeholder="请输入用户名"
+          maxLength={20}
+          disabled={initializing}
+          className="miao-settings-input"
+        />
+      </Form.Item>
 
-        <Form.Item>
-          <Button type="primary" htmlType="submit" loading={loading} disabled={initializing}>
-            更新用户名
-          </Button>
-        </Form.Item>
-      </Form>
-    </div>
+      <Form.Item className="miao-settings-form-actions">
+        <Button
+          type="primary"
+          htmlType="submit"
+          loading={loading}
+          disabled={initializing}
+          className="miao-settings-submit"
+        >
+          更新用户名
+        </Button>
+      </Form.Item>
+    </Form>
   );
 };
 

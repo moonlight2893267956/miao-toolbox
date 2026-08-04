@@ -11,6 +11,8 @@ import java.util.List;
 public class UserInfoResponse {
     private Long id;
     private String username;
+    private String email;
+    private boolean emailVerified;
     private List<RoleBrief> roles;
     private String githubId;
     private String githubUsername;

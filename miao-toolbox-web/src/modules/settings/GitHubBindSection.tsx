@@ -1,119 +1,114 @@
-import React from 'react';
-import { Button, Typography, Space, Alert, Spin, message } from 'antd';
-import { GithubOutlined, LinkOutlined, DisconnectOutlined } from '@ant-design/icons';
+import React, { useEffect, useState } from 'react';
+import { Button, message, Modal, Typography } from 'antd';
+import { GithubOutlined, CheckCircleOutlined, DisconnectOutlined } from '@ant-design/icons';
 import axiosInstance from '../../services/axiosInstance';
+import { authService } from '../../services/authService';
 
-const { Text } = Typography;
-
-interface UserInfo {
-  id: number;
-  username: string;
-  githubId: string | null;
-  githubUsername: string | null;
-  mustChangePassword: boolean;
+interface ConnectionInfo {
+  githubId?: string;
+  githubUsername?: string;
+  googleId?: string;
+  googleUsername?: string;
 }
 
 const GitHubBindSection: React.FC = () => {
-  const [userInfo, setUserInfo] = React.useState<UserInfo | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [unbindLoading, setUnbindLoading] = React.useState(false);
+  const [connectionInfo, setConnectionInfo] = useState<ConnectionInfo | null>(null);
+  const [unbinding, setUnbinding] = useState(false);
 
-  React.useEffect(() => {
-    const fetchUserInfo = async () => {
-      try {
-        const response = await axiosInstance.get('/api/users/me');
-        setUserInfo(response.data.data);
-      } catch {
-        message.error('获取用户信息失败');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUserInfo();
-  }, []);
-
-  // 从 OAuth 回调参数中检测绑定成功
-  React.useEffect(() => {
-    const params = new URLSearchParams(window.location.hash.substring(1));
-    if (params.get('bindSuccess') === 'true') {
-      message.success('GitHub 账号绑定成功');
-      // 清除 hash 参数
-      window.history.replaceState(null, '', window.location.pathname);
-      // 刷新用户信息
-      setLoading(true);
-      axiosInstance.get('/api/users/me').then(res => {
-        setUserInfo(res.data.data);
-      }).finally(() => setLoading(false));
-    }
-  }, []);
-
-  const handleBind = async () => {
+  const fetchConnectionInfo = async () => {
     try {
-      const response = await axiosInstance.post('/api/users/me/bind-github');
-      const oauthUrl = response.data.data;
-      sessionStorage.setItem('oauth_bind_mode', 'true');
-      window.location.href = oauthUrl;
-    } catch (error: any) {
-      const msg = error?.response?.data?.message;
-      message.error(msg || '获取绑定链接失败');
-    }
-  };
-
-  const handleUnbind = async () => {
-    setUnbindLoading(true);
-    try {
-      await axiosInstance.delete('/api/users/me/bind-github');
-      message.success('已解绑 GitHub 账号');
-      setUserInfo(prev => prev ? { ...prev, githubId: null, githubUsername: null } : null);
+      const response = await axiosInstance.get('/api/users/me');
+      const data = response.data.data;
+      setConnectionInfo({
+        githubId: data.githubId,
+        githubUsername: data.githubUsername,
+        googleId: data.googleId,
+        googleUsername: data.googleUsername,
+      });
     } catch {
-      message.error('解绑失败，请重试');
-    } finally {
-      setUnbindLoading(false);
+      message.error('获取绑定信息失败');
     }
   };
 
-  if (loading) {
-    return <Spin />;
-  }
+  useEffect(() => {
+    fetchConnectionInfo();
+  }, []);
 
-  const isBound = !!(userInfo?.githubId);
+  const handleBind = () => {
+    window.location.href = authService.getOAuthBindUrl('github');
+  };
+
+  const handleUnbind = () => {
+    Modal.confirm({
+      title: '解绑 GitHub 账号',
+      icon: null,
+      content: '解绑后将无法使用 GitHub 快速登录，确定继续吗？',
+      okText: '确定解绑',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      centered: true,
+      className: 'miao-settings-modal',
+      onOk: async () => {
+        setUnbinding(true);
+        try {
+          await axiosInstance.delete('/api/users/me/bind-github');
+          message.success('GitHub 账号解绑成功');
+          setConnectionInfo(prev => (prev ? { ...prev, githubId: undefined, githubUsername: undefined } : null));
+        } catch (error: any) {
+          message.error(error?.response?.data?.message || 'GitHub 账号解绑失败');
+        } finally {
+          setUnbinding(false);
+        }
+      },
+    });
+  };
+
+  const isBound = !!connectionInfo?.githubId;
+  const username = connectionInfo?.githubUsername || connectionInfo?.githubId;
 
   return (
-    <div>
-      {isBound ? (
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <Alert
-            type="success"
-            showIcon
-            icon={<LinkOutlined />}
-            message={
-              <Space>
-                <Text>已绑定 GitHub 账号：<strong>{userInfo?.githubUsername || 'GitHub 用户'}</strong></Text>
-              </Space>
-            }
-          />
-          <Button
-            danger
-            icon={<DisconnectOutlined />}
-            onClick={handleUnbind}
-            loading={unbindLoading}
-          >
-            解绑 GitHub
-          </Button>
-        </Space>
-      ) : (
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <Text type="secondary">绑定 GitHub 账号后可使用 GitHub 一键登录</Text>
-          <Button
-            type="primary"
-            icon={<GithubOutlined />}
-            onClick={handleBind}
-            style={{ borderRadius: 10 }}
-          >
-            绑定 GitHub
-          </Button>
-        </Space>
-      )}
+    <div className={`miao-settings-connection ${isBound ? 'is-bound' : ''}`}>
+      <div className="miao-settings-connection-main">
+        <div className="miao-settings-connection-brand">
+          <div className="miao-settings-connection-logo">
+            <GithubOutlined />
+          </div>
+          <div className="miao-settings-connection-info">
+            <div className="miao-settings-connection-name">GitHub</div>
+            {isBound ? (
+              <div className="miao-settings-connection-detail">
+                <CheckCircleOutlined /> 已绑定账号 <Typography.Text strong copyable={{ text: username }}>{username}</Typography.Text>
+              </div>
+            ) : (
+              <div className="miao-settings-connection-detail">未绑定，可使用 GitHub 一键登录</div>
+            )}
+          </div>
+        </div>
+
+        <div className="miao-settings-connection-actions">
+          {isBound ? (
+            <Button
+              danger
+              ghost
+              icon={<DisconnectOutlined />}
+              loading={unbinding}
+              onClick={handleUnbind}
+              className="miao-settings-connection-btn"
+            >
+              解除绑定
+            </Button>
+          ) : (
+            <Button
+              type="primary"
+              icon={<GithubOutlined />}
+              onClick={handleBind}
+              className="miao-settings-connection-btn is-github"
+            >
+              绑定 GitHub
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
