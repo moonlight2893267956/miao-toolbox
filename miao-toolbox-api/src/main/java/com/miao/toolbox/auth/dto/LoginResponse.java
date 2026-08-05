@@ -22,6 +22,7 @@ public class LoginResponse {
     public static class UserInfo {
         private Long id;
         private String username;
+        private String avatarUrl;
         private List<RoleBrief> roles;
     }
 }

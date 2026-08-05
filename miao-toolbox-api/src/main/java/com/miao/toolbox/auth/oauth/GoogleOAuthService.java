@@ -180,6 +180,7 @@ public class GoogleOAuthService {
                     .user(LoginResponse.UserInfo.builder()
                             .id(user.getId())
                             .username(user.getUsername())
+                            .avatarUrl(user.getAvatarUrl())
                             .roles(user.toRoleBriefs())
                             .build())
                     .build();
@@ -226,6 +227,7 @@ public class GoogleOAuthService {
                 .user(LoginResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
+                        .avatarUrl(user.getAvatarUrl())
                         .roles(user.toRoleBriefs())
                         .build())
                 .build();
@@ -338,6 +340,7 @@ public class GoogleOAuthService {
                 .googleId(googleUser.getSub())
                 .googleUsername(googleUser.getName())
                 .email(googleUser.getEmail())
+                .avatarUrl(googleUser.getPicture())
                 .roles(Set.of(assignedRole))
                 .isEnabled(true)
                 .mustChangePassword(true)

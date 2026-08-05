@@ -3,7 +3,6 @@ import { Layout, Button, Space, Dropdown, Avatar } from 'antd';
 import {
   SunOutlined,
   MoonOutlined,
-  UserOutlined,
   LogoutOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
@@ -14,6 +13,7 @@ const { Header: AntHeader } = Layout;
 interface AppHeaderProps {
   isAuthenticated?: boolean;
   username?: string;
+  avatarUrl?: string | null;
   onLogout?: () => void;
   onSettings?: () => void;
 }
@@ -21,6 +21,7 @@ interface AppHeaderProps {
 const AppHeader: React.FC<AppHeaderProps> = ({
   isAuthenticated = false,
   username,
+  avatarUrl,
   onLogout,
   onSettings,
 }) => {
@@ -64,12 +65,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       {isAuthenticated && username ? (
         <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
           <Space style={{ cursor: 'pointer' }}>
-            <Avatar size="small" icon={<UserOutlined />} />
+            <Avatar size="small" src={avatarUrl || '/default-avatar.png'} />
             <span>{username}</span>
           </Space>
         </Dropdown>
       ) : (
-        <Avatar size="small" icon={<UserOutlined />} />
+        <Avatar size="small" src={avatarUrl || '/default-avatar.png'} />
       )}
     </AntHeader>
   );

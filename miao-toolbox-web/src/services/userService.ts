@@ -14,6 +14,9 @@ export interface UserInfoData {
   roles: RoleBrief[];
   githubId: string | null;
   githubUsername: string | null;
+  googleId: string | null;
+  googleUsername: string | null;
+  avatarUrl: string | null;
   mustChangePassword: boolean;
 }
 
@@ -57,6 +60,20 @@ export const userService = {
 
   async unbindEmail(): Promise<UserInfoData> {
     const response = await axiosInstance.delete('/api/users/me/bind-email');
+    return response.data.data;
+  },
+
+  async uploadAvatar(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axiosInstance.post('/api/users/me/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data.data;
+  },
+
+  async setPresetAvatar(presetName: string): Promise<string> {
+    const response = await axiosInstance.put('/api/users/me/avatar/preset', { preset: presetName });
     return response.data.data;
   },
 };

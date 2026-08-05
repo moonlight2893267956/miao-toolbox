@@ -92,6 +92,7 @@ export interface AdminUser {
   id: number;
   username: string;
   email: string | null;
+  avatarUrl: string | null;
   roles: RoleBrief[];
   isEnabled: boolean;
   lastLoginAt: string | null;

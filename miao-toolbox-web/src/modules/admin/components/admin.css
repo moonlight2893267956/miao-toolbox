@@ -869,6 +869,11 @@
   flex-shrink: 0;
 }
 
+.miao-admin-avatar-img {
+  object-fit: cover;
+  background: var(--miao-bg-subtle);
+}
+
 .miao-admin-avatar--sm {
   width: 28px;
   height: 28px;

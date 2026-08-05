@@ -79,6 +79,8 @@ const OAuthCallback: React.FC = () => {
         emailVerified: false,
         roles,
         githubUsername: null,
+        googleUsername: null,
+        avatarUrl: params.get('avatarUrl') ? decodeURIComponent(params.get('avatarUrl')!) : null,
       }, mustChangePassword);
 
       window.history.replaceState(null, '', window.location.pathname);

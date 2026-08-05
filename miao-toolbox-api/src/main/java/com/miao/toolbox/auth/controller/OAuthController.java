@@ -176,6 +176,10 @@ public class OAuthController {
                 + "&username=" + URLEncoder.encode(loginResponse.getUser().getUsername(), StandardCharsets.UTF_8)
                 + "&roles=" + URLEncoder.encode(rolesStr, StandardCharsets.UTF_8);
 
+        if (loginResponse.getUser().getAvatarUrl() != null && !loginResponse.getUser().getAvatarUrl().isBlank()) {
+            fragment += "&avatarUrl=" + URLEncoder.encode(loginResponse.getUser().getAvatarUrl(), StandardCharsets.UTF_8);
+        }
+
         if (Boolean.TRUE.equals(loginResponse.getMustChangePassword())) {
             fragment += "&mustChangePassword=true";
         }

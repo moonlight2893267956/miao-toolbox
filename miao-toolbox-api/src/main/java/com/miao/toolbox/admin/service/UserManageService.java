@@ -166,6 +166,7 @@ public class UserManageService {
         resp.setId(user.getId());
         resp.setUsername(user.getUsername());
         resp.setEmail(user.getEmail());
+        resp.setAvatarUrl(user.getAvatarUrl());
         resp.setRoles(user.toRoleBriefs());
         resp.setIsEnabled(user.getIsEnabled());
         resp.setLastLoginAt(user.getLastLoginAt());

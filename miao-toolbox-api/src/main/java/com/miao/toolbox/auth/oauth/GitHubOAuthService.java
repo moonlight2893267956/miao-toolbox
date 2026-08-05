@@ -179,6 +179,7 @@ public class GitHubOAuthService {
                     .user(LoginResponse.UserInfo.builder()
                             .id(user.getId())
                             .username(user.getUsername())
+                            .avatarUrl(user.getAvatarUrl())
                             .roles(user.toRoleBriefs())
                             .build())
                     .build();
@@ -229,6 +230,7 @@ public class GitHubOAuthService {
                 .user(LoginResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
+                        .avatarUrl(user.getAvatarUrl())
                         .roles(user.toRoleBriefs())
                         .build())
                 .build();
@@ -340,6 +342,7 @@ public class GitHubOAuthService {
                 .githubId(String.valueOf(githubUser.getId()))
                 .githubUsername(githubUser.getLogin())
                 .email(githubUser.getEmail())
+                .avatarUrl(githubUser.getAvatarUrl())
                 .roles(Set.of(assignedRole))
                 .isEnabled(true)
                 .mustChangePassword(true)

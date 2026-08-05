@@ -1,7 +1,7 @@
 import React from 'react';
 import { Dropdown, Avatar } from 'antd';
 import type { MenuProps } from 'antd';
-import { UserOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons';
+import { LogoutOutlined, SettingOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { isSuperAdmin, useAuth } from '../../contexts/AuthContext';
 
@@ -38,7 +38,7 @@ const UserDropdown: React.FC<UserDropdownProps> = ({ collapsed = false, isMobile
   ];
 
   const username = state.userInfo?.username || '用户';
-  const firstChar = username.charAt(0).toUpperCase();
+  const avatarSrc = state.userInfo?.avatarUrl || '/default-avatar.png';
 
   // If children provided (new sidebar design), use them as trigger
   if (children) {
@@ -56,14 +56,11 @@ const UserDropdown: React.FC<UserDropdownProps> = ({ collapsed = false, isMobile
 
   // Legacy trigger (for mobile or fallback)
   const triggerContent = isMobile ? (
-    <Avatar size={32} icon={<UserOutlined />} style={{ cursor: 'pointer' }} />
+    <Avatar size={32} src={avatarSrc} style={{ cursor: 'pointer' }} />
   ) : collapsed ? (
-    <Avatar size={32} style={{
+    <Avatar size={32} src={avatarSrc} style={{
       cursor: 'pointer',
-      backgroundColor: '#5C4FD0',
-    }}>
-      {firstChar}
-    </Avatar>
+    }} />
   ) : (
     <div style={{
       display: 'flex',
@@ -74,12 +71,9 @@ const UserDropdown: React.FC<UserDropdownProps> = ({ collapsed = false, isMobile
       borderRadius: 6,
       transition: 'background-color 0.2s',
     }}>
-      <Avatar size={28} style={{
-        backgroundColor: '#5C4FD0',
+      <Avatar size={28} src={avatarSrc} style={{
         flexShrink: 0,
-      }}>
-        {firstChar}
-      </Avatar>
+      }} />
       <span style={{
         color: 'rgba(255,255,255,0.85)',
         fontSize: 14,

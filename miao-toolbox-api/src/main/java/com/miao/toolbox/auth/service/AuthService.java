@@ -180,6 +180,7 @@ public class AuthService {
                 .user(LoginResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
+                        .avatarUrl(user.getAvatarUrl())
                         .roles(user.toRoleBriefs())
                         .build())
                 .build();
@@ -240,6 +241,7 @@ public class AuthService {
                 .user(LoginResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
+                        .avatarUrl(user.getAvatarUrl())
                         .roles(user.toRoleBriefs())
                         .build())
                 .build();
@@ -311,6 +313,7 @@ public class AuthService {
                 .user(LoginResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
+                        .avatarUrl(user.getAvatarUrl())
                         .roles(user.toRoleBriefs())
                         .build())
                 .build();

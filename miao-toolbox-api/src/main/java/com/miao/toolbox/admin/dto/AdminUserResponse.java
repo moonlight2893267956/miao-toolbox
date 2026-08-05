@@ -12,6 +12,7 @@ public class AdminUserResponse {
     private Long id;
     private String username;
     private String email;
+    private String avatarUrl;
     private List<RoleBrief> roles;
     private Boolean isEnabled;
     private LocalDateTime lastLoginAt;

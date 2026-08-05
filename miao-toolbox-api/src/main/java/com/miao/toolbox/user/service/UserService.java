@@ -74,6 +74,7 @@ public class UserService {
                 .githubUsername(user.getGithubUsername())
                 .googleId(user.getGoogleId())
                 .googleUsername(user.getGoogleUsername())
+                .avatarUrl(user.getAvatarUrl())
                 .mustChangePassword(user.needsPasswordSetup())
                 .build();
     }

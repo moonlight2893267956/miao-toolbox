@@ -56,6 +56,8 @@ export interface UserInfo {
   emailVerified: boolean;
   roles: RoleBrief[];
   githubUsername: string | null;
+  googleUsername: string | null;
+  avatarUrl: string | null;
 }
 
 /** 判断用户是否是超级管理员 */

@@ -10,6 +10,7 @@ import {
   SafetyOutlined,
   SunOutlined,
   MoonOutlined,
+  CrownOutlined,
 } from '@ant-design/icons';
 import { useAuth, isSuperAdmin } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -70,7 +71,6 @@ const Sidebar: React.FC = () => {
     admin || !routeCode || state.accessibleRoutes.includes(routeCode)
   ), [admin, state.accessibleRoutes]);
   const username = state.userInfo?.username || '用户';
-  const firstChar = username.charAt(0).toUpperCase();
   const roleDisplay = useMemo(() => {
     const roles = state.userInfo?.roles ?? [];
     if (roles.length === 0) return '用户';
@@ -327,12 +327,21 @@ const Sidebar: React.FC = () => {
           <div className="miao-user-card">
             <UserDropdown collapsed={collapsed}>
               <button className="miao-user-card-avatar-trigger" type="button" aria-label="打开用户菜单">
-                <span className="miao-user-card-avatar">{firstChar}</span>
+                <span className="miao-user-card-avatar-wrap">
+                  <img
+                    src={state.userInfo?.avatarUrl || '/default-avatar.png'}
+                    alt={username}
+                    className="miao-user-card-avatar-img"
+                  />
+                </span>
               </button>
             </UserDropdown>
             <div className="miao-user-card-info">
               <div className="miao-user-card-name">{username}</div>
-              <div className="miao-user-card-role">{roleDisplay}</div>
+              <div className="miao-user-card-role">
+                <CrownOutlined className="miao-user-card-role-icon" />
+                <span>{roleDisplay}</span>
+              </div>
             </div>
             <div className="miao-user-card-actions">
               <Tooltip

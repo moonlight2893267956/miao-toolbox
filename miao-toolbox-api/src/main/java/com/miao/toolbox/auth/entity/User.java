@@ -64,6 +64,9 @@ public class User {
     @Column(name = "google_username")
     private String googleUsername;
 
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
     @Column(name = "signing_key")
     private String signingKey;
 

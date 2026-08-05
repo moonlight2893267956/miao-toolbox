@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   UserOutlined,
   SafetyOutlined,
@@ -11,7 +11,10 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   IdcardOutlined,
+  CopyOutlined,
+  CameraOutlined,
 } from '@ant-design/icons';
+import { message } from 'antd';
 import PageFadeIn from '../../components/shared/PageFadeIn';
 import BasicInfoForm from './BasicInfoForm';
 import ChangePasswordForm from './ChangePasswordForm';
@@ -19,8 +22,21 @@ import GitHubBindSection from './GitHubBindSection';
 import GoogleBindSection from './GoogleBindSection';
 import EmailBindSection from './EmailBindSection';
 import { useAuth } from '../../contexts/AuthContext';
-import { Typography } from 'antd';
+import { userService } from '../../services/userService';
 import './settings-page.css';
+
+const DEFAULT_AVATAR = '/default-avatar.png';
+
+const PRESET_AVATARS = [
+  { name: 'cat', label: '猫咪' },
+  { name: 'dog', label: '小狗' },
+  { name: 'fox', label: '狐狸' },
+  { name: 'panda', label: '熊猫' },
+  { name: 'rabbit', label: '兔子' },
+  { name: 'owl', label: '猫头鹰' },
+  { name: 'penguin', label: '企鹅' },
+  { name: 'bear', label: '小熊' },
+];
 
 type SettingsSection = 'profile' | 'password' | 'connections';
 
@@ -44,10 +60,56 @@ const roleTagClass = (code: string) => {
 
 const SettingsPage: React.FC = () => {
   const [activeSection, setActiveSection] = useState<SettingsSection>('profile');
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [presetLoading, setPresetLoading] = useState<string | null>(null);
   const { state, updateUserInfo } = useAuth();
   const userInfo = state.userInfo;
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
-  const avatarInitial = (userInfo?.username?.[0] ?? '?').toUpperCase();
+  const handleAvatarClick = () => {
+    avatarInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 前端校验
+    if (file.size > 2 * 1024 * 1024) {
+      message.error('头像文件不能超过 2MB');
+      return;
+    }
+    if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+      message.error('仅支持 JPG、PNG、GIF、WebP 格式');
+      return;
+    }
+
+    setAvatarUploading(true);
+    try {
+      const avatarUrl = await userService.uploadAvatar(file);
+      updateUserInfo({ ...userInfo!, avatarUrl });
+      message.success('头像更新成功');
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || '头像上传失败');
+    } finally {
+      setAvatarUploading(false);
+      // 重置 input 以便重复选择同一文件
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    }
+  };
+
+  const handlePresetSelect = async (presetName: string) => {
+    setPresetLoading(presetName);
+    try {
+      const avatarUrl = await userService.setPresetAvatar(presetName);
+      updateUserInfo({ ...userInfo!, avatarUrl });
+      message.success('头像已更换');
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || '设置头像失败');
+    } finally {
+      setPresetLoading(null);
+    }
+  };
 
   const renderContent = () => {
     switch (activeSection) {
@@ -60,49 +122,110 @@ const SettingsPage: React.FC = () => {
                   <IdcardOutlined />
                 </div>
                 <div>
-                  <h3 className="miao-settings-card-title">个人信息</h3>
-                  <p className="miao-settings-card-desc">您的基本账号信息概览。</p>
+                  <h3 className="miao-settings-card-title">基本资料</h3>
+                  <p className="miao-settings-card-desc">您的账号信息概览与用户名修改。</p>
                 </div>
               </div>
               <div className="miao-settings-card-body">
-                <div className="miao-settings-info-grid">
-                  <div className="miao-settings-info-item">
-                    <span className="miao-settings-info-label">用户名</span>
-                    <span className="miao-settings-info-value">{userInfo?.username ?? '—'}</span>
+                <div className="miao-settings-avatar-upload">
+                  <div
+                    className={`miao-settings-avatar-edit ${avatarUploading ? 'is-uploading' : ''}`}
+                    onClick={handleAvatarClick}
+                    title="点击更换头像"
+                  >
+                    <img src={userInfo?.avatarUrl || DEFAULT_AVATAR} alt={userInfo?.username ?? 'avatar'} className="miao-settings-avatar-edit-img" />
+                    <div className="miao-settings-avatar-edit-overlay">
+                      <CameraOutlined />
+                    </div>
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      style={{ display: 'none' }}
+                      onChange={handleAvatarChange}
+                    />
                   </div>
-                  <div className="miao-settings-info-item">
-                    <span className="miao-settings-info-label">邮箱</span>
-                    <span className="miao-settings-info-value">
+                  <div className="miao-settings-avatar-upload-hint">
+                    <p className="miao-settings-avatar-upload-title">点击头像更换</p>
+                    <p className="miao-settings-avatar-upload-subtitle">支持 JPG、PNG、GIF、WebP，不超过 2MB</p>
+                  </div>
+                </div>
+                <div className="miao-settings-preset-avatars">
+                  <p className="miao-settings-preset-title">选择默认头像</p>
+                  <div className="miao-settings-preset-grid">
+                    {PRESET_AVATARS.map(preset => {
+                      const presetUrl = `/avatars/${preset.name}.png`;
+                      const isActive = userInfo?.avatarUrl === presetUrl;
+                      return (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          className={`miao-settings-preset-item ${isActive ? 'is-active' : ''} ${presetLoading === preset.name ? 'is-loading' : ''}`}
+                          onClick={() => handlePresetSelect(preset.name)}
+                          disabled={presetLoading !== null}
+                          title={preset.label}
+                        >
+                          <img src={presetUrl} alt={preset.label} className="miao-settings-preset-img" />
+                          {isActive && <span className="miao-settings-preset-check"><CheckCircleOutlined /></span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="miao-settings-profile-grid">
+                  <div className="miao-settings-profile-cell">
+                    <span className="miao-settings-profile-label">用户名</span>
+                    <span className="miao-settings-profile-value">{userInfo?.username ?? '—'}</span>
+                  </div>
+                  <div className="miao-settings-profile-cell">
+                    <span className="miao-settings-profile-label">邮箱</span>
+                    <span className="miao-settings-profile-value">
                       {userInfo?.email ? (
                         <>
-                          {userInfo.email}
-                          {userInfo.emailVerified
-                            ? <CheckCircleOutlined className="miao-settings-info-verified" />
-                            : <CloseCircleOutlined className="miao-settings-info-unverified" />
-                          }
-                          <Typography.Text copyable={{ text: userInfo.email ?? '' }} />
+                          <span className="miao-settings-profile-plain">{userInfo.email}</span>
+                          {userInfo.emailVerified ? (
+                            <span className="miao-settings-badge is-verified"><CheckCircleOutlined /> 已验证</span>
+                          ) : (
+                            <span className="miao-settings-badge is-unverified"><CloseCircleOutlined /> 未验证</span>
+                          )}
+                          <button
+                            type="button"
+                            className="miao-settings-copy-btn"
+                            onClick={() => { navigator.clipboard.writeText(userInfo.email ?? ''); }}
+                            title="复制邮箱"
+                          >
+                            <CopyOutlined />
+                          </button>
                         </>
                       ) : (
-                        <span className="miao-settings-info-empty">未绑定</span>
+                        <span className="miao-settings-badge is-empty">未绑定</span>
                       )}
                     </span>
                   </div>
-                  <div className="miao-settings-info-item">
-                    <span className="miao-settings-info-label">角色</span>
-                    <span className="miao-settings-info-value">
-                      {userInfo?.roles?.length
-                        ? userInfo.roles.map(r => r.name).join('、')
-                        : '普通用户'
-                      }
+                  <div className="miao-settings-profile-cell">
+                    <span className="miao-settings-profile-label">GitHub</span>
+                    <span className="miao-settings-profile-value">
+                      {userInfo?.githubUsername ? (
+                        <>
+                          <span className="miao-settings-profile-plain">{userInfo.githubUsername}</span>
+                          <span className="miao-settings-badge is-verified"><CheckCircleOutlined /> 已绑定</span>
+                        </>
+                      ) : (
+                        <span className="miao-settings-badge is-empty">未绑定</span>
+                      )}
                     </span>
                   </div>
-                  <div className="miao-settings-info-item">
-                    <span className="miao-settings-info-label">GitHub</span>
-                    <span className="miao-settings-info-value">
-                      {userInfo?.githubUsername
-                        ? <>{userInfo.githubUsername} <CheckCircleOutlined className="miao-settings-info-verified" /></>
-                        : <span className="miao-settings-info-empty">未绑定</span>
-                      }
+                  <div className="miao-settings-profile-cell">
+                    <span className="miao-settings-profile-label">Google</span>
+                    <span className="miao-settings-profile-value">
+                      {userInfo?.googleUsername ? (
+                        <>
+                          <span className="miao-settings-profile-plain">{userInfo.googleUsername}</span>
+                          <span className="miao-settings-badge is-verified"><CheckCircleOutlined /> 已绑定</span>
+                        </>
+                      ) : (
+                        <span className="miao-settings-badge is-empty">未绑定</span>
+                      )}
                     </span>
                   </div>
                 </div>
@@ -116,15 +239,13 @@ const SettingsPage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="miao-settings-card-title">修改用户名</h3>
-                  <p className="miao-settings-card-desc">用户名是您在系统中的唯一标识，修改后会同步到所有工具页面。</p>
+                  <p className="miao-settings-card-desc">修改后所有页面将同步展示新的用户名。</p>
                 </div>
               </div>
               <div className="miao-settings-card-body">
                 <BasicInfoForm />
               </div>
             </section>
-
-
           </div>
         );
       case 'password':
@@ -209,8 +330,8 @@ const SettingsPage: React.FC = () => {
         {/* 左侧导航栏 */}
         <aside className="miao-settings-aside">
           <div className="miao-settings-profile-brief">
-            <div className="miao-settings-avatar">
-              <span>{avatarInitial}</span>
+            <div className="miao-settings-avatar has-image">
+              <img src={userInfo?.avatarUrl || DEFAULT_AVATAR} alt={userInfo?.username ?? 'avatar'} className="miao-settings-avatar-img" />
             </div>
             <div className="miao-settings-user-meta">
               <h2 className="miao-settings-username">{userInfo?.username ?? '加载中…'}</h2>

@@ -185,7 +185,7 @@ const UserCard: React.FC<{
           onClick={() => onOpenDrawer(user)}
           style={{ cursor: 'pointer', flexShrink: 0 }}
         >
-          <UserAvatar username={user.username} size="md" />
+          <UserAvatar username={user.username} avatarUrl={user.avatarUrl} size="md" />
         </div>
 
         {/* 名称 + 邮箱 + 角色 */}
@@ -572,7 +572,7 @@ const UserManagePage: React.FC = () => {
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div className="miao-admin-drawer-profile" style={{ marginBottom: 0 }}>
-                    <UserAvatar username={drawerUser.username} size="lg" />
+                    <UserAvatar username={drawerUser.username} avatarUrl={drawerUser.avatarUrl} size="lg" />
                     <div>
                       <h2 className="miao-admin-drawer-name">{drawerUser.username}</h2>
                       <div className="miao-admin-drawer-meta">

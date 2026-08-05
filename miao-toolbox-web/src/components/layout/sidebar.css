@@ -573,7 +573,7 @@
 /* ── Footer: user card（固定在侧栏底部，不随菜单滚动） ── */
 .miao-sidebar-footer {
   flex: 0 0 auto;
-  padding: 12px 12px 16px;
+  padding: 14px 14px 18px;
   border-top: 1px solid var(--miao-sidebar-border);
   margin: 0;
   background: var(--miao-sidebar-bg);
@@ -594,28 +594,32 @@
 .miao-user-card {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px;
+  gap: 12px;
+  padding: 8px 10px;
   width: 100%;
   min-width: 0;
-  border-radius: 10px;
+  border-radius: 14px;
   transition:
     width var(--miao-sidebar-motion),
     height var(--miao-sidebar-motion),
     padding var(--miao-sidebar-motion),
     gap var(--miao-sidebar-motion),
     border-radius var(--miao-sidebar-motion),
-    background-color 180ms ease;
+    background-color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
 }
 .miao-user-card:hover {
   background: var(--miao-sidebar-bg-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.12);
 }
 
 /* ── User avatar ── */
 .miao-user-card-avatar-trigger {
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -633,54 +637,69 @@
     transform 180ms ease;
 }
 .miao-user-card-avatar-trigger:hover {
-  background: var(--miao-sidebar-bg-hover);
+  background: transparent;
+  transform: scale(1.04);
 }
 .miao-user-card-avatar-trigger:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(92, 79, 208, 0.20);
 }
 
-.miao-user-card-avatar {
-  width: 34px;
-  height: 34px;
+.miao-user-card-avatar-wrap {
+  position: relative;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: linear-gradient(135deg, #5C4FD0 0%, #d97020 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 600;
-  font-size: 13px;
-  font-family: var(--miao-font-display);
-  position: relative;
-  line-height: 1;
+  padding: 3px;
+  background: linear-gradient(135deg, #d4f3e6 0%, #b8e7d3 100%);
+  box-shadow:
+    0 3px 10px -3px rgba(82, 196, 26, 0.28),
+    0 0 0 1px rgba(82, 196, 26, 0.10),
+    inset 0 1px 1px rgba(255, 255, 255, 0.55);
   transition:
     width var(--miao-sidebar-motion),
     height var(--miao-sidebar-motion),
+    box-shadow 180ms ease,
     transform 180ms ease;
 }
-.miao-user-card-avatar::after {
+
+.miao-user-card-avatar-img {
+  width: 100%;
+  height: 100%;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  background: #f0f7f4;
+  transition:
+    width var(--miao-sidebar-motion),
+    height var(--miao-sidebar-motion);
+}
+
+/* 在线状态小点 */
+.miao-user-card-avatar-wrap::after {
   content: '';
   position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 9px;
-  height: 9px;
+  bottom: 1px;
+  right: 1px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: #00d4aa;
+  background: #52c41a;
   border: 2px solid var(--miao-sidebar-bg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 /* Collapsed avatar */
 .ant-layout-sider-collapsed .miao-user-card-avatar-trigger {
+  width: 42px;
+  height: 42px;
+  flex-basis: 42px;
+}
+.ant-layout-sider-collapsed .miao-user-card-avatar-wrap {
   width: 38px;
   height: 38px;
-  flex-basis: 38px;
-}
-.ant-layout-sider-collapsed .miao-user-card-avatar {
-  width: 36px;
-  height: 36px;
 }
 
 /* ── User info ── */
@@ -704,28 +723,38 @@
 }
 
 .miao-user-card-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--miao-sidebar-text);
-  line-height: 1.2;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--miao-sidebar-brand-text);
+  line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.01em;
 }
 
 .miao-user-card-role {
-  display: inline-block;
-  margin-top: 3px;
-  font-family: var(--miao-font-mono);
-  font-size: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-family: var(--miao-font-body);
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--miao-accent);
-  padding: 1px 5px;
-  border-radius: 3px;
-  border: 1px solid rgba(217, 112, 32, 0.25);
-  background: rgba(217, 112, 32, 0.06);
+  letter-spacing: 0.02em;
+  color: #a21caf;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #d946ef 28%, transparent);
+  background: color-mix(in srgb, #d946ef 12%, transparent);
+  line-height: 1.2;
+}
+
+.miao-user-card-role-icon {
+  font-size: 10px;
+  color: #a21caf;
+  display: inline-flex;
+  align-items: center;
 }
 
 /* ── User actions（主题切换；折叠态仍展示） ── */
@@ -755,7 +784,7 @@
 .miao-user-card-btn {
   width: 30px;
   height: 30px;
-  border-radius: 7px;
+  border-radius: 8px;
   border: none;
   background: transparent;
   color: var(--miao-sidebar-text-muted);
@@ -778,15 +807,15 @@
 
 /* Collapsed user card：头像 + 主题按钮上下排布 */
 .ant-layout-sider-collapsed .miao-user-card {
-  width: 44px;
+  width: 48px;
   height: auto;
-  min-height: 44px;
+  min-height: 48px;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   padding: 6px 3px;
-  border-radius: 12px;
+  border-radius: 14px;
 }
 
 .ant-layout-sider-collapsed .miao-user-card-btn {
