@@ -909,6 +909,12 @@
   border: 1px solid color-mix(in srgb, var(--miao-teal) 25%, transparent);
 }
 
+.ral-type-tag--other {
+  background: color-mix(in srgb, var(--text-tertiary) 12%, transparent);
+  color: var(--text-tertiary);
+  border: 1px solid color-mix(in srgb, var(--text-tertiary) 25%, transparent);
+}
+
 /* ---- cost 列 ---- */
 .ral-cost-cell {
   display: flex;
