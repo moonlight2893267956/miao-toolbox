@@ -3,6 +3,7 @@ package com.miao.toolbox.network.infrastructure;
 import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.exception.BusinessException;
 import java.net.InetAddress;
+import java.net.Proxy;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,9 @@ import org.springframework.stereotype.Component;
  * 通过 OkHttp 的 {@link Dns} 接口强制所有请求只解析到经 {@link SsrfProtector}
  * 校验后的单一 IP，从源头杜绝内网/保留地址访问；默认不跟随重定向，
  * 3xx 原样返回给调用方，避免重定向绕过 SSRF 校验。
+ *
+ * 该客户端显式 {@link Proxy#NO_PROXY} 绕过 JVM 系统代理：用户侧抓取必须直连目标，
+ * 否则代理主机名会被误当作目标做 SSRF 校验，且代理侧自行解析目标会削弱防护。
  */
 @Slf4j
 @Component
@@ -41,6 +45,11 @@ public class HttpFetcher {
             .readTimeout(connectMs, TimeUnit.MILLISECONDS)
             .followRedirects(false)
             .followSslRedirects(false)
+            // 受 SSRF 防护的用户侧抓取必须直连目标：绕过 JVM 系统代理（如 Clash）。
+            // 否则 OkHttp 会把请求发往代理主机（例如 host.docker.internal），
+            // 自定义 DNS 会去校验「代理主机名」而非「用户目标」，导致代理地址（私网）被误拦，
+            // 且代理侧自行解析目标 IP 会让 SSRF 防护形同虚设。
+            .proxy(Proxy.NO_PROXY)
             .dns(this::resolveSafe)
             .build();
     }
