@@ -396,7 +396,7 @@ export function RalLogParserPage() {
         className: record.isAbnormal ? 'ral-cell-abnormal' : '',
       }),
       render: (v: string) => (
-        <span className={`ral-type-tag ral-type-tag--${v === 'E_SUM' ? 'sum' : v === 'E_TALK' ? 'talk' : 'other'}`}>{v}</span>
+        <span className={`ral-type-tag ral-type-tag--${v === 'E_SUM' ? 'sum' : 'talk'}`}>{v}</span>
       ),
     },
     {
@@ -718,7 +718,7 @@ export function RalLogParserPage() {
           className="ral-textarea"
           value={logText}
           onChange={e => updateTabInput(activeTab.id, e.target.value)}
-          placeholder="粘贴 RAL 日志内容…&#10;支持 E_SUM / E_TALK 及 RAL 中间阶段日志，自动识别 caller=RAL 的行"
+          placeholder="粘贴 RAL 日志内容…&#10;支持 E_SUM / E_TALK 类型，自动识别 log_type=E_SUM caller=RAL 的行"
           spellCheck={false}
           rows={6}
         />
@@ -744,7 +744,7 @@ export function RalLogParserPage() {
               </div>
               <div className="ral-empty-title">未识别到 RAL 日志行</div>
               <div className="ral-empty-desc">
-                请确认日志中包含 caller=RAL 的行（E_SUM / E_TALK 或 RAL 中间阶段日志）
+                请确认日志中包含 log_type=E_SUM 或 log_type=E_TALK 且 caller=RAL 的行
               </div>
             </section>
           ) : (

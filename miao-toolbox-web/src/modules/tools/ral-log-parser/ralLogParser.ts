@@ -7,7 +7,7 @@
 /* ---------- 类型定义 ---------- */
 
 /** RAL 日志类型 */
-export type RalLogType = 'E_SUM' | 'E_TALK' | 'RAL_OTHER';
+export type RalLogType = 'E_SUM' | 'E_TALK';
 
 /** 单条 RAL 调用的核心指标 */
 export interface RalCallRecord {
@@ -226,29 +226,18 @@ function parseNum(val: string | undefined, defaultVal = 0): number {
   return isNaN(n) ? defaultVal : n;
 }
 
-/** 根据日志来源推断日志类型（无 log_type 字段时使用） */
-function inferLogType(): RalLogType {
-  // 无 log_type 的 RAL 中间阶段日志（balance.cpp / rpc.cpp / http.cpp 等）
-  return 'RAL_OTHER';
-}
-
 /* ---------- RAL 日志行识别 ---------- */
 
 /**
  * 判断一行日志是否为 RAL 日志行
- * 识别规则（宽松匹配）：
- * 1. 包含 caller=RAL 且包含 log_type=E_SUM/E_TALK（标准 E_SUM/E_TALK 行）
- * 2. 包含 caller=RAL 且包含 service= 字段（balance/rpc/http 等中间阶段日志，无 log_type）
+ * 识别规则：行中包含 log_type=E_SUM 或 log_type=E_TALK 且包含 caller=RAL
  */
 export function isRalLogLine(line: string): boolean {
   const trimmed = line.trim();
   if (!trimmed) return false;
-  const hasCaller = /caller=RAL\b/.test(trimmed);
-  if (!hasCaller) return false;
   const hasLogType = /log_type=E_(SUM|TALK)\b/.test(trimmed);
-  if (hasLogType) return true;
-  // 无 log_type 但有 service= 的 RAL 中间阶段日志（balance.cpp / rpc.cpp / http.cpp 等）
-  return /\bservice=\S+/.test(trimmed);
+  const hasCaller = /caller=RAL\b/.test(trimmed);
+  return hasLogType && hasCaller;
 }
 
 /* ---------- 主解析函数 ---------- */
@@ -268,7 +257,7 @@ export function parseRalLog(text: string, config: RalAnomalyConfig = DEFAULT_ANO
       const fields = extractFields(line);
       const timestamp = extractTimestamp(line);
       const logLevel = extractLogLevel(line);
-      const logType = (fields.log_type as RalLogType) || inferLogType();
+      const logType = (fields.log_type as RalLogType) || 'E_SUM';
 
       const rec: Partial<RalCallRecord> = {
         timestamp,
