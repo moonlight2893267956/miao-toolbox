@@ -10,7 +10,6 @@ import {
   SafetyOutlined,
   SunOutlined,
   MoonOutlined,
-  CrownOutlined,
 } from '@ant-design/icons';
 import { useAuth, isSuperAdmin } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -71,11 +70,6 @@ const Sidebar: React.FC = () => {
     admin || !routeCode || state.accessibleRoutes.includes(routeCode)
   ), [admin, state.accessibleRoutes]);
   const username = state.userInfo?.username || '用户';
-  const roleDisplay = useMemo(() => {
-    const roles = state.userInfo?.roles ?? [];
-    if (roles.length === 0) return '用户';
-    return roles.map(r => r.name).join(' / ');
-  }, [state.userInfo?.roles]);
 
   // Build sections with items (always flat, no Collapse)
   const sections: NavSection[] = useMemo(() => {
@@ -324,9 +318,14 @@ const Sidebar: React.FC = () => {
         </div>
 
         <div className="miao-sidebar-footer">
-          <div className="miao-user-card">
-            <UserDropdown collapsed={collapsed}>
-              <button className="miao-user-card-avatar-trigger" type="button" aria-label="打开用户菜单">
+          <UserDropdown collapsed={collapsed}>
+            <div
+              className="miao-user-card"
+              role="button"
+              tabIndex={0}
+              aria-label="打开用户菜单"
+            >
+              <div className="miao-user-card-avatar-trigger">
                 <span className="miao-user-card-avatar-wrap">
                   <img
                     src={state.userInfo?.avatarUrl || '/default-avatar.png'}
@@ -334,35 +333,35 @@ const Sidebar: React.FC = () => {
                     className="miao-user-card-avatar-img"
                   />
                 </span>
-              </button>
-            </UserDropdown>
-            <div className="miao-user-card-info">
-              <div className="miao-user-card-name">{username}</div>
-              <div className="miao-user-card-role">
-                <CrownOutlined className="miao-user-card-role-icon" />
-                <span>{roleDisplay}</span>
+              </div>
+              <div className="miao-user-card-info">
+                <div className="miao-user-card-name">{username}</div>
+                <div className="miao-user-card-status">
+                  <span className="miao-user-card-status-dot" />
+                  <span>在线</span>
+                </div>
+              </div>
+              <div className="miao-user-card-actions">
+                <Tooltip
+                  title={isDark ? '切换亮色' : '切换暗色'}
+                  placement="right"
+                  overlayClassName="miao-nav-item-tooltip"
+                >
+                  <button
+                    className="miao-user-card-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleTheme();
+                    }}
+                    aria-label={isDark ? '切换亮色模式' : '切换暗色模式'}
+                    type="button"
+                  >
+                    {isDark ? <SunOutlined /> : <MoonOutlined />}
+                  </button>
+                </Tooltip>
               </div>
             </div>
-            <div className="miao-user-card-actions">
-              <Tooltip
-                title={isDark ? '切换亮色' : '切换暗色'}
-                placement="right"
-                overlayClassName="miao-nav-item-tooltip"
-              >
-                <button
-                  className="miao-user-card-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleTheme();
-                  }}
-                  aria-label={isDark ? '切换亮色模式' : '切换暗色模式'}
-                  type="button"
-                >
-                  {isDark ? <SunOutlined /> : <MoonOutlined />}
-                </button>
-              </Tooltip>
-            </div>
-          </div>
+          </UserDropdown>
         </div>
       </div>
 

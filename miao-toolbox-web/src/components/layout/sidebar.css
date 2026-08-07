@@ -573,7 +573,7 @@
 /* ── Footer: user card（固定在侧栏底部，不随菜单滚动） ── */
 .miao-sidebar-footer {
   flex: 0 0 auto;
-  padding: 14px 14px 18px;
+  padding: 16px 16px 20px;
   border-top: 1px solid var(--miao-sidebar-border);
   margin: 0;
   background: var(--miao-sidebar-bg);
@@ -586,19 +586,23 @@
 }
 .ant-layout-sider-collapsed .miao-sidebar-footer {
   margin: 0;
-  padding: 12px 0 14px;
+  padding: 14px 0 16px;
   display: flex;
   justify-content: center;
 }
 
 .miao-user-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 12px;
-  padding: 8px 10px;
+  gap: 14px;
+  padding: 12px;
   width: 100%;
   min-width: 0;
-  border-radius: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--miao-sidebar-border);
+  background: color-mix(in srgb, var(--miao-sidebar-bg) 70%, transparent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   transition:
     width var(--miao-sidebar-motion),
     height var(--miao-sidebar-motion),
@@ -613,19 +617,24 @@
   background: var(--miao-sidebar-bg-hover);
   transform: translateY(-1px);
   box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+}
+
+.miao-user-card:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25);
 }
 
 /* ── User avatar ── */
 .miao-user-card-avatar-trigger {
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
   padding: 0;
   border: 0;
   border-radius: 50%;
   background: transparent;
   color: inherit;
-  cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -635,28 +644,18 @@
     flex-basis var(--miao-sidebar-motion),
     background-color 180ms ease,
     transform 180ms ease;
-}
-.miao-user-card-avatar-trigger:hover {
-  background: transparent;
-  transform: scale(1.04);
-}
-.miao-user-card-avatar-trigger:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(92, 79, 208, 0.20);
+  pointer-events: none;
 }
 
 .miao-user-card-avatar-wrap {
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 50px;
+  height: 50px;
   flex: 0 0 auto;
   border-radius: 50%;
-  padding: 3px;
-  background: linear-gradient(135deg, #d4f3e6 0%, #b8e7d3 100%);
-  box-shadow:
-    0 3px 10px -3px rgba(82, 196, 26, 0.28),
-    0 0 0 1px rgba(82, 196, 26, 0.10),
-    inset 0 1px 1px rgba(255, 255, 255, 0.55);
+  padding: 0;
+  border: 2.5px solid color-mix(in srgb, #8b5cf6 45%, transparent);
+  box-shadow: 0 3px 12px -2px rgba(139, 92, 246, 0.22);
   transition:
     width var(--miao-sidebar-motion),
     height var(--miao-sidebar-motion),
@@ -670,41 +669,31 @@
   flex: 0 0 auto;
   border-radius: 50%;
   object-fit: cover;
+  object-position: center;
   display: block;
-  background: #f0f7f4;
+  transform: scale(0.95);
   transition:
     width var(--miao-sidebar-motion),
     height var(--miao-sidebar-motion);
 }
 
-/* 在线状态小点 */
-.miao-user-card-avatar-wrap::after {
-  content: '';
-  position: absolute;
-  bottom: 1px;
-  right: 1px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #52c41a;
-  border: 2px solid var(--miao-sidebar-bg);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-}
-
 /* Collapsed avatar */
 .ant-layout-sider-collapsed .miao-user-card-avatar-trigger {
-  width: 42px;
-  height: 42px;
-  flex-basis: 42px;
+  width: 48px;
+  height: 48px;
+  flex-basis: 48px;
 }
 .ant-layout-sider-collapsed .miao-user-card-avatar-wrap {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
 }
 
 /* ── User info ── */
 .miao-user-card-info {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
   min-width: 0;
   overflow: hidden;
   transition:
@@ -715,46 +704,37 @@
   transition-delay: var(--item-delay, 0ms);
 }
 .ant-layout-sider-collapsed .miao-user-card-info {
-  flex: 0 0 0;
-  width: 0;
-  opacity: 0;
-  transform: translateX(-24px);
-  pointer-events: none;
+  display: none;
 }
 
 .miao-user-card-name {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--miao-sidebar-brand-text);
-  line-height: 1.25;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: -0.01em;
 }
 
-.miao-user-card-role {
+.miao-user-card-status {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 4px;
-  font-family: var(--miao-font-body);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: #a21caf;
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, #d946ef 28%, transparent);
-  background: color-mix(in srgb, #d946ef 12%, transparent);
-  line-height: 1.2;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--miao-sidebar-text-muted);
+  line-height: 1;
+  width: fit-content;
 }
 
-.miao-user-card-role-icon {
-  font-size: 10px;
-  color: #a21caf;
-  display: inline-flex;
-  align-items: center;
+.miao-user-card-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #52c41a;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #52c41a 20%, transparent);
 }
 
 /* ── User actions（主题切换；折叠态仍展示） ── */
@@ -779,12 +759,13 @@
   transform: none;
   pointer-events: auto;
   overflow: visible;
+  padding-top: 0;
 }
 
 .miao-user-card-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
   border: none;
   background: transparent;
   color: var(--miao-sidebar-text-muted);
@@ -793,7 +774,7 @@
   align-items: center;
   justify-content: center;
   transition: background-color 140ms ease, color 140ms ease;
-  font-size: 14px;
+  font-size: 15px;
   padding: 0;
 }
 .miao-user-card-btn:hover {
@@ -807,14 +788,13 @@
 
 /* Collapsed user card：头像 + 主题按钮上下排布 */
 .ant-layout-sider-collapsed .miao-user-card {
-  width: 48px;
+  width: 52px;
   height: auto;
-  min-height: 48px;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 3px;
+  min-height: 52px;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: 6px;
+  padding: 8px 4px;
   border-radius: 14px;
 }
 
