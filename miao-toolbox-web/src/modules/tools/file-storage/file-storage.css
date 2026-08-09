@@ -606,10 +606,12 @@ tr:hover .fs-action-btn {
   align-items: center;
   justify-content: center;
   margin-bottom: 8px;
+  line-height: 0; /* 消除 antd 图标默认行高造成的垂直偏移 */
 }
 
 .fs-grid-thumb-icon {
   font-size: 60px;
+  display: block;
 }
 
 .fs-grid-thumb--dir {
@@ -617,7 +619,7 @@ tr:hover .fs-action-btn {
 }
 
 .fs-grid-thumb--dir .fs-grid-thumb-icon {
-  font-size: 64px;
+  font-size: 60px;
   color: var(--tool-accent);
 }
 
@@ -956,7 +958,9 @@ tr:hover .fs-action-btn {
   white-space: pre-wrap;
   word-break: break-all;
   overflow: auto;
-  max-height: calc(74vh - 42px);
+  /* 固定高度，与编辑态完全一致，避免切换时弹窗跳大跳小 */
+  height: calc(74vh - 42px);
+  box-sizing: border-box;
   tab-size: 2;
 }
 
@@ -987,8 +991,8 @@ tr:hover .fs-action-btn {
   white-space: pre-wrap;
   word-break: break-all;
   overflow: auto;
-  max-height: calc(74vh - 42px);
-  min-height: 300px;
+  /* 固定高度，与查看态完全一致，避免切换时弹窗跳大跳小 */
+  height: calc(74vh - 42px);
   width: 100%;
   border: none;
   outline: none;

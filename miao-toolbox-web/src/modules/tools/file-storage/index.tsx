@@ -164,7 +164,7 @@ const FileStoragePage: React.FC = () => {
   const [quota, setQuota] = useState<QuotaInfo | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [newDirModalOpen, setNewDirModalOpen] = useState(false);
   const [newDirName, setNewDirName] = useState('');
   const [renameModalOpen, setRenameModalOpen] = useState(false);
@@ -331,12 +331,14 @@ const FileStoragePage: React.FC = () => {
       setShareList(shares);
       setShareUserIds([]);
       setSharePermission('VIEW');
+      // 刷新文件列表，更新“共享”状态列
+      loadFiles();
     } catch {
       message.error('共享失败');
     } finally {
       setShareSubmitting(false);
     }
-  }, [shareTarget, shareUserIds, sharePermission]);
+  }, [shareTarget, shareUserIds, sharePermission, loadFiles]);
 
   const handleUnshare = useCallback(async (shareId: number) => {
     if (!shareTarget) return;
@@ -379,6 +381,8 @@ const FileStoragePage: React.FC = () => {
       const copied = await fileStorageApi.copySharedFileToMine(copyToMineTarget.id, copyToMinePath);
       message.success(`已保存到「我的文件」：${copied.fileName}`);
       setCopyToMineOpen(false);
+      // 关闭预览弹窗：文件已移入我的文件，避免残留共享文件状态（显示“移入我的文件”/编辑无权限）
+      closePreview();
       loadFiles();
     } catch {
       message.error('移入我的文件失败');
@@ -453,8 +457,16 @@ const FileStoragePage: React.FC = () => {
     }
   };
 
+  // 普通预览：owner 默认可编辑；共享给我的文件按共享权限推断（仅 EDIT 可编辑）
+  // 注意：file.shared 在“我的文件”里表示“我共享给了别人”，不能用于判断是否来自共享视图，
+  // 必须以 ownerUserId 区分（仅“共享给我的文件”才有该字段）
   const handlePreview = async (file: FileInfo) => {
     const cat = getFileCategory(file.mimeType, file.fileName);
+    const isSharedToMe = file.ownerUserId != null;
+    const sharedPerm = isSharedToMe
+      ? sharedFiles.find((s) => s.fileId === file.id)?.permission
+      : undefined;
+    const previewEditable = isSharedToMe ? sharedPerm === 'EDIT' : true;
     setPreviewFile(file);
     setPreviewOpen(true);
     setPreviewLoading(true);
@@ -462,6 +474,7 @@ const FileStoragePage: React.FC = () => {
     setPreviewText(null);
     setEditing(false);
     setEditContent('');
+    setPreviewCanEdit(previewEditable);
 
     try {
       if (cat === 'text') {
@@ -482,12 +495,15 @@ const FileStoragePage: React.FC = () => {
   };
 
   const closePreview = () => {
-    if (previewObjectUrl) {
-      URL.revokeObjectURL(previewObjectUrl);
-    }
+    // 用函数式 setState 取最新值，避免在 useCallback 闭包中拿到过期的 previewObjectUrl
+    setPreviewObjectUrl((prev) => {
+      if (prev) {
+        URL.revokeObjectURL(prev);
+      }
+      return null;
+    });
     setPreviewOpen(false);
     setPreviewFile(null);
-    setPreviewObjectUrl(null);
     setPreviewText(null);
     setEditing(false);
     setEditContent('');
@@ -550,8 +566,9 @@ const FileStoragePage: React.FC = () => {
       setPreviewText(editContent);
       setEditing(false);
       setEditContent('');
-      // 刷新文件列表（文件大小可能变化）
-      loadFiles();
+      // 刷新列表（文件大小可能变化）；同时刷新共享列表，覆盖共享视图场景
+      refreshAll();
+      loadSharedFiles();
     } catch {
       message.error('保存失败');
     } finally {
@@ -619,7 +636,9 @@ const FileStoragePage: React.FC = () => {
       setRenameModalOpen(false);
       setRenameTarget(null);
       setRenameValue('');
-      loadFiles();
+      // 刷新列表与目录树；同时刷新共享列表，覆盖共享视图场景
+      refreshAll();
+      loadSharedFiles();
     } catch {
       message.error('重命名失败');
     }
@@ -781,7 +800,7 @@ const FileStoragePage: React.FC = () => {
       ...(canEdit ? [{
         key: 'edit',
         label: '编辑',
-        onClick: () => handlePreviewAndEdit(file, true),
+        onClick: () => handlePreviewAndEdit(file, canEdit),
       }] : []),
       {
         key: 'download',
@@ -1340,8 +1359,8 @@ const FileStoragePage: React.FC = () => {
                 value={viewMode}
                 onChange={(v) => setViewMode(v as ViewMode)}
                 options={[
-                  { value: 'list', icon: <UnorderedListOutlined /> },
                   { value: 'grid', icon: <AppstoreOutlined /> },
+                  { value: 'list', icon: <UnorderedListOutlined /> },
                 ]}
                 size="small"
               />
@@ -1424,7 +1443,7 @@ const FileStoragePage: React.FC = () => {
           <Button key="save" type="primary" onClick={saveEditing} loading={saving}>保存</Button>,
         ] : [
           <Button key="download" icon={<DownloadOutlined />} onClick={() => handleDownload(previewFile.id)}>下载</Button>,
-          ...(previewFile.shared ? [(
+          ...(previewFile.ownerUserId != null ? [(
             <Button key="copy-to-mine" type="primary" ghost icon={<ImportOutlined />} onClick={() => openCopyToMine(previewFile)}>
               移入我的文件
             </Button>

@@ -595,11 +595,11 @@
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 14px;
-  padding: 12px;
+  gap: 10px;
+  padding: 8px 10px;
   width: 100%;
   min-width: 0;
-  border-radius: 16px;
+  border-radius: 14px;
   border: 1px solid var(--miao-sidebar-border);
   background: color-mix(in srgb, var(--miao-sidebar-bg) 70%, transparent);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
@@ -627,9 +627,9 @@
 
 /* ── User avatar ── */
 .miao-user-card-avatar-trigger {
-  width: 56px;
-  height: 56px;
-  flex: 0 0 56px;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -649,13 +649,13 @@
 
 .miao-user-card-avatar-wrap {
   position: relative;
-  width: 50px;
-  height: 50px;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
   border-radius: 50%;
   padding: 0;
-  border: 2.5px solid color-mix(in srgb, #8b5cf6 45%, transparent);
-  box-shadow: 0 3px 12px -2px rgba(139, 92, 246, 0.22);
+  border: 2px solid color-mix(in srgb, #8b5cf6 45%, transparent);
+  box-shadow: 0 3px 10px -2px rgba(139, 92, 246, 0.22);
   transition:
     width var(--miao-sidebar-motion),
     height var(--miao-sidebar-motion),
@@ -679,13 +679,13 @@
 
 /* Collapsed avatar */
 .ant-layout-sider-collapsed .miao-user-card-avatar-trigger {
-  width: 48px;
-  height: 48px;
-  flex-basis: 48px;
+  width: 40px;
+  height: 40px;
+  flex-basis: 40px;
 }
 .ant-layout-sider-collapsed .miao-user-card-avatar-wrap {
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
 }
 
 /* ── User info ── */
