@@ -195,12 +195,25 @@ a {
   gap: 14px;
 }
 
-.miao-brand-mark-img {
+.miao-brand-mark {
   width: 42px;
   height: 42px;
-  border-radius: 10px;
-  object-fit: contain;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  flex: 0 0 auto;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #5C4FD0 0%, #8b7def 50%, #d97020 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: var(--miao-font-display);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 6px 20px rgba(92, 79, 208, 0.25);
+}
+
+.miao-brand-mark--auth {
+  box-shadow: 0 8px 28px rgba(92, 79, 208, 0.35);
 }
 
 .miao-auth-logo-text {

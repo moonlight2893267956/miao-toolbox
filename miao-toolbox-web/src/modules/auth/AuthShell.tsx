@@ -1,6 +1,5 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import logoImg from '../../assets/logo.png';
 import useReducedMotion from '../../hooks/useReducedMotion';
 
 interface AuthShellProps {
@@ -41,7 +40,7 @@ const AuthShell: React.FC<AuthShellProps> = ({
           transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
         >
           <div className="miao-auth-logo-row">
-            <img src={logoImg} alt="" className="miao-brand-mark-img" />
+            <div className="miao-brand-mark miao-brand-mark--auth">渺</div>
             <span className="miao-auth-logo-text">阿渺工具箱</span>
           </div>
 
