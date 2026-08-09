@@ -31,6 +31,12 @@ public final class ErrorCode {
     public static final String ROUTE_NOT_FOUND = "ROUTE_NOT_FOUND";
     public static final String ROUTE_FORBIDDEN = "ROUTE_FORBIDDEN";
 
+    // Permission errors
+    public static final String PERMISSION_DENIED = "PERMISSION_DENIED";
+
+    // File storage errors
+    public static final String FILE_NOT_FOUND = "FILE_NOT_FOUND";
+
     // Invite errors
     public static final String INVITE_TOKEN_INVALID = "INVITE_TOKEN_INVALID";
     public static final String INVITE_TOKEN_EXPIRED = "INVITE_TOKEN_EXPIRED";

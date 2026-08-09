@@ -29,11 +29,13 @@ const RalLogParserPage = lazy(() => import('./modules/tools/ral-log-parser'));
 const NetworkToolLayoutPreview = lazy(() => import('./modules/tools/network/NetworkToolLayoutPreview'));
 const NetworkToolList = lazy(() => import('./modules/tools/network/NetworkToolList'));
 const NetworkToolPage = lazy(() => import('./modules/tools/network/NetworkToolPage'));
+const FileStoragePage = lazy(() => import('./modules/tools/file-storage'));
 const DashboardPage = lazy(() => import('./modules/admin/DashboardPage'));
 const UserManagePage = lazy(() => import('./modules/admin/UserManagePage'));
 const InvocationsPage = lazy(() => import('./modules/admin/InvocationsPage'));
 const RoleManagePage = lazy(() => import('./modules/admin/RoleManagePage'));
 const RouteManagePage = lazy(() => import('./modules/admin/RouteManagePage'));
+const StorageManagePage = lazy(() => import('./modules/admin/StorageManagePage'));
 
 function PageFallback() {
   return (
@@ -94,6 +96,7 @@ function AppRoutes() {
         <Route path="tools/cron-editor" element={<RequireRoute code="TOOL_CRON_EDITOR"><CronEditorPage /></RequireRoute>} />
         <Route path="tools/php-log-extractor" element={<RequireRoute code="TOOL_PHP_LOG_EXTRACTOR"><PhpLogExtractorPage /></RequireRoute>} />
         <Route path="tools/ral-log-parser" element={<RequireRoute code="TOOL_RAL_LOG_PARSER"><RalLogParserPage /></RequireRoute>} />
+        <Route path="tools/file-storage" element={<RequireRoute code="TOOL_FILE_STORAGE"><FileStoragePage /></RequireRoute>} />
         <Route
           path="tools/network"
           element={
@@ -118,6 +121,7 @@ function AppRoutes() {
         <Route path="admin/users" element={<RequireRoute code="ADMIN_USERS"><UserManagePage /></RequireRoute>} />
         <Route path="admin/roles" element={<RequireRoute code="ADMIN_ROLES"><RoleManagePage /></RequireRoute>} />
         <Route path="admin/routes" element={<RequireRoute code="ADMIN_ROUTES"><RouteManagePage /></RequireRoute>} />
+        <Route path="admin/storage" element={<RequireRoute code="ADMIN_STORAGE"><StorageManagePage /></RequireRoute>} />
         <Route path="settings" element={<RequireRoute code="PAGE_SETTINGS"><SettingsPage /></RequireRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/tools" replace />} />

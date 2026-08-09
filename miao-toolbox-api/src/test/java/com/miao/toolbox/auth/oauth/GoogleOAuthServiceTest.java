@@ -10,6 +10,7 @@ import com.miao.toolbox.auth.service.JwtService;
 import com.miao.toolbox.common.exception.AuthException;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.invite.service.InviteService;
+import com.miao.toolbox.storage.config.StorageProperties;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -48,6 +49,7 @@ class GoogleOAuthServiceTest {
     @Mock private JwtService jwtService;
     @Mock private AuthService authService;
     @Mock private InviteService inviteService;
+    @Mock private StorageProperties storageProperties;
     @Mock private RestTemplate restTemplate;
     @Mock private HttpServletResponse response;
     @InjectMocks private GoogleOAuthService googleOAuthService;
@@ -64,6 +66,7 @@ class GoogleOAuthServiceTest {
         when(jwtService.generateSigningKey()).thenReturn("mock-signing-key");
         when(jwtService.generateAccessToken(anyLong(), anyString(), anyList())).thenReturn("mock-access-token");
         when(jwtService.generateRefreshToken(anyLong())).thenReturn("mock-refresh-token");
+        when(storageProperties.getDefaultQuotaBytes()).thenReturn(1024L * 1024 * 1024);
     }
 
     @Nested

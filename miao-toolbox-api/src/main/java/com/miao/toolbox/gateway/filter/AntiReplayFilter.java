@@ -69,12 +69,19 @@ public class AntiReplayFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        // 包装 request 以便读取 body（且供后续 Controller 重复消费）
-        CachedBodyHttpServletRequest cachedRequest = new CachedBodyHttpServletRequest(request);
+        // multipart/form-data 请求不缓存 body（缓存会消费原始流导致 Spring 无法解析 multipart parts）
+        boolean isMultipart = isMultipart(request);
 
-        String timestamp = cachedRequest.getHeader("X-Request-Timestamp");
-        String nonce = cachedRequest.getHeader("X-Request-Nonce");
-        String signature = cachedRequest.getHeader("X-Request-Signature");
+        HttpServletRequest requestToUse;
+        if (isMultipart) {
+            requestToUse = request;
+        } else {
+            requestToUse = new CachedBodyHttpServletRequest(request);
+        }
+
+        String timestamp = requestToUse.getHeader("X-Request-Timestamp");
+        String nonce = requestToUse.getHeader("X-Request-Nonce");
+        String signature = requestToUse.getHeader("X-Request-Signature");
 
         if (timestamp == null || nonce == null || signature == null) {
             writeError(response, "REPLAY_PROTECTION_FAILED", "缺少防重放请求头");
@@ -106,7 +113,7 @@ public class AntiReplayFilter extends OncePerRequestFilter {
         // #3: Verify HMAC-SHA256 signature (签名数据：timestamp + nonce + body)
         String signingKey = resolveSigningKey();
         if (signingKey != null) {
-            String data = timestamp + nonce + readBody(cachedRequest);
+            String data = timestamp + nonce + readBody(requestToUse);
             String expectedSignature = computeHmac(signingKey, data);
             if (!MessageDigest.isEqual(expectedSignature.getBytes(StandardCharsets.UTF_8), signature.getBytes(StandardCharsets.UTF_8))) {
                 // Try transition key — resolveSigningKey returns the NEW key from user entity.
@@ -126,7 +133,7 @@ public class AntiReplayFilter extends OncePerRequestFilter {
             }
         }
 
-        filterChain.doFilter(cachedRequest, response);
+        filterChain.doFilter(requestToUse, response);
     }
 
     /**
@@ -166,16 +173,28 @@ public class AntiReplayFilter extends OncePerRequestFilter {
 
     /**
      * 读取请求 body 用于签名计算。
-     * 对 GET/DELETE 不读 body；其他方法从包装后的 request 读取。
+     * 对 GET/DELETE 不读 body；multipart 请求用空字符串（body 无法安全读取且前端也用空串签名）；
+     * 其他方法从包装后的 request 读取。
      */
     private String readBody(HttpServletRequest request) {
         if ("GET".equalsIgnoreCase(request.getMethod()) || "DELETE".equalsIgnoreCase(request.getMethod())) {
+            return "";
+        }
+        if (isMultipart(request)) {
             return "";
         }
         if (request instanceof CachedBodyHttpServletRequest cached) {
             return cached.getBodyAsString();
         }
         return "";
+    }
+
+    /**
+     * 判断是否为 multipart/form-data 请求。
+     */
+    private boolean isMultipart(HttpServletRequest request) {
+        String contentType = request.getContentType();
+        return contentType != null && contentType.toLowerCase().startsWith("multipart/");
     }
 
     private void writeError(HttpServletResponse response, String errorCode, String message) throws IOException {

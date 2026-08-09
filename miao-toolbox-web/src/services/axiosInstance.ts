@@ -53,8 +53,15 @@ axiosInstance.interceptors.request.use(async (config: InternalAxiosRequestConfig
     const timestamp = Date.now().toString();
     const nonce = generateNonce();
 
-    // 请求体为空时用空字符串
-    const body = config.data ? (typeof config.data === 'string' ? config.data : JSON.stringify(config.data)) : '';
+    // 请求体为空时用空字符串；FormData（multipart）无法序列化，用空串签名（后端同样跳过 body）
+    let body = '';
+    if (config.data) {
+      if (config.data instanceof FormData) {
+        body = '';
+      } else {
+        body = typeof config.data === 'string' ? config.data : JSON.stringify(config.data);
+      }
+    }
     const signature = await hmacSha256(signingKey, timestamp + nonce + body);
 
     config.headers['X-Request-Timestamp'] = timestamp;

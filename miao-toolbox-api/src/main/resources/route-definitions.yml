@@ -71,6 +71,14 @@ routes:
     sortOrder: 9
     adminRoute: false
     enabled: true
+  - code: TOOL_FILE_STORAGE
+    name: 文件管理
+    path: /tools/file-storage
+    category: TOOL
+    icon: FolderOutlined
+    sortOrder: 10
+    adminRoute: false
+    enabled: true
   - code: PAGE_SETTINGS
     name: 个人设置
     path: /settings
@@ -117,5 +125,13 @@ routes:
     category: ADMIN
     icon: PartitionOutlined
     sortOrder: 105
+    adminRoute: true
+    enabled: true
+  - code: ADMIN_STORAGE
+    name: 存储管理
+    path: /admin/storage
+    category: ADMIN
+    icon: DatabaseOutlined
+    sortOrder: 106
     adminRoute: true
     enabled: true

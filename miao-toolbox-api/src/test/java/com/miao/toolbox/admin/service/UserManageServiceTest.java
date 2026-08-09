@@ -11,6 +11,7 @@ import com.miao.toolbox.auth.service.RouteAccessService;
 import com.miao.toolbox.common.constant.RedisKey;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.common.response.PagedResponse;
+import com.miao.toolbox.storage.repository.FileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,6 +42,7 @@ class UserManageServiceTest {
     @Mock private RedisTemplate<String, Object> redisTemplate;
     @Mock private ValueOperations<String, Object> valueOperations;
     @Mock private RouteAccessService routeAccessService;
+    @Mock private FileRepository fileRepository;
 
     @InjectMocks
     private UserManageService userManageService;
@@ -76,6 +78,7 @@ class UserManageServiceTest {
                 .build();
 
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        lenient().when(fileRepository.sumSizeBytesGroupByUserId()).thenReturn(java.util.List.of());
     }
 
     // ===== listUsers =====

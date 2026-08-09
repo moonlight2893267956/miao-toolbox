@@ -1,0 +1,8 @@
+# SECRET_GROUP / storage.yaml — 文件存储服务配置（生产环境）
+miao:
+  storage:
+    base-path: "files"
+    max-file-size: 104857600
+    presigned-url-expiry: 3600
+    default-quota-bytes: 1073741824
+    text-preview-size-limit: 1048576

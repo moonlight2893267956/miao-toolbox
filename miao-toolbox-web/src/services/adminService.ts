@@ -97,6 +97,8 @@ export interface AdminUser {
   isEnabled: boolean;
   lastLoginAt: string | null;
   createdAt: string;
+  storageQuotaBytes: number;
+  storageUsedBytes: number;
 }
 
 export interface PagedAdminUsers {
@@ -138,5 +140,72 @@ export async function setUserRole(userId: number, roleIds: number[]): Promise<vo
 /** 设置用户限流 */
 export async function setUserRateLimit(userId: number, maxRequestsPerMinute: number): Promise<void> {
   await axiosInstance.put(`/api/admin/users/${userId}/rate-limit`, { maxRequestsPerMinute });
+}
+
+/** 设置用户存储配额 */
+export async function setUserQuota(userId: number, quotaBytes: number): Promise<void> {
+  await axiosInstance.put(`/api/admin/users/${userId}/quota`, { quotaBytes });
+}
+
+// ===== 管理员文件操作 =====
+
+export interface PagedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminFileInfo {
+  id: number;
+  fileName: string;
+  path: string;
+  sizeBytes: number;
+  mimeType: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 管理员浏览用户文件 */
+export async function getAdminUserFiles(userId: number, path?: string, page = 1, pageSize = 20): Promise<PagedResponse<AdminFileInfo>> {
+  const params: Record<string, string | number> = { page, pageSize };
+  if (path) params.path = path;
+  const res = await axiosInstance.get(`/api/admin/storage/users/${userId}/files`, { params });
+  return res.data.data;
+}
+
+/** 管理员删除用户文件 */
+export async function deleteAdminUserFile(userId: number, fileId: number): Promise<void> {
+  await axiosInstance.delete(`/api/admin/storage/users/${userId}/files/${fileId}`);
+}
+
+// ===== 存储管理 =====
+
+export interface UserStorageInfo {
+  userId: number;
+  username: string;
+  usedBytes: number;
+  quotaBytes: number;
+  percentage: number;
+}
+
+export interface MimeTypeDistribution {
+  type: string;
+  count: number;
+  totalBytes: number;
+}
+
+export interface StorageOverview {
+  totalBytes: number;
+  totalFiles: number;
+  userCount: number;
+  users: UserStorageInfo[];
+  typeDistribution: MimeTypeDistribution[];
+}
+
+/** 获取存储概览 */
+export async function getStorageOverview(): Promise<StorageOverview> {
+  const res = await axiosInstance.get('/api/admin/storage/overview');
+  return res.data.data;
 }
 

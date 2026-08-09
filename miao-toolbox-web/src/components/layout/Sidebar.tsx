@@ -8,6 +8,7 @@ import {
   HomeOutlined,
   PartitionOutlined,
   SafetyOutlined,
+  DatabaseOutlined,
   SunOutlined,
   MoonOutlined,
 } from '@ant-design/icons';
@@ -111,6 +112,7 @@ const Sidebar: React.FC = () => {
       { key: 'admin-users', icon: <TeamOutlined />, label: '用户管理', path: '/admin/users', routeCode: 'ADMIN_USERS' },
       { key: 'admin-roles', icon: <SafetyOutlined />, label: '角色管理', path: '/admin/roles', routeCode: 'ADMIN_ROLES' },
       { key: 'admin-routes', icon: <PartitionOutlined />, label: '路由管理', path: '/admin/routes', routeCode: 'ADMIN_ROUTES' },
+      { key: 'admin-storage', icon: <DatabaseOutlined />, label: '存储管理', path: '/admin/storage', routeCode: 'ADMIN_STORAGE' },
     ].filter(item => canAccess(item.routeCode));
 
     return [

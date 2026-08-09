@@ -15,6 +15,7 @@ import com.miao.toolbox.common.exception.AuthException;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.invite.service.InviteService;
+import com.miao.toolbox.storage.config.StorageProperties;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,6 +56,7 @@ class AuthServiceTest {
     @Mock private InviteService inviteService;
     @Mock private EmailCodeService emailCodeService;
     @Mock private HttpServletResponse response;
+    private final StorageProperties storageProperties = new StorageProperties();
     private AuthService authService;
 
     private User enabledUser;
@@ -88,7 +90,7 @@ class AuthServiceTest {
         lenient().when(jwtService.getRefreshTokenExpiryMs()).thenReturn(7 * 24 * 60 * 60 * 1000L);
         lenient().when(roleRepository.findByCode("USER")).thenReturn(Optional.of(userRole));
 
-        authService = new AuthService(userRepository, refreshTokenRepository, roleRepository, jwtService, inviteService, emailCodeService);
+        authService = new AuthService(userRepository, refreshTokenRepository, roleRepository, jwtService, inviteService, emailCodeService, storageProperties);
     }
 
     // ========== 注册测试 ==========

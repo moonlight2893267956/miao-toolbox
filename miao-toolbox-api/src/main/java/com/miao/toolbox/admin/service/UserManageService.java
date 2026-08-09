@@ -8,10 +8,12 @@ import com.miao.toolbox.auth.entity.User;
 import com.miao.toolbox.auth.repository.RoleRepository;
 import com.miao.toolbox.auth.repository.UserRepository;
 import com.miao.toolbox.auth.service.RouteAccessService;
+import com.miao.toolbox.admin.dto.SetQuotaRequest;
 import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.constant.RedisKey;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.common.response.PagedResponse;
+import com.miao.toolbox.storage.repository.FileRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -24,6 +26,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Slf4j
@@ -34,14 +37,17 @@ public class UserManageService {
     private final RoleRepository roleRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final RouteAccessService routeAccessService;
+    private final FileRepository fileRepository;
 
     public UserManageService(UserRepository userRepository, RoleRepository roleRepository,
                              RedisTemplate<String, Object> redisTemplate,
-                             RouteAccessService routeAccessService) {
+                             RouteAccessService routeAccessService,
+                             FileRepository fileRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.redisTemplate = redisTemplate;
         this.routeAccessService = routeAccessService;
+        this.fileRepository = fileRepository;
     }
 
     /**
@@ -57,8 +63,11 @@ public class UserManageService {
                 PageRequest.of(safePage, safePageSize, Sort.by(Sort.Direction.DESC, "createdAt"))
         );
 
+        // 批量查询用户存储用量
+        Map<Long, Long> usedBytesMap = toMap(fileRepository.sumSizeBytesGroupByUserId());
+
         List<AdminUserResponse> items = pageResult.getContent().stream()
-                .map(this::toResponse)
+                .map(user -> toResponse(user, usedBytesMap.getOrDefault(user.getId(), 0L)))
                 .toList();
 
         PagedResponse<AdminUserResponse> response = new PagedResponse<>();
@@ -156,12 +165,31 @@ public class UserManageService {
         log.info("管理员 {} 设置用户 {} 自定义限流: {}次/分钟", operatorId, userId, request.getMaxRequestsPerMinute());
     }
 
+    /**
+     * 设置用户存储配额
+     * 调低配额不删除已有文件，但用户无法再上传新文件直到用量低于配额
+     */
+    @Transactional
+    public void setQuota(Long userId, Long quotaBytes, Long operatorId) {
+        // 服务端防御校验（即使请求未经 @Valid，也拒绝非法值）
+        if (quotaBytes == null || quotaBytes < 0) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "配额不能为负数", 400);
+        }
+        if (quotaBytes > SetQuotaRequest.MAX_QUOTA_BYTES) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "配额超出上限（100TB）", 400);
+        }
+        User user = findUserOrThrow(userId);
+        user.setStorageQuotaBytes(quotaBytes);
+        userRepository.save(user);
+        log.info("管理员 {} 设置用户 {} 存储配额: {} bytes", operatorId, userId, quotaBytes);
+    }
+
     private User findUserOrThrow(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在", 404));
     }
 
-    private AdminUserResponse toResponse(User user) {
+    private AdminUserResponse toResponse(User user, long usedBytes) {
         AdminUserResponse resp = new AdminUserResponse();
         resp.setId(user.getId());
         resp.setUsername(user.getUsername());
@@ -171,6 +199,15 @@ public class UserManageService {
         resp.setIsEnabled(user.getIsEnabled());
         resp.setLastLoginAt(user.getLastLoginAt());
         resp.setCreatedAt(user.getCreatedAt());
+        resp.setStorageQuotaBytes(user.getStorageQuotaBytes());
+        resp.setStorageUsedBytes(usedBytes);
         return resp;
+    }
+
+    private Map<Long, Long> toMap(List<Object[]> rows) {
+        return rows.stream().collect(java.util.stream.Collectors.toMap(
+                row -> ((Number) row[0]).longValue(),
+                row -> ((Number) row[1]).longValue()
+        ));
     }
 }

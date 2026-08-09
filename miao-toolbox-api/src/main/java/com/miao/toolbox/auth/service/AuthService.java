@@ -16,6 +16,7 @@ import com.miao.toolbox.invite.service.InviteService;
 import com.miao.toolbox.common.constant.RedisKey;
 import com.miao.toolbox.common.exception.AuthException;
 import com.miao.toolbox.common.exception.BusinessException;
+import com.miao.toolbox.storage.config.StorageProperties;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
@@ -55,6 +56,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final InviteService inviteService;
     private final EmailCodeService emailCodeService;
+    private final StorageProperties storageProperties;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Autowired(required = false)
@@ -65,13 +67,14 @@ public class AuthService {
 
     public AuthService(UserRepository userRepository, RefreshTokenRepository refreshTokenRepository,
                        RoleRepository roleRepository, JwtService jwtService, InviteService inviteService,
-                       EmailCodeService emailCodeService) {
+                       EmailCodeService emailCodeService, StorageProperties storageProperties) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.roleRepository = roleRepository;
         this.jwtService = jwtService;
         this.inviteService = inviteService;
         this.emailCodeService = emailCodeService;
+        this.storageProperties = storageProperties;
     }
 
     @Transactional
@@ -104,6 +107,7 @@ public class AuthService {
                 .isEnabled(true)
                 .mustChangePassword(false)
                 .loginFailCount(0)
+                .storageQuotaBytes(storageProperties.getDefaultQuotaBytes())
                 .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 .updatedAt(LocalDateTime.now(ZoneOffset.UTC))
                 .build();
@@ -158,6 +162,7 @@ public class AuthService {
                 .isEnabled(true)
                 .mustChangePassword(false)
                 .loginFailCount(0)
+                .storageQuotaBytes(storageProperties.getDefaultQuotaBytes())
                 .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 .updatedAt(LocalDateTime.now(ZoneOffset.UTC))
                 .build();

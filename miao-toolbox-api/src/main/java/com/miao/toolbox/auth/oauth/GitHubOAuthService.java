@@ -11,6 +11,7 @@ import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.exception.AuthException;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.invite.service.InviteService;
+import com.miao.toolbox.storage.config.StorageProperties;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -52,6 +53,7 @@ public class GitHubOAuthService {
     private final JwtService jwtService;
     private final AuthService authService;
     private final InviteService inviteService;
+    private final StorageProperties storageProperties;
     private final RestTemplate restTemplate;
 
     // 定时清理过期 state 条目，防止内存泄漏
@@ -64,13 +66,15 @@ public class GitHubOAuthService {
 
     public GitHubOAuthService(OAuthProperties oAuthProperties, UserRepository userRepository,
                               RoleRepository roleRepository, JwtService jwtService,
-                              AuthService authService, InviteService inviteService, RestTemplate restTemplate) {
+                              AuthService authService, InviteService inviteService,
+                              StorageProperties storageProperties, RestTemplate restTemplate) {
         this.oAuthProperties = oAuthProperties;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.jwtService = jwtService;
         this.authService = authService;
         this.inviteService = inviteService;
+        this.storageProperties = storageProperties;
         this.restTemplate = restTemplate;
         // 每5分钟清理过期 state
         cleanupExecutor.scheduleAtFixedRate(this::evictExpiredStates, 5, 5, java.util.concurrent.TimeUnit.MINUTES);
@@ -347,6 +351,7 @@ public class GitHubOAuthService {
                 .isEnabled(true)
                 .mustChangePassword(true)
                 .loginFailCount(0)
+                .storageQuotaBytes(storageProperties.getDefaultQuotaBytes())
                 .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 .updatedAt(LocalDateTime.now(ZoneOffset.UTC))
                 .build();

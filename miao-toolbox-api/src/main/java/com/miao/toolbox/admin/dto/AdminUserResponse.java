@@ -17,4 +17,6 @@ public class AdminUserResponse {
     private Boolean isEnabled;
     private LocalDateTime lastLoginAt;
     private LocalDateTime createdAt;
+    private Long storageQuotaBytes;
+    private Long storageUsedBytes;
 }

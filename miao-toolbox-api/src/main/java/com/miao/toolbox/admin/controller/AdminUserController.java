@@ -1,6 +1,7 @@
 package com.miao.toolbox.admin.controller;
 
 import com.miao.toolbox.admin.dto.AdminUserResponse;
+import com.miao.toolbox.admin.dto.SetQuotaRequest;
 import com.miao.toolbox.admin.dto.SetRateLimitRequest;
 import com.miao.toolbox.admin.dto.SetRoleRequest;
 import com.miao.toolbox.admin.service.UserManageService;
@@ -64,6 +65,16 @@ public class AdminUserController {
             @AuthenticationPrincipal Object principal) {
         Long operatorId = extractUserId(principal);
         userManageService.setRateLimit(userId, request, operatorId);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PutMapping("/{userId}/quota")
+    public ResponseEntity<ApiResponse<Void>> setQuota(
+            @PathVariable Long userId,
+            @Valid @RequestBody SetQuotaRequest request,
+            @AuthenticationPrincipal Object principal) {
+        Long operatorId = extractUserId(principal);
+        userManageService.setQuota(userId, request.getQuotaBytes(), operatorId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 

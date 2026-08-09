@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Switch, Button, Popconfirm, message, Input, Drawer, Tabs, Spin, Modal, Checkbox } from 'antd';
-import { ReloadOutlined, RobotOutlined, SearchOutlined, WarningOutlined, TeamOutlined, CheckCircleOutlined, StopOutlined, ClockCircleOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { Switch, Button, Popconfirm, message, Input, Drawer, Tabs, Spin, Modal, Checkbox, Progress, InputNumber, Space } from 'antd';
+import { ReloadOutlined, RobotOutlined, SearchOutlined, WarningOutlined, TeamOutlined, CheckCircleOutlined, StopOutlined, ClockCircleOutlined, ThunderboltOutlined, DatabaseOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import {
   getAdminUsers,
@@ -10,6 +10,7 @@ import {
   enableUser,
   setUserRole,
   setUserRateLimit,
+  setUserQuota,
   type AdminUser,
   type AdminRole,
 } from '../../services/adminService';
@@ -44,6 +45,91 @@ function formatRelativeTime(dateStr: string | null): string {
 }
 
 type StatusFilter = 'all' | 'enabled' | 'disabled';
+
+/** 格式化字节数 */
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  const val = bytes / Math.pow(1024, i);
+  return `${val.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+/** 存储配额编辑器 */
+const StorageQuotaEditor: React.FC<{ user: AdminUser; onSaved: () => void }> = ({ user, onSaved }) => {
+  const [editing, setEditing] = useState(false);
+  const [quotaGB, setQuotaGB] = useState<number>(0);
+  const [saving, setSaving] = useState(false);
+
+  const usedBytes = user.storageUsedBytes ?? 0;
+  const quotaBytes = user.storageQuotaBytes ?? 0;
+  const pct = quotaBytes > 0 ? Math.min((usedBytes / quotaBytes) * 100, 100) : 0;
+
+  const startEdit = () => {
+    setQuotaGB(Number((quotaBytes / (1024 * 1024 * 1024)).toFixed(2)));
+    setEditing(true);
+  };
+
+  const save = async () => {
+    const newBytes = Math.round(quotaGB * 1024 * 1024 * 1024);
+    setSaving(true);
+    try {
+      await setUserQuota(user.id, newBytes);
+      message.success('配额已更新');
+      setEditing(false);
+      onSaved();
+    } catch {
+      message.error('配额更新失败');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <Space>
+        <InputNumber
+          min={0}
+          step={0.1}
+          value={quotaGB}
+          onChange={v => setQuotaGB(v ?? 0)}
+          addonAfter="GB"
+          style={{ width: 140 }}
+          size="small"
+        />
+        <Button type="primary" size="small" onClick={save} loading={saving}>保存</Button>
+        <Button size="small" onClick={() => setEditing(false)}>取消</Button>
+      </Space>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+        <span style={{ color: 'var(--miao-text-primary)', fontWeight: 500, fontFamily: 'var(--miao-font-mono)', fontSize: 14 }}>
+          {formatBytes(usedBytes)}
+        </span>
+        <span style={{ color: 'var(--miao-text-tertiary)' }}>/</span>
+        <span style={{ color: 'var(--miao-text-secondary)', fontFamily: 'var(--miao-font-mono)', fontSize: 13 }}>
+          {formatBytes(quotaBytes)}
+        </span>
+        <Button type="link" size="small" onClick={startEdit} style={{ padding: 0, fontSize: 12 }}>
+          调整配额
+        </Button>
+      </div>
+      <Progress
+        percent={Math.round(pct * 10) / 10}
+        size="small"
+        strokeColor={pct > 90 ? '#C2362F' : pct > 70 ? '#D97020' : undefined}
+      />
+      {quotaBytes > 0 && usedBytes > quotaBytes && (
+        <div style={{ color: '#C2362F', fontSize: 11, marginTop: 4 }}>
+          已超出配额，用户无法上传新文件
+        </div>
+      )}
+    </div>
+  );
+};
 
 /** 用户 AI 用量 Tab */
 const UserAiUsageTab: React.FC<{ userId: number }> = ({ userId }) => {
@@ -605,6 +691,12 @@ const UserManagePage: React.FC = () => {
                           <div className="miao-admin-stat-box"><div className="miao-admin-stat-box-lbl">状态</div><div><StatusDot status={drawerUser.isEnabled ? 'success' : 'warning'} label={drawerUser.isEnabled ? '启用' : '禁用'} /></div></div>
                           <div className="miao-admin-stat-box"><div className="miao-admin-stat-box-lbl">最后登录</div><div style={{ color: 'var(--miao-text-primary)', fontSize: 13 }}>{drawerUser.lastLoginAt ? new Date(drawerUser.lastLoginAt).toLocaleString() : '从未登录'}</div></div>
                           <div className="miao-admin-stat-box"><div className="miao-admin-stat-box-lbl">注册时间</div><div style={{ color: 'var(--miao-text-primary)', fontSize: 13 }}>{new Date(drawerUser.createdAt).toLocaleString()}</div></div>
+                          <div className="miao-admin-stat-box" style={{ gridColumn: '1 / -1' }}>
+                            <div className="miao-admin-stat-box-lbl" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <DatabaseOutlined style={{ fontSize: 12 }} /> 存储配额
+                            </div>
+                            <StorageQuotaEditor user={drawerUser} onSaved={() => fetchData()} />
+                          </div>
                         </div>
                       ),
                     },
