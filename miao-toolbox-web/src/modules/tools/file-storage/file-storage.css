@@ -74,6 +74,20 @@
   background: var(--miao-bg);
 }
 
+/* ── Modal 统一品牌色 ──
+   Modal 经 Portal 渲染到 body，脱离 .fs-page 作用域，
+   需在 rootClassName="fs-modal" 上重新声明工具主色调 */
+.fs-modal {
+  --tool-accent: #3B82F6;
+  --tool-accent-light: #60A5FA;
+  --tool-accent-dark: #2563EB;
+  --tool-accent-bg: rgba(59, 130, 246, 0.10);
+  --tool-accent-bg-hover: rgba(59, 130, 246, 0.16);
+  --miao-brand: #3B82F6;
+  --miao-brand-hover: #60A5FA;
+  --miao-brand-active: #2563EB;
+}
+
 /* ============================================================
    页头
    ============================================================ */

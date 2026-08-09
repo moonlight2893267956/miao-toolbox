@@ -85,7 +85,7 @@ const LoginPage: React.FC = () => {
   }
 
   return (
-    <AuthShell title="阿渺工具箱" subtitle="登录以访问你的 AI 工具">
+    <AuthShell title="阿渺工具箱" subtitle="登录以访问你的 AI 工具" variant="geo">
         <Form
           form={form}
           onFinish={handleSubmit}

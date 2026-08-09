@@ -404,7 +404,7 @@ const RegisterPage: React.FC = () => {
   ];
 
   return (
-    <AuthShell title="创建账号" subtitle="加入阿渺工具箱，开始集中管理你的 AI 工具">
+    <AuthShell title="创建账号" subtitle="加入阿渺工具箱，开始集中管理你的 AI 工具" variant="geo">
         {inviteToken && (
           <InviteCard
             loading={inviteLoading}

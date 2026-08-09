@@ -441,6 +441,7 @@ const ResetPasswordPage: React.FC = () => {
       title={success ? '' : '重置密码'}
       subtitle={success ? '' : '通过邮箱验证码安全地重置你的密码'}
       panelClassName="miao-password-panel"
+      variant="geo"
     >
       <div className="miao-reset-wizard">
         {!success && renderStepper()}

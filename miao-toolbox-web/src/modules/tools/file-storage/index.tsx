@@ -1452,6 +1452,7 @@ const FileStoragePage: React.FC = () => {
         ]) : undefined}
         width={840}
         className="fs-preview-modal"
+        rootClassName="fs-modal"
         modalRender={(node) => (
           <div className="fs-preview-modal-shell">{node}</div>
         )}
@@ -1469,6 +1470,7 @@ const FileStoragePage: React.FC = () => {
         onCancel={() => { setNewDirModalOpen(false); setNewDirName(''); }}
         okText="创建"
         cancelText="取消"
+        rootClassName="fs-modal"
       >
         <Input
           placeholder="目录名称"
@@ -1487,6 +1489,7 @@ const FileStoragePage: React.FC = () => {
         onCancel={() => { setRenameModalOpen(false); setRenameTarget(null); setRenameValue(''); }}
         okText="确认"
         cancelText="取消"
+        rootClassName="fs-modal"
       >
         <Input
           value={renameValue}
@@ -1505,6 +1508,7 @@ const FileStoragePage: React.FC = () => {
         okText="移动"
         cancelText="取消"
         okButtonProps={{ disabled: moveTargetPath === '' && !moveTargetPath }}
+        rootClassName="fs-modal"
       >
         <div className="fs-move-selected">
           {moveTargetPath === '' ? '根目录' : moveTargetPath}
@@ -1556,6 +1560,7 @@ const FileStoragePage: React.FC = () => {
         okText="移入"
         cancelText="取消"
         confirmLoading={copyToMineLoading}
+        rootClassName="fs-modal"
       >
         <div className="fs-move-selected">
           目标位置：{copyToMinePath === '' ? '根目录' : copyToMinePath}
@@ -1611,6 +1616,7 @@ const FileStoragePage: React.FC = () => {
         footer={null}
         width={520}
         destroyOnClose
+        rootClassName="fs-modal"
       >
         {shareTarget && (
           <div className="fs-share-body">
@@ -1707,6 +1713,7 @@ const FileStoragePage: React.FC = () => {
         ]}
         width={420}
         destroyOnClose
+        rootClassName="fs-modal"
       >
         {detailTarget && (
           <div className="fs-detail-body">
