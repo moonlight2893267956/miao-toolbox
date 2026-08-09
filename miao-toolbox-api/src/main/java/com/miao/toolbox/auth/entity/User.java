@@ -71,13 +71,23 @@ public class User {
     private String signingKey;
 
     @Column(name = "email_verified", nullable = false)
+    @Builder.Default
     private Boolean emailVerified = false;
 
     @Column(name = "login_fail_count", nullable = false)
+    @Builder.Default
     private Integer loginFailCount = 0;
 
     @Column(name = "locked_until")
     private LocalDateTime lockedUntil;
+
+    @Column(name = "storage_quota_bytes", nullable = false)
+    @Builder.Default
+    private Long storageQuotaBytes = 1073741824L; // 1GB
+
+    @Column(name = "storage_used_bytes", nullable = false)
+    @Builder.Default
+    private Long storageUsedBytes = 0L;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
