@@ -6,6 +6,7 @@ import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.tool.diff.config.CosProperties;
 import com.qcloud.cos.COSClient;
+import com.qcloud.cos.model.CannedAccessControlList;
 import com.qcloud.cos.model.ObjectMetadata;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -95,6 +96,12 @@ public class AvatarService {
                     fileKey,
                     new ByteArrayInputStream(bytes),
                     metadata);
+
+            // 设置头像对象为公有读，允许直接通过 URL 访问
+            cosClient.setObjectAcl(
+                    cosProperties.getBucket(),
+                    fileKey,
+                    CannedAccessControlList.PublicRead);
 
             // 构建公开访问 URL
             String avatarUrl = buildPublicUrl(fileKey);
