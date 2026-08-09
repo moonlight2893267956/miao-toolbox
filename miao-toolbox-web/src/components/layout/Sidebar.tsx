@@ -283,7 +283,7 @@ const Sidebar: React.FC = () => {
           tabIndex={0}
           aria-label="返回首页"
         >
-          <div className="miao-sidebar-brand-mark">渺</div>
+          <img src="/brand-logo.svg" alt="" className="miao-sidebar-brand-mark" />
           <div className="miao-sidebar-brand-text">
             <span className="miao-sidebar-brand-title">阿渺工具箱</span>
             <span className="miao-sidebar-brand-subtitle">MIAO · TOOLBOX</span>

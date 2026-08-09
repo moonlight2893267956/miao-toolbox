@@ -110,35 +110,26 @@
   gap: 0;
 }
 
-/* ── Brand mark (gradient square with character) ── */
+/* ── Brand mark (统一 logo SVG) ── */
 .miao-sidebar-brand-mark {
   width: 42px;
   height: 42px;
   flex: 0 0 auto;
   border-radius: 12px;
-  background: linear-gradient(135deg, #5C4FD0 0%, #8b7def 50%, #d97020 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-family: var(--miao-font-display);
-  font-size: 22px;
-  font-weight: 700;
-  box-shadow: 0 6px 20px rgba(92, 79, 208, 0.25),
-    0 0 0 3px rgba(92, 79, 208, 0.06);
+  object-fit: contain;
+  background: transparent;
+  display: block;
+  box-shadow: 0 6px 20px rgba(92, 79, 208, 0.25);
   transition:
     width var(--miao-sidebar-motion),
     height var(--miao-sidebar-motion),
     border-radius var(--miao-sidebar-motion),
-    font-size var(--miao-sidebar-motion),
     transform 200ms ease,
     box-shadow 200ms ease;
-  line-height: 1;
 }
 .miao-sidebar-brand:hover .miao-sidebar-brand-mark {
   transform: scale(1.05);
-  box-shadow: 0 8px 28px rgba(92, 79, 208, 0.35),
-    0 0 0 5px rgba(92, 79, 208, 0.10);
+  box-shadow: 0 8px 28px rgba(92, 79, 208, 0.35);
 }
 
 /* Collapsed mark */
@@ -146,7 +137,6 @@
   width: 40px;
   height: 40px;
   border-radius: 11px;
-  font-size: 20px;
 }
 
 /* ── Brand text ── */

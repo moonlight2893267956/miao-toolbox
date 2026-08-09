@@ -40,7 +40,7 @@ const AuthShell: React.FC<AuthShellProps> = ({
           transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
         >
           <div className="miao-auth-logo-row">
-            <div className="miao-brand-mark miao-brand-mark--auth">渺</div>
+            <img src="/brand-logo.svg" alt="" className="miao-brand-mark miao-brand-mark--auth" />
             <span className="miao-auth-logo-text">阿渺工具箱</span>
           </div>
 
