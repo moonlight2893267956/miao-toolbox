@@ -68,3 +68,7 @@ _bmad/
 login.yaml
 shots/
 snap.yaml
+
+# === 设计概念稿 / 临时页面（非交付产物） ===
+miao-toolbox-web/login-concepts/
+auth-bg-v1.html

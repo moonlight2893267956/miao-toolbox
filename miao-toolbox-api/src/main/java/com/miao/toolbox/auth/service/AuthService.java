@@ -16,6 +16,7 @@ import com.miao.toolbox.invite.service.InviteService;
 import com.miao.toolbox.common.constant.RedisKey;
 import com.miao.toolbox.common.exception.AuthException;
 import com.miao.toolbox.common.exception.BusinessException;
+import com.miao.toolbox.notification.service.NotificationService;
 import com.miao.toolbox.storage.config.StorageProperties;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.Cookie;
@@ -61,6 +62,9 @@ public class AuthService {
 
     @Autowired(required = false)
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Autowired
+    private NotificationService notificationService;
 
     @Value("${miao.security.cookie-secure:false}")
     private boolean cookieSecure;
@@ -388,6 +392,7 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setMustChangePassword(false);
         userRepository.save(user);
+        notificationService.createSystemNotification(userId, "密码已修改", "您的登录密码已成功修改，如非本人操作请立即联系管理员。");
     }
 
     public void changePasswordWithVerification(Long userId, String oldPassword, String newPassword) {
@@ -402,6 +407,7 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setMustChangePassword(false);
         userRepository.save(user);
+        notificationService.createSystemNotification(userId, "密码已修改", "您的登录密码已成功修改，如非本人操作请立即联系管理员。");
     }
 
     private boolean isValidPassword(String password) {
@@ -443,6 +449,9 @@ public class AuthService {
         // 5. 清除所有 refresh token，强制重新登录
         List<RefreshToken> tokens = refreshTokenRepository.findByUserIdOrderByCreatedAtAsc(user.getId());
         refreshTokenRepository.deleteAll(tokens);
+
+        // 6. 通知用户密码已重置
+        notificationService.createSystemNotification(user.getId(), "密码已重置", "您的登录密码已通过邮箱验证成功重置，如非本人操作请立即联系管理员。");
     }
 
     public void addRefreshTokenCookie(HttpServletResponse response, String token) {

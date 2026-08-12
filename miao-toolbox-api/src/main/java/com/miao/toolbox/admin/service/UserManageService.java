@@ -13,6 +13,7 @@ import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.constant.RedisKey;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.common.response.PagedResponse;
+import com.miao.toolbox.notification.service.NotificationService;
 import com.miao.toolbox.storage.repository.FileRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -38,16 +39,19 @@ public class UserManageService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final RouteAccessService routeAccessService;
     private final FileRepository fileRepository;
+    private final NotificationService notificationService;
 
     public UserManageService(UserRepository userRepository, RoleRepository roleRepository,
                              RedisTemplate<String, Object> redisTemplate,
                              RouteAccessService routeAccessService,
-                             FileRepository fileRepository) {
+                             FileRepository fileRepository,
+                             NotificationService notificationService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.redisTemplate = redisTemplate;
         this.routeAccessService = routeAccessService;
         this.fileRepository = fileRepository;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -98,6 +102,7 @@ public class UserManageService {
         );
 
         log.info("用户 {} 被管理员 {} 禁用", userId, operatorId);
+        notificationService.createSystemNotification(userId, "账号已被禁用", "您的账号已被管理员禁用，如有疑问请联系管理员。");
     }
 
     /**
@@ -116,6 +121,7 @@ public class UserManageService {
         redisTemplate.delete(RedisKey.USER_STATUS_PREFIX + userId);
 
         log.info("用户 {} 被管理员 {} 启用", userId, operatorId);
+        notificationService.createSystemNotification(userId, "账号已恢复启用", "您的账号已被管理员恢复启用，现在可以正常登录使用。");
     }
 
     /**

@@ -220,7 +220,7 @@ const InvocationsPage: React.FC = () => {
     <PageFadeIn>
       <div style={{ padding: 32 }}>
         <AdminPageHeader
-          eyebrow="OBSERVABILITY · 实时追踪"
+          eyebrow="监控 · 调用追踪"
         title={<>AI 调用 <em>日志</em></>}
         description="按时间范围、Agent、状态、Trace ID 检索。点击 Trace ID 复制到剪贴板。"
       />

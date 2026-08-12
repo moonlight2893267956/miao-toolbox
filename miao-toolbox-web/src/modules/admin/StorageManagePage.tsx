@@ -340,7 +340,7 @@ const StorageManagePage: React.FC = () => {
     <PageFadeIn>
       <div style={{ padding: 32 }}>
         <AdminPageHeader
-          eyebrow="ADMIN · 存储管理"
+          eyebrow="管理 · 存储"
           title={<>存储概览 <em>·</em> <em>资源分布</em></>}
           description="全局存储用量、用户配额使用排行与文件类型分布。"
           actions={
@@ -358,7 +358,7 @@ const StorageManagePage: React.FC = () => {
         {/* 概览卡片 */}
         <div className="miao-admin-stat-grid--users">
           <AdminStatCard
-            label="全局总用量 · STORAGE"
+            label="全局总用量"
             value={formatBytes(data.totalBytes)}
             icon={<CloudServerOutlined />}
             iconVariant="primary"
@@ -368,7 +368,7 @@ const StorageManagePage: React.FC = () => {
             ariaLabel={`全局总用量: ${formatBytes(data.totalBytes)}`}
           />
           <AdminStatCard
-            label="文件总数 · FILES"
+            label="文件总数"
             value={data.totalFiles}
             suffix="个"
             icon={<FileOutlined />}
@@ -379,7 +379,7 @@ const StorageManagePage: React.FC = () => {
             ariaLabel={`文件总数: ${data.totalFiles}`}
           />
           <AdminStatCard
-            label="用户数 · USERS"
+            label="用户数"
             value={data.userCount}
             suffix="人"
             icon={<TeamOutlined />}

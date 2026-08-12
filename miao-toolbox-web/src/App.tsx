@@ -4,6 +4,7 @@ import { App as AntApp } from 'antd';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { TabProvider } from './contexts/TabContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import RequireAuth from './routes/index';
 import RequireRoute from './routes/RequireRoute';
 import AppLayout from './components/layout/AppLayout';
@@ -17,6 +18,8 @@ const OAuthCallback = lazy(() => import('./modules/auth/OAuthCallback'));
 const ChangePasswordPage = lazy(() => import('./modules/auth/ChangePasswordPage'));
 const WelcomeSetupPage = lazy(() => import('./modules/auth/WelcomeSetupPage'));
 const SettingsPage = lazy(() => import('./modules/settings/SettingsPage'));
+const MessagesPage = lazy(() => import('./modules/messages/MessagesPage'));
+const MessageDetailPage = lazy(() => import('./modules/messages/MessageDetailPage'));
 const ToolsPage = lazy(() => import('./modules/tools/ToolsPage'));
 const TextComparePage = lazy(() => import('./modules/tools/text-compare'));
 const JsonWorkbenchPage = lazy(() => import('./modules/tools/json-workbench/JsonWorkbenchPage'));
@@ -36,6 +39,7 @@ const InvocationsPage = lazy(() => import('./modules/admin/InvocationsPage'));
 const RoleManagePage = lazy(() => import('./modules/admin/RoleManagePage'));
 const RouteManagePage = lazy(() => import('./modules/admin/RouteManagePage'));
 const StorageManagePage = lazy(() => import('./modules/admin/StorageManagePage'));
+const AnnouncementManagePage = lazy(() => import('./modules/admin/AnnouncementManagePage'));
 
 function PageFallback() {
   return (
@@ -122,7 +126,10 @@ function AppRoutes() {
         <Route path="admin/roles" element={<RequireRoute code="ADMIN_ROLES"><RoleManagePage /></RequireRoute>} />
         <Route path="admin/routes" element={<RequireRoute code="ADMIN_ROUTES"><RouteManagePage /></RequireRoute>} />
         <Route path="admin/storage" element={<RequireRoute code="ADMIN_STORAGE"><StorageManagePage /></RequireRoute>} />
+        <Route path="admin/announcements" element={<RequireRoute code="ADMIN_ANNOUNCEMENTS"><AnnouncementManagePage /></RequireRoute>} />
         <Route path="settings" element={<RequireRoute code="PAGE_SETTINGS"><SettingsPage /></RequireRoute>} />
+        <Route path="messages" element={<RequireRoute code="PAGE_SETTINGS"><MessagesPage /></RequireRoute>} />
+        <Route path="messages/:id" element={<RequireRoute code="PAGE_SETTINGS"><MessageDetailPage /></RequireRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/tools" replace />} />
     </Routes>
@@ -135,11 +142,13 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <TabProvider>
-          <AntApp>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </AntApp>
+          <NotificationProvider>
+            <AntApp>
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </AntApp>
+          </NotificationProvider>
         </TabProvider>
       </AuthProvider>
     </ThemeProvider>

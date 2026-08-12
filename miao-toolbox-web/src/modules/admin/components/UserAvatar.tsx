@@ -18,7 +18,7 @@ const sizeClassMap = {
 };
 
 const UserAvatar: React.FC<UserAvatarProps> = ({ username, avatarUrl, size = 'md' }) => {
-  const src = avatarUrl || '/default-avatar.png';
+  const src = avatarUrl || '/default-avatar.webp';
 
   return (
     <img

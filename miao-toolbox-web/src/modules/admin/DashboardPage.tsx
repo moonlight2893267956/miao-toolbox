@@ -75,7 +75,7 @@ const DashboardPage: React.FC = () => {
     <PageFadeIn>
       <div style={{ padding: 32 }}>
         <AdminPageHeader
-        eyebrow="ADMIN · 实时概览"
+        eyebrow="管理 · 概览"
         title={<>仪表盘 <em>·</em> <em>系统脉搏</em></>}
         description="实时呈现调用体量、失败率与用户活跃度。先看异常，再看趋势。"
         actions={
@@ -93,7 +93,7 @@ const DashboardPage: React.FC = () => {
       {/* Hero 4 张统计卡 */}
       <div className="miao-admin-stat-grid">
         <AdminStatCard
-          label="今日总调用量 · TODAY"
+          label="今日总调用量"
           value={stats.todayTotalCalls}
           suffix="次"
           icon={<ThunderboltOutlined />}
@@ -105,7 +105,7 @@ const DashboardPage: React.FC = () => {
         />
 
         <AdminStatCard
-          label="异常请求数 · ERRORS"
+          label="异常请求数"
           value={stats.todayErrorCalls}
           suffix="次"
           icon={<WarningOutlined />}
@@ -117,7 +117,7 @@ const DashboardPage: React.FC = () => {
         />
 
         <AdminStatCard
-          label="活跃用户 · ACTIVE"
+          label="活跃用户"
           value={stats.onlineUsers}
           icon={<UserOutlined />}
           iconVariant="green"
@@ -128,7 +128,7 @@ const DashboardPage: React.FC = () => {
         />
 
         <AdminStatCard
-          label="总用户数 · USERS"
+          label="总用户数"
           value={stats.totalUsers}
           icon={<TeamOutlined />}
           iconVariant="blue"

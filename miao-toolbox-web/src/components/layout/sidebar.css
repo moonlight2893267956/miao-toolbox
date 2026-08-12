@@ -574,18 +574,17 @@
     padding var(--miao-sidebar-motion),
     border-color 180ms ease;
 }
+
+/* ── 折叠态 ── */
 .ant-layout-sider-collapsed .miao-sidebar-footer {
   margin: 0;
   padding: 14px 0 16px;
-  display: flex;
-  justify-content: center;
 }
 
 .miao-user-card {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0;
   padding: 8px 10px;
   width: 100%;
   min-width: 0;
@@ -605,14 +604,30 @@
 }
 .miao-user-card:hover {
   background: var(--miao-sidebar-bg-hover);
-  transform: translateY(-1px);
   box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.12);
-  cursor: pointer;
 }
 
-.miao-user-card:focus-visible {
+/* Dropdown 触发区域：头像 + 用户名 */
+.miao-user-card-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 2px 4px 2px 2px;
+  transition: background-color 160ms ease;
+}
+
+.miao-user-card-trigger:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.miao-user-card-trigger:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25);
+  border-radius: 8px;
 }
 
 /* ── User avatar ── */
@@ -727,7 +742,7 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, #52c41a 20%, transparent);
 }
 
-/* ── User actions（主题切换；折叠态仍展示） ── */
+/* ── User actions（主题切换 + 铃铛） ── */
 .miao-user-card-actions {
   display: flex;
   gap: 2px;
@@ -741,10 +756,11 @@
   transition-delay: var(--item-delay, 0ms);
 }
 
-/* 折叠：不再隐藏 actions，仅保留头像 + 主题按钮纵向排列 */
-.ant-layout-sider-collapsed .miao-user-card-actions {
-  flex: 0 0 auto;
-  width: auto;
+/* 折叠：铃铛和主题按钮纵向排列 */
+.ant-layout-sider-collapsed .miao-user-card-actions,
+.ant-layout-sider-collapsed .miao-user-card-actions[class] {
+  flex-direction: column !important;
+  gap: 4px !important;
   opacity: 1;
   transform: none;
   pointer-events: auto;
@@ -776,16 +792,85 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--miao-sidebar-active-color) 22%, transparent);
 }
 
-/* Collapsed user card：头像 + 主题按钮上下排布 */
+/* ── Notification Bell ── */
+.miao-notification-bell {
+  position: relative;
+}
+.miao-notification-bell .anticon {
+  font-size: 16px;
+  transition: transform 200ms ease;
+  display: block;
+}
+.miao-notification-bell:hover .anticon {
+  transform: rotate(15deg) scale(1.1);
+}
+
+/* 自定义角标 — 柔和红色，圆形/胶囊形 */
+.miao-bell-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+  box-shadow: 0 0 0 2px var(--miao-sidebar-bg, #fff);
+  pointer-events: none;
+  transform: scale(1);
+  transition: transform 200ms ease;
+}
+.miao-notification-bell:hover .miao-bell-dot {
+  transform: scale(1.1);
+}
+
+/* 错误态 */
+.miao-notification-bell-error {
+  color: var(--miao-sidebar-text-muted) !important;
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.miao-notification-bell-error:hover {
+  background: transparent !important;
+  color: var(--miao-sidebar-text-muted) !important;
+}
+.miao-notification-bell-error:hover .anticon {
+  transform: none;
+}
+
+/* ── Notification Drawer ── */
+.miao-notification-drawer .ant-drawer-content {
+  border-radius: 12px 0 0 12px;
+  overflow: hidden;
+}
+
+.miao-notification-drawer .ant-drawer-header {
+  display: none;
+}
+
+.miao-notification-drawer .ant-drawer-body {
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Collapsed user card：头像居中，actions 在下方 */
 .ant-layout-sider-collapsed .miao-user-card {
   width: 52px;
   height: auto;
   min-height: 52px;
-  grid-template-columns: 1fr;
-  justify-items: center;
+  flex-direction: column;
   gap: 6px;
   padding: 8px 4px;
   border-radius: 14px;
+}
+
+.ant-layout-sider-collapsed .miao-user-card-trigger {
+  padding: 0;
+  justify-content: center;
+}
+
+.ant-layout-sider-collapsed .miao-user-card-actions {
+  flex-direction: row;
 }
 
 .ant-layout-sider-collapsed .miao-user-card-btn {

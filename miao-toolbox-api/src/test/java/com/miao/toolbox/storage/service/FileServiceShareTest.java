@@ -14,6 +14,7 @@ import com.miao.toolbox.storage.repository.FileShareRepository;
 import com.miao.toolbox.storage.config.StorageProperties;
 import com.miao.toolbox.storage.validator.FileNameValidator;
 import com.miao.toolbox.auth.repository.UserRepository;
+import com.miao.toolbox.notification.service.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -42,6 +43,7 @@ class FileServiceShareTest {
     @Mock private StorageService storageService;
     @Mock private StorageProperties storageProperties;
     @Mock private FileNameValidator fileNameValidator;
+    @Mock private NotificationService notificationService;
 
     private FileService fileService;
 
@@ -55,7 +57,7 @@ class FileServiceShareTest {
     void setUp() {
         fileService = new FileService(
                 fileRepository, directoryRepository, fileShareRepository,
-                userRepository, storageService, storageProperties, fileNameValidator
+                userRepository, storageService, storageProperties, fileNameValidator, notificationService
         );
 
         ownerFile = FileEntity.builder()

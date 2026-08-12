@@ -25,7 +25,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { userService } from '../../services/userService';
 import './settings-page.css';
 
-const DEFAULT_AVATAR = '/default-avatar.png';
+const DEFAULT_AVATAR = '/default-avatar.webp';
 
 const PRESET_AVATARS = [
   { name: 'cat', label: '猫咪' },
@@ -154,8 +154,8 @@ const SettingsPage: React.FC = () => {
                   <p className="miao-settings-preset-title">选择默认头像</p>
                   <div className="miao-settings-preset-grid">
                     {PRESET_AVATARS.map(preset => {
-                      const presetUrl = `/avatars/${preset.name}.png`;
-                      const isActive = userInfo?.avatarUrl === presetUrl;
+                      const presetUrl = `/avatars/${preset.name}.webp`;
+                      const isActive = userInfo?.avatarUrl === presetUrl || userInfo?.avatarUrl === `/avatars/${preset.name}.png`;
                       return (
                         <button
                           key={preset.name}

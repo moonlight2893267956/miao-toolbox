@@ -126,7 +126,7 @@ public class AvatarService {
         if (!PRESET_AVATARS.contains(presetName)) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "无效的预设头像", 400);
         }
-        String avatarUrl = "/avatars/" + presetName + ".png";
+        String avatarUrl = "/avatars/" + presetName + ".webp";
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在", 404));

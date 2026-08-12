@@ -11,6 +11,7 @@ import com.miao.toolbox.auth.service.RouteAccessService;
 import com.miao.toolbox.common.constant.RedisKey;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.common.response.PagedResponse;
+import com.miao.toolbox.notification.service.NotificationService;
 import com.miao.toolbox.storage.repository.FileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +44,7 @@ class UserManageServiceTest {
     @Mock private ValueOperations<String, Object> valueOperations;
     @Mock private RouteAccessService routeAccessService;
     @Mock private FileRepository fileRepository;
+    @Mock private NotificationService notificationService;
 
     @InjectMocks
     private UserManageService userManageService;

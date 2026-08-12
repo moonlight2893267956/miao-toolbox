@@ -38,7 +38,7 @@ const UserDropdown: React.FC<UserDropdownProps> = ({ collapsed = false, isMobile
   ];
 
   const username = state.userInfo?.username || '用户';
-  const avatarSrc = state.userInfo?.avatarUrl || '/default-avatar.png';
+  const avatarSrc = state.userInfo?.avatarUrl || '/default-avatar.webp';
 
   // If children provided (new sidebar design), use them as trigger
   if (children) {

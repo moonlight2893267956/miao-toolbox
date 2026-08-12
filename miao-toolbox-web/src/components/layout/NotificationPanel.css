@@ -1,0 +1,491 @@
+/* ============================================================
+   Notification Panel — 右侧抽屉式通知中心
+   ============================================================ */
+
+.miao-notif-drawer-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--ant-color-bg-layout, #f5f5f5);
+}
+
+/* ─── 顶栏 ─── */
+.miao-notif-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  background: var(--ant-color-bg-container, #fff);
+  border-bottom: 1px solid var(--ant-color-border-secondary, #f0f0f0);
+  flex-shrink: 0;
+}
+
+.miao-notif-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.miao-notif-topbar-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ant-color-text, rgba(0, 0, 0, 0.88));
+}
+
+.miao-notif-topbar-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.miao-notif-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.miao-notif-topbar-btn {
+  font-size: 12px !important;
+  height: 28px !important;
+  padding: 0 8px !important;
+  border-radius: 6px !important;
+  color: var(--ant-color-text-secondary, rgba(0, 0, 0, 0.55)) !important;
+}
+
+.miao-notif-topbar-btn:hover {
+  background: var(--ant-color-bg-text-hover, rgba(0, 0, 0, 0.04)) !important;
+  color: var(--ant-color-primary, #1677ff) !important;
+}
+
+/* ─── 类型筛选 ─── */
+.miao-notif-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  padding: 12px 14px 10px;
+  background: var(--ant-color-bg-container, #fff);
+  border-bottom: 1px solid var(--ant-color-border-secondary, #f0f0f0);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* 右侧留出安全间距，避免最后一个 chip 被圆角遮罩裁切 */
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}
+.miao-notif-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.miao-notif-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: var(--ant-color-bg-layout, #f5f5f5);
+  border: 1px solid transparent;
+  color: var(--ant-color-text-secondary, rgba(0, 0, 0, 0.55));
+  transition: all 160ms ease;
+  user-select: none;
+  line-height: 1;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.miao-notif-filter-chip:hover {
+  background: var(--ant-color-bg-text-hover, rgba(0, 0, 0, 0.04));
+  border-color: var(--ant-color-border, #d9d9d9);
+}
+
+.miao-notif-filter-chip.active {
+  border-color: var(--ant-color-primary, #1677ff);
+  background: rgba(45, 107, 214, 0.08);
+  color: var(--ant-color-primary, #1677ff);
+  font-weight: 600;
+}
+
+/* 筛选标签中的数字徽标 */
+.miao-notif-filter-chip .miao-notif-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.06);
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.miao-notif-filter-chip.active .miao-notif-chip-count {
+  background: rgba(22, 119, 255, 0.15);
+  opacity: 1;
+}
+
+/* ─── 消息列表 ─── */
+.miao-notif-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+}
+
+.miao-notif-list-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 0;
+}
+
+.miao-notif-empty {
+  padding: 60px 0;
+}
+
+/* ─── 消息项 ─── */
+.miao-notif-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 14px 14px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 160ms ease, box-shadow 160ms ease;
+  background: var(--ant-color-bg-container, #fff);
+  margin-bottom: 6px;
+  border: 1px solid var(--ant-color-border-secondary, #f0f0f0);
+  overflow: hidden;
+}
+
+.miao-notif-item:hover {
+  background: var(--ant-color-bg-text-hover, rgba(0, 0, 0, 0.02));
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  border-color: var(--ant-color-border, #d9d9d9);
+}
+
+.miao-notif-item.read {
+  opacity: 0.7;
+}
+
+.miao-notif-item.read:hover {
+  opacity: 1;
+}
+
+/* 左侧紧急色条 */
+.miao-notif-item-accent {
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+}
+
+/* 类型图标 */
+.miao-notif-item-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* 内容区 */
+.miao-notif-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.miao-notif-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.miao-notif-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ant-color-text, rgba(0, 0, 0, 0.88));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.miao-notif-item.read .miao-notif-item-title {
+  font-weight: 400;
+  color: var(--ant-color-text-secondary, rgba(0, 0, 0, 0.55));
+}
+
+.miao-notif-item-unread-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+}
+
+/* 摘要 */
+.miao-notif-item-summary {
+  font-size: 13px;
+  color: var(--ant-color-text-tertiary, rgba(0, 0, 0, 0.45));
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+/* 底部元信息 */
+.miao-notif-item-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.miao-notif-item-type {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.miao-notif-item-time {
+  font-size: 11px;
+  color: var(--ant-color-text-quaternary, rgba(0, 0, 0, 0.35));
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── 底栏 ─── */
+.miao-notif-bottombar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border-top: 1px solid var(--ant-color-border-secondary, #f0f0f0);
+  background: var(--ant-color-bg-container, #fff);
+  flex-shrink: 0;
+}
+
+.miao-notif-pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.miao-notif-page-info {
+  font-size: 12px;
+  min-width: 40px;
+  text-align: center;
+  color: var(--ant-color-text-tertiary, rgba(0, 0, 0, 0.45));
+}
+
+/* ============================================================
+   详情视图 — 编辑信笺风格
+   ============================================================ */
+
+.miao-notif-drawer-inner--detail {
+  background: var(--ant-color-bg-container, #fff);
+}
+
+.miao-notif-detail-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 32px;
+}
+
+/* ─── 顶部装饰线 ─── */
+.miao-notif-detail-rail {
+  height: 3px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* ─── 信头 ─── */
+.miao-notif-detail-letterhead {
+  padding: 28px 28px 0;
+}
+
+/* 标签行 */
+.miao-notif-detail-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.miao-notif-detail-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.miao-notif-detail-priority-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* 标题 */
+.miao-notif-detail-heading {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ant-color-text, rgba(0, 0, 0, 0.88));
+  line-height: 1.35;
+  margin: 0 0 20px;
+  word-break: break-word;
+  letter-spacing: -0.3px;
+}
+
+/* ─── 时间线 ─── */
+.miao-notif-detail-timeline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.miao-notif-detail-timeline-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.miao-notif-detail-timeline-dot--read {
+  background: #36B37E;
+}
+
+.miao-notif-detail-timeline-line {
+  width: 24px;
+  height: 1px;
+  background: var(--ant-color-border, #d9d9d9);
+  flex-shrink: 0;
+}
+
+.miao-notif-detail-timeline-label {
+  font-size: 12px;
+  color: var(--ant-color-text-secondary, rgba(0, 0, 0, 0.55));
+  font-variant-numeric: tabular-nums;
+}
+
+.miao-notif-detail-timeline-label--muted {
+  color: var(--ant-color-text-quaternary, rgba(0, 0, 0, 0.35));
+}
+
+/* ─── 分隔装饰 ─── */
+.miao-notif-detail-ornament {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 28px;
+}
+
+.miao-notif-detail-ornament-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--ant-color-border-secondary, #f0f0f0), transparent);
+}
+
+.miao-notif-detail-ornament-icon {
+  font-size: 14px;
+  opacity: 0.35;
+}
+
+/* ─── 正文 ─── */
+.miao-notif-detail-prose {
+  padding: 0 28px;
+  font-size: 15px;
+  line-height: 1.9;
+  color: var(--ant-color-text, rgba(0, 0, 0, 0.78));
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ─── 底部状态 ─── */
+.miao-notif-detail-status {
+  padding: 28px 28px 0;
+}
+
+.miao-notif-detail-status-unread {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: rgba(45, 107, 214, 0.06);
+  color: var(--ant-color-primary, #1677ff);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.miao-notif-detail-status-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--pulse-color, var(--ant-color-primary, #1677ff));
+  position: relative;
+}
+
+.miao-notif-detail-status-pulse::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: var(--pulse-color, var(--ant-color-primary, #1677ff));
+  opacity: 0.3;
+  animation: miao-detail-pulse 2s ease-out infinite;
+}
+
+@keyframes miao-detail-pulse {
+  0%   { transform: scale(1);   opacity: 0.3; }
+  70%  { transform: scale(2);   opacity: 0; }
+  100% { transform: scale(2);   opacity: 0; }
+}
+
+.miao-notif-detail-status-read {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #36B37E;
+}
+
+/* 详情加载态 */
+.miao-notif-detail-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 0;
+}

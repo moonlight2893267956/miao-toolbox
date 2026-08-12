@@ -15,6 +15,7 @@ import com.miao.toolbox.common.exception.AuthException;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.invite.service.InviteService;
+import com.miao.toolbox.notification.service.NotificationService;
 import com.miao.toolbox.storage.config.StorageProperties;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
@@ -56,6 +57,7 @@ class AuthServiceTest {
     @Mock private InviteService inviteService;
     @Mock private EmailCodeService emailCodeService;
     @Mock private HttpServletResponse response;
+    @Mock private NotificationService notificationService;
     private final StorageProperties storageProperties = new StorageProperties();
     private AuthService authService;
 
@@ -91,6 +93,14 @@ class AuthServiceTest {
         lenient().when(roleRepository.findByCode("USER")).thenReturn(Optional.of(userRole));
 
         authService = new AuthService(userRepository, refreshTokenRepository, roleRepository, jwtService, inviteService, emailCodeService, storageProperties);
+        // 注入 @Autowired 字段
+        try {
+            var field = AuthService.class.getDeclaredField("notificationService");
+            field.setAccessible(true);
+            field.set(authService, notificationService);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to inject notificationService", e);
+        }
     }
 
     // ========== 注册测试 ==========

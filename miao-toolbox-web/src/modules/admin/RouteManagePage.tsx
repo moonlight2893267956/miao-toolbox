@@ -150,7 +150,7 @@ const RouteManagePage: React.FC = () => {
   return (
     <PageFadeIn>
       <AdminPageHeader
-        eyebrow="ADMIN · ROUTES"
+        eyebrow="管理 · 路由"
         title={<>路由<em>权限</em></>}
         description="配置非管理区页面对各角色的可见性；管理区路由由系统固定为超级管理员可访问。"
         actions={(

@@ -15,6 +15,7 @@ import {
   SafetyOutlined,
   SettingOutlined,
   TeamOutlined,
+  SoundOutlined,
 } from '@ant-design/icons';
 import { toolsRegistry } from '../modules/tools/registry';
 import { resolveNetworkIconFromPath } from '../modules/tools/network/utils/iconMap';
@@ -533,6 +534,9 @@ export function resolveTabIcon(path: string): ReactNode | undefined {
   if (path === '/admin/roles' || path.startsWith('/admin/roles')) return <SafetyOutlined />;
   if (path === '/admin/routes' || path.startsWith('/admin/routes')) {
     return <PartitionOutlined />;
+  }
+  if (path === '/admin/announcements' || path.startsWith('/admin/announcements')) {
+    return <SoundOutlined />;
   }
   if (path === '/settings') return <SettingOutlined />;
   return undefined;

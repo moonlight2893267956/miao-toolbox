@@ -8,6 +8,7 @@ import com.miao.toolbox.auth.repository.RoleRepository;
 import com.miao.toolbox.auth.repository.UserRepository;
 import com.miao.toolbox.auth.service.RouteAccessService;
 import com.miao.toolbox.common.exception.BusinessException;
+import com.miao.toolbox.notification.service.NotificationService;
 import com.miao.toolbox.storage.repository.FileRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -27,6 +28,7 @@ class UserManageServiceQuotaTest {
     @Mock private RedisTemplate<String, Object> redisTemplate;
     @Mock private RouteAccessService routeAccessService;
     @Mock private FileRepository fileRepository;
+    @Mock private NotificationService notificationService;
     @Mock private ValueOperations<String, Object> valueOperations;
 
     @InjectMocks

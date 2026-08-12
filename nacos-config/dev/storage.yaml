@@ -1,7 +1,8 @@
-# SECRET_GROUP / storage.yaml — 文件存储服务配置
+# SECRET_GROUP / storage.yaml — 文件存储服务配置（开发环境）
+# basePath 与生产隔离，避免本地/生产共用同一 bucket 时孤儿清理 Job 互相删除文件
 miao:
   storage:
-    base-path: "files"
+    base-path: "files-dev"
     max-file-size: 104857600
     presigned-url-expiry: 3600
     default-quota-bytes: 1073741824

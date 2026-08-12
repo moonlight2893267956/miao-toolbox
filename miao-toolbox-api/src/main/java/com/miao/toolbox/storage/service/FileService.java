@@ -4,6 +4,7 @@ import com.miao.toolbox.auth.entity.User;
 import com.miao.toolbox.auth.repository.UserRepository;
 import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.exception.BusinessException;
+import com.miao.toolbox.notification.service.NotificationService;
 import com.miao.toolbox.storage.config.StorageProperties;
 import com.miao.toolbox.storage.dto.DirectoryTreeDTO;
 import com.miao.toolbox.storage.dto.FileInfoDTO;
@@ -57,6 +58,7 @@ public class FileService {
     private final StorageService storageService;
     private final StorageProperties storageProperties;
     private final FileNameValidator fileNameValidator;
+    private final NotificationService notificationService;
 
     // ==================== 上传 ====================
 
@@ -126,6 +128,9 @@ public class FileService {
         }
 
         log.info("File uploaded: userId={}, fileId={}, cosKey={}, size={}", userId, fileEntity.getId(), cosKey, contentLength);
+
+        // 配额预警：用量超过 80% 时通知用户
+        checkQuotaWarning(userId);
 
         return UploadResultDTO.builder()
                 .id(fileEntity.getId())
@@ -1042,6 +1047,28 @@ public class FileService {
         } catch (IllegalArgumentException e) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED,
                     "无效的共享权限: " + permission + "，仅支持 VIEW 和 EDIT", 400);
+        }
+    }
+
+    /**
+     * 配额预警：用量超过 80% 时发送通知
+     */
+    private void checkQuotaWarning(Long userId) {
+        try {
+            QuotaInfoDTO quota = getQuotaInfo(userId);
+            if (quota.getUsagePercent() != null && quota.getUsagePercent() >= 80) {
+                String level = quota.getUsagePercent() >= 95 ? "已超过 95%" : "已超过 80%";
+                String usedMB = String.format("%.1f", quota.getUsedBytes() / 1024.0 / 1024.0);
+                String quotaMB = String.format("%.1f", quota.getQuotaBytes() / 1024.0 / 1024.0);
+                notificationService.createSystemNotification(
+                        userId,
+                        "存储空间预警",
+                        String.format("您的存储空间使用量%s（已用 %s MB / 总计 %s MB），请及时清理不需要的文件。",
+                                level, usedMB, quotaMB)
+                );
+            }
+        } catch (Exception e) {
+            log.warn("配额预警检查失败: userId={}, error={}", userId, e.getMessage());
         }
     }
 

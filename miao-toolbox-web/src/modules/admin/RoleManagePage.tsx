@@ -324,7 +324,7 @@ const RoleManagePage: React.FC = () => {
   return (
     <PageFadeIn>
       <AdminPageHeader
-        eyebrow="ADMIN · ROLES"
+        eyebrow="管理 · 角色"
         title={<>角色<em>管理</em></>}
         description="管理系统中的自定义角色，控制系统功能访问权限"
         actions={(

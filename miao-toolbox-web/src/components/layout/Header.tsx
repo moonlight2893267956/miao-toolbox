@@ -65,12 +65,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       {isAuthenticated && username ? (
         <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
           <Space style={{ cursor: 'pointer' }}>
-            <Avatar size="small" src={avatarUrl || '/default-avatar.png'} />
+            <Avatar size="small" src={avatarUrl || '/default-avatar.webp'} />
             <span>{username}</span>
           </Space>
         </Dropdown>
       ) : (
-        <Avatar size="small" src={avatarUrl || '/default-avatar.png'} />
+        <Avatar size="small" src={avatarUrl || '/default-avatar.webp'} />
       )}
     </AntHeader>
   );

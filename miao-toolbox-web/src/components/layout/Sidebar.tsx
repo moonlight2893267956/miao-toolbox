@@ -9,6 +9,7 @@ import {
   PartitionOutlined,
   SafetyOutlined,
   DatabaseOutlined,
+  SoundOutlined,
   SunOutlined,
   MoonOutlined,
 } from '@ant-design/icons';
@@ -23,6 +24,7 @@ import {
 } from '../../contexts/TabContext';
 import { toolsRegistry, TOOL_GROUPS, type ToolGroup } from '../../modules/tools/registry';
 import UserDropdown from './UserDropdown';
+import NotificationBell from './NotificationBell';
 import './sidebar.css';
 
 const { Sider } = Layout;
@@ -113,6 +115,7 @@ const Sidebar: React.FC = () => {
       { key: 'admin-roles', icon: <SafetyOutlined />, label: '角色管理', path: '/admin/roles', routeCode: 'ADMIN_ROLES' },
       { key: 'admin-routes', icon: <PartitionOutlined />, label: '路由管理', path: '/admin/routes', routeCode: 'ADMIN_ROUTES' },
       { key: 'admin-storage', icon: <DatabaseOutlined />, label: '存储管理', path: '/admin/storage', routeCode: 'ADMIN_STORAGE' },
+      { key: 'admin-announcements', icon: <SoundOutlined />, label: '公告管理', path: '/admin/announcements', routeCode: 'ADMIN_ANNOUNCEMENTS' },
     ].filter(item => canAccess(item.routeCode));
 
     return [
@@ -320,50 +323,45 @@ const Sidebar: React.FC = () => {
         </div>
 
         <div className="miao-sidebar-footer">
-          <UserDropdown collapsed={collapsed}>
-            <div
-              className="miao-user-card"
-              role="button"
-              tabIndex={0}
-              aria-label="打开用户菜单"
-            >
-              <div className="miao-user-card-avatar-trigger">
-                <span className="miao-user-card-avatar-wrap">
-                  <img
-                    src={state.userInfo?.avatarUrl || '/default-avatar.png'}
-                    alt={username}
-                    className="miao-user-card-avatar-img"
-                  />
-                </span>
-              </div>
-              <div className="miao-user-card-info">
-                <div className="miao-user-card-name">{username}</div>
-                <div className="miao-user-card-status">
-                  <span className="miao-user-card-status-dot" />
-                  <span>在线</span>
+          <div className="miao-user-card">
+            <UserDropdown collapsed={collapsed}>
+              <div className="miao-user-card-trigger" role="button" tabIndex={0} aria-label="打开用户菜单">
+                <div className="miao-user-card-avatar-trigger">
+                  <span className="miao-user-card-avatar-wrap">
+                    <img
+                      src={state.userInfo?.avatarUrl || '/default-avatar.webp'}
+                      alt={username}
+                      className="miao-user-card-avatar-img"
+                    />
+                  </span>
+                </div>
+                <div className="miao-user-card-info">
+                  <div className="miao-user-card-name">{username}</div>
+                  <div className="miao-user-card-status">
+                    <span className="miao-user-card-status-dot" />
+                    <span>在线</span>
+                  </div>
                 </div>
               </div>
-              <div className="miao-user-card-actions">
-                <Tooltip
-                  title={isDark ? '切换亮色' : '切换暗色'}
-                  placement="right"
-                  overlayClassName="miao-nav-item-tooltip"
+            </UserDropdown>
+            <div className="miao-user-card-actions">
+              <NotificationBell collapsed={collapsed} />
+              <Tooltip
+                title={isDark ? '切换亮色' : '切换暗色'}
+                placement="right"
+                overlayClassName="miao-nav-item-tooltip"
+              >
+                <button
+                  className="miao-user-card-btn"
+                  onClick={() => toggleTheme()}
+                  aria-label={isDark ? '切换亮色模式' : '切换暗色模式'}
+                  type="button"
                 >
-                  <button
-                    className="miao-user-card-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleTheme();
-                    }}
-                    aria-label={isDark ? '切换亮色模式' : '切换暗色模式'}
-                    type="button"
-                  >
-                    {isDark ? <SunOutlined /> : <MoonOutlined />}
-                  </button>
-                </Tooltip>
-              </div>
+                  {isDark ? <SunOutlined /> : <MoonOutlined />}
+                </button>
+              </Tooltip>
             </div>
-          </UserDropdown>
+          </div>
         </div>
       </div>
 

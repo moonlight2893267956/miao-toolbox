@@ -62,6 +62,12 @@ public final class ErrorCode {
     public static final String EMAIL_ALREADY_VERIFIED = "EMAIL_ALREADY_VERIFIED";
     public static final String EMAIL_CODE_PURPOSE_MISMATCH = "EMAIL_CODE_PURPOSE_MISMATCH";
 
+    // Message / Notification errors
+    public static final String MSG_NOT_FOUND = "MSG_NOT_FOUND";
+    public static final String MSG_NO_ACCESS = "MSG_NO_ACCESS";
+    public static final String MSG_ALREADY_READ = "MSG_ALREADY_READ";
+    public static final String MSG_NO_RECIPIENTS = "MSG_NO_RECIPIENTS";
+
     // Network toolbox (server-side proxy tools)
     public static final String NETWORK_DNS_RESOLVE_FAILED = "NETWORK_DNS_RESOLVE_FAILED";
     public static final String NETWORK_CONNECTION_TIMEOUT = "NETWORK_CONNECTION_TIMEOUT";

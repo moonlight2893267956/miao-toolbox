@@ -1,0 +1,474 @@
+/* ============================================================
+   AnnouncementManagePage — 公告管理卡片列表
+   ============================================================ */
+
+/* ---------- 统计条 ---------- */
+.miao-announce-stats {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.miao-announce-stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: var(--miao-radius-full, 999px);
+  background: var(--miao-bg-muted);
+  color: var(--miao-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.miao-announce-stat-chip--urgent {
+  background: rgba(255, 77, 79, 0.08);
+  color: #C2362F;
+}
+
+/* ---------- 卡片列表 ---------- */
+.miao-announce-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ---------- 单张卡片 ---------- */
+.miao-announce-card {
+  position: relative;
+  display: flex;
+  border-radius: var(--miao-radius-lg, 12px);
+  background: var(--miao-bg-card);
+  border: 1px solid var(--miao-border);
+  overflow: hidden;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.miao-announce-card:hover {
+  border-color: var(--miao-primary-30, rgba(45, 107, 214, 0.30));
+  box-shadow: 0 2px 12px rgba(45, 107, 214, 0.08);
+}
+
+.miao-announce-card--deleted {
+  opacity: 0.55;
+}
+
+/* 左侧色条 */
+.miao-announce-card-accent {
+  width: 4px;
+  flex-shrink: 0;
+  border-radius: 4px 0 0 4px;
+}
+
+/* 卡片主体 */
+.miao-announce-card-body {
+  flex: 1;
+  padding: 16px 20px;
+  min-width: 0;
+}
+
+/* ---------- 头部：图标 + 标题 ---------- */
+.miao-announce-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.miao-announce-card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--miao-radius-md, 8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.miao-announce-card-title-area {
+  flex: 1;
+  min-width: 0;
+}
+
+.miao-announce-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.miao-announce-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--miao-text-primary);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* ---------- 标签 ---------- */
+.miao-announce-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: var(--miao-radius-full, 999px);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.miao-announce-badge--deleted {
+  background: rgba(255, 77, 79, 0.08);
+  color: #C2362F;
+}
+
+.miao-announce-badge--edited {
+  background: var(--miao-bg-muted);
+  color: var(--miao-text-tertiary);
+}
+
+.miao-announce-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.miao-announce-scope-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: var(--miao-radius-full, 999px);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.miao-announce-scope-clickable {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-bottom: 1px dashed currentColor;
+  transition: opacity 0.15s;
+}
+
+.miao-announce-scope-clickable:hover {
+  opacity: 0.75;
+}
+
+/* ---------- 接收人 Popover ---------- */
+.miao-announce-recipient-popover {
+  min-width: 280px;
+  max-width: 360px;
+  padding: 4px 0 2px;
+}
+
+.miao-announce-recipient-title {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--miao-text-primary);
+  letter-spacing: 0.2px;
+}
+
+/* 头部统计行 */
+.miao-announce-recipient-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px dashed var(--miao-border);
+}
+
+.miao-announce-recipient-count {
+  font-size: 12px;
+  color: var(--miao-text-secondary);
+  letter-spacing: 0.2px;
+}
+
+.miao-announce-recipient-count strong {
+  color: var(--miao-teal);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 2px;
+}
+
+/* 接收人列表 */
+.miao-announce-recipient-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.miao-announce-recipient-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.miao-announce-recipient-list::-webkit-scrollbar-thumb {
+  background: var(--miao-border);
+  border-radius: 2px;
+}
+
+/* 单个接收人 */
+.miao-announce-recipient-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--miao-radius-sm, 6px);
+  transition: background 0.15s;
+}
+
+.miao-announce-recipient-item:hover {
+  background: rgba(54, 179, 126, 0.06);
+}
+
+/* 头像首字母 */
+.miao-announce-recipient-avatar {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--miao-teal) 0%, rgba(54, 179, 126, 0.65) 100%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0;
+  box-shadow: 0 1px 2px rgba(54, 179, 126, 0.20);
+}
+
+/* 用户信息区 */
+.miao-announce-recipient-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.miao-announce-recipient-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--miao-text-primary);
+  line-height: 1.3;
+  letter-spacing: 0.1px;
+}
+
+.miao-announce-recipient-email {
+  font-size: 11px;
+  color: var(--miao-text-tertiary);
+  line-height: 1.3;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 加载态 */
+.miao-announce-recipient-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 0;
+  font-size: 12px;
+  color: var(--miao-text-tertiary);
+}
+
+/* 空态 */
+.miao-announce-recipient-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 22px 0 18px;
+  font-size: 12px;
+  color: var(--miao-text-tertiary);
+}
+
+/* Popover 整体外层增强 */
+.miao-announce-recipient-overlay .ant-popover-inner {
+  border-radius: var(--miao-radius-lg, 10px);
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.10), 0 1px 2px rgba(15, 23, 42, 0.04);
+  border: 1px solid var(--miao-border);
+}
+
+.miao-announce-recipient-overlay .ant-popover-inner-content {
+  padding: 8px 6px;
+}
+
+.miao-announce-recipient-overlay .ant-popover-title {
+  padding: 8px 12px 10px;
+  border-bottom: 1px solid var(--miao-border);
+  margin: 0;
+}
+
+.miao-announce-priority-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 10px;
+  border-radius: var(--miao-radius-full, 999px);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* ---------- 摘要 ---------- */
+.miao-announce-card-summary {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--miao-text-secondary);
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---------- 底部：时间 + 操作 ---------- */
+.miao-announce-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--miao-border);
+}
+
+.miao-announce-card-time {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--miao-text-tertiary);
+}
+
+.miao-announce-edited-time {
+  color: var(--miao-text-tertiary);
+}
+
+/* 操作按钮 */
+.miao-announce-action-btn {
+  font-size: 12px !important;
+  padding: 0 6px !important;
+  height: 26px !important;
+  border-radius: var(--miao-radius-sm, 6px) !important;
+}
+
+/* ---------- 加载态 ---------- */
+.miao-announce-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 0;
+}
+
+/* ---------- 空态 ---------- */
+.miao-admin-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80px 0;
+}
+
+.miao-admin-empty-art {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--miao-bg-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: var(--miao-text-tertiary);
+  margin-bottom: 16px;
+}
+
+.miao-admin-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--miao-text-primary);
+  margin: 0 0 4px;
+}
+
+.miao-admin-empty-desc {
+  font-size: 13px;
+  color: var(--miao-text-tertiary);
+  margin: 0;
+}
+
+/* ---------- 分页 ---------- */
+.miao-announce-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--miao-border);
+}
+
+.miao-announce-pager-info {
+  font-size: 13px;
+  color: var(--miao-text-tertiary);
+}
+
+/* ---------- 弹窗 ---------- */
+.miao-announce-modal .ant-modal-content {
+  border-radius: var(--miao-radius-lg, 12px);
+}
+
+.miao-announce-modal .ant-modal-header {
+  border-radius: var(--miao-radius-lg, 12px) var(--miao-radius-lg, 12px) 0 0;
+}
+
+.miao-announce-modal .ant-form-item-label > label {
+  font-weight: 500;
+  color: var(--miao-text-primary);
+}
+
+.miao-announce-modal .ant-input,
+.miao-announce-modal .ant-select-selector,
+.miao-announce-modal .ant-radio-wrapper {
+  border-radius: var(--miao-radius-sm, 6px);
+}
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 640px) {
+  .miao-announce-card-body {
+    padding: 12px 14px;
+  }
+
+  .miao-announce-card-head {
+    gap: 10px;
+  }
+
+  .miao-announce-card-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
+
+  .miao-announce-card-title {
+    font-size: 14px;
+  }
+
+  .miao-announce-card-foot {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
