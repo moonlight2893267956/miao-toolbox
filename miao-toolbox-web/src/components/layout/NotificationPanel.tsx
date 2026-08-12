@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   BellOutlined,
   ArrowLeftOutlined,
-  CheckOutlined,
   CloseOutlined,
   InfoCircleOutlined,
   ToolOutlined,
