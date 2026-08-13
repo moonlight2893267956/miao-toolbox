@@ -39,6 +39,8 @@ export interface JsonNode {
   childrenCount: number;
   /** 仅 array-ellipsis 类型：被折叠的元素数量 */
   ellipsisCount?: number;
+  /** 同级对象内同名 key 出现总次数；1 = 无重复，>1 = 重复 */
+  siblingDuplicateCount: number;
 }
 
 // ─── 视图模式 ──────────────────────────────────────────

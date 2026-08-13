@@ -7,6 +7,7 @@
  */
 
 import type { JsonNode, JsonValueType, ParseError } from '../types';
+import { countSiblingKeyDuplicates } from './duplicateKeyDetector';
 
 // ─── 类型守卫 ──────────────────────────────────────────
 
@@ -50,6 +51,7 @@ function flattenToJsonNodes(
   rootDepth: number,
   expandDepth: number,
   expandedArrayPaths: Set<string> = new Set(),
+  siblingDuplicateMap: Map<string, number> = new Map(),
 ): JsonNode[] {
   const nodes: JsonNode[] = [];
   const ellipsisPaths = new Set<string>(); // 追踪 ellipsis 占位路径，避免与真实 key "__ellipsis__" 冲突
@@ -85,6 +87,7 @@ function flattenToJsonNodes(
       parentId,
       isExpanded,
       childrenCount,
+      siblingDuplicateCount: siblingDuplicateMap.get(path) ?? 1,
     });
 
     // 将子节点推入栈（反向推入保证 pop 时顺序正确：object 按 key 顺序，array 按索引顺序）
@@ -245,7 +248,8 @@ export function parseAndFlatten(raw: string, expandDepth: number = 1, expandedAr
     };
   }
 
-  const flatNodes = flattenToJsonNodes(parsed, '$', null, 0, expandDepth, expandedArrayPaths);
+  const siblingDuplicateMap = countSiblingKeyDuplicates(trimmed);
+  const flatNodes = flattenToJsonNodes(parsed, '$', null, 0, expandDepth, expandedArrayPaths, siblingDuplicateMap);
   return { parsed, flatNodes };
 }
 

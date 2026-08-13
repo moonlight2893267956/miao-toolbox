@@ -463,13 +463,27 @@ const JsonNodeRow = memo(function JsonNodeRow({
             />
           ) : (
             <span
-              className={canEditKey ? 'jw-node-row__key jw-node-row__key--editable' : 'jw-node-row__key'}
+              className={[
+                canEditKey ? 'jw-node-row__key jw-node-row__key--editable' : 'jw-node-row__key',
+                node.siblingDuplicateCount > 1 && 'jw-node-row__key--duplicate',
+              ].filter(Boolean).join(' ')}
               onDoubleClick={handleKeyDoubleClick}
-              title={canEditKey ? '双击编辑键名' : undefined}
+              title={
+                node.siblingDuplicateCount > 1
+                  ? `同一对象内存在 ${node.siblingDuplicateCount} 个同名 key`
+                  : (canEditKey ? '双击编辑键名' : undefined)
+              }
             >
               {node.key}
             </span>
           )
+        )}
+
+        {/* 重复 key 标签（同级重复时显示，与节点 type 无关） */}
+        {!isRootNode && node.siblingDuplicateCount > 1 && (
+          <Tooltip title={`同一对象内存在 ${node.siblingDuplicateCount} 个同名 key，标准 JSON.parse 只会保留最后一个`}>
+            <span className="jw-node-row__dup-tag">重复 ×{node.siblingDuplicateCount}</span>
+          </Tooltip>
         )}
 
         {/* 冒号 */}

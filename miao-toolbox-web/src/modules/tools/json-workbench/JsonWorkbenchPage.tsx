@@ -834,6 +834,12 @@ export default function JsonWorkbenchPage() {
   const showError = state.parseError !== null && !isEscapedJson;
   const hasRawInput = state.rawJson.trim().length > 0;
 
+  // 同级重复 key 统计：仅按 siblingDuplicateCount > 1 计入（节点 type 由 value 决定，与重复无关）
+  const duplicateKeyCount = useMemo(
+    () => state.flatNodeList.filter((n) => n.siblingDuplicateCount > 1).length,
+    [state.flatNodeList],
+  );
+
   // 格式化
   const handleFormat = useCallback(() => {
     if (!state.parsedJson) return;
@@ -1258,6 +1264,14 @@ export default function JsonWorkbenchPage() {
       )}
       {breadcrumbSegments.length > 0 && (
         <Breadcrumb segments={breadcrumbSegments} onNavigate={handleBreadcrumbNavigate} />
+      )}
+      {hasData && !showError && duplicateKeyCount > 0 && (
+        <div className="jw-dup-summary" role="status">
+          <span className="jw-dup-summary__dot" />
+          <span className="jw-dup-summary__text">
+            检测到 <strong>{duplicateKeyCount}</strong> 处同级重复 Key（同一对象内同名 key，标准 JSON.parse 仅保留最后一个）
+          </span>
+        </div>
       )}
       {hasData && (
         <SearchBar

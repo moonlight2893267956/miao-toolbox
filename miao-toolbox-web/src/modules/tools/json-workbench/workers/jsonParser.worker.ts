@@ -7,6 +7,7 @@
  * 通过 Comlink 暴露 API，进度通过回调参数实时上报主线程。
  */
 import * as Comlink from 'comlink';
+import { countSiblingKeyDuplicates } from '../utils/duplicateKeyDetector';
 
 // ─── 类型（与主线程 types/index.ts 一致，Worker 内独立定义避免跨模块依赖） ───
 
@@ -22,6 +23,8 @@ interface JsonNode {
   isExpanded: boolean;
   childrenCount: number;
   ellipsisCount?: number;
+  /** 同级对象内同名 key 出现总次数；1 = 无重复，>1 = 重复 */
+  siblingDuplicateCount: number;
 }
 
 interface ParseError {
@@ -138,6 +141,7 @@ function flattenToJsonNodesWithProgress(
   expandDepth: number,
   expandedArrayPaths: Set<string>,
   onStep: () => void,
+  siblingDuplicateMap: Map<string, number> = new Map(),
 ): JsonNode[] {
   const nodes: JsonNode[] = [];
   const ellipsisPaths = new Set<string>(); // 追踪 ellipsis 占位路径，避免与真实 key "__ellipsis__" 冲突
@@ -170,6 +174,7 @@ function flattenToJsonNodesWithProgress(
       parentId,
       isExpanded,
       childrenCount,
+      siblingDuplicateCount: siblingDuplicateMap.get(path) ?? 1,
     });
     onStep();
 
@@ -290,21 +295,27 @@ function parseJsonInWorker(
 
   onProgress(20);
 
+  // 同级重复 key 扫描（在 parse 之后对原始文本扫描，还原被 JSON.parse 丢弃的重复信息）
+  const siblingDuplicateMap = countSiblingKeyDuplicates(trimmed);
+
+  onProgress(22);
+
   // 带进度的扁平化
   let current = 0;
-  let lastPct = 20;
+  let lastPct = 22;
 
   const flatNodes = flattenToJsonNodesWithProgress(
     parsed, '$', null, 0, expandDepth, expandedArrayPaths,
     () => {
       current++;
-      const pct = 20 + Math.round((current / total) * 75);
+      const pct = 22 + Math.round((current / total) * 73);
       // 节流：只有百分比变化才回调
       if (pct > lastPct) {
         lastPct = pct;
         onProgress(pct);
       }
     },
+    siblingDuplicateMap,
   );
 
   onProgress(100);

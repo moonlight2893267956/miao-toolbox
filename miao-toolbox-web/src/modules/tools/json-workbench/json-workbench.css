@@ -1001,6 +1001,73 @@
   text-underline-offset: 3px;
 }
 
+/* 同级对象内重复 key：警告橙高亮 */
+.jw-node-row__key--duplicate {
+  color: #faad14;
+  font-weight: 700;
+}
+
+.jw-node-row__key--duplicate:hover {
+  color: #ffc53d;
+}
+
+/* 重复 key 行内标签（胶囊） */
+.jw-node-row__dup-tag {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: 6px;
+  padding: 0 8px;
+  height: 18px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  color: #faad14;
+  background: rgba(250, 173, 20, 0.12);
+  border: 1px solid rgba(250, 173, 20, 0.4);
+  border-radius: 9px;
+  cursor: help;
+  white-space: nowrap;
+}
+
+/* 顶部重复 key 汇总条 */
+.jw-dup-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 16px 0;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #faad14;
+  background: rgba(250, 173, 20, 0.08);
+  border: 1px solid rgba(250, 173, 20, 0.28);
+  border-radius: 8px;
+  animation: jw-dup-pulse 2s ease-in-out infinite;
+}
+
+.jw-dup-summary__dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #faad14;
+  box-shadow: 0 0 0 0 rgba(250, 173, 20, 0.5);
+}
+
+.jw-dup-summary__text strong {
+  color: #ffc53d;
+  font-weight: 700;
+}
+
+@keyframes jw-dup-pulse {
+  0%, 100% {
+    border-color: rgba(250, 173, 20, 0.28);
+  }
+  50% {
+    border-color: rgba(250, 173, 20, 0.6);
+  }
+}
+
 .jw-node-row__root {
   display: inline-flex;
   align-items: center;
