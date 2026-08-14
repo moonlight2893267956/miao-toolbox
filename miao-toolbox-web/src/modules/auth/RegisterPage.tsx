@@ -1,6 +1,6 @@
 import React from 'react';
-import { Form, Input, Button, Divider, Tabs, message } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined, GiftOutlined, GithubOutlined, GoogleOutlined, ExclamationCircleOutlined, LoadingOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Divider, Tabs, message, Tooltip } from 'antd';
+import { UserOutlined, LockOutlined, MailOutlined, GiftOutlined, GithubOutlined, GoogleOutlined, ExclamationCircleOutlined, LoadingOutlined, ArrowLeftOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import AuthShell from './AuthShell';
@@ -19,47 +19,42 @@ interface EmailRegisterFormValues {
   code: string;
 }
 
-/* 邀请提示卡：深色玻璃质感，含加载/有效/无效三种状态 */
-const InviteCard: React.FC<{
+/* 邀请徽章：悬浮在面板右上角，hover 显示完整说明，不占用表单高度 */
+const InviteBadge: React.FC<{
   loading: boolean;
   valid: boolean | null;
   roleName: string | null;
 }> = ({ loading, valid, roleName }) => {
-  type Variant = { className: string; icon: React.ReactNode; title: React.ReactNode; desc: string };
+  type Variant = { className: string; icon: React.ReactNode; label: string; tip: string };
 
   const variant: Variant = loading
     ? {
-        className: 'miao-invite-card is-loading',
+        className: 'miao-invite-badge is-loading',
         icon: <LoadingOutlined />,
-        title: '正在校验邀请链接',
-        desc: '请稍候，正在验证该邀请的有效性',
+        label: '校验中',
+        tip: '正在验证该邀请链接的有效性，请稍候',
       }
     : valid
     ? {
-        className: 'miao-invite-card',
+        className: 'miao-invite-badge',
         icon: <GiftOutlined />,
-        title: (
-          <>
-            受 <strong>{roleName ?? '该'}</strong> 角色邀请注册
-          </>
-        ),
-        desc: '通过此链接注册后，你将自动获得该角色权限',
+        label: roleName ?? '邀请注册',
+        tip: '通过此链接注册后，你将自动获得该角色权限',
       }
     : {
-        className: 'miao-invite-card is-invalid',
+        className: 'miao-invite-badge is-invalid',
         icon: <ExclamationCircleOutlined />,
-        title: '邀请链接无效或已过期',
-        desc: '该链接无法使用，请向邀请人重新获取',
+        label: '邀请无效',
+        tip: '该链接无法使用，请向邀请人重新获取',
       };
 
   return (
-    <div className={variant.className} role="status">
-      <span className="miao-invite-card-icon">{variant.icon}</span>
-      <div className="miao-invite-card-body">
-        <div className="miao-invite-card-title">{variant.title}</div>
-        <div className="miao-invite-card-desc">{variant.desc}</div>
+    <Tooltip title={variant.tip} placement="bottomRight" overlayClassName="miao-invite-badge-tooltip">
+      <div className={variant.className} role="status">
+        <span className="miao-invite-badge-icon">{variant.icon}</span>
+        <span className="miao-invite-badge-label">{variant.label}</span>
       </div>
-    </div>
+    </Tooltip>
   );
 };
 
@@ -68,6 +63,7 @@ const RegisterPage: React.FC = () => {
   const [emailForm] = Form.useForm<EmailRegisterFormValues>();
   const [loading, setLoading] = React.useState(false);
   const [oauthLoading, setOauthLoading] = React.useState<'github' | 'google' | null>(null);
+  const [emailStep, setEmailStep] = React.useState<'email' | 'account'>('email');
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const safetyTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -337,67 +333,108 @@ const RegisterPage: React.FC = () => {
       label: '邮箱注册',
       children: (
         <Form form={emailForm} onFinish={handleEmailRegister} layout="vertical" requiredMark={false} size="large">
-          <Form.Item
-            name="email"
-            rules={[
-              { required: true, message: '请输入邮箱' },
-              { type: 'email', message: '请输入正确的邮箱格式' },
-            ]}
-          >
-            <Input prefix={<MailOutlined />} placeholder="邮箱地址" autoComplete="email" />
-          </Form.Item>
+          {/* Step 1: 验证邮箱 */}
+          {emailStep === 'email' && (
+            <div className="miao-email-step-content" key="step-email">
+              <Form.Item
+                name="email"
+                rules={[
+                  { required: true, message: '请输入邮箱' },
+                  { type: 'email', message: '请输入正确的邮箱格式' },
+                ]}
+              >
+                <Input prefix={<MailOutlined />} placeholder="邮箱地址" autoComplete="email" />
+              </Form.Item>
 
-          <Form.Item
-            name="code"
-            rules={[{ required: true, message: '请输入验证码' }]}
-            className="miao-code-field"
-          >
-            <Input
-              placeholder="6位验证码"
-              autoComplete="one-time-code"
-              maxLength={6}
-              className="miao-code-input"
-              suffix={
-                <button
-                  type="button"
-                  className="miao-code-send-btn"
-                  disabled={countdown > 0}
-                  onClick={handleSendCode}
+              <Form.Item
+                name="code"
+                rules={[{ required: true, message: '请输入验证码' }]}
+                className="miao-code-field"
+              >
+                <Input
+                  placeholder="6位验证码"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  className="miao-code-input"
+                  suffix={
+                    <button
+                      type="button"
+                      className="miao-code-send-btn"
+                      disabled={countdown > 0}
+                      onClick={handleSendCode}
+                    >
+                      {countdown > 0 ? (
+                        <span className="miao-code-countdown">{countdown}s</span>
+                      ) : (
+                        <span>获取验证码</span>
+                      )}
+                    </button>
+                  }
+                />
+              </Form.Item>
+
+              <Form.Item style={{ marginBottom: 0 }}>
+                <Button
+                  type="primary"
+                  block
+                  disabled={inviteInvalid || inviteLoading}
+                  onClick={async () => {
+                    try {
+                      await emailForm.validateFields(['email', 'code']);
+                      setEmailStep('account');
+                    } catch {
+                      // 校验失败，antd 自动显示错误
+                    }
+                  }}
                 >
-                  {countdown > 0 ? (
-                    <span className="miao-code-countdown">{countdown}s</span>
-                  ) : (
-                    <span>获取验证码</span>
-                  )}
-                </button>
-              }
-            />
-          </Form.Item>
+                  创建账号
+                </Button>
+              </Form.Item>
+            </div>
+          )}
 
-          <Form.Item
-            name="username"
-            rules={[
-              { required: true, message: '请输入用户名' },
-              { min: 3, max: 20, message: '用户名长度为3-20位' },
-              { pattern: /^[a-zA-Z0-9_]+$/, message: '用户名只能包含字母、数字和下划线' },
-            ]}
-          >
-            <Input prefix={<UserOutlined />} placeholder="用户名" autoComplete="username" />
-          </Form.Item>
+          {/* Step 2: 设置账号 */}
+          {emailStep === 'account' && (
+            <div className="miao-email-step-content" key="step-account">
+              <div className="miao-email-verified-hint">
+                <SafetyCertificateOutlined />
+                <span>邮箱已验证，请设置账号信息</span>
+              </div>
 
-          <Form.Item name="password" rules={passwordRules}>
-            <Input.Password prefix={<LockOutlined />} placeholder="密码（至少8位，包含字母和数字）" autoComplete="new-password" />
-          </Form.Item>
+              <Form.Item
+                name="username"
+                rules={[
+                  { required: true, message: '请输入用户名' },
+                  { min: 3, max: 20, message: '用户名长度为3-20位' },
+                  { pattern: /^[a-zA-Z0-9_]+$/, message: '用户名只能包含字母、数字和下划线' },
+                ]}
+              >
+                <Input prefix={<UserOutlined />} placeholder="用户名" autoComplete="username" />
+              </Form.Item>
 
-          <Form.Item name="confirmPassword" dependencies={['password']} rules={confirmPasswordRules}>
-            <Input.Password prefix={<LockOutlined />} placeholder="确认密码" autoComplete="new-password" />
-          </Form.Item>
+              <Form.Item name="password" rules={passwordRules}>
+                <Input.Password prefix={<LockOutlined />} placeholder="密码（至少8位，包含字母和数字）" autoComplete="new-password" />
+              </Form.Item>
 
-          <Form.Item style={{ marginBottom: 0 }}>
-            <Button type="primary" htmlType="submit" loading={loading} block disabled={inviteInvalid || inviteLoading}>
-              注册并登录
-            </Button>
-          </Form.Item>
+              <Form.Item name="confirmPassword" dependencies={['password']} rules={confirmPasswordRules}>
+                <Input.Password prefix={<LockOutlined />} placeholder="确认密码" autoComplete="new-password" />
+              </Form.Item>
+
+              <Form.Item style={{ marginBottom: 0 }}>
+                <Button type="primary" htmlType="submit" loading={loading} block disabled={inviteInvalid || inviteLoading}>
+                  注册并登录
+                </Button>
+              </Form.Item>
+
+              <button
+                type="button"
+                className="miao-email-back-btn"
+                onClick={() => setEmailStep('email')}
+              >
+                <ArrowLeftOutlined /> 返回上一步
+              </button>
+            </div>
+          )}
         </Form>
       ),
     },
@@ -406,14 +443,14 @@ const RegisterPage: React.FC = () => {
   return (
     <AuthShell title="创建账号" subtitle="加入阿渺工具箱，开始集中管理你的 AI 工具" variant="geo">
         {inviteToken && (
-          <InviteCard
+          <InviteBadge
             loading={inviteLoading}
             valid={inviteValid}
             roleName={inviteRoleName}
           />
         )}
         <div ref={tabsBoxRef} className="miao-tabs-box">
-          <Tabs items={tabItems} centered size="small" />
+          <Tabs items={tabItems} centered size="small" onChange={() => setEmailStep('email')} />
         </div>
 
         <Divider className="miao-register-divider">或使用第三方账号注册</Divider>

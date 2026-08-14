@@ -13,17 +13,20 @@ import {
   CheckCircleOutlined,
 } from '@ant-design/icons';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Image, Skeleton } from 'antd';
+import { FileImageOutlined } from '@ant-design/icons';
 import { useNotification } from '../../contexts/NotificationContext';
 import type { MessageResponse, MessageDetailResponse } from '../../services/notificationService';
+import { useMessageImage } from '../../utils/imageLoader';
 import './NotificationPanel.css';
 
 /** 消息类型配置 */
-const TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string; bg: string }> = {
-  SYSTEM:       { label: '系统', color: '#2D6BD6', bg: 'rgba(45, 107, 214, 0.10)',  icon: <InfoCircleOutlined /> },
-  TOOL:         { label: '工具', color: '#36B37E', bg: 'rgba(54, 179, 126, 0.12)',   icon: <ToolOutlined /> },
-  SECURITY:     { label: '安全', color: '#C2362F', bg: 'rgba(255, 77, 79, 0.10)',    icon: <SafetyCertificateOutlined /> },
-  ACCOUNT:      { label: '账户', color: '#E58A00', bg: 'rgba(245, 158, 11, 0.12)',   icon: <UserOutlined /> },
-  ANNOUNCEMENT: { label: '公告', color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.10)',   icon: <BellOutlined /> },
+const TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string; bg: string; gradient: string }> = {
+  SYSTEM:       { label: '系统', color: '#2D6BD6', bg: 'rgba(45, 107, 214, 0.10)',  gradient: 'linear-gradient(135deg, #2D6BD6 0%, #4c9aff 100%)', icon: <InfoCircleOutlined /> },
+  TOOL:         { label: '工具', color: '#36B37E', bg: 'rgba(54, 179, 126, 0.12)',   gradient: 'linear-gradient(135deg, #36B37E 0%, #5dd69b 100%)', icon: <ToolOutlined /> },
+  SECURITY:     { label: '安全', color: '#C2362F', bg: 'rgba(255, 77, 79, 0.10)',    gradient: 'linear-gradient(135deg, #C2362F 0%, #ff6b6b 100%)', icon: <SafetyCertificateOutlined /> },
+  ACCOUNT:      { label: '账户', color: '#E58A00', bg: 'rgba(245, 158, 11, 0.12)',   gradient: 'linear-gradient(135deg, #E58A00 0%, #fbbf24 100%)', icon: <UserOutlined /> },
+  ANNOUNCEMENT: { label: '公告', color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.10)',   gradient: 'linear-gradient(135deg, #7C3AED 0%, #a78bfa 100%)', icon: <BellOutlined /> },
 };
 
 /** 优先级标记 */
@@ -64,6 +67,14 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ open, onClose }) 
   const [detailLoading, setDetailLoading] = useState(false);
   const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
   const listRef = useRef<HTMLDivElement>(null);
+
+  // 详情配图：仅当当前详情带图时加载（blob ObjectURL）
+  const activeImageMessageId = expandedId !== null && currentDetail?.imageUrl ? expandedId : null;
+  const {
+    imageUrl: detailImageUrl,
+    loading: detailImageLoading,
+    error: detailImageError,
+  } = useMessageImage(activeImageMessageId);
 
   const pageSize = 10;
 
@@ -192,10 +203,10 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ open, onClose }) 
         <AnimatePresence mode="wait">
           <motion.div
             key={currentDetail.id}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.25 }}
+            initial={{ opacity: 0, y: 16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -12, scale: 0.98 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.8 }}
             className="miao-notif-detail-scroll"
           >
             {/* 顶部装饰线 */}
@@ -255,6 +266,29 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ open, onClose }) 
             <div className="miao-notif-detail-prose">
               {currentDetail.content}
             </div>
+
+            {/* 配图 */}
+            {currentDetail.imageUrl && (
+              <div className="miao-notif-detail-image">
+                {detailImageLoading ? (
+                  <Skeleton.Image active style={{ width: '100%', height: 200 }} />
+                ) : detailImageError ? (
+                  <div className="miao-notif-detail-image-error">
+                    <FileImageOutlined />
+                    <span>图片加载失败</span>
+                  </div>
+                ) : detailImageUrl ? (
+                  <Image
+                    src={detailImageUrl}
+                    alt={currentDetail.title}
+                    className="miao-notif-detail-image-img"
+                    preview={{
+                      mask: <div className="miao-notif-detail-image-mask"><FileImageOutlined /> 查看大图</div>,
+                    }}
+                  />
+                ) : null}
+              </div>
+            )}
 
             {/* 底部状态 */}
             <div className="miao-notif-detail-status">
@@ -357,21 +391,18 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ open, onClose }) 
           />
         ) : (
           <div className="miao-notif-list-content">
-            {messages.map(msg => {
+            {messages.map((msg, idx) => {
               const typeCfg = TYPE_CONFIG[msg.type] || TYPE_CONFIG.SYSTEM;
-              const priorityCfg = PRIORITY_CONFIG[msg.priority];
               const isUrgent = msg.priority === 'URGENT';
               return (
                 <div
                   key={msg.id}
                   className={`miao-notif-item${msg.read ? ' read' : ''}`}
                   onClick={() => handleMessageClick(msg)}
+                  style={{ animationDelay: `${0.12 + idx * 0.04}s` }}
                 >
-                  {/* 左侧色条 */}
-                  {isUrgent && <div className="miao-notif-item-accent" style={{ background: '#ff4d4f' }} />}
-
                   {/* 类型图标 */}
-                  <div className="miao-notif-item-icon" style={{ background: typeCfg.bg, color: typeCfg.color }}>
+                  <div className="miao-notif-item-icon" style={{ background: typeCfg.gradient }}>
                     {typeCfg.icon}
                   </div>
 
@@ -379,23 +410,28 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ open, onClose }) 
                   <div className="miao-notif-item-body">
                     <div className="miao-notif-item-head">
                       <span className="miao-notif-item-title">
-                        {priorityCfg.color && (
-                          <ExclamationCircleOutlined style={{ color: priorityCfg.color, marginRight: 4, fontSize: 12 }} />
-                        )}
                         {msg.title}
                       </span>
-                      {!msg.read && <span className="miao-notif-item-unread-dot" />}
+                      <div className="miao-notif-item-meta">
+                        {!msg.read && <span className="miao-notif-item-unread-dot" />}
+                        <span className="miao-notif-item-time">{formatTime(msg.createdAt)}</span>
+                      </div>
                     </div>
                     {msg.summary && (
                       <div className="miao-notif-item-summary">{msg.summary}</div>
                     )}
                     <div className="miao-notif-item-foot">
-                      <span className="miao-notif-item-type" style={{ color: typeCfg.color }}>
+                      <span
+                        className="miao-notif-item-type"
+                        style={{ color: typeCfg.color, background: typeCfg.bg }}
+                      >
                         {typeCfg.label}
                       </span>
-                      <span className="miao-notif-item-time">{formatTime(msg.createdAt)}</span>
                     </div>
                   </div>
+
+                  {/* 紧急色条 */}
+                  {isUrgent && <div className="miao-notif-item-accent" />}
                 </div>
               );
             })}

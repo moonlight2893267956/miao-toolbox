@@ -58,6 +58,10 @@ public class Message {
     @Column(name = "edited_at")
     private LocalDateTime editedAt;
 
+    /** 消息配图 COS key（存于 COS messages/ 前缀下），NULL=无配图 */
+    @Column(name = "image_cos_key", length = 512)
+    private String imageCosKey;
+
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();

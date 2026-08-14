@@ -1,6 +1,8 @@
 package com.miao.toolbox.notification.controller;
 
 import com.miao.toolbox.auth.entity.User;
+import com.miao.toolbox.common.exception.BusinessException;
+import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.response.ApiResponse;
 import com.miao.toolbox.common.response.PagedResponse;
 import com.miao.toolbox.notification.dto.MessageDetailResponse;
@@ -8,13 +10,18 @@ import com.miao.toolbox.notification.dto.MessageResponse;
 import com.miao.toolbox.notification.dto.SendMessageRequest;
 import com.miao.toolbox.notification.dto.UnreadCountResponse;
 import com.miao.toolbox.notification.service.NotificationService;
+import com.miao.toolbox.storage.service.StorageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.InputStream;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -28,6 +35,7 @@ import java.util.Map;
 public class MessageController {
 
     private final NotificationService notificationService;
+    private final StorageService storageService;
 
     /**
      * 获取未读消息计数
@@ -62,6 +70,30 @@ public class MessageController {
             @PathVariable Long messageId) {
         Long userId = extractUserId(principal);
         return ApiResponse.success(notificationService.getMessageDetail(userId, messageId));
+    }
+
+    /**
+     * 获取消息配图（后端代理流式返回）
+     * <p>
+     * 校验用户对该消息的访问权后，从 COS 拉取图片流式返回。
+     * 前端通过 axios 获取 blob 后创建 ObjectURL 渲染。
+     */
+    @GetMapping("/{messageId}/image")
+    public ResponseEntity<InputStreamResource> getMessageImage(
+            @AuthenticationPrincipal Object principal,
+            @PathVariable Long messageId) {
+        Long userId = extractUserId(principal);
+        String cosKey = notificationService.getMessageImageCosKey(userId, messageId);
+
+        if (cosKey == null || cosKey.isBlank()) {
+            throw new BusinessException(ErrorCode.MSG_NOT_FOUND, "该消息没有配图", 404);
+        }
+
+        InputStream inputStream = storageService.getObject(cosKey);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(resolveImageContentType(cosKey)))
+                .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "private, max-age=3600")
+                .body(new InputStreamResource(inputStream));
     }
 
     /**
@@ -118,5 +150,25 @@ public class MessageController {
             return user.getId();
         }
         return null;
+    }
+
+    /**
+     * 根据 COS key 的文件扩展名推断图片 MIME 类型（上传时已限定为白名单格式）
+     */
+    private String resolveImageContentType(String cosKey) {
+        String lower = cosKey.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+            return "image/jpeg";
+        }
+        if (lower.endsWith(".png")) {
+            return "image/png";
+        }
+        if (lower.endsWith(".gif")) {
+            return "image/gif";
+        }
+        if (lower.endsWith(".webp")) {
+            return "image/webp";
+        }
+        return MediaType.APPLICATION_OCTET_STREAM_VALUE;
     }
 }

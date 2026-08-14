@@ -18,6 +18,7 @@ import com.miao.toolbox.notification.repository.MessageDismissalRepository;
 import com.miao.toolbox.notification.repository.MessageReadRepository;
 import com.miao.toolbox.notification.repository.MessageRecipientRepository;
 import com.miao.toolbox.notification.repository.MessageRepository;
+import com.miao.toolbox.storage.service.StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -41,6 +42,7 @@ public class NotificationService {
     private final MessageReadRepository messageReadRepository;
     private final MessageDismissalRepository messageDismissalRepository;
     private final UserRepository userRepository;
+    private final StorageService storageService;
 
     // ==================== 便捷方法 ====================
 
@@ -119,6 +121,7 @@ public class NotificationService {
                 .type(request.getType() != null ? request.getType() : Message.TYPE_SYSTEM)
                 .priority(request.getPriority() != null ? request.getPriority() : Message.PRIORITY_NORMAL)
                 .senderId(senderId)
+                .imageCosKey(request.getImageCosKey())
                 .build();
         message = messageRepository.save(message);
 
@@ -220,6 +223,10 @@ public class NotificationService {
                     .stream().findFirst().orElse(null)
                 : null;
 
+        String imageUrl = message.getImageCosKey() != null
+                ? "/api/messages/" + message.getId() + "/image"
+                : null;
+
         return MessageDetailResponse.builder()
                 .id(message.getId())
                 .title(message.getTitle())
@@ -232,6 +239,7 @@ public class NotificationService {
                 .read(read)
                 .readAt(messageRead != null ? messageRead.getReadAt() : null)
                 .createdAt(message.getCreatedAt())
+                .imageUrl(imageUrl)
                 .build();
     }
 
@@ -388,9 +396,11 @@ public class NotificationService {
 
     /**
      * 编辑公告
+     *
+     * @param imageCosKey 新配图 COS key，传 null 表示移除配图
      */
     @Transactional
-    public Message updateAnnouncement(Long messageId, String title, String content) {
+    public Message updateAnnouncement(Long messageId, String title, String content, String imageCosKey) {
         Message message = messageRepository.findById(messageId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MSG_NOT_FOUND, "消息不存在", 404));
         if (!Message.TYPE_ANNOUNCEMENT.equals(message.getType())) {
@@ -399,10 +409,63 @@ public class NotificationService {
         if (message.getDeleted()) {
             throw new BusinessException(ErrorCode.MSG_NOT_FOUND, "消息已删除", 404);
         }
+
+        // 图片被替换或移除时，旧 COS 对象待事务提交后异步清理
+        String oldImageCosKey = message.getImageCosKey();
+        boolean imageChanged = !Objects.equals(oldImageCosKey, imageCosKey);
+
         message.setTitle(title);
         message.setContent(content);
+        message.setImageCosKey(imageCosKey);
         message.setEditedAt(LocalDateTime.now());
-        return messageRepository.save(message);
+        Message saved = messageRepository.save(message);
+
+        if (imageChanged && oldImageCosKey != null) {
+            deleteCosImageAfterCommit(oldImageCosKey);
+        }
+        return saved;
+    }
+
+    /**
+     * 获取消息配图 COS key（供图片代理端点使用，先校验访问权）
+     *
+     * @return COS key，无配图时返回 null
+     */
+    @Transactional(readOnly = true)
+    public String getMessageImageCosKey(Long userId, Long messageId) {
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MSG_NOT_FOUND, "消息不存在", 404));
+        if (!hasAccess(userId, messageId)) {
+            throw new BusinessException(ErrorCode.MSG_NO_ACCESS, "无权查看该消息", 403);
+        }
+        return message.getImageCosKey();
+    }
+
+    /**
+     * 清理被替换/移除的消息配图 COS 对象
+     * <p>
+     * 事务活跃时注册 afterCommit 回调避免阻塞请求；无事务环境直接删除（如测试）。
+     */
+    private void deleteCosImageAfterCommit(String cosKey) {
+        Runnable deleteTask = () -> {
+            try {
+                storageService.deleteObject(cosKey);
+            } catch (Exception e) {
+                log.warn("消息配图 COS 对象删除失败（可稍后人工清理）: key={}, error={}", cosKey, e.getMessage());
+            }
+        };
+
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            deleteTask.run();
+                        }
+                    });
+        } else {
+            deleteTask.run();
+        }
     }
 
     /**
@@ -486,6 +549,7 @@ public class NotificationService {
                 .senderId(msg.getSenderId())
                 .read(read)
                 .createdAt(msg.getCreatedAt())
+                .hasImage(msg.getImageCosKey() != null)
                 .build();
     }
 
@@ -512,6 +576,7 @@ public class NotificationService {
                 .editedAt(msg.getEditedAt())
                 .recipientCount((int) recipientCount)
                 .scope(isBroadcast ? "BROADCAST" : "TARGETED")
+                .hasImage(msg.getImageCosKey() != null)
                 .build();
     }
 }

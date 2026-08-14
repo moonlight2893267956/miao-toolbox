@@ -19,6 +19,8 @@ export interface MessageResponse {
   editedAt?: string | null;
   recipientCount?: number;
   scope?: 'BROADCAST' | 'TARGETED';
+  /** 是否含配图 */
+  hasImage?: boolean;
 }
 
 export interface MessageDetailResponse {
@@ -35,6 +37,8 @@ export interface MessageDetailResponse {
   read: boolean;
   readAt: string | null;
   createdAt: string;
+  /** 图片预览 URL（后端代理端点），无图时为 null */
+  imageUrl?: string | null;
 }
 
 export interface PagedMessagesResponse {
@@ -57,6 +61,8 @@ export interface SendMessageRequest {
   priority?: string;
   scope?: 'BROADCAST' | 'TARGETED';
   userIds?: number[] | null;
+  /** 消息配图 COS key */
+  imageCosKey?: string | null;
 }
 
 export const notificationService = {
@@ -102,6 +108,24 @@ export const notificationService = {
     await axiosInstance.delete('/api/messages', { data: messageIds });
   },
 
+  // ==================== 消息配图 ====================
+
+  /** 上传消息配图（管理员），返回 COS key */
+  async uploadMessageImage(file: File): Promise<{ cosKey: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const resp = await axiosInstance.post('/api/admin/messages/upload-image', formData);
+    return resp.data.data;
+  },
+
+  /** 通过后端代理端点获取消息图片 blob（需携带 JWT，故不能用 <img> 直接加载） */
+  async fetchMessageImage(messageId: number): Promise<Blob> {
+    const resp = await axiosInstance.get(`/api/messages/${messageId}/image`, {
+      responseType: 'blob',
+    });
+    return resp.data;
+  },
+
   // ==================== 公告管理（管理员） ====================
 
   async listAnnouncements(params: { page?: number; pageSize?: number }): Promise<PagedMessagesResponse> {
@@ -109,7 +133,7 @@ export const notificationService = {
     return response.data.data;
   },
 
-  async updateAnnouncement(messageId: number, data: { title: string; content: string }): Promise<void> {
+  async updateAnnouncement(messageId: number, data: { title: string; content: string; imageCosKey?: string | null }): Promise<void> {
     await axiosInstance.put(`/api/admin/messages/announcements/${messageId}`, data);
   },
 

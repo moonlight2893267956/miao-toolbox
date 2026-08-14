@@ -26,4 +26,6 @@ public class MessageDetailResponse {
     private boolean read;
     private LocalDateTime readAt;
     private LocalDateTime createdAt;
+    /** 图片预览 URL（后端代理端点），无图时为 null */
+    private String imageUrl;
 }

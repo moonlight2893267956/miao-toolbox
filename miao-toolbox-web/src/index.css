@@ -606,118 +606,93 @@ a {
   text-decoration: underline;
 }
 
-/* ── 邀请提示卡（深色玻璃质感）─ 原 Alert 浅绿色与深色主题冲突，重构 */
-.miao-invite-card {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 24px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  background:
-    linear-gradient(135deg, rgba(0, 212, 170, 0.08) 0%, rgba(0, 212, 255, 0.04) 100%);
-  border: 1px solid rgba(0, 212, 170, 0.25);
-  box-shadow: inset 0 1px 0 rgba(0, 212, 170, 0.12);
-  overflow: hidden;
-}
-
-/* 左侧霓虹绿竖条 */
-.miao-invite-card::before {
-  content: '';
+/* ── 邀请徽章：悬浮于面板右上角，hover 显示完整说明 ── */
+.miao-invite-badge {
   position: absolute;
-  left: 0;
-  top: 12px;
-  bottom: 12px;
-  width: 2px;
-  border-radius: 2px;
-  background: linear-gradient(180deg, #00d4aa 0%, #00d4ff 100%);
-  box-shadow: 0 0 10px rgba(0, 212, 170, 0.6);
+  top: 38px;
+  right: 18px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  background: rgba(0, 212, 170, 0.1);
+  border: 1px solid rgba(0, 212, 170, 0.22);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(0, 212, 170, 0.12);
+  color: #00d4aa;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  cursor: help;
+  transition: background 200ms ease, border-color 200ms ease, transform 200ms ease;
 }
 
-.miao-invite-card-icon {
-  flex: 0 0 auto;
-  width: 32px;
-  height: 32px;
+.miao-invite-badge:hover {
+  background: rgba(0, 212, 170, 0.16);
+  border-color: rgba(0, 212, 170, 0.35);
+  transform: translateY(-1px);
+}
+
+.miao-invite-badge-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  background: rgba(0, 212, 170, 0.14);
-  color: #00d4aa;
-  font-size: 16px;
-  margin-left: 4px;
-  box-shadow: inset 0 0 0 1px rgba(0, 212, 170, 0.2);
+  font-size: 12px;
 }
 
-.miao-invite-card-body {
-  flex: 1 1 auto;
-  min-width: 0;
+.miao-invite-badge-label {
+  white-space: nowrap;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.miao-invite-card-title {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: #f0f0f5;
-  line-height: 1.4;
-  margin-bottom: 4px;
-  letter-spacing: 0.01em;
-}
-
-.miao-invite-card-title strong {
-  color: #00d4aa;
-  font-weight: 700;
-  font-family: var(--miao-font-mono, 'JetBrains Mono', monospace);
-  background: rgba(0, 212, 170, 0.08);
-  padding: 1px 6px;
-  border-radius: 4px;
-  margin: 0 2px;
-}
-
-.miao-invite-card-desc {
-  font-size: 12.5px;
-  line-height: 1.55;
-  color: rgba(247, 249, 255, 0.55);
-}
-
-/* 错误态邀请卡 */
-.miao-invite-card.is-invalid {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(220, 38, 38, 0.04) 100%);
-  border-color: rgba(239, 68, 68, 0.28);
-  box-shadow: inset 0 1px 0 rgba(239, 68, 68, 0.12);
-}
-
-.miao-invite-card.is-invalid::before {
-  background: linear-gradient(180deg, #ef4444 0%, #f87171 100%);
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
-}
-
-.miao-invite-card.is-invalid .miao-invite-card-icon {
-  background: rgba(239, 68, 68, 0.14);
+/* 错误态徽章 */
+.miao-invite-badge.is-invalid {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.25);
   color: #f87171;
-  box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.2);
 }
 
-/* 加载态邀请卡 */
-.miao-invite-card.is-loading {
-  background: linear-gradient(135deg, rgba(0, 212, 255, 0.06) 0%, rgba(0, 212, 255, 0.02) 100%);
-  border-color: rgba(0, 212, 255, 0.2);
+.miao-invite-badge.is-invalid:hover {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.38);
 }
 
-.miao-invite-card.is-loading::before {
-  background: linear-gradient(180deg, #00d4ff 0%, #0ea5e9 100%);
-  box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
-}
-
-.miao-invite-card.is-loading .miao-invite-card-icon {
-  background: rgba(0, 212, 255, 0.14);
+/* 加载态徽章 */
+.miao-invite-badge.is-loading {
+  background: rgba(0, 212, 255, 0.08);
+  border-color: rgba(0, 212, 255, 0.18);
   color: #00d4ff;
+}
+
+.miao-invite-badge.is-loading .miao-invite-badge-icon {
   animation: miao-invite-pulse 1.6s ease-in-out infinite;
 }
 
 @keyframes miao-invite-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
+}
+
+/* 邀请徽章 tooltip */
+.miao-invite-badge-tooltip .ant-tooltip-inner {
+  background: rgba(12, 12, 12, 0.92);
+  border: 1px solid rgba(200, 169, 126, 0.2);
+  color: rgba(244, 241, 236, 0.85);
+  font-size: 12.5px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
+}
+
+.miao-invite-badge-tooltip .ant-tooltip-arrow::before {
+  background: rgba(12, 12, 12, 0.92);
 }
 
 /* ── Divider 渐变虚线 ── */
@@ -977,6 +952,65 @@ a {
 .miao-auth-panel .miao-code-send-btn .miao-code-countdown {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
+}
+
+/* 步骤内容过渡动画 */
+.miao-email-step-content {
+  animation: miao-step-fade-in 350ms ease-out;
+}
+
+@keyframes miao-step-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 邮箱已验证提示 */
+.miao-email-verified-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(0, 212, 170, 0.06);
+  border: 1px solid rgba(0, 212, 170, 0.15);
+  color: #00d4aa;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.miao-email-verified-hint .anticon {
+  font-size: 14px;
+}
+
+/* 返回上一步按钮 */
+.miao-email-back-btn {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 0;
+  background: transparent !important;
+  border: none !important;
+  color: rgba(247, 249, 255, 0.45);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 200ms ease;
+  text-align: center;
+}
+
+.miao-email-back-btn:hover {
+  color: rgba(247, 249, 255, 0.7);
+}
+
+.miao-email-back-btn .anticon {
+  margin-right: 4px;
+  font-size: 11px;
 }
 
 /* ====================== 重置密码页（极简高级风） ====================== */
@@ -1869,36 +1903,54 @@ body.miao-page-reset-password .miao-auth-panel::after {
   transform: none !important;
 }
 
-/* 邀请卡：深色风格 */
-.miao-auth-page--geo .miao-auth-panel .miao-invite-card {
-  background: rgba(200, 169, 126, 0.04);
-  border: 1px solid rgba(200, 169, 126, 0.08);
-  color: rgba(244, 241, 236, 0.7);
+/* 邮箱已验证提示：geo 风格 */
+.miao-auth-page--geo .miao-auth-panel .miao-email-verified-hint {
+  background: rgba(200, 169, 126, 0.05);
+  border-color: rgba(200, 169, 126, 0.15);
+  color: rgba(200, 169, 126, 0.8);
 }
 
-.miao-auth-page--geo .miao-auth-panel .miao-invite-card-icon {
-  color: rgba(200, 169, 126, 0.5);
+/* 返回按钮：geo 风格 */
+.miao-auth-page--geo .miao-auth-panel .miao-email-back-btn {
+  color: rgba(244, 241, 236, 0.35);
 }
 
-.miao-auth-page--geo .miao-auth-panel .miao-invite-card-title {
-  color: rgba(244, 241, 236, 0.85);
+.miao-auth-page--geo .miao-auth-panel .miao-email-back-btn:hover {
+  color: rgba(200, 169, 126, 0.7);
 }
 
-.miao-auth-page--geo .miao-auth-panel .miao-invite-card-desc {
-  color: rgba(244, 241, 236, 0.4);
+/* 邀请徽章：深色风格 */
+.miao-auth-page--geo .miao-auth-panel .miao-invite-badge {
+  top: 38px;
+  right: 18px;
+  background: rgba(200, 169, 126, 0.08);
+  border-color: rgba(200, 169, 126, 0.18);
+  color: rgba(200, 169, 126, 0.85);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(200, 169, 126, 0.1);
 }
 
-.miao-auth-page--geo .miao-auth-panel .miao-invite-card.is-invalid {
-  border-color: rgba(255, 100, 100, 0.2);
-  background: rgba(255, 100, 100, 0.05);
+.miao-auth-page--geo .miao-auth-panel .miao-invite-badge:hover {
+  background: rgba(200, 169, 126, 0.13);
+  border-color: rgba(200, 169, 126, 0.3);
 }
 
-.miao-auth-page--geo .miao-auth-panel .miao-invite-card.is-invalid .miao-invite-card-icon {
-  color: rgba(255, 100, 100, 0.7);
+.miao-auth-page--geo .miao-auth-panel .miao-invite-badge.is-invalid {
+  background: rgba(255, 100, 100, 0.08);
+  border-color: rgba(255, 100, 100, 0.18);
+  color: rgba(255, 130, 130, 0.85);
 }
 
-.miao-auth-page--geo .miao-auth-panel .miao-invite-card.is-invalid .miao-invite-card-title {
-  color: rgba(255, 130, 130, 0.9);
+.miao-auth-page--geo .miao-auth-panel .miao-invite-badge.is-invalid:hover {
+  background: rgba(255, 100, 100, 0.13);
+  border-color: rgba(255, 100, 100, 0.28);
+}
+
+.miao-auth-page--geo .miao-auth-panel .miao-invite-badge.is-loading {
+  background: rgba(200, 169, 126, 0.06);
+  border-color: rgba(200, 169, 126, 0.14);
+  color: rgba(200, 169, 126, 0.7);
 }
 
 .miao-register-divider {
@@ -1921,6 +1973,115 @@ body.miao-page-reset-password .miao-auth-panel::after {
 
 .miao-register-footer a:hover {
   color: #c8a97e;
+}
+
+/* ── 小屏/短视口适配：降低注册页整体高度，避免滚动 ── */
+@media (max-height: 760px) {
+  .miao-auth-page--geo .miao-auth-panel {
+    padding: 32px 28px;
+  }
+
+  .miao-auth-page--geo .miao-auth-heading {
+    margin-bottom: 22px;
+  }
+
+  .miao-auth-page--geo .miao-auth-heading h2 {
+    font-size: 26px;
+  }
+
+  .miao-invite-badge {
+    top: 34px;
+    right: 16px;
+    padding: 4px 9px;
+  }
+
+  .miao-auth-page--geo .miao-auth-panel .ant-form-item {
+    margin-bottom: 14px;
+  }
+
+  .miao-auth-page--geo .miao-auth-panel .ant-tabs-nav {
+    margin: 4px 0 16px !important;
+  }
+
+  .miao-register-divider {
+    margin: 12px 0;
+  }
+
+  .miao-auth-social-btn {
+    height: 40px;
+    margin-bottom: 8px;
+  }
+
+  .miao-auth-social-btn-last {
+    margin-bottom: 12px;
+  }
+}
+
+@media (max-height: 680px) {
+  .miao-auth-page--geo .miao-auth-panel-wrap {
+    padding: 16px;
+  }
+
+  .miao-auth-page--geo .miao-auth-panel {
+    padding: 24px 22px;
+    border-radius: 18px;
+  }
+
+  .miao-auth-page--geo .miao-auth-heading {
+    margin-bottom: 16px;
+  }
+
+  .miao-auth-page--geo .miao-auth-heading h2 {
+    font-size: 24px;
+  }
+
+  .miao-auth-page--geo .miao-auth-subtitle {
+    font-size: 13px;
+  }
+
+  .miao-invite-badge {
+    top: 32px;
+    right: 14px;
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .miao-auth-page--geo .miao-auth-panel .ant-form-item {
+    margin-bottom: 10px;
+  }
+
+  .miao-auth-page--geo .miao-auth-panel .ant-input,
+  .miao-auth-page--geo .miao-auth-panel .ant-input-password,
+  .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper {
+    padding: 10px 0 !important;
+    font-size: 15px;
+  }
+
+  .miao-auth-page--geo .miao-auth-panel .ant-tabs-nav {
+    margin: 2px 0 12px !important;
+  }
+
+  .miao-auth-page--geo .miao-auth-panel .ant-tabs-tab {
+    padding: 6px 12px !important;
+  }
+
+  .miao-register-divider {
+    margin: 10px 0;
+  }
+
+  .miao-auth-social-btn {
+    height: 36px;
+    margin-bottom: 6px;
+    font-size: 14px;
+  }
+
+  .miao-auth-social-btn-last {
+    margin-bottom: 10px;
+  }
+
+  .miao-register-footer {
+    font-size: 13px;
+  }
 }
 
 /* 向导容器 */

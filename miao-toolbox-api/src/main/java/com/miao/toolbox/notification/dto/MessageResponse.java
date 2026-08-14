@@ -29,4 +29,6 @@ public class MessageResponse {
     private Integer recipientCount;
     /** 管理员视角：发送范围 BROADCAST/TARGETED */
     private String scope;
+    /** 是否含配图（列表仅返回布尔标识，不加载图片本身） */
+    private boolean hasImage;
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Spin, message as antMessage } from 'antd';
+import { Button, Spin, Image, Skeleton, message as antMessage } from 'antd';
 import {
   ArrowLeftOutlined,
   CheckCircleOutlined,
@@ -10,10 +10,12 @@ import {
   UserOutlined,
   BellOutlined,
   ExclamationCircleOutlined,
+  FileImageOutlined,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import { useNotification } from '../../contexts/NotificationContext';
 import type { MessageDetailResponse } from '../../services/notificationService';
+import { useMessageImage } from '../../utils/imageLoader';
 import PageFadeIn from '../../components/shared/PageFadeIn';
 import './MessageDetailPage.css';
 
@@ -46,6 +48,14 @@ const MessageDetailPage: React.FC = () => {
 
   const [detail, setDetail] = useState<MessageDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // 详情配图：仅当详情带图时加载（blob ObjectURL）
+  const activeImageMessageId = detail?.imageUrl ? detail.id : null;
+  const {
+    imageUrl: detailImageUrl,
+    loading: detailImageLoading,
+    error: detailImageError,
+  } = useMessageImage(activeImageMessageId);
 
   useEffect(() => {
     if (!id) return;
@@ -110,9 +120,9 @@ const MessageDetailPage: React.FC = () => {
         </div>
 
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
+          initial={{ opacity: 0, y: 20, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 30, mass: 0.9 }}
           className="msg-detail-page-card"
         >
           {/* 顶部色条 */}
@@ -128,7 +138,13 @@ const MessageDetailPage: React.FC = () => {
           />
 
           {/* 信头 */}
-          <div className="msg-detail-page-letterhead" style={{ background: typeCfg.bg }}>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, type: 'spring', stiffness: 300, damping: 25 }}
+            className="msg-detail-page-letterhead"
+            style={{ background: typeCfg.bg }}
+          >
             <div className="msg-detail-page-badges">
               <span className="msg-detail-page-type-badge" style={{ color: typeCfg.color, background: 'rgba(255,255,255,0.7)' }}>
                 {typeCfg.icon} {typeCfg.label}
@@ -154,22 +170,65 @@ const MessageDetailPage: React.FC = () => {
                 </>
               )}
             </div>
-          </div>
+          </motion.div>
 
           {/* 分隔装饰 */}
-          <div className="msg-detail-page-ornament">
+          <motion.div
+            initial={{ opacity: 0, scaleX: 0.8 }}
+            animate={{ opacity: 1, scaleX: 1 }}
+            transition={{ delay: 0.25, type: 'spring', stiffness: 280, damping: 24 }}
+            className="msg-detail-page-ornament"
+          >
             <span className="msg-detail-page-ornament-line" />
             <span className="msg-detail-page-ornament-icon" style={{ color: typeCfg.color }}>{typeCfg.icon}</span>
             <span className="msg-detail-page-ornament-line" />
-          </div>
+          </motion.div>
 
           {/* 正文 */}
-          <div className="msg-detail-page-prose">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.32, type: 'spring', stiffness: 300, damping: 28 }}
+            className="msg-detail-page-prose"
+          >
             {detail.content}
-          </div>
+          </motion.div>
+
+          {/* 配图 */}
+          {detail.imageUrl && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.38, type: 'spring', stiffness: 300, damping: 26 }}
+              className="msg-detail-page-image"
+            >
+              {detailImageLoading ? (
+                <Skeleton.Image active style={{ width: '100%', maxWidth: 480, height: 240 }} />
+              ) : detailImageError ? (
+                <div className="msg-detail-page-image-error">
+                  <FileImageOutlined />
+                  <span>图片加载失败</span>
+                </div>
+              ) : detailImageUrl ? (
+                <Image
+                  src={detailImageUrl}
+                  alt={detail.title}
+                  className="msg-detail-page-image-img"
+                  preview={{
+                    mask: <div className="msg-detail-page-image-mask"><FileImageOutlined /> 查看大图</div>,
+                  }}
+                />
+              ) : null}
+            </motion.div>
+          )}
 
           {/* 底部状态 */}
-          <div className="msg-detail-page-status">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, type: 'spring', stiffness: 300, damping: 28 }}
+            className="msg-detail-page-status"
+          >
             {detail.read ? (
               <div className="msg-detail-page-status-read">
                 <CheckCircleOutlined />
@@ -181,7 +240,7 @@ const MessageDetailPage: React.FC = () => {
                 <span>未读消息</span>
               </div>
             )}
-          </div>
+          </motion.div>
         </motion.div>
       </div>
     </PageFadeIn>

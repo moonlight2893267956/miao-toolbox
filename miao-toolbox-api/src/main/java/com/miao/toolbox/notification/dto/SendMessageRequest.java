@@ -34,4 +34,7 @@ public class SendMessageRequest {
 
     /** 定向用户 ID 列表，scope=TARGETED 时必填 */
     private List<Long> userIds;
+
+    /** 消息配图 COS key（可选，通过 /api/admin/messages/upload-image 上传后获得） */
+    private String imageCosKey;
 }

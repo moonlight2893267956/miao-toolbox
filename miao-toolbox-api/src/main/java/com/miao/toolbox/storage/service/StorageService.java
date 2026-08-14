@@ -261,6 +261,21 @@ public class StorageService {
     }
 
     /**
+     * 构建消息配图 COS key
+     * <p>
+     * 格式：messages/{shortUUID}-{safeFileName}
+     * 消息配图为系统资源，与用户文件（files/）隔离存储。
+     *
+     * @param fileName 文件名（原始，未经清洗）
+     * @return COS key
+     */
+    public String buildMessageImageKey(String fileName) {
+        String safeName = fileNameValidator.validate(fileName);
+        String shortUuid = UUID.randomUUID().toString().substring(0, 8);
+        return "messages/" + shortUuid + "-" + safeName;
+    }
+
+    /**
      * 获取 COS bucket 名称
      */
     public String getBucket() {

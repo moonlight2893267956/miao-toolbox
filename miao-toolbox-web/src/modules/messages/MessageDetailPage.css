@@ -30,11 +30,13 @@
   padding: 0 10px !important;
   border-radius: 8px !important;
   color: var(--ant-color-text-secondary, rgba(0, 0, 0, 0.55)) !important;
+  transition: all 200ms cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
 
 .msg-detail-page-back:hover {
   background: var(--ant-color-bg-text-hover, rgba(0, 0, 0, 0.04)) !important;
-  color: var(--ant-color-primary, #1677ff) !important;
+  color: var(--miao-brand, #5c4fd0) !important;
+  transform: translateX(-3px);
 }
 
 /* 卡片 */
@@ -44,6 +46,11 @@
   border: 1px solid var(--ant-color-border-secondary, #f0f0f0);
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.msg-detail-page-card:hover {
+  box-shadow: 0 8px 24px rgba(92, 79, 208, 0.10), 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
 /* 顶部色条 */
@@ -73,6 +80,11 @@
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.3px;
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.msg-detail-page-type-badge:hover {
+  transform: scale(1.05);
 }
 
 .msg-detail-page-priority-badge {
@@ -83,6 +95,11 @@
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.msg-detail-page-priority-badge:hover {
+  transform: scale(1.05);
 }
 
 .msg-detail-page-heading {
@@ -160,6 +177,43 @@
   word-break: break-word;
 }
 
+/* 配图 */
+.msg-detail-page-image {
+  padding: 0 32px;
+  margin-top: 20px;
+}
+
+.msg-detail-page-image-img {
+  width: 100%;
+  max-width: 480px;
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(92, 79, 208, 0.12), 0 2px 6px rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--miao-border, rgba(26, 26, 62, 0.08));
+  object-fit: cover;
+}
+
+.msg-detail-page-image-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 480px;
+  height: 140px;
+  border: 1px dashed var(--miao-border-strong, rgba(26, 26, 62, 0.15));
+  border-radius: 14px;
+  color: var(--miao-text-tertiary);
+  font-size: 13px;
+}
+
+.msg-detail-page-image-mask {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
 /* 底部状态 */
 .msg-detail-page-status {
   padding: 28px 32px;
@@ -171,17 +225,17 @@
   gap: 8px;
   padding: 6px 18px;
   border-radius: 999px;
-  background: rgba(45, 107, 214, 0.06);
-  color: var(--ant-color-primary, #1677ff);
+  background: var(--miao-brand-bg, rgba(92, 79, 208, 0.10));
+  color: var(--miao-brand, #5c4fd0);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .msg-detail-page-status-pulse {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--pulse-color, var(--ant-color-primary, #1677ff));
+  background: var(--pulse-color, var(--miao-brand, #5c4fd0));
   position: relative;
 }
 
@@ -190,7 +244,7 @@
   position: absolute;
   inset: -2px;
   border-radius: 50%;
-  background: var(--pulse-color, var(--ant-color-primary, #1677ff));
+  background: var(--pulse-color, var(--miao-brand, #5c4fd0));
   opacity: 0.3;
   animation: msg-detail-pulse 2s ease-out infinite;
 }

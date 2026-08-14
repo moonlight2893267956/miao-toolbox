@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Button, Space, Modal, message, Popconfirm,
-  Form, Input, Select, Radio, Spin, Popover,
+  Form, Input, Select, Spin, Popover, Upload,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
   GlobalOutlined, UserOutlined, SoundOutlined,
   ReloadOutlined, ClockCircleOutlined, ExclamationCircleOutlined,
-  UsergroupAddOutlined, MailOutlined,
+  UsergroupAddOutlined, MailOutlined, PictureOutlined,
+  UploadOutlined, CloseOutlined, CloudUploadOutlined,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import { notificationService, type MessageResponse, type SendMessageRequest, type RecipientInfo } from '../../services/notificationService';
+import { loadMessageImageObjectUrl, revokeObjectUrl } from '../../utils/imageLoader';
 import { getAdminUsers } from '../../services/adminService';
 import PageFadeIn from '../../components/shared/PageFadeIn';
 import AdminPageHeader from './components/AdminPageHeader';
@@ -41,8 +43,8 @@ function formatRelativeTime(dateStr: string): string {
 }
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string; bg: string; borderColor: string }> = {
-  URGENT: { label: '紧急', color: '#C2362F', bg: 'rgba(255, 77, 79, 0.08)', borderColor: 'rgba(255, 77, 79, 0.20)' },
-  HIGH:   { label: '重要', color: 'var(--miao-amber)', bg: 'rgba(245, 158, 11, 0.08)', borderColor: 'rgba(245, 158, 11, 0.20)' },
+  URGENT: { label: '紧急', color: 'var(--miao-error-text)', bg: 'var(--miao-error-bg)', borderColor: 'rgba(255, 77, 79, 0.20)' },
+  HIGH:   { label: '重要', color: 'var(--miao-warning-text)', bg: 'var(--miao-warning-bg)', borderColor: 'rgba(250, 173, 20, 0.20)' },
   NORMAL: { label: '普通', color: 'var(--miao-text-tertiary)', bg: 'var(--miao-bg-muted)', borderColor: 'var(--miao-border)' },
   LOW:    { label: '低', color: 'var(--miao-text-tertiary)', bg: 'var(--miao-bg-muted)', borderColor: 'var(--miao-border)' },
 };
@@ -96,7 +98,7 @@ const AnnouncementCard: React.FC<{
             <span className="miao-announce-recipient-count">
               共 <strong>{recipients.length}</strong> 位接收人
             </span>
-            <UsergroupAddOutlined style={{ fontSize: 13, color: 'var(--miao-teal)' }} />
+            <UsergroupAddOutlined style={{ fontSize: 13, color: 'var(--miao-brand)' }} />
           </div>
           <ul className="miao-announce-recipient-list">
             {recipients.map(r => (
@@ -141,18 +143,7 @@ const AnnouncementCard: React.FC<{
       <div className="miao-announce-card-body">
         {/* 顶部：图标 + 标题 + 标签 */}
         <div className="miao-announce-card-head">
-          <div className="miao-announce-card-icon" style={{
-            background: isDeleted
-              ? 'var(--miao-bg-muted)'
-              : isBroadcast
-                ? 'rgba(45, 107, 214, 0.10)'
-                : 'rgba(54, 179, 126, 0.12)',
-            color: isDeleted
-              ? 'var(--miao-text-tertiary)'
-              : isBroadcast
-                ? 'var(--miao-indigo)'
-                : 'var(--miao-teal)',
-          }}>
+          <div className={`miao-announce-card-icon ${isDeleted ? 'miao-announce-card-icon--deleted' : ''} ${isBroadcast ? 'miao-announce-card-icon--broadcast' : 'miao-announce-card-icon--targeted'}`}>
             {isBroadcast ? <GlobalOutlined /> : <UserOutlined />}
           </div>
 
@@ -169,9 +160,7 @@ const AnnouncementCard: React.FC<{
               )}
             </div>
             <div className="miao-announce-card-meta">
-              <span className="miao-announce-scope-badge" style={{
-                background: isBroadcast ? 'rgba(45, 107, 214, 0.08)' : 'rgba(54, 179, 126, 0.10)',
-                color: isBroadcast ? 'var(--miao-indigo)' : 'var(--miao-teal)',
+              <span className={`miao-announce-scope-badge ${isBroadcast ? 'miao-announce-scope-badge--broadcast' : 'miao-announce-scope-badge--targeted'}`} style={{
                 ...(isBroadcast ? {} : { cursor: 'pointer' }),
               }}>
                 {isBroadcast ? (
@@ -205,6 +194,11 @@ const AnnouncementCard: React.FC<{
                 {item.priority === 'URGENT' && <ExclamationCircleOutlined style={{ fontSize: 10 }} />}
                 {priority.label}
               </span>
+              {item.hasImage && (
+                <span className="miao-announce-image-badge" title="含配图">
+                  <PictureOutlined style={{ fontSize: 11 }} /> 配图
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -279,7 +273,13 @@ const AnnouncementManagePage: React.FC = () => {
   const [userSearchLoading, setUserSearchLoading] = useState(false);
   const [form] = Form.useForm();
 
+  // 配图状态：imageCosKey 提交到后端；imagePreviewUrl 为本地 ObjectURL（新建预览/编辑回显）
+  const [imageCosKey, setImageCosKey] = useState<string | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+
   const scopeValue = Form.useWatch('scope', form);
+  const priorityValue = Form.useWatch('priority', form);
 
   const fetchAnnouncements = useCallback(async (p: number) => {
     setLoading(true);
@@ -315,17 +315,26 @@ const AnnouncementManagePage: React.FC = () => {
     }
   }, []);
 
+  /** 重置配图状态 */
+  const resetImage = useCallback(() => {
+    revokeObjectUrl(imagePreviewUrl);
+    setImageCosKey(null);
+    setImagePreviewUrl(null);
+    setImageUploading(false);
+  }, [imagePreviewUrl]);
+
   /** 打开发布弹窗 */
   const handleCreate = useCallback(() => {
     setEditMode(false);
     setEditingId(null);
     form.resetFields();
     form.setFieldsValue({ scope: 'BROADCAST', priority: 'NORMAL' });
+    resetImage();
     setModalVisible(true);
-  }, [form]);
+  }, [form, resetImage]);
 
   /** 打开编辑弹窗 */
-  const handleEdit = useCallback((record: MessageResponse) => {
+  const handleEdit = useCallback(async (record: MessageResponse) => {
     setEditMode(true);
     setEditingId(record.id);
     form.setFieldsValue({
@@ -333,8 +342,45 @@ const AnnouncementManagePage: React.FC = () => {
       content: record.summary,
       priority: record.priority,
     });
+    resetImage();
     setModalVisible(true);
-  }, [form]);
+
+    // 编辑回显：已有配图时通过后端代理端点加载图片
+    if (record.hasImage) {
+      setImageUploading(true);
+      try {
+        const url = await loadMessageImageObjectUrl(record.id);
+        setImagePreviewUrl(url);
+      } catch {
+        message.warning('配图加载失败，可重新上传');
+      } finally {
+        setImageUploading(false);
+      }
+    }
+  }, [form, resetImage]);
+
+  /** 配图上传（手动上传到后端，获取 cosKey） */
+  const handleImageUpload = useCallback(async (file: File) => {
+    if (file.size > 5 * 1024 * 1024) {
+      message.error('图片大小不能超过 5MB');
+      return false;
+    }
+    setImageUploading(true);
+    try {
+      const { cosKey } = await notificationService.uploadMessageImage(file);
+      // 新上传：本地生成预览（上传后文件在 COS，本地可直接用 blob 预览）
+      setImageCosKey(cosKey);
+      const localUrl = URL.createObjectURL(file);
+      revokeObjectUrl(imagePreviewUrl);
+      setImagePreviewUrl(localUrl);
+      return false; // 阻止 antd 默认上传行为
+    } catch {
+      message.error('图片上传失败');
+      return false;
+    } finally {
+      setImageUploading(false);
+    }
+  }, [imagePreviewUrl]);
 
   /** 提交发布/编辑 */
   const handleSubmit = useCallback(async () => {
@@ -346,6 +392,7 @@ const AnnouncementManagePage: React.FC = () => {
         await notificationService.updateAnnouncement(editingId, {
           title: values.title,
           content: values.content,
+          imageCosKey: imageCosKey,
         });
         message.success('公告已更新');
       } else {
@@ -356,12 +403,14 @@ const AnnouncementManagePage: React.FC = () => {
           priority: values.priority || 'NORMAL',
           scope: values.scope,
           userIds: values.scope === 'TARGETED' ? values.userIds : undefined,
+          imageCosKey: imageCosKey,
         };
         await notificationService.sendMessage(request);
         message.success('公告已发布');
       }
 
       setModalVisible(false);
+      resetImage();
       fetchAnnouncements(1);
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
@@ -369,7 +418,7 @@ const AnnouncementManagePage: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [editMode, editingId, form, fetchAnnouncements]);
+  }, [editMode, editingId, form, fetchAnnouncements, imageCosKey, resetImage]);
 
   /** 删除公告 */
   const handleDelete = useCallback(async (messageId: number) => {
@@ -416,6 +465,12 @@ const AnnouncementManagePage: React.FC = () => {
             <div className="miao-announce-stat-chip miao-announce-stat-chip--urgent">
               <ExclamationCircleOutlined style={{ fontSize: 13 }} />
               <span><strong>{announcements.filter(a => a.priority === 'URGENT').length}</strong> 条紧急</span>
+            </div>
+          )}
+          {announcements.filter(a => a.hasImage).length > 0 && (
+            <div className="miao-announce-stat-chip miao-announce-stat-chip--image">
+              <PictureOutlined style={{ fontSize: 13 }} />
+              <span><strong>{announcements.filter(a => a.hasImage).length}</strong> 条含配图</span>
             </div>
           )}
         </div>
@@ -474,18 +529,39 @@ const AnnouncementManagePage: React.FC = () => {
 
         {/* 发布/编辑弹窗 */}
         <Modal
-          title={editMode ? '编辑公告' : '发布公告'}
           open={modalVisible}
           onOk={handleSubmit}
-          onCancel={() => setModalVisible(false)}
+          onCancel={() => {
+            resetImage();
+            setModalVisible(false);
+          }}
           confirmLoading={submitting}
-          okText={editMode ? '保存' : '发布'}
+          okText={editMode ? '保存修改' : '立即发布'}
           cancelText="取消"
-          width={600}
+          width={620}
           destroyOnClose
           className="miao-announce-modal"
+          closeIcon={
+            <span className="miao-announce-modal-close">
+              <CloseOutlined />
+            </span>
+          }
+          title={
+            <div className="miao-announce-modal-title">
+              <div className="miao-announce-modal-title-icon">
+                {editMode ? <EditOutlined /> : <SoundOutlined />}
+              </div>
+              <div className="miao-announce-modal-title-text">
+                <strong>{editMode ? '编辑公告' : '发布公告'}</strong>
+                <span>{editMode ? '修改内容或配图，保存后立即生效' : '创建新的系统公告，支持附加配图'}</span>
+              </div>
+              <div className="miao-announce-modal-title-tag">
+                {editMode ? '编辑模式' : '新建公告'}
+              </div>
+            </div>
+          }
         >
-          <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+          <Form form={form} layout="vertical" style={{ marginTop: 8 }}>
             <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }, { max: 100, message: '标题不能超过100字' }]}>
               <Input placeholder="请输入公告标题" maxLength={100} showCount />
             </Form.Item>
@@ -494,13 +570,119 @@ const AnnouncementManagePage: React.FC = () => {
               <TextArea placeholder="请输入公告正文" rows={6} maxLength={2000} showCount />
             </Form.Item>
 
+            <Form.Item label="配图" extra={<span className="miao-announce-image-extra">可选 · 建议 16:9 或 4:3，发布后随公告一起展示</span>}>
+              <div className="miao-announce-image-uploader">
+                {imagePreviewUrl ? (
+                  <div className="miao-announce-image-preview">
+                    <div className="miao-announce-image-frame">
+                      <img src={imagePreviewUrl} alt="公告配图" className="miao-announce-image-thumb" />
+                      <div className="miao-announce-image-frame-overlay">
+                        <span className="miao-announce-image-frame-check">
+                          <PictureOutlined />
+                        </span>
+                      </div>
+                      <span
+                        className="miao-announce-image-remove"
+                        onClick={() => {
+                          revokeObjectUrl(imagePreviewUrl);
+                          setImageCosKey(null);
+                          setImagePreviewUrl(null);
+                        }}
+                        title="移除配图"
+                      >
+                        <DeleteOutlined />
+                      </span>
+                    </div>
+                    <div className="miao-announce-image-side">
+                      <div className="miao-announce-image-side-head">
+                        <span className="miao-announce-image-side-icon">
+                          <PictureOutlined />
+                        </span>
+                        <div className="miao-announce-image-side-text">
+                          <strong>配图已就绪</strong>
+                          <span>点击图片右上角按钮可随时移除</span>
+                        </div>
+                      </div>
+                      <Upload
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        showUploadList={false}
+                        beforeUpload={(file) => {
+                          void handleImageUpload(file as File);
+                          return false;
+                        }}
+                        disabled={imageUploading}
+                        className="miao-announce-image-replace"
+                      >
+                        <Button size="small" type="default" icon={<UploadOutlined />} loading={imageUploading}>
+                          替换图片
+                        </Button>
+                      </Upload>
+                    </div>
+                  </div>
+                ) : (
+                  <Upload.Dragger
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    showUploadList={false}
+                    beforeUpload={(file) => {
+                      void handleImageUpload(file as File);
+                      return false;
+                    }}
+                    disabled={imageUploading}
+                    className="miao-announce-image-dragger"
+                  >
+                    <div className="miao-announce-image-dragger-inner">
+                      <div className="miao-announce-image-dragger-illust">
+                        <CloudUploadOutlined />
+                      </div>
+                      <div className="miao-announce-image-dragger-text">
+                        <strong className="miao-announce-image-dragger-title">
+                          {imageUploading ? '正在上传…' : '点击或拖拽图片到此处'}
+                        </strong>
+                        <span className="miao-announce-image-dragger-hint">
+                          支持 JPG / PNG / GIF / WebP · 单张不超过 5MB
+                        </span>
+                      </div>
+                    </div>
+                  </Upload.Dragger>
+                )}
+              </div>
+            </Form.Item>
+
             {!editMode && (
               <>
                 <Form.Item name="scope" label="发送范围">
-                  <Radio.Group>
-                    <Radio value="BROADCAST">全部用户（广播）</Radio>
-                    <Radio value="TARGETED">指定用户</Radio>
-                  </Radio.Group>
+                  <div className="miao-announce-scope-cards">
+                    <div
+                      className={`miao-announce-scope-card ${scopeValue === 'BROADCAST' ? 'miao-announce-scope-card--active' : ''}`}
+                      onClick={() => form.setFieldValue('scope', 'BROADCAST')}
+                    >
+                      <div className="miao-announce-scope-card-icon miao-announce-scope-card-icon--broadcast">
+                        <GlobalOutlined />
+                      </div>
+                      <div className="miao-announce-scope-card-body">
+                        <strong>全员广播</strong>
+                        <span>向所有用户推送一次</span>
+                      </div>
+                      <span className="miao-announce-scope-card-radio">
+                        {scopeValue === 'BROADCAST' && <span className="miao-announce-scope-card-radio-dot" />}
+                      </span>
+                    </div>
+                    <div
+                      className={`miao-announce-scope-card ${scopeValue === 'TARGETED' ? 'miao-announce-scope-card--active' : ''}`}
+                      onClick={() => form.setFieldValue('scope', 'TARGETED')}
+                    >
+                      <div className="miao-announce-scope-card-icon miao-announce-scope-card-icon--targeted">
+                        <UsergroupAddOutlined />
+                      </div>
+                      <div className="miao-announce-scope-card-body">
+                        <strong>定向发送</strong>
+                        <span>选择指定用户接收</span>
+                      </div>
+                      <span className="miao-announce-scope-card-radio">
+                        {scopeValue === 'TARGETED' && <span className="miao-announce-scope-card-radio-dot" />}
+                      </span>
+                    </div>
+                  </div>
                 </Form.Item>
 
                 {scopeValue === 'TARGETED' && (
@@ -517,12 +699,36 @@ const AnnouncementManagePage: React.FC = () => {
                   </Form.Item>
                 )}
 
-                <Form.Item name="priority" label="优先级">
-                  <Select options={[
-                    { label: '普通', value: 'NORMAL' },
-                    { label: '重要', value: 'HIGH' },
-                    { label: '紧急', value: 'URGENT' },
-                  ]} />
+                <Form.Item name="priority" label="优先级" extra={<span className="miao-announce-image-extra">紧急公告会以红色提示呈现，并推送系统通知</span>}>
+                  <div className="miao-announce-priority-cards">
+                    {[
+                      { value: 'NORMAL', label: '普通', desc: '标准展示', color: 'var(--miao-text-tertiary)' },
+                      { value: 'HIGH', label: '重要', desc: '高亮提醒', color: 'var(--miao-warning-text)' },
+                      { value: 'URGENT', label: '紧急', desc: '红色横幅', color: 'var(--miao-error-text)' },
+                    ].map(opt => {
+                      const currentValue = priorityValue || 'NORMAL';
+                      const active = currentValue === opt.value;
+                      return (
+                        <div
+                          key={opt.value}
+                          className={`miao-announce-priority-card ${active ? 'miao-announce-priority-card--active' : ''} miao-announce-priority-card--${opt.value.toLowerCase()}`}
+                          onClick={() => form.setFieldValue('priority', opt.value)}
+                        >
+                          <span
+                            className="miao-announce-priority-card-dot"
+                            style={{ background: opt.color }}
+                          />
+                          <div className="miao-announce-priority-card-body">
+                            <strong>{opt.label}</strong>
+                            <span>{opt.desc}</span>
+                          </div>
+                          <span className="miao-announce-priority-card-radio">
+                            {active && <span className="miao-announce-priority-card-radio-dot" />}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </Form.Item>
               </>
             )}

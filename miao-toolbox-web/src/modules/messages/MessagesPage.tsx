@@ -4,7 +4,7 @@ import {
 } from 'antd';
 import {
   BellOutlined, DeleteOutlined, CheckOutlined, InfoCircleOutlined,
-  ToolOutlined, SafetyCertificateOutlined, UserOutlined, ExclamationCircleOutlined,
+  ToolOutlined, SafetyCertificateOutlined, UserOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -12,19 +12,12 @@ import type { MessageResponse } from '../../services/notificationService';
 import PageFadeIn from '../../components/shared/PageFadeIn';
 import './MessagesPage.css';
 
-const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-  SYSTEM:       { label: '系统', color: '#2D6BD6', bg: 'rgba(45, 107, 214, 0.10)',  icon: <InfoCircleOutlined /> },
-  TOOL:         { label: '工具', color: '#36B37E', bg: 'rgba(54, 179, 126, 0.12)',   icon: <ToolOutlined /> },
-  SECURITY:     { label: '安全', color: '#C2362F', bg: 'rgba(255, 77, 79, 0.10)',    icon: <SafetyCertificateOutlined /> },
-  ACCOUNT:      { label: '账户', color: '#E58A00', bg: 'rgba(245, 158, 11, 0.12)',   icon: <UserOutlined /> },
-  ANNOUNCEMENT: { label: '公告', color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.10)',   icon: <BellOutlined /> },
-};
-
-const PRIORITY_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  URGENT: { label: '紧急', color: '#C2362F', bg: 'rgba(255, 77, 79, 0.10)' },
-  HIGH:   { label: '重要', color: '#E58A00', bg: 'rgba(245, 158, 11, 0.12)' },
-  NORMAL: { label: '', color: '', bg: '' },
-  LOW:    { label: '', color: '', bg: '' },
+const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; gradient: string; icon: React.ReactNode }> = {
+  SYSTEM:       { label: '系统', color: '#2D6BD6', bg: 'rgba(45, 107, 214, 0.10)',  gradient: 'linear-gradient(135deg, #2D6BD6 0%, #4c9aff 100%)', icon: <InfoCircleOutlined /> },
+  TOOL:         { label: '工具', color: '#36B37E', bg: 'rgba(54, 179, 126, 0.12)',   gradient: 'linear-gradient(135deg, #36B37E 0%, #5dd69b 100%)', icon: <ToolOutlined /> },
+  SECURITY:     { label: '安全', color: '#C2362F', bg: 'rgba(255, 77, 79, 0.10)',    gradient: 'linear-gradient(135deg, #C2362F 0%, #ff6b6b 100%)', icon: <SafetyCertificateOutlined /> },
+  ACCOUNT:      { label: '账户', color: '#E58A00', bg: 'rgba(245, 158, 11, 0.12)',   gradient: 'linear-gradient(135deg, #E58A00 0%, #fbbf24 100%)', icon: <UserOutlined /> },
+  ANNOUNCEMENT: { label: '公告', color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.10)',   gradient: 'linear-gradient(135deg, #7C3AED 0%, #a78bfa 100%)', icon: <BellOutlined /> },
 };
 
 function formatTime(dateStr: string): string {
@@ -130,7 +123,9 @@ const MessagesPage: React.FC = () => {
         {/* 头部 */}
         <div className="msg-page-header">
           <div className="msg-page-header-left">
-            <BellOutlined style={{ fontSize: 18 }} />
+            <div className="msg-page-header-icon">
+              <BellOutlined style={{ fontSize: 18 }} />
+            </div>
             <h2>消息中心</h2>
             {total > 0 && <span className="msg-page-total">{total} 条</span>}
           </div>
@@ -172,9 +167,8 @@ const MessagesPage: React.FC = () => {
           <Empty description="暂无消息" image={Empty.PRESENTED_IMAGE_SIMPLE} className="msg-page-empty" />
         ) : (
           <div className="msg-list">
-            {messages.map(msg => {
+            {messages.map((msg, idx) => {
               const typeCfg = TYPE_CONFIG[msg.type] || TYPE_CONFIG.SYSTEM;
-              const priorityCfg = PRIORITY_CONFIG[msg.priority];
               const isUrgent = msg.priority === 'URGENT';
               const isSelected = selectedIds.has(msg.id);
 
@@ -183,17 +177,15 @@ const MessagesPage: React.FC = () => {
                   key={msg.id}
                   className={`msg-item${msg.read ? ' read' : ''}${isSelected ? ' selected' : ''}`}
                   onClick={() => handleViewDetail(msg)}
+                  style={{ animationDelay: `${idx * 0.04}s` }}
                 >
-                  {/* 左侧色条 */}
-                  {isUrgent && <div className="msg-item-accent" style={{ background: '#ff4d4f' }} />}
-
                   {/* 选择框 */}
                   <div className="msg-item-check" onClick={(e) => { e.stopPropagation(); toggleSelect(msg.id); }}>
                     <div className={`msg-item-checkbox${isSelected ? ' checked' : ''}`} />
                   </div>
 
                   {/* 类型图标 */}
-                  <div className="msg-item-icon" style={{ background: typeCfg.bg, color: typeCfg.color }}>
+                  <div className="msg-item-icon" style={{ background: typeCfg.gradient }}>
                     {typeCfg.icon}
                   </div>
 
@@ -201,19 +193,20 @@ const MessagesPage: React.FC = () => {
                   <div className="msg-item-body">
                     <div className="msg-item-head">
                       <span className="msg-item-title">
-                        {priorityCfg.color && (
-                          <ExclamationCircleOutlined style={{ color: priorityCfg.color, marginRight: 4, fontSize: 12 }} />
-                        )}
                         {msg.title}
                       </span>
-                      {!msg.read && <span className="msg-item-unread-dot" />}
+                      <div className="msg-item-meta">
+                        {!msg.read && <span className="msg-item-unread-dot" />}
+                        <span className="msg-item-time">{formatTime(msg.createdAt)}</span>
+                      </div>
                     </div>
                     {msg.summary && (
                       <div className="msg-item-summary">{msg.summary}</div>
                     )}
                     <div className="msg-item-foot">
-                      <span className="msg-item-type" style={{ color: typeCfg.color }}>{typeCfg.label}</span>
-                      <span className="msg-item-time">{formatTime(msg.createdAt)}</span>
+                      <span className="msg-item-type" style={{ color: typeCfg.color, background: typeCfg.bg }}>
+                        {typeCfg.label}
+                      </span>
                     </div>
                   </div>
 
@@ -228,6 +221,9 @@ const MessagesPage: React.FC = () => {
                       onClick={(e) => e.stopPropagation()}
                     />
                   </Popconfirm>
+
+                  {/* 紧急色条 */}
+                  {isUrgent && <div className="msg-item-accent" />}
                 </div>
               );
             })}

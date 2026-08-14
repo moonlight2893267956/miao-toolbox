@@ -5,25 +5,57 @@
 /* ---------- 统计条 ---------- */
 .miao-announce-stats {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
 .miao-announce-stat-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 14px;
+  padding: 6px 14px;
   border-radius: var(--miao-radius-full, 999px);
-  background: var(--miao-bg-muted);
+  background:
+    linear-gradient(135deg, var(--miao-brand-bg, rgba(92, 79, 208, 0.08)) 0%, transparent 60%),
+    var(--miao-bg-muted);
   color: var(--miao-text-secondary);
   font-size: 13px;
   font-weight: 500;
+  border: 1px solid var(--miao-border);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.miao-announce-stat-chip:hover {
+  border-color: var(--miao-brand-bg-hover, rgba(92, 79, 208, 0.18));
+  box-shadow: 0 2px 8px rgba(92, 79, 208, 0.06);
+}
+
+.miao-announce-stat-chip strong {
+  color: var(--miao-brand, #5c4fd0);
+  font-weight: 700;
 }
 
 .miao-announce-stat-chip--urgent {
-  background: rgba(255, 77, 79, 0.08);
-  color: #C2362F;
+  background:
+    linear-gradient(135deg, var(--miao-error-bg, rgba(255, 77, 79, 0.08)) 0%, transparent 60%),
+    var(--miao-bg-muted);
+  border-color: rgba(255, 77, 79, 0.15);
+}
+
+.miao-announce-stat-chip--urgent strong {
+  color: var(--miao-error-text, #cf1322);
+}
+
+.miao-announce-stat-chip--image {
+  background:
+    linear-gradient(135deg, rgba(124, 58, 237, 0.06) 0%, transparent 60%),
+    var(--miao-bg-muted);
+  border-color: rgba(124, 58, 237, 0.12);
+}
+
+.miao-announce-stat-chip--image strong {
+  color: #7C3AED;
 }
 
 /* ---------- 卡片列表 ---------- */
@@ -41,12 +73,13 @@
   background: var(--miao-bg-card);
   border: 1px solid var(--miao-border);
   overflow: hidden;
-  transition: box-shadow 0.2s, border-color 0.2s;
+  transition: box-shadow 0.2s, border-color 0.2s, transform 0.2s;
 }
 
 .miao-announce-card:hover {
-  border-color: var(--miao-primary-30, rgba(45, 107, 214, 0.30));
-  box-shadow: 0 2px 12px rgba(45, 107, 214, 0.08);
+  border-color: var(--miao-brand-bg-hover, rgba(92, 79, 208, 0.18));
+  box-shadow: 0 4px 16px rgba(92, 79, 208, 0.08);
+  transform: translateY(-1px);
 }
 
 .miao-announce-card--deleted {
@@ -75,14 +108,38 @@
 }
 
 .miao-announce-card-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--miao-radius-md, 8px);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--miao-radius-md, 10px);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 17px;
   flex-shrink: 0;
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.miao-announce-card:hover .miao-announce-card-icon {
+  transform: scale(1.06);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.miao-announce-card-icon--broadcast {
+  background: linear-gradient(135deg, var(--miao-brand, #5c4fd0) 0%, #8b5cf6 100%);
+  box-shadow: 0 3px 10px rgba(92, 79, 208, 0.25);
+}
+
+.miao-announce-card-icon--targeted {
+  background: linear-gradient(135deg, var(--miao-accent-tool-emerald, #10b981) 0%, #34d399 100%);
+  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.22);
+}
+
+.miao-announce-card-icon--deleted {
+  background: var(--miao-bg-muted);
+  color: var(--miao-text-tertiary);
+  box-shadow: none;
 }
 
 .miao-announce-card-title-area {
@@ -145,6 +202,16 @@
   font-weight: 500;
 }
 
+.miao-announce-scope-badge--broadcast {
+  background: var(--miao-brand-bg, rgba(92, 79, 208, 0.10));
+  color: var(--miao-brand, #5c4fd0);
+}
+
+.miao-announce-scope-badge--targeted {
+  background: rgba(16, 185, 129, 0.10);
+  color: var(--miao-accent-tool-emerald, #10b981);
+}
+
 .miao-announce-scope-clickable {
   display: inline-flex;
   align-items: center;
@@ -190,7 +257,7 @@
 }
 
 .miao-announce-recipient-count strong {
-  color: var(--miao-teal);
+  color: var(--miao-brand, #5c4fd0);
   font-size: 13px;
   font-weight: 600;
   margin: 0 2px;
@@ -228,7 +295,7 @@
 }
 
 .miao-announce-recipient-item:hover {
-  background: rgba(54, 179, 126, 0.06);
+  background: var(--miao-brand-bg, rgba(92, 79, 208, 0.06));
 }
 
 /* 头像首字母 */
@@ -237,7 +304,7 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--miao-teal) 0%, rgba(54, 179, 126, 0.65) 100%);
+  background: linear-gradient(135deg, var(--miao-brand, #5c4fd0) 0%, #8b5cf6 100%);
   color: #fff;
   font-size: 12px;
   font-weight: 600;
@@ -245,7 +312,7 @@
   align-items: center;
   justify-content: center;
   letter-spacing: 0;
-  box-shadow: 0 1px 2px rgba(54, 179, 126, 0.20);
+  box-shadow: 0 2px 6px rgba(92, 79, 208, 0.22);
 }
 
 /* 用户信息区 */
@@ -428,22 +495,635 @@
 
 /* ---------- 弹窗 ---------- */
 .miao-announce-modal .ant-modal-content {
-  border-radius: var(--miao-radius-lg, 12px);
+  border-radius: var(--miao-radius-lg, 16px);
+  border: 1px solid var(--miao-border);
+  box-shadow:
+    0 24px 64px rgba(15, 12, 41, 0.18),
+    0 8px 24px rgba(92, 79, 208, 0.10);
+  overflow: hidden;
+  background: var(--miao-bg-card);
 }
 
 .miao-announce-modal .ant-modal-header {
-  border-radius: var(--miao-radius-lg, 12px) var(--miao-radius-lg, 12px) 0 0;
+  border-radius: var(--miao-radius-lg, 16px) var(--miao-radius-lg, 16px) 0 0;
+  border-bottom: 1px solid var(--miao-border);
+  margin: 0;
+  padding: 20px 24px 18px;
+  position: relative;
+  background:
+    radial-gradient(140% 200% at 0% 0%, var(--miao-brand-bg, rgba(92, 79, 208, 0.10)) 0%, transparent 55%),
+    radial-gradient(120% 180% at 100% 0%, rgba(139, 92, 246, 0.06) 0%, transparent 55%),
+    var(--miao-bg-card);
+}
+
+.miao-announce-modal .ant-modal-close {
+  top: 16px;
+  right: 16px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.18s, transform 0.18s;
+}
+
+.miao-announce-modal .ant-modal-close:hover {
+  background: var(--miao-bg-muted);
+  transform: scale(1.05);
+}
+
+.miao-announce-modal-close {
+  font-size: 14px;
+  color: var(--miao-text-secondary);
+  line-height: 1;
+}
+
+.miao-announce-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 40px; /* 留出关闭按钮空间 */
+}
+
+.miao-announce-modal-title-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--miao-brand, #5c4fd0) 0%, #8b5cf6 100%);
+  color: var(--miao-on-brand, #fff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  box-shadow:
+    0 6px 16px rgba(92, 79, 208, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.miao-announce-modal-title-icon::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 14px;
+  background: var(--miao-brand, #5c4fd0);
+  opacity: 0.12;
+  z-index: -1;
+  filter: blur(8px);
+}
+
+.miao-announce-modal-title-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.miao-announce-modal-title-text strong {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--miao-text-primary);
+  line-height: 1.3;
+  letter-spacing: 0.2px;
+}
+
+.miao-announce-modal-title-text span {
+  font-size: 12px;
+  color: var(--miao-text-tertiary);
+  line-height: 1.4;
+}
+
+.miao-announce-modal-title-tag {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: var(--miao-radius-full, 999px);
+  background: var(--miao-brand-bg, rgba(92, 79, 208, 0.10));
+  color: var(--miao-brand, #5c4fd0);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  border: 1px solid var(--miao-brand-bg-hover, rgba(92, 79, 208, 0.18));
+}
+
+.miao-announce-modal .ant-modal-body {
+  padding: 22px 24px 6px;
 }
 
 .miao-announce-modal .ant-form-item-label > label {
-  font-weight: 500;
+  font-weight: 600;
   color: var(--miao-text-primary);
+  font-size: 13px;
 }
 
 .miao-announce-modal .ant-input,
 .miao-announce-modal .ant-select-selector,
 .miao-announce-modal .ant-radio-wrapper {
-  border-radius: var(--miao-radius-sm, 6px);
+  border-radius: var(--miao-radius-md, 10px);
+}
+
+.miao-announce-modal .ant-input:focus,
+.miao-announce-modal .ant-input-focused,
+.miao-announce-modal .ant-select-focused .ant-select-selector {
+  border-color: var(--miao-brand, #5c4fd0) !important;
+  box-shadow: 0 0 0 2px var(--miao-brand-bg, rgba(92, 79, 208, 0.12)) !important;
+}
+
+.miao-announce-modal .ant-modal-footer {
+  border-top: 1px solid var(--miao-border);
+  padding: 16px 24px 18px;
+  margin-top: 20px;
+}
+
+.miao-announce-modal .ant-btn-primary {
+  background: linear-gradient(135deg, var(--miao-brand, #5c4fd0) 0%, #7c5cf6 100%);
+  border-color: transparent;
+  border-radius: var(--miao-radius-md, 10px);
+  box-shadow: 0 4px 14px rgba(92, 79, 208, 0.28);
+  transition: all 160ms ease;
+  font-weight: 500;
+}
+
+.miao-announce-modal .ant-btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--miao-brand-hover, #6f63d6) 0%, #8b6ff7 100%);
+  box-shadow: 0 6px 18px rgba(92, 79, 208, 0.36);
+  transform: translateY(-1px);
+}
+
+.miao-announce-modal .ant-btn-primary:active:not(:disabled) {
+  background: linear-gradient(135deg, var(--miao-brand-active, #4e42b8) 0%, #6f52e8 100%);
+  transform: translateY(0);
+}
+
+.miao-announce-modal .ant-btn-default {
+  border-radius: var(--miao-radius-md, 10px);
+  border-color: var(--miao-border-strong);
+  transition: all 160ms ease;
+}
+
+.miao-announce-modal .ant-btn-default:hover {
+  border-color: var(--miao-brand, #5c4fd0);
+  color: var(--miao-brand, #5c4fd0);
+}
+
+/* 字段说明文字 */
+.miao-announce-image-extra {
+  font-size: 11px;
+  color: var(--miao-text-tertiary);
+  line-height: 1.5;
+  margin-top: 2px;
+}
+
+.miao-announce-modal .ant-form-item-extra {
+  font-size: 11px;
+  color: var(--miao-text-tertiary);
+  min-height: 16px;
+}
+
+/* ---------- 发送范围（卡片式选择） ---------- */
+.miao-announce-scope-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.miao-announce-scope-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1.5px solid var(--miao-border);
+  border-radius: var(--miao-radius-md, 12px);
+  background: var(--miao-bg-card);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.miao-announce-scope-card:hover {
+  border-color: var(--miao-brand-bg-hover, rgba(92, 79, 208, 0.30));
+  background: var(--miao-bg-muted);
+  transform: translateY(-1px);
+}
+
+.miao-announce-scope-card--active {
+  border-color: var(--miao-brand, #5c4fd0);
+  background:
+    linear-gradient(135deg, var(--miao-brand-bg, rgba(92, 79, 208, 0.08)) 0%, transparent 70%),
+    var(--miao-bg-card);
+  box-shadow: 0 4px 14px rgba(92, 79, 208, 0.10);
+}
+
+.miao-announce-scope-card-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.10);
+}
+
+.miao-announce-scope-card-icon--broadcast {
+  background: linear-gradient(135deg, var(--miao-brand, #5c4fd0) 0%, #8b5cf6 100%);
+  box-shadow: 0 3px 10px rgba(92, 79, 208, 0.28);
+}
+
+.miao-announce-scope-card-icon--targeted {
+  background: linear-gradient(135deg, var(--miao-accent-tool-emerald, #10b981) 0%, #34d399 100%);
+  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.25);
+}
+
+.miao-announce-scope-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.miao-announce-scope-card-body strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--miao-text-primary);
+  line-height: 1.3;
+}
+
+.miao-announce-scope-card-body span {
+  font-size: 11px;
+  color: var(--miao-text-tertiary);
+  line-height: 1.4;
+}
+
+.miao-announce-scope-card-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--miao-border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.2s;
+}
+
+.miao-announce-scope-card--active .miao-announce-scope-card-radio {
+  border-color: var(--miao-brand, #5c4fd0);
+  background: var(--miao-brand, #5c4fd0);
+}
+
+.miao-announce-scope-card-radio-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+/* ---------- 优先级（三卡片选择） ---------- */
+.miao-announce-priority-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.miao-announce-priority-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 8px 12px;
+  border: 1.5px solid var(--miao-border);
+  border-radius: var(--miao-radius-md, 12px);
+  background: var(--miao-bg-card);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.miao-announce-priority-card:hover {
+  border-color: var(--miao-brand-bg-hover, rgba(92, 79, 208, 0.30));
+  background: var(--miao-bg-muted);
+  transform: translateY(-1px);
+}
+
+.miao-announce-priority-card-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.miao-announce-priority-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+
+.miao-announce-priority-card-body strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--miao-text-primary);
+  line-height: 1.3;
+}
+
+.miao-announce-priority-card-body span {
+  font-size: 10px;
+  color: var(--miao-text-tertiary);
+  line-height: 1.3;
+}
+
+/* 选中状态 */
+.miao-announce-priority-card--active.miao-announce-priority-card--normal {
+  border-color: var(--miao-brand, #5c4fd0);
+  background:
+    linear-gradient(135deg, var(--miao-brand-bg, rgba(92, 79, 208, 0.08)) 0%, transparent 70%),
+    var(--miao-bg-card);
+  box-shadow: 0 4px 14px rgba(92, 79, 208, 0.10);
+}
+
+.miao-announce-priority-card--active.miao-announce-priority-card--high {
+  border-color: var(--miao-warning, #faad14);
+  background:
+    linear-gradient(135deg, var(--miao-warning-bg, rgba(250, 173, 20, 0.10)) 0%, transparent 70%),
+    var(--miao-bg-card);
+  box-shadow: 0 4px 14px rgba(250, 173, 20, 0.12);
+}
+
+.miao-announce-priority-card--active.miao-announce-priority-card--urgent {
+  border-color: var(--miao-error, #ff4d4f);
+  background:
+    linear-gradient(135deg, var(--miao-error-bg, rgba(255, 77, 79, 0.10)) 0%, transparent 70%),
+    var(--miao-bg-card);
+  box-shadow: 0 4px 14px rgba(255, 77, 79, 0.12);
+}
+
+/* ---------- 配图标识 ---------- */
+.miao-announce-image-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: var(--miao-radius-full, 999px);
+  background: var(--miao-brand-bg, rgba(92, 79, 208, 0.10));
+  color: var(--miao-brand, #5c4fd0);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* ---------- 配图上传（拖拽区） ---------- */
+.miao-announce-image-uploader {
+  width: 100%;
+}
+
+.miao-announce-image-dragger {
+  width: 100% !important;
+}
+
+.miao-announce-image-dragger .ant-upload {
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+.miao-announce-image-dragger .ant-upload-drag {
+  border: 1.5px dashed var(--miao-border-strong) !important;
+  border-radius: var(--miao-radius-lg, 14px) !important;
+  background: var(--miao-bg-muted) !important;
+  transition: border-color 0.2s, background 0.25s, box-shadow 0.25s, transform 0.2s !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.miao-announce-image-dragger .ant-upload-drag:hover {
+  border-color: var(--miao-brand, #5c4fd0) !important;
+  background: var(--miao-bg-card) !important;
+  box-shadow: 0 6px 20px rgba(92, 79, 208, 0.08) !important;
+  transform: translateY(-1px);
+}
+
+.miao-announce-image-dragger-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 28px 24px;
+  position: relative;
+}
+
+.miao-announce-image-dragger-illust {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--miao-brand-bg, rgba(92, 79, 208, 0.10)) 0%, rgba(139, 92, 246, 0.10) 100%);
+  color: var(--miao-brand, #5c4fd0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  flex-shrink: 0;
+  position: relative;
+  transition: transform 0.25s;
+}
+
+.miao-announce-image-dragger-illust::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 20px;
+  border: 1.5px dashed var(--miao-brand-bg-hover, rgba(92, 79, 208, 0.20));
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.miao-announce-image-dragger .ant-upload-drag:hover .miao-announce-image-dragger-illust {
+  transform: translateY(-2px) scale(1.04);
+}
+
+.miao-announce-image-dragger-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.miao-announce-image-dragger-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--miao-text-primary);
+  letter-spacing: 0.2px;
+}
+
+.miao-announce-image-dragger-hint {
+  font-size: 12px;
+  color: var(--miao-text-tertiary);
+  line-height: 1.5;
+}
+
+/* ---------- 配图预览（已上传） ---------- */
+.miao-announce-image-preview {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid var(--miao-border);
+  border-radius: var(--miao-radius-lg, 14px);
+  background:
+    linear-gradient(135deg, var(--miao-brand-bg, rgba(92, 79, 208, 0.06)) 0%, transparent 55%),
+    var(--miao-bg-card);
+  box-shadow: 0 4px 16px rgba(92, 79, 208, 0.05);
+  animation: miao-announce-image-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes miao-announce-image-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.miao-announce-image-frame {
+  position: relative;
+  flex-shrink: 0;
+  width: 96px;
+  height: 96px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.miao-announce-image-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.miao-announce-image-frame-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.0) 50%, rgba(0, 0, 0, 0.35) 100%);
+  opacity: 0;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 8px;
+}
+
+.miao-announce-image-frame:hover .miao-announce-image-frame-overlay {
+  opacity: 1;
+}
+
+.miao-announce-image-frame-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--miao-brand, #5c4fd0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.miao-announce-image-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  transition: background 0.18s, transform 0.18s;
+  z-index: 3;
+  backdrop-filter: blur(6px);
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+}
+
+.miao-announce-image-remove:hover {
+  background: var(--miao-error, #ff4d4f);
+  border-color: var(--miao-error, #ff4d4f);
+  transform: scale(1.1);
+}
+
+.miao-announce-image-remove:active {
+  transform: scale(0.92);
+}
+
+.miao-announce-image-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.miao-announce-image-side-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.miao-announce-image-side-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--miao-brand-bg, rgba(92, 79, 208, 0.10));
+  color: var(--miao-brand, #5c4fd0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.miao-announce-image-side-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.miao-announce-image-side-text strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--miao-text-primary);
+  letter-spacing: 0.2px;
+}
+
+.miao-announce-image-side-text span {
+  font-size: 11px;
+  color: var(--miao-text-tertiary);
+  line-height: 1.5;
+}
+
+.miao-announce-image-replace .ant-btn {
+  border-radius: 7px;
+  height: 28px;
+  padding: 0 11px;
+  font-size: 12px;
+  transition: all 0.18s;
+  align-self: flex-start;
+}
+
+.miao-announce-image-replace .ant-btn:hover {
+  border-color: var(--miao-brand, #5c4fd0);
+  color: var(--miao-brand, #5c4fd0);
 }
 
 /* ---------- 响应式 ---------- */
@@ -457,9 +1137,9 @@
   }
 
   .miao-announce-card-icon {
-    width: 30px;
-    height: 30px;
-    font-size: 14px;
+    width: 34px;
+    height: 34px;
+    font-size: 15px;
   }
 
   .miao-announce-card-title {
@@ -470,5 +1150,34 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+  }
+
+  .miao-announce-image-dragger-inner {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .miao-announce-image-dragger-divider {
+    display: none;
+  }
+
+  .miao-announce-image-dragger-meta {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .miao-announce-image-preview {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+
+  .miao-announce-image-frame {
+    width: 100%;
+    height: 160px;
+  }
+
+  .miao-announce-scope-cards {
+    grid-template-columns: 1fr;
   }
 }
