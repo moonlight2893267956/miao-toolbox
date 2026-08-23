@@ -1,6 +1,7 @@
-import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react';
+import React, { useMemo, useCallback, useRef, useEffect } from 'react';
 import RegexWorkbench from '../components/RegexWorkbench';
 import { useTextOps } from '../hooks/useTextOps';
+import { useBackfillAndCopy } from '../hooks/useBackfillAndCopy';
 import { extractLinesContaining, formatExtractMatches, countUniqueMatches } from '../utils/text-ops/extract';
 import type { ExtractMatch, ExtractFormat } from '../utils/text-ops/extract';
 import { PRESET_LINE_CONTAINS } from '../data/presets';
@@ -19,17 +20,8 @@ const FORMAT_PRESETS: { value: ExtractFormat; label: string; hint: string }[] = 
 ];
 
 const ExtractTab: React.FC<ExtractTabProps> = ({ inputText, state, dispatch }) => {
-  const [justBackfilled, setJustBackfilled] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const backfilledRef = useRef<string | null>(null);
+  const { justBackfilled, copied, handleBackfill, handleCopy, handleUndoBackfill } = useBackfillAndCopy(inputText, dispatch);
   const matchesRef = useRef<ExtractMatch[]>([]);
-
-  useEffect(() => {
-    if (backfilledRef.current !== null && inputText !== backfilledRef.current) {
-      backfilledRef.current = null;
-      setJustBackfilled(false);
-    }
-  }, [inputText]);
 
   const isLineContains = state.pattern === PRESET_LINE_CONTAINS;
   const hasInput = inputText.trim().length > 0;
@@ -107,24 +99,6 @@ const ExtractTab: React.FC<ExtractTabProps> = ({ inputText, state, dispatch }) =
 
   const resultText = state.result ?? '';
 
-  const handleBackfill = () => {
-    if (!resultText) return;
-    dispatch({ type: 'TBP_BACKFILL', payload: resultText });
-    backfilledRef.current = resultText;
-    setJustBackfilled(true);
-  };
-
-  const handleCopy = async () => {
-    if (!resultText) return;
-    try {
-      await navigator.clipboard.writeText(resultText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      setCopied(false);
-    }
-  };
-
   const handlePresetSelect = useCallback(
     (key: string, presetPattern: string, presetFlags: string) => {
       dispatch({ type: 'TBP_SET_EXTRACT_PATTERN', payload: presetPattern });
@@ -141,38 +115,25 @@ const ExtractTab: React.FC<ExtractTabProps> = ({ inputText, state, dispatch }) =
 
   return (
     <div className="tbp-extract">
-      <RegexWorkbench
-        pattern={state.pattern}
-        flags={state.flags}
-        onPatternChange={(v) => {
-          dispatch({ type: 'TBP_SET_EXTRACT_PATTERN', payload: v });
-          dispatch({ type: 'TBP_SET_EXTRACT_ERROR', payload: null });
-        }}
-        onFlagsChange={(v) => dispatch({ type: 'TBP_SET_EXTRACT_FLAGS', payload: v })}
-        onPresetSelect={handlePresetSelect}
-        keyword={state.keyword}
-        onKeywordChange={(v) => dispatch({ type: 'TBP_SET_EXTRACT_KEYWORD', payload: v })}
-        ariaLabel="提取正则表达式"
-      />
-
-      {/* 结果格式切换 */}
-      <div className="tbp-format-bar" role="group" aria-label="结果格式">
-        <span className="tbp-format-bar-label">格式</span>
-        {FORMAT_PRESETS.map((f) => (
-          <button
-            key={f.value}
-            type="button"
-            className={`tbp-format-chip ${state.format === f.value ? 'is-active' : ''}`}
-            onClick={() => handleFormatChange(f.value)}
-            title={f.hint}
-            aria-pressed={state.format === f.value}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
       <section className="tbp-result tbp-result--extract" aria-label="提取结果">
+        {/* 正则工作台：输入框 + 标志位 + 预设（始终可见） */}
+        <div className="tbp-extract-options">
+          <RegexWorkbench
+            pattern={state.pattern}
+            flags={state.flags}
+            onPatternChange={(v) => {
+              dispatch({ type: 'TBP_SET_EXTRACT_PATTERN', payload: v });
+              dispatch({ type: 'TBP_SET_EXTRACT_ERROR', payload: null });
+            }}
+            onFlagsChange={(v) => dispatch({ type: 'TBP_SET_EXTRACT_FLAGS', payload: v })}
+            onPresetSelect={handlePresetSelect}
+            keyword={state.keyword}
+            onKeywordChange={(v) => dispatch({ type: 'TBP_SET_EXTRACT_KEYWORD', payload: v })}
+            ariaLabel="提取正则表达式"
+          />
+        </div>
+
+        {/* 统计 + 格式 + 操作 */}
         <div className="tbp-result-summary">
           <span className="tbp-result-summary-count">
             <span className="tbp-result-summary-num">{state.count}</span>
@@ -183,26 +144,43 @@ const ExtractTab: React.FC<ExtractTabProps> = ({ inputText, state, dispatch }) =
               {state.count > 0 ? '提取成功' : '无匹配项'}
             </span>
           )}
-          <div className="tbp-result-actions">
-            <button
-              type="button"
-              className={`tbp-result-btn tbp-result-btn--ghost ${copied ? 'is-copied' : ''}`}
-              onClick={handleCopy}
-              disabled={!resultText}
-              aria-label="复制结果"
-            >
-              <span className="tbp-btn-icon" aria-hidden>{copied ? '✓' : '⧉'}</span>
-              {copied ? '已复制' : '复制'}
-            </button>
-            <button
-              type="button"
-              className="tbp-result-btn tbp-result-btn--primary"
-              onClick={handleBackfill}
-              disabled={!resultText}
-            >
-              <span className="tbp-btn-icon" aria-hidden>↩</span>
-              回填
-            </button>
+          <div className="tbp-result-summary-right">
+            <div className="tbp-format-bar" role="group" aria-label="结果格式">
+              <span className="tbp-format-bar-label">格式</span>
+              {FORMAT_PRESETS.map((f) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  className={`tbp-format-chip ${state.format === f.value ? 'is-active' : ''}`}
+                  onClick={() => handleFormatChange(f.value)}
+                  title={f.hint}
+                  aria-pressed={state.format === f.value}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <div className="tbp-result-actions">
+              <button
+                type="button"
+                className={`tbp-result-btn tbp-result-btn--ghost ${copied ? 'is-copied' : ''}`}
+                onClick={() => handleCopy(resultText)}
+                disabled={!resultText}
+                aria-label="复制结果"
+              >
+                <span className="tbp-btn-icon" aria-hidden>{copied ? '✓' : '⧉'}</span>
+                {copied ? '已复制' : '复制'}
+              </button>
+              <button
+                type="button"
+                className="tbp-result-btn tbp-result-btn--primary"
+                onClick={justBackfilled ? handleUndoBackfill : () => handleBackfill(resultText)}
+                disabled={!resultText}
+              >
+                <span className="tbp-btn-icon" aria-hidden>{justBackfilled ? '↺' : '↩'}</span>
+                {justBackfilled ? '撤销回填' : '回填'}
+              </button>
+            </div>
           </div>
         </div>
 

@@ -108,6 +108,7 @@ export type TbpAction =
   | { type: 'TBP_SET_REPLACE_USE_REGEX'; payload: boolean }
   | { type: 'TBP_SET_REPLACE_PREVIEW'; payload: { count: number } }
   | { type: 'TBP_SET_REPLACE_EXECUTED'; payload: { result: string; count: number } }
+  | { type: 'TBP_RESET_REPLACE' }
   | { type: 'TBP_SET_REPLACE_ERROR'; payload: string | null }
   | { type: 'TBP_SET_FREQ_SPLIT_MODE'; payload: SplitMode }
   | { type: 'TBP_SET_FREQ_TOP_N'; payload: number }

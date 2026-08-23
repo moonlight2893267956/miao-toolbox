@@ -1,13 +1,11 @@
 import React, { useCallback, useRef, useEffect, useState } from 'react';
 import { Input, Alert } from 'antd';
-import { UndoOutlined } from '@ant-design/icons';
 import type { TbpAction } from '../types';
 
 const MAX_INPUT_SIZE = 1_048_576;
 
 interface SharedTextInputAreaProps {
   inputText: string;
-  canUndoBackfill: boolean;
   dispatch: React.Dispatch<TbpAction>;
 }
 
@@ -15,7 +13,7 @@ function formatNumber(n: number): string {
   return n.toLocaleString('en-US');
 }
 
-const SharedTextInputArea: React.FC<SharedTextInputAreaProps> = ({ inputText, canUndoBackfill, dispatch }) => {
+const SharedTextInputArea: React.FC<SharedTextInputAreaProps> = ({ inputText, dispatch }) => {
   const [stats, setStats] = useState({ chars: 0, lines: 0 });
   const rafRef = useRef<number | null>(null);
 
@@ -39,10 +37,6 @@ const SharedTextInputArea: React.FC<SharedTextInputAreaProps> = ({ inputText, ca
     [dispatch],
   );
 
-  const handleUndoBackfill = useCallback(() => {
-    dispatch({ type: 'TBP_UNDO_BACKFILL' });
-  }, [dispatch]);
-
   const isOverLimit = inputText.length > MAX_INPUT_SIZE;
 
   return (
@@ -53,16 +47,6 @@ const SharedTextInputArea: React.FC<SharedTextInputAreaProps> = ({ inputText, ca
         <span className="tbp-input-stats">
           {formatNumber(stats.chars)} 字符 · {formatNumber(stats.lines)} 行
         </span>
-        {canUndoBackfill && (
-          <button
-            className="tbp-undo-btn"
-            onClick={handleUndoBackfill}
-            title="恢复回填前的原始文本"
-          >
-            <UndoOutlined />
-            撤销回填
-          </button>
-        )}
       </div>
       <Input.TextArea
         className="tbp-textarea"

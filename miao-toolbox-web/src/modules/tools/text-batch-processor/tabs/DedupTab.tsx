@@ -1,8 +1,10 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { deduplicate } from '../utils/text-ops/dedup';
 import type { DedupOptions, DedupResult } from '../utils/text-ops/dedup';
 import type { TbpAction } from '../types';
+import { DELIMITER_PRESETS } from '../data/delimiters';
+import { useBackfillAndCopy } from '../hooks/useBackfillAndCopy';
 
 interface DedupTabProps {
   inputText: string;
@@ -10,26 +12,8 @@ interface DedupTabProps {
   dispatch: React.Dispatch<TbpAction>;
 }
 
-const DELIMITER_PRESETS: { label: string; value: string }[] = [
-  { label: '换行', value: '\n' },
-  { label: '逗号', value: ',' },
-  { label: '分号', value: ';' },
-  { label: '空格', value: ' ' },
-  { label: '制表符', value: '\t' },
-];
-
 const DedupTab: React.FC<DedupTabProps> = ({ inputText, options, dispatch }) => {
-  const [justBackfilled, setJustBackfilled] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const backfilledRef = useRef<string | null>(null);
-
-  // 仅在用户重新编辑输入（内容不同于回填值）时，才复位回填标记
-  useEffect(() => {
-    if (backfilledRef.current !== null && inputText !== backfilledRef.current) {
-      backfilledRef.current = null;
-      setJustBackfilled(false);
-    }
-  }, [inputText]);
+  const { justBackfilled, copied, handleBackfill, handleCopy, handleUndoBackfill } = useBackfillAndCopy(inputText, dispatch);
 
   const result = useMemo(() => deduplicate(inputText, options), [inputText, options]);
 
@@ -49,24 +33,6 @@ const DedupTab: React.FC<DedupTabProps> = ({ inputText, options, dispatch }) => 
       type: 'TBP_SET_DEDUP_OPTIONS',
       payload: { ...options, delimiter: value === '\n' ? undefined : value },
     });
-  };
-
-  const handleBackfill = () => {
-    if (!result.resultText) return;
-    dispatch({ type: 'TBP_BACKFILL', payload: result.resultText });
-    backfilledRef.current = result.resultText;
-    setJustBackfilled(true);
-  };
-
-  const handleCopy = async () => {
-    if (!result.resultText) return;
-    try {
-      await navigator.clipboard.writeText(result.resultText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      setCopied(false);
-    }
   };
 
   const toggleKeys: (keyof DedupOptions)[] = [
@@ -115,8 +81,9 @@ const DedupTab: React.FC<DedupTabProps> = ({ inputText, options, dispatch }) => 
         hasInput={hasInput}
         justBackfilled={justBackfilled}
         copied={copied}
-        onCopy={handleCopy}
-        onBackfill={handleBackfill}
+        onCopy={() => handleCopy(result.resultText)}
+        onBackfill={() => handleBackfill(result.resultText)}
+        onUndoBackfill={handleUndoBackfill}
       />
     </div>
   );
@@ -130,7 +97,8 @@ const ResultPanel: React.FC<{
   copied: boolean;
   onCopy: () => void;
   onBackfill: () => void;
-}> = ({ result, hasInput, justBackfilled, copied, onCopy, onBackfill }) => {
+  onUndoBackfill: () => void;
+}> = ({ result, hasInput, justBackfilled, copied, onCopy, onBackfill, onUndoBackfill }) => {
   const { remaining, removed } = result.stats;
   const total = remaining + removed;
   const keepRatio = total > 0 ? (remaining / total) * 100 : 0;
@@ -178,11 +146,11 @@ const ResultPanel: React.FC<{
           <button
             type="button"
             className="tbp-result-btn tbp-result-btn--primary"
-            onClick={onBackfill}
+            onClick={justBackfilled ? onUndoBackfill : onBackfill}
             disabled={!result.resultText}
           >
-            <span className="tbp-btn-icon" aria-hidden>↩</span>
-            回填
+            <span className="tbp-btn-icon" aria-hidden>{justBackfilled ? '↺' : '↩'}</span>
+            {justBackfilled ? '撤销回填' : '回填'}
           </button>
         </div>
       </header>

@@ -1,9 +1,9 @@
-import React, { useReducer, useCallback, useEffect } from 'react';
+import React, { useReducer, useCallback, useEffect, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Modal } from 'antd';
 import { FileTextOutlined } from '@ant-design/icons';
 import './text-batch-processor.css';
-import type { TbpState, TbpAction, TbpTabKey, TbpTabConfig } from './types';
+import type { TbpState, TbpAction, TbpTabKey } from './types';
 import { TBP_TABS, INITIAL_TBP_STATE } from './types';
 import { loadPageState, savePageState } from '../../../shared/utils/tabPageStorage';
 import SharedTextInputArea from './components/SharedTextInputArea';
@@ -69,6 +69,11 @@ function tbpReducer(state: TbpState, action: TbpAction): TbpState {
         ...state,
         replace: { ...state.replace, result: action.payload.result, count: action.payload.count, executed: true, error: null },
       };
+    case 'TBP_RESET_REPLACE':
+      return {
+        ...state,
+        replace: { ...state.replace, result: null, count: 0, executed: false, error: null },
+      };
     case 'TBP_SET_REPLACE_ERROR':
       return { ...state, replace: { ...state.replace, error: action.payload } };
     case 'TBP_SET_FREQ_SPLIT_MODE':
@@ -89,23 +94,6 @@ function tbpReducer(state: TbpState, action: TbpAction): TbpState {
   }
 }
 
-const EmptyState: React.FC<{ tab: TbpTabConfig; hasInput: boolean }> = ({ tab, hasInput }) => (
-  <div className="tbp-empty">
-    <div className="tbp-empty-glyph" aria-hidden>{tab.icon}</div>
-    <div className="tbp-empty-body">
-      <h3 className="tbp-empty-title">{tab.description}</h3>
-      <p className="tbp-empty-hint">{tab.hint}</p>
-    </div>
-    <span className="tbp-empty-badge">
-      <span className="tbp-empty-badge-dot" />
-      即将上线
-    </span>
-    {!hasInput && (
-      <p className="tbp-empty-foot">← 在左侧输入文本后，处理结果将显示在此处</p>
-    )}
-  </div>
-);
-
 const TextBatchProcessorPage: React.FC = () => {
   const [state, dispatch] = useReducer(tbpReducer, undefined, loadInitialTbpState);
   const prefersReducedMotion = useReducedMotion();
@@ -118,19 +106,37 @@ const TextBatchProcessorPage: React.FC = () => {
     dispatch({ type: 'TBP_SET_TAB', payload: key });
   }, []);
 
+  const tabListRef = useRef<HTMLDivElement>(null);
+
+  const focusTab = useCallback((key: TbpTabKey) => {
+    const container = tabListRef.current;
+    if (!container) return;
+    const btn = container.querySelector<HTMLButtonElement>(`#tbp-tab-${key}`);
+    btn?.focus();
+  }, []);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       const currentIndex = TBP_TABS.findIndex((t) => t.key === state.activeTab);
+      let nextKey: TbpTabKey | null = null;
       if (e.key === 'ArrowLeft' && currentIndex > 0) {
-        handleTabChange(TBP_TABS[currentIndex - 1].key);
+        nextKey = TBP_TABS[currentIndex - 1].key;
       } else if (e.key === 'ArrowRight' && currentIndex < TBP_TABS.length - 1) {
-        handleTabChange(TBP_TABS[currentIndex + 1].key);
+        nextKey = TBP_TABS[currentIndex + 1].key;
+      } else if (e.key === 'Home') {
+        nextKey = TBP_TABS[0].key;
+      } else if (e.key === 'End') {
+        nextKey = TBP_TABS[TBP_TABS.length - 1].key;
+      }
+      if (nextKey) {
+        e.preventDefault();
+        handleTabChange(nextKey);
+        focusTab(nextKey);
       }
     },
-    [state.activeTab, handleTabChange],
+    [state.activeTab, handleTabChange, focusTab],
   );
 
-  const activeTabConfig = TBP_TABS.find((t) => t.key === state.activeTab);
 
   const handleClearAll = useCallback(() => {
     Modal.confirm({
@@ -172,6 +178,7 @@ const TextBatchProcessorPage: React.FC = () => {
 
       <div className="tbp-nav">
         <div
+          ref={tabListRef}
           className="tbp-nav-track"
           role="tablist"
           aria-orientation="horizontal"
@@ -184,6 +191,7 @@ const TextBatchProcessorPage: React.FC = () => {
               aria-selected={state.activeTab === tab.key}
               aria-controls={`tbp-panel-${tab.key}`}
               id={`tbp-tab-${tab.key}`}
+              tabIndex={state.activeTab === tab.key ? 0 : -1}
               className={`tbp-nav-item ${state.activeTab === tab.key ? 'active' : ''}`}
               onClick={() => handleTabChange(tab.key)}
             >
@@ -197,7 +205,6 @@ const TextBatchProcessorPage: React.FC = () => {
       <div className="tbp-workspace">
         <SharedTextInputArea
           inputText={state.inputText}
-          canUndoBackfill={state.previousInputText !== null}
           dispatch={dispatch}
         />
 
@@ -206,13 +213,6 @@ const TextBatchProcessorPage: React.FC = () => {
         </div>
 
         <div className="tbp-output-panel">
-          <div className="tbp-output-head">
-            <span className="tbp-output-dot" />
-            <span className="tbp-output-label">处理结果</span>
-            {activeTabConfig && (
-              <span className="tbp-output-tab-name">{activeTabConfig.label}</span>
-            )}
-          </div>
           <div className="tbp-output-body">
             <motion.div
               key={state.activeTab}
@@ -254,11 +254,7 @@ const TextBatchProcessorPage: React.FC = () => {
                   state={state.freq}
                   dispatch={dispatch}
                 />
-              ) : (
-                activeTabConfig && (
-                  <EmptyState tab={activeTabConfig} hasInput={state.inputText.length > 0} />
-                )
-              )}
+              ) : null}
             </motion.div>
           </div>
         </div>

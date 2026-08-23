@@ -42,7 +42,7 @@
   --miao-brand-bg: color-mix(in srgb, var(--miao-accent-tool-emerald) 8%, transparent);
   --miao-brand-bg-hover: color-mix(in srgb, var(--miao-accent-tool-emerald) 14%, transparent);
   --tbp-accent-deep: color-mix(in srgb, var(--tool-accent) 72%, #000);
-  --tbp-accent-soft: color-mix(in srgb, var(--tool-accent) 12%, transparent);
+  --tbp-accent-soft: var(--miao-brand-bg);
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -339,7 +339,7 @@
    ============================================================ */
 
 .tbp-input-panel {
-  flex: 0 0 42%;
+  flex: 0 0 40%;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -374,7 +374,7 @@
 }
 
 .tbp-undo-btn:hover {
-  background: color-mix(in srgb, var(--tool-accent) 12%, transparent);
+  background: var(--miao-brand-bg);
   border-color: var(--tool-accent);
 }
 
@@ -420,7 +420,7 @@
    ============================================================ */
 
 .tbp-flow-divider {
-  flex: 0 0 28px;
+  flex: 0 0 14px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -436,8 +436,8 @@
   width: 1px;
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--tool-accent) 15%, transparent),
-    color-mix(in srgb, var(--tool-accent) 8%, var(--miao-border))
+    var(--miao-brand-bg),
+    color-mix(in srgb, var(--tool-accent) 6%, var(--miao-border))
   );
 }
 
@@ -446,13 +446,13 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--miao-bg);
-  border: 1px solid color-mix(in srgb, var(--tool-accent) 15%, var(--miao-border));
+  border: 1px solid color-mix(in srgb, var(--tool-accent) 12%, var(--miao-border));
   border-radius: 50%;
   z-index: 1;
   transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -462,9 +462,9 @@
   content: '';
   width: 0;
   height: 0;
-  border-left: 4px solid var(--tool-accent);
-  border-top: 3px solid transparent;
-  border-bottom: 3px solid transparent;
+  border-left: 3px solid color-mix(in srgb, var(--tool-accent) 72%, #000);
+  border-top: 2px solid transparent;
+  border-bottom: 2px solid transparent;
   margin-left: 1px;
 }
 
@@ -523,8 +523,7 @@
   min-height: 0;
   overflow-y: auto;
   border: 1px solid var(--miao-border);
-  border-top: none;
-  border-radius: 0 0 10px 10px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--miao-bg-elevated) 30%, transparent);
 }
 
@@ -533,7 +532,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 14px 16px;
+  padding: 12px 14px;
 }
 
 /* ============================================================
@@ -563,7 +562,7 @@
   color: var(--tool-accent);
   border-radius: 14px;
   background: var(--miao-brand-bg);
-  border: 1px solid color-mix(in srgb, var(--tool-accent) 12%, transparent);
+  border: 1px solid var(--miao-brand-bg);
   box-shadow:
     0 3px 16px color-mix(in srgb, var(--tool-accent) 10%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -704,7 +703,7 @@
   }
 
   .tbp-input-panel {
-    flex: 0 0 45%;
+    flex: 0 0 42%;
   }
 }
 
@@ -763,7 +762,7 @@
   }
 
   .tbp-flow-divider {
-    flex: 0 0 28px;
+    flex: 0 0 14px;
     flex-direction: row;
   }
 
@@ -871,11 +870,11 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   background: var(--miao-bg-panel);
   border: 1px solid var(--miao-border);
   border-radius: var(--miao-radius-lg);
-  padding: 18px 20px 16px;
+  padding: 14px 16px 12px;
   box-shadow: var(--miao-shadow-soft);
   position: relative;
   overflow: hidden;
@@ -1084,91 +1083,62 @@
   justify-content: center;
 }
 
-/* ========== 压缩率块 ========== */
+/* ========== 压缩率条（紧凑内联） ========== */
 .tbp-ratio {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 8px 12px;
-  background: color-mix(in srgb, var(--miao-bg) 70%, transparent);
+  gap: 10px;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--miao-bg) 60%, transparent);
   border: 1px solid var(--miao-border);
-  border-radius: var(--miao-radius-md);
+  border-radius: var(--miao-radius-sm, 8px);
 }
 
 .tbp-ratio-meta {
   display: flex;
-  flex-direction: column;
-  line-height: 1.1;
+  align-items: baseline;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .tbp-ratio-meta-label {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--miao-text-tertiary);
 }
 
 .tbp-ratio-meta-value {
   font-family: var(--miao-font-mono);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--tbp-accent-deep);
 }
 
 .tbp-ratio-bar {
-  height: 8px;
+  flex: 1;
+  height: 6px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--miao-border) 60%, var(--miao-bg));
+  background: color-mix(in srgb, var(--miao-border) 50%, var(--miao-bg));
   overflow: hidden;
   display: flex;
   border: 1px solid var(--miao-border);
-  position: relative;
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.04);
 }
 
 .tbp-ratio-bar-keep {
-  background: linear-gradient(
-    90deg,
-    var(--tool-accent),
-    color-mix(in srgb, var(--tool-accent) 88%, #fff)
-  );
+  background: var(--tool-accent);
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-}
-
-.tbp-ratio-bar-keep::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.25) 50%,
-    transparent 100%
-  );
-  animation: tbp-shimmer 2.4s ease-in-out infinite;
 }
 
 .tbp-ratio-bar-remove {
-  background: color-mix(in srgb, var(--miao-error) 70%, var(--miao-bg));
+  background: color-mix(in srgb, var(--miao-error) 60%, var(--miao-bg));
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-@keyframes tbp-shimmer {
-  0%, 100% { transform: translateX(-100%); }
-  50% { transform: translateX(100%); }
-}
-
 .tbp-ratio-legend {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 11.5px;
-  color: var(--miao-text-tertiary);
-  font-variant-numeric: tabular-nums;
+  display: none;
 }
 
 .tbp-ratio-legend-item {
@@ -1385,7 +1355,7 @@
   background: color-mix(in srgb, var(--tool-accent) 10%, var(--miao-bg-panel));
   border: 1px solid color-mix(in srgb, var(--tool-accent) 25%, var(--miao-border));
   color: var(--tbp-accent-deep);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--tool-accent) 12%, transparent);
+  box-shadow: 0 1px 0 var(--miao-brand-bg);
 }
 
 .tbp-result-cleared-icon {
@@ -1492,58 +1462,22 @@
    ============================================================ */
 
 .tbp-page .tbp-sort {
-  /* 排序 Tab 沿用工具品牌色（emerald，自动跟随亮/暗主题） */
-  --tbp-sort-amber: var(--miao-accent-tool-emerald);
-  --tbp-sort-amber-soft: color-mix(in srgb, var(--miao-accent-tool-emerald) 14%, transparent);
-  --tbp-sort-amber-line: color-mix(in srgb, var(--miao-accent-tool-emerald) 32%, transparent);
-  --tbp-sort-paper: color-mix(in srgb, var(--miao-accent-tool-emerald) 12%, var(--miao-bg));
-  --tbp-sort-paper-deep: color-mix(in srgb, var(--miao-accent-tool-emerald) 22%, var(--miao-bg));
-  --tbp-sort-ink: color-mix(in srgb, var(--miao-accent-tool-emerald) 60%, #000);
-  --tbp-sort-rule: color-mix(in srgb, var(--miao-accent-tool-emerald) 18%, transparent);
-  --tbp-sort-rule-strong: color-mix(in srgb, var(--miao-accent-tool-emerald) 32%, transparent);
-  --tbp-sort-display: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'STSong', serif;
   --tbp-sort-mono: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
-
-  --miao-brand: var(--tbp-sort-amber);
-  --miao-brand-hover: color-mix(in srgb, var(--miao-accent-tool-emerald) 82%, #ffffff);
-  --miao-brand-active: color-mix(in srgb, var(--miao-accent-tool-emerald) 82%, #000000);
-  --miao-brand-bg: var(--tbp-sort-amber-soft);
-  --miao-brand-bg-hover: color-mix(in srgb, var(--miao-accent-tool-emerald) 22%, transparent);
-  --tool-accent: var(--tbp-sort-amber);
-  --tbp-accent-deep: color-mix(in srgb, var(--tbp-sort-amber) 72%, #000);
-  --tbp-accent-soft: var(--tbp-sort-amber-soft);
 
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   flex: 1 1 auto;
   min-height: 0;
   font-family: var(--miao-font-body);
 }
 
-/* 顶栏：紧凑选项容器 */
-.tbp-sort-stage {
+/* 选项行：方式 pills + 二级选项，嵌入折叠区内 */
+.tbp-sort-options {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  background: var(--miao-surface);
-  border: 1px solid var(--miao-border);
-  border-radius: var(--miao-radius-md);
-}
-
-.tbp-sort-head {
-  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.tbp-sort-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--miao-text);
-  margin: 0;
+  gap: 6px;
 }
 
 /* 方式：单行 6 个 pill，flex-wrap 兜底窄屏 */
@@ -1573,23 +1507,24 @@
 }
 
 .tbp-method-card:hover {
-  border-color: var(--tbp-sort-amber-line);
-  color: var(--tbp-sort-amber);
+  border-color: color-mix(in srgb, var(--tool-accent) 32%, transparent);
+  color: var(--tool-accent);
 }
 
 .tbp-method-card.is-active {
-  background: var(--tbp-sort-amber-soft);
-  border-color: var(--tbp-sort-amber);
-  color: var(--tbp-sort-amber);
+  background: var(--miao-brand-bg);
+  border-color: var(--tool-accent);
+  color: var(--tool-accent);
   font-weight: 600;
 }
 
-/* 二级选项：大小写 + 分隔符 + 复制/回填同排 */
+/* 二级选项：大小写 + 分隔符，跟随方式 pills 同行 */
 .tbp-sort-extras {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  margin-left: auto;
 }
 
 .tbp-extra-pill {
@@ -1609,14 +1544,14 @@
 }
 
 .tbp-extra-pill:hover {
-  border-color: var(--tbp-sort-amber-line);
+  border-color: color-mix(in srgb, var(--tool-accent) 32%, transparent);
   color: var(--miao-text);
 }
 
 .tbp-extra-pill.is-active {
-  background: var(--tbp-sort-amber-soft);
-  border-color: var(--tbp-sort-amber);
-  color: var(--tbp-sort-amber);
+  background: var(--miao-brand-bg);
+  border-color: var(--tool-accent);
+  color: var(--tool-accent);
   font-weight: 500;
 }
 
@@ -1648,13 +1583,6 @@
   color: var(--miao-text);
 }
 
-/* 复制 / 回填（与选项同排，弱化次要感） */
-.tbp-sort-actions {
-  display: inline-flex;
-  gap: 6px;
-  margin-left: auto;
-}
-
 .tbp-page .tbp-sort .tbp-result-btn {
   display: inline-flex;
   align-items: center;
@@ -1676,20 +1604,20 @@
 }
 
 .tbp-page .tbp-sort .tbp-result-btn--ghost:hover:not(:disabled) {
-  border-color: var(--tbp-sort-amber-line);
-  color: var(--tbp-sort-amber);
+  border-color: color-mix(in srgb, var(--tool-accent) 32%, transparent);
+  color: var(--tool-accent);
 }
 
 .tbp-page .tbp-sort .tbp-result-btn--ghost.is-copied {
-  background: var(--tbp-sort-amber-soft);
-  border-color: var(--tbp-sort-amber);
-  color: var(--tbp-sort-amber);
+  background: var(--miao-brand-bg);
+  border-color: var(--tool-accent);
+  color: var(--tool-accent);
 }
 
 .tbp-page .tbp-sort .tbp-result-btn--primary {
-  background: var(--tbp-sort-amber);
-  border: 1px solid var(--tbp-sort-amber);
-  color: var(--tbp-sort-ink);
+  background: var(--tool-accent);
+  border: 1px solid var(--tool-accent);
+  color: var(--tbp-accent-deep);
   font-weight: 600;
 }
 
@@ -1725,6 +1653,7 @@
 /* 结果头：左侧计数，右侧可选 metadata + 操作 */
 .tbp-result-summary {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
@@ -1741,7 +1670,7 @@
 .tbp-result-summary-num {
   font-size: 22px;
   font-weight: 700;
-  color: var(--tbp-sort-amber);
+  color: var(--tool-accent);
   font-feature-settings: 'tnum' 1;
   line-height: 1;
   letter-spacing: -0.01em;
@@ -1759,15 +1688,29 @@
   padding: 2px 8px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--tbp-sort-amber);
-  background: color-mix(in srgb, var(--tbp-sort-amber) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--tbp-sort-amber) 20%, transparent);
+  color: var(--tool-accent);
+  background: var(--miao-brand-bg);
+  border: 1px solid color-mix(in srgb, var(--tool-accent) 20%, transparent);
   border-radius: 999px;
   letter-spacing: 0.02em;
 }
 
 .tbp-result-summary .tbp-result-actions {
   margin-left: auto;
+}
+
+/* 右侧组合：格式 + 操作（ExtractTab 用） */
+.tbp-result-summary-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tbp-result-summary-right .tbp-result-actions {
+  margin-left: 0;
+  padding-left: 10px;
+  border-left: 1px solid var(--miao-border);
 }
 
 /* ============================================================
@@ -1812,7 +1755,7 @@
   text-align: right;
 }
 
-.tbp-rack-row:hover .tbp-rack-pos { color: var(--tbp-sort-amber); }
+.tbp-rack-row:hover .tbp-rack-pos { color: var(--tool-accent); }
 
 .tbp-rack-text {
   font-family: var(--tbp-sort-mono);
@@ -1848,7 +1791,7 @@
 .tbp-rack-flash-glyph {
   font-size: 22px;
   line-height: 1;
-  color: var(--tbp-sort-amber);
+  color: var(--tool-accent);
   opacity: 0.7;
 }
 
@@ -1889,7 +1832,7 @@
 .tbp-regex-workbench {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 7px;
   padding: 14px;
   background: var(--miao-surface);
   border: 1px solid var(--miao-border);
@@ -1911,7 +1854,7 @@
 
 .tbp-regex-input:focus-within {
   border-color: var(--tool-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tool-accent) 12%, transparent);
+  box-shadow: 0 0 0 3px var(--miao-brand-bg);
 }
 
 .tbp-regex-input.is-invalid {
@@ -1956,6 +1899,42 @@
   font-weight: 700;
 }
 
+/* 内联标志位（嵌入正则输入框，替代独立标志位行） */
+.tbp-regex-flags-inline {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  margin-right: 2px;
+  padding-right: 6px;
+  border-right: 1px solid var(--miao-border);
+}
+
+.tbp-regex-flag-mini {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--miao-text-tertiary);
+  font-family: var(--miao-font-mono, 'JetBrains Mono', monospace);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+
+.tbp-regex-flag-mini:hover {
+  color: var(--tool-accent);
+  background: color-mix(in srgb, var(--tool-accent) 10%, transparent);
+}
+
+.tbp-regex-flag-mini.is-active {
+  color: var(--tool-accent);
+}
+
 /* 速查表开关 */
 .tbp-cheat-toggle {
   display: inline-flex;
@@ -1996,7 +1975,7 @@
 .tbp-regex-flags-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
 }
 
 .tbp-regex-flag {
@@ -2064,7 +2043,7 @@
 
 .tbp-line-contains-input:focus {
   border-color: var(--tool-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tool-accent) 12%, transparent);
+  box-shadow: 0 0 0 3px var(--miao-brand-bg);
 }
 
 /* 预设条 */
@@ -2072,8 +2051,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  padding-top: 2px;
+  gap: 5px;
 }
 
 .tbp-preset-bar-label {
@@ -2087,15 +2065,15 @@
 .tbp-preset-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
+  gap: 3px;
+  padding: 3px 8px;
   background: transparent;
   border: 1px solid var(--miao-border);
   border-radius: 999px;
   color: var(--miao-text);
   cursor: pointer;
   font: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
@@ -2226,9 +2204,26 @@
 .tbp-extract {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   flex: 1 1 auto;
   min-height: 0;
+}
+
+/* 选项区：正则工作台，始终可见 */
+.tbp-extract-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--miao-border);
+}
+
+/* RegexWorkbench 在卡片内时去掉自身边框 */
+.tbp-extract-options .tbp-regex-workbench {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 
 .tbp-result--extract {
@@ -2236,6 +2231,10 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  background: var(--miao-bg-panel);
+  border: 1px solid var(--miao-border);
+  border-radius: var(--miao-radius-lg);
+  overflow: hidden;
 }
 
 .tbp-result-body {
@@ -2334,12 +2333,12 @@
   border: 1px solid color-mix(in srgb, var(--tool-accent) 25%, transparent);
 }
 
-/* 结果格式切换胶囊 */
+/* 结果格式切换胶囊 — 嵌入 result-summary 右侧 */
 .tbp-format-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .tbp-format-bar-label {
@@ -2348,6 +2347,12 @@
   color: var(--miao-text-soft);
   font-weight: 600;
   margin-right: 2px;
+}
+
+/* 在 result-summary 内缩小胶囊尺寸 */
+.tbp-result-summary .tbp-format-chip {
+  padding: 3px 8px;
+  font-size: 11px;
 }
 
 .tbp-format-chip {
@@ -2423,7 +2428,7 @@
 
 .tbp-replace-field-input:focus {
   border-color: var(--tool-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tool-accent) 12%, transparent);
+  box-shadow: 0 0 0 3px var(--miao-brand-bg);
 }
 
 .tbp-replace-field-input.is-invalid {
@@ -2480,7 +2485,7 @@
 
 .tbp-replace-preview-count.has-match {
   color: var(--tbp-accent-deep);
-  background: color-mix(in srgb, var(--tool-accent) 12%, transparent);
+  background: var(--miao-brand-bg);
   border-color: color-mix(in srgb, var(--tool-accent) 25%, transparent);
 }
 
@@ -2733,11 +2738,11 @@
   font-size: 11.5px;
   color: var(--tool-accent);
   font-weight: 600;
-  animation: tbp-pulse 1.2s ease-in-out infinite;
+  animation: tbp-freq-fade 1.2s ease-in-out infinite;
   margin-left: auto;
 }
 
-@keyframes tbp-pulse {
+@keyframes tbp-freq-fade {
   0%, 100% { opacity: 0.5; }
   50% { opacity: 1; }
 }
@@ -2779,14 +2784,8 @@
   color: var(--miao-text-soft);
   text-align: left;
   border-bottom: 1px solid var(--miao-border);
-  cursor: pointer;
   user-select: none;
-  transition: color 0.15s ease;
   white-space: nowrap;
-}
-
-.tbp-freq-table thead th:hover {
-  color: var(--tool-accent);
 }
 
 .tbp-freq-table tbody td {

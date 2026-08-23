@@ -884,6 +884,9 @@
   font-family: var(--miao-font-mono);
   font-size: 13px;
   line-height: 24px;
+  text-rendering: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .jw-node-row {
@@ -901,6 +904,7 @@
   user-select: none;
   position: relative;
   overflow: hidden;
+  backface-visibility: hidden;
 }
 
 .jw-node-row--with-type-badge {
@@ -985,9 +989,13 @@
   color: var(--miao-text-primary);
   font-weight: 500;
   flex-shrink: 0;
+  min-width: 0;
   max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 /* Key 可编辑态（双击编辑键名） */
@@ -1112,6 +1120,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: bottom;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .jw-node__value--string {

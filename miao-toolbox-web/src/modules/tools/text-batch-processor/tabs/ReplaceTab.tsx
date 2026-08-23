@@ -1,7 +1,8 @@
-import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react';
+import React, { useMemo, useCallback, useRef, useEffect } from 'react';
 import { useTextOps } from '../hooks/useTextOps';
+import { useBackfillAndCopy } from '../hooks/useBackfillAndCopy';
 import { replacePlainText } from '../utils/text-ops/replace';
-import { validateRegex, normalizeReplacement } from '../utils/regex';
+import { validateRegex } from '../utils/regex';
 import type { TextOpsMatch } from '../textOpsWorker';
 import type { TbpAction, ReplaceState } from '../types';
 
@@ -12,17 +13,10 @@ interface ReplaceTabProps {
 }
 
 const ReplaceTab: React.FC<ReplaceTabProps> = ({ inputText, state, dispatch }) => {
-  const [copied, setCopied] = useState(false);
-  const [justBackfilled, setJustBackfilled] = useState(false);
-  const backfilledRef = useRef<string | null>(null);
+  const { justBackfilled, copied, handleBackfill, handleCopy, handleUndoBackfill } = useBackfillAndCopy(inputText, dispatch);
   const previewRef = useRef<TextOpsMatch[]>([]);
-
-  useEffect(() => {
-    if (backfilledRef.current !== null && inputText !== backfilledRef.current) {
-      backfilledRef.current = null;
-      setJustBackfilled(false);
-    }
-  }, [inputText]);
+  /** Worker 返回的替换文本缓存，执行时直接使用无需主线程重算 */
+  const replacedTextRef = useRef<string>('');
 
   const hasInput = inputText.trim().length > 0;
   const { findPattern, replaceText, useRegex, flags, executed, result, count } = state;
@@ -43,7 +37,7 @@ const ReplaceTab: React.FC<ReplaceTabProps> = ({ inputText, state, dispatch }) =
         return;
       }
       previewRef.current = r.matches;
-      // 预览高亮按原文本位置渲染（不展示替换后结果，需点执行确认）
+      replacedTextRef.current = r.replacedText;
       dispatch({ type: 'TBP_SET_REPLACE_PREVIEW', payload: { count: r.matches.length } });
     },
     [dispatch],
@@ -69,33 +63,19 @@ const ReplaceTab: React.FC<ReplaceTabProps> = ({ inputText, state, dispatch }) =
       ignoreCase: flags.includes('i'),
       global: flags.includes('g'),
     });
-    // 普通模式：只统计处数；位置高亮在渲染时用 indexOf 计算
     previewRef.current = [];
+    replacedTextRef.current = r.resultText;
     dispatch({ type: 'TBP_SET_REPLACE_PREVIEW', payload: { count: r.count } });
   }, [useRegex, hasInput, findPattern, replaceText, flags, dispatch]);
 
-  // 执行替换
+  // 执行替换：直接使用 Worker / 纯函数已计算的缓存结果
   const handleExecute = useCallback(() => {
     if (!hasInput || findPattern === '') return;
-    if (useRegex) {
-      if (regexInvalid) return;
-      // Worker 已算过 replacedText，但需要从 matches 重建？——用正则原地计算（主线程可能卡顿，但已通过 Worker 预览过正则合法性，此处直接重算简单场景）
-      try {
-        const re = new RegExp(findPattern, flags);
-        const out = inputText.replace(re, normalizeReplacement(replaceText));
-        const m = inputText.match(new RegExp(findPattern, flags.includes('g') ? flags : flags + 'g'));
-        dispatch({ type: 'TBP_SET_REPLACE_EXECUTED', payload: { result: out, count: m?.length ?? 0 } });
-      } catch {
-        dispatch({ type: 'TBP_SET_REPLACE_ERROR', payload: '替换失败' });
-      }
-    } else {
-      const r = replacePlainText(inputText, findPattern, replaceText, {
-        ignoreCase: flags.includes('i'),
-        global: flags.includes('g'),
-      });
-      dispatch({ type: 'TBP_SET_REPLACE_EXECUTED', payload: { result: r.resultText, count: r.count } });
-    }
-  }, [hasInput, findPattern, replaceText, useRegex, regexInvalid, flags, inputText, dispatch]);
+    if (useRegex && regexInvalid) return;
+    const result = replacedTextRef.current;
+    if (!result) return;
+    dispatch({ type: 'TBP_SET_REPLACE_EXECUTED', payload: { result, count: previewRef.current.length } });
+  }, [hasInput, findPattern, useRegex, regexInvalid, dispatch]);
 
   // 预览高亮分段：基于原文本 + matches 位置（正则模式），或 indexOf（普通模式）
   const previewSegments = useMemo(() => {
@@ -141,38 +121,19 @@ const ReplaceTab: React.FC<ReplaceTabProps> = ({ inputText, state, dispatch }) =
     (f: string) => {
       const next = flags.includes(f) ? flags.replace(f, '') : flags + f;
       dispatch({ type: 'TBP_SET_REPLACE_FLAGS', payload: next });
-      // 选项变化：重置执行态（预览即时更新，但需重新点执行）
-      dispatch({ type: 'TBP_SET_REPLACE_EXECUTED', payload: { result: state.result ?? '', count: state.count } });
+      dispatch({ type: 'TBP_RESET_REPLACE' });
     },
-    [flags, dispatch, state],
+    [flags, dispatch],
   );
 
   const resultText = result ?? '';
-
-  const handleBackfill = () => {
-    if (!resultText) return;
-    dispatch({ type: 'TBP_BACKFILL', payload: resultText });
-    backfilledRef.current = resultText;
-    setJustBackfilled(true);
-  };
-
-  const handleCopy = async () => {
-    if (!resultText) return;
-    try {
-      await navigator.clipboard.writeText(resultText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      setCopied(false);
-    }
-  };
 
   const canPreview = hasInput && findPattern !== '' && !regexInvalid;
   const previewCount = canPreview ? count : 0;
 
   return (
     <div className="tbp-replace">
-      {/* 查找 / 替换 双输入 */}
+      {/* 查找 / 替换 双输入（始终可见） */}
       <section className="tbp-replace-inputs" aria-label="替换输入">
         <label className="tbp-replace-field">
           <span className="tbp-replace-field-label">查找</span>
@@ -181,7 +142,7 @@ const ReplaceTab: React.FC<ReplaceTabProps> = ({ inputText, state, dispatch }) =
             value={findPattern}
             onChange={(e) => {
               dispatch({ type: 'TBP_SET_REPLACE_PATTERN', payload: e.target.value });
-              dispatch({ type: 'TBP_SET_REPLACE_ERROR', payload: null });
+              dispatch({ type: 'TBP_RESET_REPLACE' });
             }}
             placeholder={useRegex ? '输入正则，如 \\d+' : '输入要查找的文本'}
             spellCheck={false}
@@ -196,7 +157,10 @@ const ReplaceTab: React.FC<ReplaceTabProps> = ({ inputText, state, dispatch }) =
           <input
             type="text"
             value={replaceText}
-            onChange={(e) => dispatch({ type: 'TBP_SET_REPLACE_TEXT', payload: e.target.value })}
+            onChange={(e) => {
+              dispatch({ type: 'TBP_SET_REPLACE_TEXT', payload: e.target.value });
+              dispatch({ type: 'TBP_RESET_REPLACE' });
+            }}
             placeholder={useRegex ? '支持 $1 / ${name} 引用' : '替换后的文本'}
             spellCheck={false}
             className="tbp-replace-field-input"
@@ -206,12 +170,21 @@ const ReplaceTab: React.FC<ReplaceTabProps> = ({ inputText, state, dispatch }) =
         </label>
       </section>
 
+      {regexInvalid && (
+        <div className="tbp-inline-error" role="alert">
+          {regexInvalid}
+        </div>
+      )}
+
       {/* 选项胶囊 */}
       <div className="tbp-replace-options" role="group" aria-label="替换选项">
         <button
           type="button"
           className={`tbp-format-chip ${useRegex ? 'is-active' : ''}`}
-          onClick={() => dispatch({ type: 'TBP_SET_REPLACE_USE_REGEX', payload: !useRegex })}
+          onClick={() => {
+            dispatch({ type: 'TBP_SET_REPLACE_USE_REGEX', payload: !useRegex });
+            dispatch({ type: 'TBP_RESET_REPLACE' });
+          }}
           aria-pressed={useRegex}
         >
           正则模式
@@ -241,12 +214,6 @@ const ReplaceTab: React.FC<ReplaceTabProps> = ({ inputText, state, dispatch }) =
           多行模式
         </button>
       </div>
-
-      {regexInvalid && (
-        <div className="tbp-inline-error" role="alert">
-          {regexInvalid}
-        </div>
-      )}
 
       {/* 预览区（执行前高亮，防误操作） */}
       <section className="tbp-replace-preview" aria-label="替换预览">
@@ -305,7 +272,7 @@ const ReplaceTab: React.FC<ReplaceTabProps> = ({ inputText, state, dispatch }) =
               <button
                 type="button"
                 className={`tbp-result-btn tbp-result-btn--ghost ${copied ? 'is-copied' : ''}`}
-                onClick={handleCopy}
+                onClick={() => handleCopy(resultText)}
                 disabled={!resultText}
                 aria-label="复制结果"
               >
@@ -315,11 +282,11 @@ const ReplaceTab: React.FC<ReplaceTabProps> = ({ inputText, state, dispatch }) =
               <button
                 type="button"
                 className="tbp-result-btn tbp-result-btn--primary"
-                onClick={handleBackfill}
+                onClick={justBackfilled ? handleUndoBackfill : () => handleBackfill(resultText)}
                 disabled={!resultText}
               >
-                <span className="tbp-btn-icon" aria-hidden>↩</span>
-                回填
+                <span className="tbp-btn-icon" aria-hidden>{justBackfilled ? '↺' : '↩'}</span>
+                {justBackfilled ? '撤销回填' : '回填'}
               </button>
             </div>
           </div>

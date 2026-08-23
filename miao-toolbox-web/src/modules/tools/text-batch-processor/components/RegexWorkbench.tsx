@@ -100,7 +100,23 @@ const RegexWorkbench: React.FC<RegexWorkbenchProps> = ({
           autoComplete="off"
         />
         <span className="tbp-regex-slash" aria-hidden>/</span>
-        <span className={`tbp-regex-flags ${flags ? 'has-flags' : ''}`}>{flags || '无'}</span>
+        <div className="tbp-regex-flags-inline" role="group" aria-label="正则标志位">
+          {JS_FLAGS.map((f) => {
+            const active = flags.includes(f.key);
+            return (
+              <button
+                key={f.key}
+                type="button"
+                className={`tbp-regex-flag-mini ${active ? 'is-active' : ''}`}
+                onClick={() => toggleFlag(f.key)}
+                aria-pressed={active}
+                title={`${f.key} — ${f.name}：${f.desc}`}
+              >
+                {f.key}
+              </button>
+            );
+          })}
+        </div>
         <button
           type="button"
           className={`tbp-cheat-toggle ${showCheatSheet ? 'is-active' : ''}`}
@@ -118,26 +134,6 @@ const RegexWorkbench: React.FC<RegexWorkbenchProps> = ({
           {validation.error}
         </div>
       )}
-
-      {/* 标志位胶囊 */}
-      <div className="tbp-regex-flags-row" role="group" aria-label="正则标志位">
-        {JS_FLAGS.map((f) => {
-          const active = flags.includes(f.key);
-          return (
-            <button
-              key={f.key}
-              type="button"
-              className={`tbp-regex-flag ${active ? 'is-active' : ''}`}
-              onClick={() => toggleFlag(f.key)}
-              aria-pressed={active}
-              title={`${f.name}：${f.desc}`}
-            >
-              <span className="tbp-regex-flag-key">{f.key}</span>
-              <span className="tbp-regex-flag-name">{f.name}</span>
-            </button>
-          );
-        })}
-      </div>
 
       {/* 行包含关键词输入 */}
       {isLineContains && (
@@ -160,7 +156,6 @@ const RegexWorkbench: React.FC<RegexWorkbenchProps> = ({
 
       {/* 预设条 */}
       <div className="tbp-preset-bar" role="group" aria-label="提取预设">
-        <span className="tbp-preset-bar-label">预设</span>
         {EXTRACT_PRESETS.map((p) => {
           const active = activePresetKey === p.key;
           return (

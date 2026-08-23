@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { basicStats, wordFrequency } from '../utils/text-ops/freq';
 import type { WordFreqEntry } from '../utils/text-ops/freq';
 import { STOP_WORDS } from '../data/stopWords';
@@ -21,33 +21,48 @@ const SPLIT_MODES: { value: SplitMode; label: string; hint: string }[] = [
 const FreqTab: React.FC<FreqTabProps> = ({ inputText, state, dispatch }) => {
   const { segStatus, cut } = useSegmentation();
   const hasInput = inputText.trim().length > 0;
+  const [copied, setCopied] = useState(false);
 
   // 基础统计（实时）
   const stats = useMemo(() => basicStats(inputText), [inputText]);
 
-  // 词频（实时，按切分模式）
-  const freqEntries = useMemo<WordFreqEntry[]>(() => {
+  // 词频全量结果（不受 topN 限制），仅调用一次
+  const allFreqEntries = useMemo<WordFreqEntry[]>(() => {
     if (!hasInput) return [];
     return wordFrequency(inputText, {
       splitMode: state.splitMode,
-      topN: state.topN,
       stopWords: state.useStopWords ? STOP_WORDS : [],
       segment: state.splitMode === 'word' ? (cut ?? undefined) : undefined,
     });
-  }, [inputText, state.splitMode, state.topN, state.useStopWords, cut, hasInput]);
+  }, [inputText, state.splitMode, state.useStopWords, cut, hasInput]);
 
-  const uniqueCount = useMemo(() => {
-    // 全量唯一词数（不受 topN 限制）
-    const all = wordFrequency(inputText, {
-      splitMode: state.splitMode,
-      stopWords: state.useStopWords ? STOP_WORDS : [],
-      segment: state.splitMode === 'word' ? (cut ?? undefined) : undefined,
-    });
-    return all.length;
-  }, [inputText, state.splitMode, state.useStopWords, cut]);
+  // 展示列表 = 全量结果截取 topN
+  const freqEntries = useMemo(
+    () => allFreqEntries.slice(0, state.topN),
+    [allFreqEntries, state.topN],
+  );
+
+  const uniqueCount = allFreqEntries.length;
 
   const wordModeUnavailable = state.splitMode === 'word' && segStatus === 'failed';
   const wordModeLoading = state.splitMode === 'word' && segStatus === 'loading';
+
+  const handleCopy = useCallback(async () => {
+    if (freqEntries.length === 0) return;
+    const tsv = [
+      '序号\t词\t次数\t占比',
+      ...freqEntries.map((e, i) =>
+        `${i + 1}\t${e.word}\t${e.count}\t${(e.percentage * 100).toFixed(1)}%`,
+      ),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(tsv);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  }, [freqEntries]);
 
   const statCards = [
     { label: '字符数', value: stats.chars, unit: '字符', key: 'chars' },
@@ -124,6 +139,18 @@ const FreqTab: React.FC<FreqTabProps> = ({ inputText, state, dispatch }) => {
           >
             停用词过滤
           </button>
+
+          {freqEntries.length > 0 && (
+            <button
+              type="button"
+              className={`tbp-result-btn tbp-result-btn--ghost tbp-freq-copy ${copied ? 'is-copied' : ''}`}
+              onClick={handleCopy}
+              aria-label="复制词频结果"
+            >
+              <span className="tbp-btn-icon" aria-hidden>{copied ? '✓' : '⧉'}</span>
+              {copied ? '已复制' : '复制'}
+            </button>
+          )}
 
           {wordModeLoading && (
             <span className="tbp-freq-loading" role="status">

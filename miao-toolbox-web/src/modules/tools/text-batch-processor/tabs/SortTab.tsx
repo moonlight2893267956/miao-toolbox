@@ -1,21 +1,15 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo } from 'react';
 import { sortText } from '../utils/text-ops/sort';
 import type { SortOptions, SortMethod } from '../utils/text-ops/sort';
 import type { TbpAction } from '../types';
+import { DELIMITER_PRESETS } from '../data/delimiters';
+import { useBackfillAndCopy } from '../hooks/useBackfillAndCopy';
 
 interface SortTabProps {
   inputText: string;
   options: SortOptions;
   dispatch: React.Dispatch<TbpAction>;
 }
-
-const DELIMITER_PRESETS: { label: string; value: string }[] = [
-  { label: '换行', value: '\n' },
-  { label: '逗号', value: ',' },
-  { label: '分号', value: ';' },
-  { label: '空格', value: ' ' },
-  { label: '制表符', value: '\t' },
-];
 
 const METHOD_PRESETS: { value: SortMethod; label: string }[] = [
   { value: 'asc', label: '升序' },
@@ -27,16 +21,7 @@ const METHOD_PRESETS: { value: SortMethod; label: string }[] = [
 ];
 
 const SortTab: React.FC<SortTabProps> = ({ inputText, options, dispatch }) => {
-  const [justBackfilled, setJustBackfilled] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const backfilledRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (backfilledRef.current !== null && inputText !== backfilledRef.current) {
-      backfilledRef.current = null;
-      setJustBackfilled(false);
-    }
-  }, [inputText]);
+  const { justBackfilled, copied, handleBackfill, handleCopy, handleUndoBackfill } = useBackfillAndCopy(inputText, dispatch);
 
   const result = useMemo(() => sortText(inputText, options), [inputText, options]);
   const hasInput = inputText.trim().length > 0;
@@ -61,93 +46,55 @@ const SortTab: React.FC<SortTabProps> = ({ inputText, options, dispatch }) => {
     });
   };
 
-  const handleBackfill = () => {
-    if (!result.resultText) return;
-    dispatch({ type: 'TBP_BACKFILL', payload: result.resultText });
-    backfilledRef.current = result.resultText;
-    setJustBackfilled(true);
-  };
-
-  const handleCopy = async () => {
-    if (!result.resultText) return;
-    try {
-      await navigator.clipboard.writeText(result.resultText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      setCopied(false);
-    }
-  };
-
   return (
     <div className="tbp-sort">
-      <section className="tbp-sort-stage" aria-label="排序选项">
-        <div className="tbp-method-grid" role="radiogroup" aria-label="排序方式">
-          {METHOD_PRESETS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={options.method === value}
-              className={`tbp-method-card ${options.method === value ? 'is-active' : ''}`}
-              onClick={() => handleMethodChange(value)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+      <section className="tbp-result tbp-result--sort" aria-label="排序结果">
+        {/* 选项行：方式 pills + 二级选项 */}
+        <div className="tbp-sort-options">
+          <div className="tbp-method-grid" role="radiogroup" aria-label="排序方式">
+            {METHOD_PRESETS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={options.method === value}
+                className={`tbp-method-card ${options.method === value ? 'is-active' : ''}`}
+                onClick={() => handleMethodChange(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
-        <div className="tbp-sort-extras">
-          <button
-            type="button"
-            className={`tbp-extra-pill ${options.ignoreCase ? 'is-active' : ''}`}
-            aria-pressed={!!options.ignoreCase}
-            onClick={handleIgnoreCaseToggle}
-          >
-            <span className="tbp-extra-pill-label">忽略大小写</span>
-          </button>
-
-          <label className="tbp-extra-pill tbp-extra-pill--select">
-            <span className="tbp-extra-pill-label">分隔符</span>
-            <select
-              className="tbp-extra-pill-select"
-              value={options.delimiter ?? '\n'}
-              onChange={(e) => handleDelimiterChange(e.target.value)}
-              aria-label="分隔符"
-            >
-              {DELIMITER_PRESETS.map((p) => (
-                <option key={p.label} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="tbp-sort-actions">
+          <div className="tbp-sort-extras">
             <button
               type="button"
-              className={`tbp-result-btn tbp-result-btn--ghost ${copied ? 'is-copied' : ''}`}
-              onClick={handleCopy}
-              disabled={!result.resultText}
-              aria-label="复制结果"
+              className={`tbp-extra-pill ${options.ignoreCase ? 'is-active' : ''}`}
+              aria-pressed={!!options.ignoreCase}
+              onClick={handleIgnoreCaseToggle}
             >
-              <span className="tbp-btn-icon" aria-hidden>{copied ? '✓' : '⧉'}</span>
-              {copied ? '已复制' : '复制'}
+              忽略大小写
             </button>
-            <button
-              type="button"
-              className="tbp-result-btn tbp-result-btn--primary"
-              onClick={handleBackfill}
-              disabled={!result.resultText}
-            >
-              <span className="tbp-btn-icon" aria-hidden>↩</span>
-              回填
-            </button>
+
+            <label className="tbp-extra-pill tbp-extra-pill--select">
+              <span className="tbp-extra-pill-label">分隔符</span>
+              <select
+                className="tbp-extra-pill-select"
+                value={options.delimiter ?? '\n'}
+                onChange={(e) => handleDelimiterChange(e.target.value)}
+                aria-label="分隔符"
+              >
+                {DELIMITER_PRESETS.map((p) => (
+                  <option key={p.label} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
         </div>
-      </section>
 
-      <section className="tbp-result tbp-result--sort" aria-label="排序结果">
+        {/* 统计 + 操作行 */}
         <div className="tbp-result-summary">
           <span className="tbp-result-summary-count">
             <span className="tbp-result-summary-num">{total}</span>
@@ -158,6 +105,27 @@ const SortTab: React.FC<SortTabProps> = ({ inputText, options, dispatch }) => {
               {changed ? '顺序已调整' : '顺序未变'}
             </span>
           )}
+          <div className="tbp-result-actions">
+            <button
+              type="button"
+              className={`tbp-result-btn tbp-result-btn--ghost ${copied ? 'is-copied' : ''}`}
+              onClick={() => handleCopy(result.resultText)}
+              disabled={!result.resultText}
+              aria-label="复制结果"
+            >
+              <span className="tbp-btn-icon" aria-hidden>{copied ? '✓' : '⧉'}</span>
+              {copied ? '已复制' : '复制'}
+            </button>
+            <button
+              type="button"
+              className="tbp-result-btn tbp-result-btn--primary"
+              onClick={justBackfilled ? handleUndoBackfill : () => handleBackfill(result.resultText)}
+              disabled={!result.resultText}
+            >
+              <span className="tbp-btn-icon" aria-hidden>{justBackfilled ? '↺' : '↩'}</span>
+              {justBackfilled ? '撤销回填' : '回填'}
+            </button>
+          </div>
         </div>
 
         <div className="tbp-rack">
