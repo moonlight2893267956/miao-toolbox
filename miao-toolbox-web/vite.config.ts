@@ -4,6 +4,11 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  optimizeDeps: {
+    // jieba-wasm 通过 new URL('...wasm', import.meta.url) 加载 WASM 二进制，
+    // 预打包会破坏该语义（.vite/deps 下没有 wasm 文件），需排除让其按源码处理
+    exclude: ['jieba-wasm'],
+  },
   server: {
     port: 5173,
     proxy: {

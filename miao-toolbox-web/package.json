@@ -46,6 +46,7 @@
     "diff": "^9.0.0",
     "docx-preview": "^0.4.0",
     "framer-motion": "^11.18.2",
+    "jieba-wasm": "^2.4.0",
     "js-yaml": "^5.2.1",
     "jsencrypt": "^3.5.4",
     "nanoid": "^5.1.16",

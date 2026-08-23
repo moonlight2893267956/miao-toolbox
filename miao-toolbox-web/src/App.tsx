@@ -33,6 +33,7 @@ const NetworkToolLayoutPreview = lazy(() => import('./modules/tools/network/Netw
 const NetworkToolList = lazy(() => import('./modules/tools/network/NetworkToolList'));
 const NetworkToolPage = lazy(() => import('./modules/tools/network/NetworkToolPage'));
 const FileStoragePage = lazy(() => import('./modules/tools/file-storage'));
+const TextBatchProcessorPage = lazy(() => import('./modules/tools/text-batch-processor/TextBatchProcessorPage'));
 const DashboardPage = lazy(() => import('./modules/admin/DashboardPage'));
 const UserManagePage = lazy(() => import('./modules/admin/UserManagePage'));
 const InvocationsPage = lazy(() => import('./modules/admin/InvocationsPage'));
@@ -101,6 +102,7 @@ function AppRoutes() {
         <Route path="tools/php-log-extractor" element={<RequireRoute code="TOOL_PHP_LOG_EXTRACTOR"><PhpLogExtractorPage /></RequireRoute>} />
         <Route path="tools/ral-log-parser" element={<RequireRoute code="TOOL_RAL_LOG_PARSER"><RalLogParserPage /></RequireRoute>} />
         <Route path="tools/file-storage" element={<RequireRoute code="TOOL_FILE_STORAGE"><FileStoragePage /></RequireRoute>} />
+        <Route path="tools/text-batch-processor" element={<RequireRoute code="TOOL_TEXT_BATCH_PROCESSOR"><TextBatchProcessorPage /></RequireRoute>} />
         <Route
           path="tools/network"
           element={

@@ -79,6 +79,14 @@ routes:
     sortOrder: 10
     adminRoute: false
     enabled: true
+  - code: TOOL_TEXT_BATCH_PROCESSOR
+    name: 文本批量处理
+    path: /tools/text-batch-processor
+    category: TOOL
+    icon: FileTextOutlined
+    sortOrder: 11
+    adminRoute: false
+    enabled: true
   - code: PAGE_SETTINGS
     name: 个人设置
     path: /settings

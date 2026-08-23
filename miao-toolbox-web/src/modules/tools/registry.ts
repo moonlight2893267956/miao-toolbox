@@ -25,7 +25,7 @@ export type ToolCategory = 'available' | 'coming-soon';
  * 工具功能分组：用于侧栏和工作台首页的子分类展示。
  * 顺序决定侧栏中的排列先后。
  */
-export type ToolGroup = 'dev' | 'log' | 'text' | 'ai' | 'other';
+export type ToolGroup = 'dev' | 'log' | 'text' | 'ai' | 'fun' | 'other';
 
 /** 分组元数据：标签与排序 */
 export const TOOL_GROUPS: Record<ToolGroup, { label: string; order: number }> = {
@@ -33,6 +33,7 @@ export const TOOL_GROUPS: Record<ToolGroup, { label: string; order: number }> = 
   log:   { label: '日志解析', order: 1 },
   text:  { label: '文本处理', order: 2 },
   ai:    { label: 'AI 创作',  order: 3 },
+  fun:   { label: '娱乐工具', order: 4 },
   other: { label: '其他',     order: 99 },
 };
 
@@ -225,6 +226,21 @@ export const toolsRegistry: ToolMeta[] = [
     available: true,
     accentColor: '#3B82F6',
     iconBg: 'rgba(59,130,246,0.12)',
+  },
+  {
+    key: 'text-batch-processor',
+    title: '文本批量处理',
+    description: '去重、排序、提取、替换、词频统计——纯前端本地运算，文本不离开设备',
+    icon: FileTextOutlined,
+    status: '可用',
+    tags: ['去重', '排序', '提取', '替换', '词频'],
+    path: '/tools/text-batch-processor',
+    routeCode: 'TOOL_TEXT_BATCH_PROCESSOR',
+    category: 'available',
+    group: 'text',
+    available: true,
+    accentColor: '#10b981',
+    iconBg: 'rgba(16,185,129,0.12)',
   },
   {
     key: 'image',
