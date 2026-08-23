@@ -13,7 +13,7 @@ interface ReplaceTabProps {
 }
 
 const ReplaceTab: React.FC<ReplaceTabProps> = ({ inputText, state, dispatch }) => {
-  const { justBackfilled, copied, handleBackfill, handleCopy, handleUndoBackfill } = useBackfillAndCopy(inputText, dispatch);
+  const { justBackfilled, copied, handleBackfill, handleCopy, handleUndoBackfill, resetBackfill } = useBackfillAndCopy(inputText, dispatch);
   const previewRef = useRef<TextOpsMatch[]>([]);
   /** Worker 返回的替换文本缓存，执行时直接使用无需主线程重算 */
   const replacedTextRef = useRef<string>('');
@@ -74,8 +74,9 @@ const ReplaceTab: React.FC<ReplaceTabProps> = ({ inputText, state, dispatch }) =
     if (useRegex && regexInvalid) return;
     const result = replacedTextRef.current;
     if (!result) return;
-    dispatch({ type: 'TBP_SET_REPLACE_EXECUTED', payload: { result, count: previewRef.current.length } });
-  }, [hasInput, findPattern, useRegex, regexInvalid, dispatch]);
+    resetBackfill();
+    dispatch({ type: 'TBP_SET_REPLACE_EXECUTED', payload: { result, count } });
+  }, [hasInput, findPattern, useRegex, regexInvalid, count, dispatch, resetBackfill]);
 
   // 预览高亮分段：基于原文本 + matches 位置（正则模式），或 indexOf（普通模式）
   const previewSegments = useMemo(() => {
@@ -249,7 +250,7 @@ const ReplaceTab: React.FC<ReplaceTabProps> = ({ inputText, state, dispatch }) =
         <div className="tbp-replace-actions">
           <button
             type="button"
-            className="tbp-exec-btn"
+            className="tbp-result-btn tbp-result-btn--primary tbp-exec-btn"
             onClick={handleExecute}
             disabled={!canPreview}
             aria-disabled={!canPreview}

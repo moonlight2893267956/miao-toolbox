@@ -45,5 +45,10 @@ export function useBackfillAndCopy(inputText: string, dispatch: React.Dispatch<T
     setJustBackfilled(false);
   }, [dispatch]);
 
-  return { justBackfilled, copied, handleBackfill, handleCopy, handleUndoBackfill };
+  const resetBackfill = useCallback(() => {
+    backfilledRef.current = null;
+    setJustBackfilled(false);
+  }, []);
+
+  return { justBackfilled, copied, handleBackfill, handleCopy, handleUndoBackfill, resetBackfill };
 }

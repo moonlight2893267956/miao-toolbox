@@ -1036,7 +1036,7 @@
 .tbp-result-btn--primary {
   border: 1px solid var(--tool-accent);
   background: var(--tool-accent);
-  color: #06121b;
+  color: var(--miao-on-brand);
   box-shadow: 0 1px 0 color-mix(in srgb, var(--tool-accent) 80%, #000);
 }
 
@@ -1583,58 +1583,6 @@
   color: var(--miao-text);
 }
 
-.tbp-page .tbp-sort .tbp-result-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: 6px;
-  cursor: pointer;
-  font: inherit;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-  line-height: 1.2;
-}
-
-.tbp-page .tbp-sort .tbp-result-btn--ghost {
-  background: transparent;
-  border: 1px solid var(--miao-border);
-  color: var(--miao-text-soft);
-}
-
-.tbp-page .tbp-sort .tbp-result-btn--ghost:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--tool-accent) 32%, transparent);
-  color: var(--tool-accent);
-}
-
-.tbp-page .tbp-sort .tbp-result-btn--ghost.is-copied {
-  background: var(--miao-brand-bg);
-  border-color: var(--tool-accent);
-  color: var(--tool-accent);
-}
-
-.tbp-page .tbp-sort .tbp-result-btn--primary {
-  background: var(--tool-accent);
-  border: 1px solid var(--tool-accent);
-  color: var(--tbp-accent-deep);
-  font-weight: 600;
-}
-
-.tbp-page .tbp-sort .tbp-result-btn--primary:hover:not(:disabled) {
-  filter: brightness(1.08);
-}
-
-.tbp-page .tbp-sort .tbp-result-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.tbp-btn-icon {
-  font-size: 13px;
-  line-height: 1;
-}
-
 /* ============================================================
    结果面板：克制清单
    ============================================================ */
@@ -1819,7 +1767,7 @@
 @media (prefers-reduced-motion: reduce) {
   .tbp-method-card,
   .tbp-extra-pill,
-  .tbp-page .tbp-sort .tbp-result-btn {
+  .tbp-result-btn {
     transition: none !important;
   }
 }
@@ -2515,45 +2463,16 @@
   line-height: 1.5;
 }
 
-/* 执行按钮 */
+/* 执行按钮容器 */
 .tbp-replace-actions {
   display: flex;
   justify-content: flex-end;
 }
 
+/* 执行按钮 — 复用 tbp-result-btn--primary，略大 padding 强调主操作 */
 .tbp-exec-btn {
-  appearance: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
   padding: 7px 18px;
-  font-family: var(--miao-font-sans);
   font-size: 13px;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--miao-on-brand);
-  background: linear-gradient(135deg, var(--tool-accent), color-mix(in srgb, var(--tool-accent) 78%, #000));
-  border: none;
-  border-radius: 7px;
-  cursor: pointer;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--tool-accent) 30%, transparent);
-  transition: filter 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
-}
-
-.tbp-exec-btn:hover:not(:disabled) {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-  box-shadow: 0 3px 12px color-mix(in srgb, var(--tool-accent) 40%, transparent);
-}
-
-.tbp-exec-btn:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.tbp-exec-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 /* 替换结果文本 */
