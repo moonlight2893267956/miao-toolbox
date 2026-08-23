@@ -43,6 +43,12 @@
   --miao-brand-bg-hover: color-mix(in srgb, var(--miao-accent-tool-emerald) 14%, transparent);
   --tbp-accent-deep: color-mix(in srgb, var(--tool-accent) 72%, #000);
   --tbp-accent-soft: var(--miao-brand-bg);
+  /* 兼容别名：映射到全局 token（亮色/暗色自动跟随） */
+  --miao-text: var(--miao-text-primary);
+  --miao-text-soft: var(--miao-text-secondary);
+  --miao-surface: var(--miao-bg-elevated);
+  --miao-surface-2: var(--miao-bg-muted);
+  --miao-bg-panel: var(--miao-bg-elevated);
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -2603,54 +2609,62 @@
   gap: 8px;
 }
 
+/* Top N 步进器 — 与胶囊按钮统一视觉 */
 .tbp-freq-topn {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 0 4px 0 9px;
   height: 26px;
   border: 1px solid var(--miao-border);
   border-radius: 999px;
-  background: var(--miao-bg);
-  transition: border-color 0.15s ease;
-}
-
-.tbp-freq-topn:hover,
-.tbp-freq-topn:focus-within {
-  border-color: color-mix(in srgb, var(--tool-accent) 45%, var(--miao-border));
-}
-
-.tbp-freq-topn-label {
-  font-size: 11px;
-  color: var(--miao-text-soft);
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  line-height: 1;
-}
-
-.tbp-freq-topn-input {
-  width: 28px;
-  height: 24px;
   background: transparent;
+  overflow: hidden;
+}
+
+.tbp-freq-topn-btn {
+  appearance: none;
+  width: 22px;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
-  outline: none;
-  color: var(--miao-text);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
+  background: transparent;
+  color: var(--miao-text-soft);
+  font-size: 14px;
   font-weight: 700;
-  text-align: right;
-  appearance: textfield;
-  -moz-appearance: textfield;
-  padding: 0;
-  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  user-select: none;
 }
 
-.tbp-freq-topn-input::-webkit-inner-spin-button {
-  opacity: 0.3;
-}
-
-.tbp-freq-topn-input:focus {
+.tbp-freq-topn-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tool-accent) 10%, transparent);
   color: var(--tool-accent);
+}
+
+.tbp-freq-topn-btn:active:not(:disabled) {
+  background: color-mix(in srgb, var(--tool-accent) 18%, transparent);
+}
+
+.tbp-freq-topn-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.tbp-freq-topn-value {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  min-width: 52px;
+  height: 100%;
+  justify-content: center;
+  font-family: var(--miao-font-mono, 'JetBrains Mono', monospace);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--miao-text);
+  border-left: 1px solid var(--miao-border);
+  border-right: 1px solid var(--miao-border);
+  line-height: 1;
 }
 
 .tbp-freq-loading {

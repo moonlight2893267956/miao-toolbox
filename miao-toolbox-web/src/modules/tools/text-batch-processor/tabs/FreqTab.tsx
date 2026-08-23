@@ -111,24 +111,28 @@ const FreqTab: React.FC<FreqTabProps> = ({ inputText, state, dispatch }) => {
             })}
           </div>
 
-          {/* Top N */}
-          <label className="tbp-freq-topn">
-            <span className="tbp-freq-topn-label">Top</span>
-            <input
-              type="number"
-              min={1}
-              max={500}
-              value={state.topN}
-              onChange={(e) => {
-                const v = parseInt(e.target.value, 10);
-                if (!Number.isNaN(v) && v >= 1) {
-                  dispatch({ type: 'TBP_SET_FREQ_TOP_N', payload: Math.min(v, 500) });
-                }
-              }}
-              className="tbp-freq-topn-input"
-              aria-label="Top N 条数"
-            />
-          </label>
+          {/* Top N 步进器 */}
+          <div className="tbp-freq-topn" role="group" aria-label="展示条数">
+            <button
+              type="button"
+              className="tbp-freq-topn-btn"
+              onClick={() => dispatch({ type: 'TBP_SET_FREQ_TOP_N', payload: Math.max(1, state.topN - 5) })}
+              disabled={state.topN <= 1}
+              aria-label="减少 5"
+            >
+              −
+            </button>
+            <span className="tbp-freq-topn-value" aria-live="polite">Top {state.topN}</span>
+            <button
+              type="button"
+              className="tbp-freq-topn-btn"
+              onClick={() => dispatch({ type: 'TBP_SET_FREQ_TOP_N', payload: Math.min(500, state.topN + 5) })}
+              disabled={state.topN >= 500}
+              aria-label="增加 5"
+            >
+              +
+            </button>
+          </div>
 
           {/* 停用词过滤 */}
           <button
