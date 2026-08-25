@@ -2,7 +2,7 @@ import React, { useMemo, useCallback, useRef, useEffect } from 'react';
 import RegexWorkbench from '../components/RegexWorkbench';
 import { useTextOps } from '../hooks/useTextOps';
 import { useBackfillAndCopy } from '../hooks/useBackfillAndCopy';
-import { extractLinesContaining, formatExtractMatches, countUniqueMatches } from '../utils/text-ops/extract';
+import { extractLinesContaining, formatExtractMatches, countUniqueMatches, splitLines } from '../utils/text-ops/extract';
 import type { ExtractMatch, ExtractFormat } from '../utils/text-ops/extract';
 import { PRESET_LINE_CONTAINS } from '../data/presets';
 import type { TbpAction, ExtractState } from '../types';
@@ -11,6 +11,7 @@ interface ExtractTabProps {
   inputText: string;
   state: ExtractState;
   dispatch: React.Dispatch<TbpAction>;
+  onLocateMatch?: (start: number, end: number) => void;
 }
 
 const FORMAT_PRESETS: { value: ExtractFormat; label: string; hint: string }[] = [
@@ -19,7 +20,7 @@ const FORMAT_PRESETS: { value: ExtractFormat; label: string; hint: string }[] = 
   { value: 'groups', label: '仅捕获组', hint: '第 1 组' },
 ];
 
-const ExtractTab: React.FC<ExtractTabProps> = ({ inputText, state, dispatch }) => {
+const ExtractTab: React.FC<ExtractTabProps> = ({ inputText, state, dispatch, onLocateMatch }) => {
   const { justBackfilled, copied, handleBackfill, handleCopy, handleUndoBackfill } = useBackfillAndCopy(inputText, dispatch);
   const matchesRef = useRef<ExtractMatch[]>([]);
 
@@ -62,7 +63,23 @@ const ExtractTab: React.FC<ExtractTabProps> = ({ inputText, state, dispatch }) =
       return;
     }
     const r = extractLinesContaining(inputText, { keyword: state.keyword, ignoreCase: state.flags.includes('i') });
-    matchesRef.current = r.lines.map((line, i) => ({ fullMatch: line, index: i, endIndex: i + line.length }));
+    // 双指针：将 r.lines 映射回原文字符偏移量
+    const allLines = splitLines(inputText);
+    const lineOffsets: number[] = [];
+    let off = 0;
+    for (const line of allLines) {
+      lineOffsets.push(off);
+      off += line.length + 1;
+    }
+    const matches: ExtractMatch[] = [];
+    let li = 0;
+    for (let i = 0; i < allLines.length && li < r.lines.length; i++) {
+      if (allLines[i] === r.lines[li]) {
+        matches.push({ fullMatch: allLines[i], index: lineOffsets[i], endIndex: lineOffsets[i] + allLines[i].length });
+        li++;
+      }
+    }
+    matchesRef.current = matches;
     dispatch({ type: 'TBP_SET_EXTRACT_RESULT', payload: { result: r.resultText, count: r.stats.remaining } });
   }, [isLineContains, inputText, state.keyword, state.flags, hasInput, dispatch]);
 
@@ -112,6 +129,25 @@ const ExtractTab: React.FC<ExtractTabProps> = ({ inputText, state, dispatch }) =
   );
 
   const resultLines = useMemo(() => resultText.split('\n'), [resultText]);
+
+  // 点击结果行 → 定位到输入区对应位置
+  const handleLineClick = useCallback(
+    (i: number) => {
+      if (!onLocateMatch) return;
+      const matches = matchesRef.current;
+      if (matches.length === 0) return;
+      let match: ExtractMatch | undefined;
+      if (state.format === 'dedup') {
+        match = matches.find((m) => m.fullMatch === resultLines[i]);
+      } else {
+        match = matches[i];
+      }
+      if (match && match.index >= 0 && match.endIndex > match.index) {
+        onLocateMatch(match.index, match.endIndex);
+      }
+    },
+    [onLocateMatch, state.format, resultLines],
+  );
 
   return (
     <div className="tbp-extract">
@@ -220,7 +256,12 @@ const ExtractTab: React.FC<ExtractTabProps> = ({ inputText, state, dispatch }) =
           ) : (
             <ol className="tbp-result-list">
               {resultLines.map((line, i) => (
-                <li key={i} className="tbp-result-line">
+                <li
+                  key={i}
+                  className="tbp-result-line tbp-result-line--clickable"
+                  onClick={() => handleLineClick(i)}
+                  title="点击定位到输入区"
+                >
                   <span className="tbp-result-line-num">{i + 1}</span>
                   <span className="tbp-result-line-tick" aria-hidden />
                   <span className="tbp-result-line-text">

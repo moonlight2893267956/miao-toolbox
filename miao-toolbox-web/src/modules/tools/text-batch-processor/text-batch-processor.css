@@ -384,7 +384,15 @@
   border-color: var(--tool-accent);
 }
 
-.tbp-input-panel .ant-input {
+.tbp-textarea-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.tbp-textarea-wrap .ant-input {
   flex: 1;
   min-height: 0;
   height: auto !important;
@@ -402,17 +410,187 @@
     box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.tbp-input-panel .ant-input:focus,
-.tbp-input-panel .ant-input-focused {
+.tbp-textarea-wrap .ant-input:focus,
+.tbp-textarea-wrap .ant-input-focused {
   border-color: color-mix(in srgb, var(--tool-accent) 45%, var(--miao-border));
   box-shadow:
     0 0 0 3px color-mix(in srgb, var(--tool-accent) 7%, transparent),
     inset 0 0 0 1px color-mix(in srgb, var(--tool-accent) 15%, transparent);
 }
 
-.tbp-input-panel .ant-input::placeholder {
+.tbp-textarea-wrap .ant-input::placeholder {
   color: var(--miao-text-tertiary);
   opacity: 0.6;
+}
+
+/* 查找/替换浮层栏 */
+.tbp-find-bar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--miao-bg-elevated);
+  border: 1px solid var(--miao-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  padding: 6px;
+  min-width: 280px;
+}
+
+.tbp-find-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tbp-find-input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  background: var(--miao-bg);
+  border: 1px solid var(--miao-border);
+  border-radius: 5px;
+  color: var(--miao-text-primary);
+  font-size: 12px;
+  font-family: var(--miao-font-mono);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.tbp-find-input:focus {
+  border-color: var(--tool-accent);
+}
+
+.tbp-find-toggle {
+  height: 26px;
+  min-width: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--miao-border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--miao-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.tbp-find-toggle:hover {
+  border-color: var(--tool-accent);
+  color: var(--tool-accent);
+}
+
+.tbp-find-toggle.is-active {
+  background: color-mix(in srgb, var(--tool-accent) 14%, transparent);
+  border-color: var(--tool-accent);
+  color: var(--tool-accent);
+}
+
+.tbp-find-count {
+  font-size: 11px;
+  color: var(--miao-text-secondary);
+  font-family: var(--miao-font-mono);
+  font-variant-numeric: tabular-nums;
+  min-width: 40px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.tbp-find-nav {
+  height: 26px;
+  width: 26px;
+  border: 1px solid var(--miao-border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--miao-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.tbp-find-nav:hover:not(:disabled) {
+  border-color: var(--tool-accent);
+  color: var(--tool-accent);
+}
+
+.tbp-find-nav:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.tbp-find-close {
+  height: 26px;
+  width: 26px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--miao-text-tertiary);
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.tbp-find-close:hover {
+  background: color-mix(in srgb, var(--miao-error) 10%, transparent);
+  color: var(--miao-error);
+}
+
+.tbp-find-action {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--miao-border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--miao-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.tbp-find-action:hover:not(:disabled) {
+  border-color: var(--tool-accent);
+  color: var(--tool-accent);
+}
+
+.tbp-find-action:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.tbp-find-action--all {
+  background: var(--tool-accent);
+  border-color: var(--tool-accent);
+  color: var(--miao-on-brand);
+}
+
+.tbp-find-action--all:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+/* 定位高亮：选中区间时输入框闪烁脉冲 */
+@keyframes tbp-locate-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--tool-accent) 0%, transparent); }
+  30% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--tool-accent) 25%, transparent); }
+}
+
+.tbp-input-panel.is-locating .ant-input {
+  animation: tbp-locate-pulse 1.2s ease-out;
+}
+
+.tbp-input-panel.is-locating .ant-input::selection {
+  background: color-mix(in srgb, var(--tool-accent) 30%, transparent);
 }
 
 .tbp-input-alert {
@@ -2230,6 +2408,23 @@
 
 .tbp-result-line:hover {
   background: color-mix(in srgb, var(--tool-accent) 5%, transparent);
+}
+
+.tbp-result-line--clickable {
+  cursor: pointer;
+}
+
+.tbp-result-line--clickable:hover {
+  background: color-mix(in srgb, var(--tool-accent) 10%, transparent);
+}
+
+.tbp-result-line--clickable:hover .tbp-result-line-tick {
+  background: var(--tool-accent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--tool-accent) 60%, transparent);
+}
+
+.tbp-result-line--clickable:active {
+  background: color-mix(in srgb, var(--tool-accent) 16%, transparent);
 }
 
 .tbp-result-line-num {

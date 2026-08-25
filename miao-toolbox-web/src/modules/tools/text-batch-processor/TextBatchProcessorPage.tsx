@@ -1,4 +1,4 @@
-import React, { useReducer, useCallback, useEffect, useRef } from 'react';
+import React, { useReducer, useCallback, useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Modal } from 'antd';
 import { FileTextOutlined } from '@ant-design/icons';
@@ -7,6 +7,7 @@ import type { TbpState, TbpAction, TbpTabKey } from './types';
 import { TBP_TABS, INITIAL_TBP_STATE } from './types';
 import { loadPageState, savePageState } from '../../../shared/utils/tabPageStorage';
 import SharedTextInputArea from './components/SharedTextInputArea';
+import type { HighlightRange } from './components/SharedTextInputArea';
 import DedupTab from './tabs/DedupTab';
 import SortTab from './tabs/SortTab';
 import ExtractTab from './tabs/ExtractTab';
@@ -107,6 +108,14 @@ const TextBatchProcessorPage: React.FC = () => {
   }, []);
 
   const tabListRef = useRef<HTMLDivElement>(null);
+  const [highlightRange, setHighlightRange] = useState<HighlightRange | null>(null);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleLocateMatch = useCallback((start: number, end: number) => {
+    if (highlightTimer.current) clearTimeout(highlightTimer.current);
+    setHighlightRange({ start, end });
+    highlightTimer.current = setTimeout(() => setHighlightRange(null), 4000);
+  }, []);
 
   const focusTab = useCallback((key: TbpTabKey) => {
     const container = tabListRef.current;
@@ -206,6 +215,7 @@ const TextBatchProcessorPage: React.FC = () => {
         <SharedTextInputArea
           inputText={state.inputText}
           dispatch={dispatch}
+          highlightRange={highlightRange}
         />
 
         <div className="tbp-flow-divider" aria-hidden>
@@ -241,6 +251,7 @@ const TextBatchProcessorPage: React.FC = () => {
                   inputText={state.inputText}
                   state={state.extract}
                   dispatch={dispatch}
+                  onLocateMatch={handleLocateMatch}
                 />
               ) : state.activeTab === 'replace' ? (
                 <ReplaceTab
