@@ -138,11 +138,16 @@ const SortTab: React.FC<SortTabProps> = ({ inputText, options, dispatch }) => {
               </div>
             </div>
           ) : !hasInput ? (
-            <div className="tbp-rack-flash" role="status">
-              <span className="tbp-rack-flash-glyph" aria-hidden>⌁</span>
-              <div>
+            <div className="tbp-result-empty">
+              <span className="tbp-result-empty-icon" aria-hidden>⌁</span>
+              <div className="tbp-result-empty-body">
                 <strong>等待输入</strong>
-                <p>在左侧输入文本后，此处会显示排序结果。</p>
+                <span>在左侧输入文本后，此处会实时生成排序结果</span>
+              </div>
+              <div className="tbp-empty-hints" aria-hidden>
+                <span className="tbp-empty-hint-chip">字母 · 数字 · 长度</span>
+                <span className="tbp-empty-hint-chip">升序 / 降序</span>
+                <span className="tbp-empty-hint-chip">保留原始行号</span>
               </div>
             </div>
           ) : (

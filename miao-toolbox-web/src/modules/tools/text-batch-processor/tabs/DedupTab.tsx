@@ -218,7 +218,12 @@ const ResultPanel: React.FC<{
               <span className="tbp-result-empty-icon" aria-hidden>⌁</span>
               <div className="tbp-result-empty-body">
                 <strong>等待输入</strong>
-                <span>在左侧输入文本后，此处会显示去重结果</span>
+                <span>在左侧输入文本后，此处会实时生成去重结果</span>
+              </div>
+              <div className="tbp-empty-hints" aria-hidden>
+                <span className="tbp-empty-hint-chip">保留首次出现</span>
+                <span className="tbp-empty-hint-chip">按行比较</span>
+                <span className="tbp-empty-hint-chip">压缩率统计</span>
               </div>
             </motion.div>
           ) : (

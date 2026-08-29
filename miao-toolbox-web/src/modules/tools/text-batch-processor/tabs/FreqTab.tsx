@@ -176,7 +176,12 @@ const FreqTab: React.FC<FreqTabProps> = ({ inputText, state, dispatch }) => {
               <span className="tbp-result-empty-icon" aria-hidden>⌁</span>
               <div className="tbp-result-empty-body">
                 <strong>等待输入</strong>
-                <span>在左侧输入文本后，此处会显示词频统计</span>
+                <span>在左侧输入文本后，此处会实时生成词频统计</span>
+              </div>
+              <div className="tbp-empty-hints" aria-hidden>
+                <span className="tbp-empty-hint-chip">词 → 次数 → 占比</span>
+                <span className="tbp-empty-hint-chip">Top N 可调</span>
+                <span className="tbp-empty-hint-chip">停用词过滤</span>
               </div>
             </div>
           ) : freqEntries.length === 0 ? (

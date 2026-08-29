@@ -140,7 +140,7 @@ const ReplaceTab: React.FC<ReplaceTabProps> = ({ inputText, state, dispatch }) =
           <span className="tbp-replace-field-label">查找</span>
           <input
             type="text"
-            value={findPattern}
+            value={findPattern ?? ''}
             onChange={(e) => {
               dispatch({ type: 'TBP_SET_REPLACE_PATTERN', payload: e.target.value });
               dispatch({ type: 'TBP_RESET_REPLACE' });
@@ -157,7 +157,7 @@ const ReplaceTab: React.FC<ReplaceTabProps> = ({ inputText, state, dispatch }) =
           <span className="tbp-replace-field-label">替换为</span>
           <input
             type="text"
-            value={replaceText}
+            value={replaceText ?? ''}
             onChange={(e) => {
               dispatch({ type: 'TBP_SET_REPLACE_TEXT', payload: e.target.value });
               dispatch({ type: 'TBP_RESET_REPLACE' });
@@ -226,11 +226,36 @@ const ReplaceTab: React.FC<ReplaceTabProps> = ({ inputText, state, dispatch }) =
         </div>
         <div className="tbp-replace-preview-body">
           {!hasInput ? (
-            <span className="tbp-replace-preview-placeholder">在左侧输入文本后，此处高亮显示将被替换的内容</span>
+            <div className="tbp-result-empty tbp-result-empty--compact">
+              <span className="tbp-result-empty-icon" aria-hidden>⌁</span>
+              <div className="tbp-result-empty-body">
+                <strong>等待输入</strong>
+                <span>在左侧输入文本后，此处高亮显示将被替换的内容</span>
+              </div>
+              <div className="tbp-empty-hints" aria-hidden>
+                <span className="tbp-empty-hint-chip">预览高亮 · 防误操作</span>
+                <span className="tbp-empty-hint-chip">支持 $1 引用</span>
+              </div>
+            </div>
           ) : !canPreview ? (
-            <span className="tbp-replace-preview-placeholder">
-              {regexInvalid ? '正则无效，请修正后预览' : '输入查找内容后预览'}
-            </span>
+            <div className="tbp-result-empty tbp-result-empty--compact tbp-replace-empty">
+              <span className="tbp-result-empty-icon" aria-hidden>⌕</span>
+              <div className="tbp-result-empty-body">
+                <strong>{regexInvalid ? '正则无效' : '等待输入查找内容'}</strong>
+                <span>
+                  {regexInvalid
+                    ? '请检查正则表达式语法后重新预览'
+                    : '在左侧输入查找内容后，此处将实时高亮将被替换的部分'}
+                </span>
+              </div>
+              {!regexInvalid && (
+                <div className="tbp-empty-hints" aria-hidden>
+                  <span className="tbp-empty-hint-chip">输入文本后预览高亮</span>
+                  <span className="tbp-empty-hint-chip">支持 $1 / $&#123;name&#125; 引用</span>
+                  <span className="tbp-empty-hint-chip">正则模式需勾选开关</span>
+                </div>
+              )}
+            </div>
           ) : previewSegments && previewSegments.length > 0 ? (
             <p className="tbp-replace-preview-text">
               {previewSegments.map((seg, i) =>
@@ -242,7 +267,17 @@ const ReplaceTab: React.FC<ReplaceTabProps> = ({ inputText, state, dispatch }) =
               )}
             </p>
           ) : (
-            <span className="tbp-replace-preview-placeholder">无匹配内容</span>
+            <div className="tbp-result-empty tbp-result-empty--compact tbp-replace-empty">
+              <span className="tbp-result-empty-icon" aria-hidden>∅</span>
+              <div className="tbp-result-empty-body">
+                <strong>未匹配到内容</strong>
+                <span>尝试切换正则模式，或勾选「全局替换」以匹配多次</span>
+              </div>
+              <div className="tbp-empty-hints" aria-hidden>
+                <span className="tbp-empty-hint-chip">检查大小写设置</span>
+                <span className="tbp-empty-hint-chip">尝试简化关键词</span>
+              </div>
+            </div>
           )}
         </div>
 

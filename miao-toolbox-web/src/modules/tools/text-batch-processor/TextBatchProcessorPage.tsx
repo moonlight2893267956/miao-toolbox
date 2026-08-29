@@ -1,11 +1,11 @@
-import React, { useReducer, useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Modal } from 'antd';
-import { FileTextOutlined } from '@ant-design/icons';
+import { FileTextOutlined, PlusOutlined, CloseOutlined, CompressOutlined, DeleteOutlined } from '@ant-design/icons';
 import './text-batch-processor.css';
-import type { TbpState, TbpAction, TbpTabKey } from './types';
-import { TBP_TABS, INITIAL_TBP_STATE } from './types';
-import { loadPageState, savePageState } from '../../../shared/utils/tabPageStorage';
+import { TBP_TABS } from './types';
+import { useTbpTabs } from './hooks/useTbpTabs';
+import { createTbpDispatch } from './utils/tbpDispatch';
 import SharedTextInputArea from './components/SharedTextInputArea';
 import type { HighlightRange } from './components/SharedTextInputArea';
 import DedupTab from './tabs/DedupTab';
@@ -14,100 +14,52 @@ import ExtractTab from './tabs/ExtractTab';
 import ReplaceTab from './tabs/ReplaceTab';
 import FreqTab from './tabs/FreqTab';
 
-const PAGE_KEY = 'tools-text-batch-processor';
-
-function loadInitialTbpState(): TbpState {
-  const loaded = loadPageState<Partial<TbpState>>(PAGE_KEY);
-  if (!loaded || typeof loaded !== 'object') return INITIAL_TBP_STATE;
-  return {
-    ...INITIAL_TBP_STATE,
-    ...loaded,
-    dedup: { ...INITIAL_TBP_STATE.dedup, ...loaded.dedup },
-    sort: { ...INITIAL_TBP_STATE.sort, ...loaded.sort },
-    extract: { ...INITIAL_TBP_STATE.extract, ...loaded.extract },
-    replace: { ...INITIAL_TBP_STATE.replace, ...loaded.replace },
-    freq: { ...INITIAL_TBP_STATE.freq, ...loaded.freq },
-  };
-}
-
-function tbpReducer(state: TbpState, action: TbpAction): TbpState {
-  switch (action.type) {
-    case 'TBP_SET_TAB':
-      return { ...state, activeTab: action.payload };
-    case 'TBP_SET_INPUT':
-      return { ...state, inputText: action.payload, previousInputText: null };
-    case 'TBP_SET_DEDUP_OPTIONS':
-      return { ...state, dedup: { ...state.dedup, options: action.payload } };
-    case 'TBP_SET_SORT_OPTIONS':
-      return { ...state, sort: { ...state.sort, options: action.payload } };
-    case 'TBP_SET_EXTRACT_PATTERN':
-      return { ...state, extract: { ...state.extract, pattern: action.payload } };
-    case 'TBP_SET_EXTRACT_FLAGS':
-      return { ...state, extract: { ...state.extract, flags: action.payload } };
-    case 'TBP_SET_EXTRACT_KEYWORD':
-      return { ...state, extract: { ...state.extract, keyword: action.payload } };
-    case 'TBP_SET_EXTRACT_FORMAT':
-      return { ...state, extract: { ...state.extract, format: action.payload } };
-    case 'TBP_SET_EXTRACT_RESULT':
-      return {
-        ...state,
-        extract: { ...state.extract, result: action.payload.result, count: action.payload.count, error: null },
-      };
-    case 'TBP_SET_EXTRACT_ERROR':
-      return { ...state, extract: { ...state.extract, error: action.payload } };
-    case 'TBP_SET_REPLACE_PATTERN':
-      return { ...state, replace: { ...state.replace, findPattern: action.payload } };
-    case 'TBP_SET_REPLACE_FLAGS':
-      return { ...state, replace: { ...state.replace, flags: action.payload } };
-    case 'TBP_SET_REPLACE_TEXT':
-      return { ...state, replace: { ...state.replace, replaceText: action.payload } };
-    case 'TBP_SET_REPLACE_USE_REGEX':
-      return { ...state, replace: { ...state.replace, useRegex: action.payload } };
-    case 'TBP_SET_REPLACE_PREVIEW':
-      return { ...state, replace: { ...state.replace, count: action.payload.count, error: null } };
-    case 'TBP_SET_REPLACE_EXECUTED':
-      return {
-        ...state,
-        replace: { ...state.replace, result: action.payload.result, count: action.payload.count, executed: true, error: null },
-      };
-    case 'TBP_RESET_REPLACE':
-      return {
-        ...state,
-        replace: { ...state.replace, result: null, count: 0, executed: false, error: null },
-      };
-    case 'TBP_SET_REPLACE_ERROR':
-      return { ...state, replace: { ...state.replace, error: action.payload } };
-    case 'TBP_SET_FREQ_SPLIT_MODE':
-      return { ...state, freq: { ...state.freq, splitMode: action.payload } };
-    case 'TBP_SET_FREQ_TOP_N':
-      return { ...state, freq: { ...state.freq, topN: action.payload } };
-    case 'TBP_SET_FREQ_STOP_WORDS':
-      return { ...state, freq: { ...state.freq, useStopWords: action.payload } };
-    case 'TBP_BACKFILL':
-      return { ...state, inputText: action.payload, previousInputText: state.inputText };
-    case 'TBP_UNDO_BACKFILL':
-      if (state.previousInputText === null) return state;
-      return { ...state, inputText: state.previousInputText, previousInputText: null };
-    case 'TBP_CLEAR_ALL':
-      return { ...INITIAL_TBP_STATE };
-    default:
-      return state;
+/* ---- 页签名编辑 ---- */
+const TabName: React.FC<{ name: string; onRename: (v: string) => void }> = ({ name, onRename }) => {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(name);
+  if (editing) {
+    return (
+      <input
+        className="tbp-tab-name-input"
+        value={val}
+        autoFocus
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={() => {
+          setEditing(false);
+          onRename(val.trim() || name);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+          if (e.key === 'Escape') {
+            setVal(name);
+            setEditing(false);
+          }
+        }}
+      />
+    );
   }
-}
+  return (
+    <span
+      className="tbp-tab-name"
+      onDoubleClick={() => {
+        setVal(name);
+        setEditing(true);
+      }}
+      title="双击重命名"
+    >
+      {name}
+    </span>
+  );
+};
 
 const TextBatchProcessorPage: React.FC = () => {
-  const [state, dispatch] = useReducer(tbpReducer, undefined, loadInitialTbpState);
   const prefersReducedMotion = useReducedMotion();
+  const api = useTbpTabs();
+  const dispatch = React.useMemo(() => createTbpDispatch(api), [api]);
 
-  useEffect(() => {
-    savePageState(PAGE_KEY, state);
-  }, [state]);
+  const { tabs, activeId, activeTab } = api;
 
-  const handleTabChange = useCallback((key: TbpTabKey) => {
-    dispatch({ type: 'TBP_SET_TAB', payload: key });
-  }, []);
-
-  const tabListRef = useRef<HTMLDivElement>(null);
   const [highlightRange, setHighlightRange] = useState<HighlightRange | null>(null);
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -117,46 +69,18 @@ const TextBatchProcessorPage: React.FC = () => {
     highlightTimer.current = setTimeout(() => setHighlightRange(null), 4000);
   }, []);
 
-  const focusTab = useCallback((key: TbpTabKey) => {
-    const container = tabListRef.current;
-    if (!container) return;
-    const btn = container.querySelector<HTMLButtonElement>(`#tbp-tab-${key}`);
-    btn?.focus();
-  }, []);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      const currentIndex = TBP_TABS.findIndex((t) => t.key === state.activeTab);
-      let nextKey: TbpTabKey | null = null;
-      if (e.key === 'ArrowLeft' && currentIndex > 0) {
-        nextKey = TBP_TABS[currentIndex - 1].key;
-      } else if (e.key === 'ArrowRight' && currentIndex < TBP_TABS.length - 1) {
-        nextKey = TBP_TABS[currentIndex + 1].key;
-      } else if (e.key === 'Home') {
-        nextKey = TBP_TABS[0].key;
-      } else if (e.key === 'End') {
-        nextKey = TBP_TABS[TBP_TABS.length - 1].key;
-      }
-      if (nextKey) {
-        e.preventDefault();
-        handleTabChange(nextKey);
-        focusTab(nextKey);
-      }
-    },
-    [state.activeTab, handleTabChange, focusTab],
-  );
-
-
   const handleClearAll = useCallback(() => {
     Modal.confirm({
       title: '确认清空',
-      content: '将清空输入文本和所有操作结果，此操作不可撤销。',
+      content: '将清空所有页签内容和操作结果，此操作不可撤销。',
       okText: '清空',
       cancelText: '取消',
       okButtonProps: { danger: true },
-      onOk: () => dispatch({ type: 'TBP_CLEAR_ALL' }),
+      onOk: () => api.clearAll(),
     });
-  }, [dispatch]);
+  }, [api]);
+
+  const hasOp = activeTab.activeOp !== null;
 
   return (
     <motion.div
@@ -167,108 +91,161 @@ const TextBatchProcessorPage: React.FC = () => {
     >
       <div className="tbp-page-glow" aria-hidden />
 
-      <div className="tbp-header">
+      {/* ---- 页头：与其他工具页统一（cron-editor / ral-log-parser / crypto 风格）---- */}
+      <header className="tbp-header">
         <div className="tbp-header-inner">
           <div className="tbp-header-icon">
             <FileTextOutlined />
           </div>
           <div className="tbp-header-text">
             <h2>文本批量处理</h2>
-            <p className="tbp-header-subtitle">
+            <div className="tbp-header-subtitle">
               <span className="tbp-dot" />
-              本地运算 · 文本不离开设备 · 链式串联
-            </p>
+              多页签文本工作台 · 去重 / 排序 / 提取 / 替换 / 词频
+            </div>
           </div>
-          <button className="tbp-header-btn" onClick={handleClearAll}>
-            清空
-          </button>
-        </div>
-      </div>
-
-      <div className="tbp-nav">
-        <div
-          ref={tabListRef}
-          className="tbp-nav-track"
-          role="tablist"
-          aria-orientation="horizontal"
-          onKeyDown={handleKeyDown}
-        >
-          {TBP_TABS.map((tab) => (
+          <div className="tbp-header-actions">
             <button
-              key={tab.key}
-              role="tab"
-              aria-selected={state.activeTab === tab.key}
-              aria-controls={`tbp-panel-${tab.key}`}
-              id={`tbp-tab-${tab.key}`}
-              tabIndex={state.activeTab === tab.key ? 0 : -1}
-              className={`tbp-nav-item ${state.activeTab === tab.key ? 'active' : ''}`}
-              onClick={() => handleTabChange(tab.key)}
+              type="button"
+              className="tbp-header-action-btn"
+              onClick={handleClearAll}
+              title="清空所有页签内容"
             >
-              <span className="tbp-nav-icon">{tab.icon}</span>
-              {tab.label}
+              <DeleteOutlined /> 清空
             </button>
-          ))}
+          </div>
         </div>
+      </header>
+
+      {/* ---- 多文本页签栏：左侧 emerald 标识条 + 纸面风格 ---- */}
+      <div className="tbp-tabs-bar">
+        <div className="tbp-tabs-bar-marker" aria-hidden />
+        <div className="tbp-tabs-label">
+          <span className="tbp-tabs-label-text">TEXT</span>
+          <span className="tbp-tabs-label-count">{String(tabs.length).padStart(2, '0')}</span>
+        </div>
+        <div className="tbp-tabs-scroll">
+          {tabs.map((tab, idx) => {
+            const status = tab.input.trim() ? 'filled' : 'empty';
+            return (
+              <div
+                key={tab.id}
+                className={`tbp-text-tab tbp-text-tab--${status} ${tab.id === activeId ? 'tbp-text-tab--active' : ''}`}
+                onClick={() => api.activateTab(tab.id)}
+              >
+                <span className="tbp-text-tab-status" data-status={status} />
+                <span className="tbp-text-tab-idx">{String(idx + 1).padStart(2, '0')}</span>
+                <TabName name={tab.name} onRename={(v) => api.renameTab(tab.id, v)} />
+                {tabs.length > 1 && (
+                  <button
+                    type="button"
+                    className="tbp-text-tab-close"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      api.removeTab(tab.id);
+                    }}
+                    title="关闭页签"
+                  >
+                    <CloseOutlined />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          className="tbp-text-tab-add"
+          onClick={api.addTab}
+          title="新建页签"
+        >
+          <PlusOutlined />
+        </button>
       </div>
 
-      <div className="tbp-workspace">
+      {/* ---- 工作区 ---- */}
+      <div className={`tbp-workspace ${hasOp ? 'has-tab' : ''}`}>
         <SharedTextInputArea
-          inputText={state.inputText}
+          inputText={activeTab.input}
           dispatch={dispatch}
           highlightRange={highlightRange}
+          activeOp={activeTab.activeOp}
+          onTabToggle={api.toggleOp}
         />
 
-        <div className="tbp-flow-divider" aria-hidden>
-          <span className="tbp-flow-arrow" />
-        </div>
+        {hasOp && (
+          <>
+            <div className="tbp-flow-divider" aria-hidden>
+              <span className="tbp-flow-arrow" />
+            </div>
 
-        <div className="tbp-output-panel">
-          <div className="tbp-output-body">
-            <motion.div
-              key={state.activeTab}
-              role="tabpanel"
-              aria-labelledby={`tbp-tab-${state.activeTab}`}
-              id={`tbp-panel-${state.activeTab}`}
-              className="tbp-tab-panel"
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: prefersReducedMotion ? 0 : 0.22 }}
-            >
-              {state.activeTab === 'dedup' ? (
-                <DedupTab
-                  inputText={state.inputText}
-                  options={state.dedup.options}
-                  dispatch={dispatch}
-                />
-              ) : state.activeTab === 'sort' ? (
-                <SortTab
-                  inputText={state.inputText}
-                  options={state.sort.options}
-                  dispatch={dispatch}
-                />
-              ) : state.activeTab === 'extract' ? (
-                <ExtractTab
-                  inputText={state.inputText}
-                  state={state.extract}
-                  dispatch={dispatch}
-                  onLocateMatch={handleLocateMatch}
-                />
-              ) : state.activeTab === 'replace' ? (
-                <ReplaceTab
-                  inputText={state.inputText}
-                  state={state.replace}
-                  dispatch={dispatch}
-                />
-              ) : state.activeTab === 'freq' ? (
-                <FreqTab
-                  inputText={state.inputText}
-                  state={state.freq}
-                  dispatch={dispatch}
-                />
-              ) : null}
-            </motion.div>
-          </div>
-        </div>
+            <div className="tbp-output-panel">
+              <div className="tbp-output-head">
+                <span className="tbp-output-dot" />
+                <span className="tbp-output-label">
+                  {TBP_TABS.find((t) => t.key === activeTab.activeOp)?.label ?? '结果'}
+                </span>
+                <span className="tbp-output-tab-name">
+                  {TBP_TABS.find((t) => t.key === activeTab.activeOp)?.description ?? ''}
+                </span>
+                <button
+                  type="button"
+                  className="tbp-output-collapse"
+                  onClick={() => api.closeOp()}
+                  title="收起，恢复全屏输入"
+                >
+                  <CompressOutlined />
+                </button>
+              </div>
+              <div className="tbp-output-body">
+                <motion.div
+                  key={activeTab.activeOp}
+                  className="tbp-tab-panel"
+                  initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: prefersReducedMotion ? 0 : 0.22 }}
+                >
+                  {activeTab.activeOp === 'dedup' && (
+                    <DedupTab
+                      inputText={activeTab.input}
+                      options={activeTab.dedup.options}
+                      dispatch={dispatch}
+                    />
+                  )}
+                  {activeTab.activeOp === 'sort' && (
+                    <SortTab
+                      inputText={activeTab.input}
+                      options={activeTab.sort.options}
+                      dispatch={dispatch}
+                    />
+                  )}
+                  {activeTab.activeOp === 'extract' && (
+                    <ExtractTab
+                      inputText={activeTab.input}
+                      state={activeTab.extract}
+                      dispatch={dispatch}
+                      onLocateMatch={handleLocateMatch}
+                    />
+                  )}
+                  {activeTab.activeOp === 'replace' && (
+                    <ReplaceTab
+                      inputText={activeTab.input}
+                      state={activeTab.replace}
+                      dispatch={dispatch}
+                    />
+                  )}
+                  {activeTab.activeOp === 'freq' && (
+                    <FreqTab
+                      inputText={activeTab.input}
+                      state={activeTab.freq}
+                      dispatch={dispatch}
+                    />
+                  )}
+                </motion.div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </motion.div>
   );

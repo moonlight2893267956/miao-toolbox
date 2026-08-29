@@ -17,6 +17,49 @@ const FindReplaceBar: React.FC<FindReplaceBarProps> = ({ textareaRef, value, onC
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [matches, setMatches] = useState<number[]>([]);
   const [currentMatch, setCurrentMatch] = useState(-1);
+  const overlayRef = useRef<HTMLPreElement>(null);
+
+  // 同步高亮蒙层滚动位置
+  useEffect(() => {
+    if (!open) return;
+    const el = textareaRef.current?.nativeElement as HTMLTextAreaElement | undefined;
+    if (!el) return;
+    const handler = () => {
+      if (overlayRef.current) {
+        overlayRef.current.scrollTop = el.scrollTop;
+        overlayRef.current.scrollLeft = el.scrollLeft;
+      }
+    };
+    handler();
+    el.addEventListener('scroll', handler);
+    return () => el.removeEventListener('scroll', handler);
+  }, [open, textareaRef, value]);
+
+  // 计算高亮 HTML（所有匹配都用 mark 包裹，currentMatch 用 mark--current）
+  const renderHighlighted = useCallback(() => {
+    const segments: React.ReactNode[] = [];
+    let lastIdx = 0;
+    matches.forEach((start, i) => {
+      if (start > lastIdx) {
+        segments.push(value.slice(lastIdx, start));
+      }
+      const matchText = value.slice(start, start + query.length);
+      segments.push(
+        <mark
+          key={i}
+          className={`tbp-find-mark ${i === currentMatch ? 'tbp-find-mark--current' : ''}`}
+        >
+          {matchText}
+        </mark>,
+      );
+      lastIdx = start + query.length;
+    });
+    if (lastIdx < value.length) {
+      segments.push(value.slice(lastIdx));
+    }
+    // 末尾补换行符，保证最后一行空白能正确显示蒙层高度
+    return <>{segments}\n</>;
+  }, [query, matches, currentMatch, value]);
 
   const findInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
@@ -136,9 +179,24 @@ const FindReplaceBar: React.FC<FindReplaceBarProps> = ({ textareaRef, value, onC
     }
   };
 
-  if (!open) return null;
+  if (!open) {
+    // 不卸载，让 useEffect 仍能通知父级 findOpen 变化
+    return null;
+  }
 
   return (
+    <>
+    {/* 仅当有查询词且存在匹配时才挂载高亮蒙层，
+        无 query 时 textarea 保持 100% 原生状态（不影响任何输入交互） */}
+    {query && matches.length > 0 && (
+      <pre
+        ref={overlayRef}
+        className="tbp-find-overlay"
+        aria-hidden
+      >
+        {renderHighlighted()}
+      </pre>
+    )}
     <div className="tbp-find-bar">
       <div className="tbp-find-row">
         <input
@@ -223,6 +281,7 @@ const FindReplaceBar: React.FC<FindReplaceBarProps> = ({ textareaRef, value, onC
         </div>
       )}
     </div>
+    </>
   );
 };
 

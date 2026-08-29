@@ -155,8 +155,8 @@ const ExtractTab: React.FC<ExtractTabProps> = ({ inputText, state, dispatch, onL
         {/* 正则工作台：输入框 + 标志位 + 预设（始终可见） */}
         <div className="tbp-extract-options">
           <RegexWorkbench
-            pattern={state.pattern}
-            flags={state.flags}
+            pattern={state.pattern ?? ''}
+            flags={state.flags ?? ''}
             onPatternChange={(v) => {
               dispatch({ type: 'TBP_SET_EXTRACT_PATTERN', payload: v });
               dispatch({ type: 'TBP_SET_EXTRACT_ERROR', payload: null });
@@ -242,7 +242,12 @@ const ExtractTab: React.FC<ExtractTabProps> = ({ inputText, state, dispatch, onL
               <span className="tbp-result-empty-icon" aria-hidden>⌁</span>
               <div className="tbp-result-empty-body">
                 <strong>等待输入</strong>
-                <span>在左侧输入文本后，此处会显示提取结果</span>
+                <span>在左侧输入文本后，此处会实时生成提取结果</span>
+              </div>
+              <div className="tbp-empty-hints" aria-hidden>
+                <span className="tbp-empty-hint-chip">正则 / 预设提取</span>
+                <span className="tbp-empty-hint-chip">点击结果定位原文</span>
+                <span className="tbp-empty-hint-chip">三种输出格式</span>
               </div>
             </div>
           ) : resultText === '' ? (

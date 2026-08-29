@@ -1,9 +1,12 @@
-/** 五个操作 Tab 的 Key */
-export type TbpTabKey = 'dedup' | 'sort' | 'extract' | 'replace' | 'freq';
+/** 操作 Tab 的 Key（不含 null） */
+export type TbpTabId = 'dedup' | 'sort' | 'extract' | 'replace' | 'freq';
+
+/** activeTab 可为 null（纯输入模式） */
+export type TbpTabKey = TbpTabId | null;
 
 /** Tab 配置项 */
 export interface TbpTabConfig {
-  key: TbpTabKey;
+  key: TbpTabId;
   label: string;
   icon: string;
   description: string;
@@ -92,7 +95,7 @@ export interface TbpState {
 
 /** Action 联合类型 */
 export type TbpAction =
-  | { type: 'TBP_SET_TAB'; payload: TbpTabKey }
+  | { type: 'TBP_SET_TAB'; payload: TbpTabId }
   | { type: 'TBP_SET_INPUT'; payload: string }
   | { type: 'TBP_SET_DEDUP_OPTIONS'; payload: DedupOptions }
   | { type: 'TBP_SET_SORT_OPTIONS'; payload: SortOptions }
@@ -121,7 +124,7 @@ export type TbpAction =
 export const INITIAL_TBP_STATE: TbpState = {
   inputText: '',
   previousInputText: null,
-  activeTab: 'dedup',
+  activeTab: null,
   dedup: { options: {} },
   sort: { options: { method: 'asc', delimiter: '\n', ignoreCase: false } },
   extract: { pattern: '', flags: 'g', keyword: '', format: 'all', result: null, error: null, count: 0 },
