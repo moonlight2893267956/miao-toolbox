@@ -86,7 +86,15 @@ axiosInstance.interceptors.response.use(
     }
 
     // 401 静默刷新
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // 认证端点（login/refresh）的 401 是业务错误（凭证错误/令牌失效），不是 access token 过期，
+    // 不应触发静默刷新。否则刷新失败后会进入 AUTH_REDIRECT 永不 settle 的 Promise，
+    // 导致登录请求 await 永久挂起、按钮卡在 loading 状态（输错密码后界面"卡死"的根因）。
+    const requestUrl = originalRequest.url || '';
+    const isAuthEndpoint =
+      requestUrl.includes('/api/auth/login') ||
+      requestUrl.includes('/api/auth/refresh');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
       const newToken = await silentRefresh();
 

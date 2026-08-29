@@ -198,6 +198,66 @@ public class HttpFetcher {
     }
 
     /**
+     * 发起 GET 请求并读取响应体（SSRF 安全，但跳过 TLS 证书校验）。
+     *
+     * <p>仅用于极少数公开站点（如 doutula.com）其证书不被运行环境 JVM 信任库信任、
+     * 导致 {@link #fetchContent} 报 PKIX 错误的兜底场景。SSRF 预校验与 DNS 锁定仍然生效，
+     * 仅放宽证书校验，不会访问内网/保留地址。该方法不复用全局 client，需要临时构建一个
+     * 信任所有证书的 OkHttpClient（不跟随重定向）。
+     */
+    public HttpFetchResult fetchContentInsecure(String url, long timeoutMs) {
+        URI uri = URI.create(url);
+        String host = uri.getHost();
+        if (host != null && !host.isEmpty()) {
+            ssrfProtector.resolveAndValidate(host); // SSRF 校验仍然生效
+        }
+        long connectMs = timeoutMs > 0 ? timeoutMs : NetworkTimeoutConfig.HTTP_FETCH.toMillis();
+        OkHttpClient insecureClient = client.newBuilder()
+            .connectTimeout(connectMs, TimeUnit.MILLISECONDS)
+            .readTimeout(connectMs, TimeUnit.MILLISECONDS)
+            .sslSocketFactory(InsecureTrustManager.trustAllSslSocketFactory(),
+                InsecureTrustManager.TRUST_ALL_MANAGER)
+            .hostnameVerifier((h, s) -> true)
+            .build();
+        Request request = new Request.Builder()
+            .url(url)
+            .header("User-Agent", USER_AGENT)
+            .header("Accept", "*/*")
+            .get()
+            .build();
+        long start = System.nanoTime();
+        try (Response response = insecureClient.newCall(request).execute()) {
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+            Map<String, String> headerMap = new java.util.LinkedHashMap<>();
+            Headers headers = response.headers();
+            for (String name : headers.names()) {
+                headerMap.put(name, headers.get(name));
+            }
+            String body = "";
+            try {
+                if (response.body() != null) {
+                    body = response.body().string();
+                }
+            } catch (Exception ignored) {
+                // 读取响应体失败时不影响状态码/响应头返回
+            }
+            return new HttpFetchResult(
+                response.code(),
+                response.message(),
+                response.request().url().toString(),
+                headerMap,
+                elapsedMs,
+                body
+            );
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+            throw new HttpFetchException("HTTP 请求失败: " + e.getMessage(), e, elapsedMs);
+        }
+    }
+
+    /**
      * 发起 GET 请求并读取响应体（SSRF 安全）。用于 Web 抓取 / RSS / Sitemap / robots.txt
      * 等需要页面正文的只读代理场景。沿用与 {@link #fetch} 相同的 SSRF 预校验与超时控制，
      * 不跟随重定向（避免绕过校验）。

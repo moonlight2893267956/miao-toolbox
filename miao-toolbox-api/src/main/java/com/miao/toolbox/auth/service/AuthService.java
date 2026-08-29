@@ -196,7 +196,7 @@ public class AuthService {
                 .build();
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = AuthException.class)
     public LoginResponse login(LoginRequest request, HttpServletResponse response) {
         // 支持用户名或邮箱登录：输入包含 @ 视为邮箱
         User user;
@@ -257,7 +257,7 @@ public class AuthService {
                 .build();
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = AuthException.class)
     public LoginResponse refresh(String refreshTokenValue, HttpServletResponse response) {
         if (refreshTokenValue == null || refreshTokenValue.isBlank()) {
             throw AuthException.tokenExpired();

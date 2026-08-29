@@ -1262,8 +1262,26 @@ export default function JsonWorkbenchPage() {
           </button>
         </div>
       )}
-      {breadcrumbSegments.length > 0 && (
-        <Breadcrumb segments={breadcrumbSegments} onNavigate={handleBreadcrumbNavigate} />
+      {(breadcrumbSegments.length > 0 || hasData) && (
+        <div className="jw-nav-row">
+          {breadcrumbSegments.length > 0 && (
+            <Breadcrumb segments={breadcrumbSegments} onNavigate={handleBreadcrumbNavigate} />
+          )}
+          {hasData && (
+            <SearchBar
+              query={state.searchQuery}
+              mode={state.searchMode}
+              resultIds={state.searchResults}
+              flatNodeList={state.flatNodeList}
+              hasData={hasData}
+              onQueryChange={handleSearchQueryChange}
+              onModeChange={handleSearchModeChange}
+              onResultClick={handleSearchResultClick}
+              onCollapseOthers={handleCollapseOthers}
+              onClear={handleSearchClear}
+            />
+          )}
+        </div>
       )}
       {hasData && !showError && duplicateKeyCount > 0 && (
         <div className="jw-dup-summary" role="status">
@@ -1272,20 +1290,6 @@ export default function JsonWorkbenchPage() {
             检测到 <strong>{duplicateKeyCount}</strong> 处同级重复 Key（同一对象内同名 key，标准 JSON.parse 仅保留最后一个）
           </span>
         </div>
-      )}
-      {hasData && (
-        <SearchBar
-          query={state.searchQuery}
-          mode={state.searchMode}
-          resultIds={state.searchResults}
-          flatNodeList={state.flatNodeList}
-          hasData={hasData}
-          onQueryChange={handleSearchQueryChange}
-          onModeChange={handleSearchModeChange}
-          onResultClick={handleSearchResultClick}
-          onCollapseOthers={handleCollapseOthers}
-          onClear={handleSearchClear}
-        />
       )}
       <div className="jw-content">
         {state.viewMode === 'tree' && treePanel}

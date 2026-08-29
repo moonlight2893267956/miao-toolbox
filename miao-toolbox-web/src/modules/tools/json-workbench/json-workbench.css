@@ -2344,6 +2344,110 @@
 }
 
 /* ═══════════════════════════════════════════════════════
+   导航搜索行 — 面包屑 ⊕ 搜索栏 融合为一条连续表面
+   左：路径区（发丝线分隔） · 中：融入 bar 的搜索框 · 右：折叠
+   聚焦搜索时整条 bar 亮起靛蓝 ring（Raycast 式体验）
+   ═══════════════════════════════════════════════════════ */
+
+.jw-nav-row {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 16px 0;
+  padding: 6px 8px 6px 10px;
+  border: 1px solid var(--jw-border);
+  border-radius: 12px;
+  background: var(--jw-surface);
+  box-shadow: var(--jw-shadow-1);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.jw-nav-row:hover {
+  border-color: var(--jw-border-strong);
+}
+
+/* 聚焦搜索时整条 bar 高亮 —— bar 即输入框 */
+.jw-nav-row:focus-within {
+  border-color: var(--tool-accent);
+  box-shadow: 0 0 0 3px var(--tool-accent-11), var(--jw-shadow-1);
+}
+
+:root[data-theme='dark'] .jw-nav-row {
+  background: var(--jw-surface);
+  border-color: var(--jw-border);
+}
+
+/* ── 面包屑去卡化：成为 bar 内的路径区 ── */
+.jw-nav-row .jw-breadcrumb {
+  flex: 0 0 auto;
+  max-width: 32%;
+  margin: 0;
+  padding: 0 12px 0 0;
+  border: none;
+  border-right: 1px solid var(--jw-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+:root[data-theme='dark'] .jw-nav-row .jw-breadcrumb {
+  background: transparent;
+  border-color: var(--jw-border);
+}
+
+/* ── 搜索栏去卡化：融入 bar，占满剩余宽度 ── */
+.jw-nav-row .jw-search-bar {
+  flex: 1 1 0%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  gap: 4px;
+}
+
+.jw-nav-row .jw-search-bar__input {
+  max-width: none;
+}
+
+/* 搜索输入融入 bar：去自身边框/背景/阴影（bar 即输入框） */
+.jw-nav-row .jw-search-bar__input.ant-input-affix-wrapper {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* 聚焦态也保持素净 —— ring 由容器提供 */
+.jw-nav-row .jw-search-bar__input.ant-input-affix-wrapper-focused,
+.jw-nav-row .jw-search-bar__input.ant-input-affix-wrapper:focus-within {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme='dark'] .jw-nav-row .jw-search-bar__input.ant-input-affix-wrapper {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* 折叠其他：紧凑幽灵按钮，与 bar 等高呼应 */
+.jw-nav-row .jw-search-bar__action.ant-btn {
+  height: 28px;
+  border: 1px solid var(--jw-border);
+  background: transparent;
+  box-shadow: none;
+}
+
+.jw-nav-row .jw-search-bar__action.ant-btn:not(:disabled):hover {
+  border-color: var(--tool-accent-24);
+  background: var(--tool-accent-7);
+  color: var(--tool-accent);
+}
+
+/* ═══════════════════════════════════════════════════════
    Story 2.4 — 搜索栏 — 精致化
    ═══════════════════════════════════════════════════════ */
 
@@ -2377,35 +2481,43 @@
   max-width: 440px;
 }
 
-.jw-search-bar__input .ant-input-affix-wrapper,
-.jw-search-bar__input input,
-.jw-search-bar__input .ant-input {
+/* ── 外层 affix 容器：唯一有边框/背景的元素 ──
+   .jw-search-bar__input 就是 affix 容器本身（antd 合并 className），
+   必须用复合选择器（无空格）命中它；后代选择器只会命中内层 input。 */
+.jw-search-bar__input.ant-input-affix-wrapper {
   border-radius: var(--miao-radius-sm) !important;
   background: var(--jw-chrome) !important;
-  background-color: var(--jw-chrome) !important;
   border: 1px solid var(--jw-border) !important;
   box-shadow: none !important;
   color: var(--miao-text-primary) !important;
-  transition: border-color 0.2s, background 0.2s !important;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s !important;
 }
 
-.jw-search-bar__input .ant-input-affix-wrapper:focus,
-.jw-search-bar__input .ant-input-affix-wrapper-focused,
-.jw-search-bar__input input:focus,
-.jw-search-bar__input .ant-input:focus {
+/* ── 内层 input：透明、无边框 —— 根治「框中框」── */
+.jw-search-bar__input input.ant-input {
+  border: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  color: inherit !important;
+  padding-inline: 10px !important;
+}
+
+.jw-search-bar__input .ant-input-prefix {
+  margin-inline-end: 8px;
+}
+
+/* focus：目标 affix 容器，靛蓝 ring 只出现在外层 */
+.jw-search-bar__input.ant-input-affix-wrapper-focused,
+.jw-search-bar__input.ant-input-affix-wrapper:focus-within {
   border-color: var(--tool-accent) !important;
   background: var(--jw-surface) !important;
-  background-color: var(--jw-surface) !important;
   box-shadow: 0 0 0 3px var(--tool-accent-11) !important;
 }
 
-:root[data-theme='dark'] .jw-search-bar__input .ant-input-affix-wrapper,
-:root[data-theme='dark'] .jw-search-bar__input input,
-:root[data-theme='dark'] .jw-search-bar__input .ant-input {
+:root[data-theme='dark'] .jw-search-bar__input.ant-input-affix-wrapper {
   background: var(--jw-editor) !important;
-  background-color: var(--jw-editor) !important;
   border-color: var(--jw-border) !important;
-  color: var(--miao-text-primary) !important;
 }
 
 .jw-search-bar__input .ant-input-suffix {

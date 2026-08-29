@@ -44,3 +44,5 @@ miao:
       # 仅当百度后台「语音翻译」使用独立 secretKey 时取消注释并填写：
       # voice-url: https://fanyi-api.baidu.com/api/trans/v2/voicetrans
       # secret-key: your-baidu-voice-secret-key
+  # 娱乐工具·表情包搜索（妖狐数据）全部配置统一在 Nacos 管理（SECRET_GROUP / fun.yaml），
+  # 本地开发连接 dev 命名空间即可，无需在 application-local.yml 写任何 fun 配置。
