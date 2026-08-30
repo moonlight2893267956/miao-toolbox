@@ -23,14 +23,13 @@ import type {
 import { useJsonParser } from './hooks/useJsonParser';
 import { getAllDescendantIds, renameKeyAtPath, setValueAtPath } from './utils/parseAndFlatten';
 import { jsonRepair } from './utils/jsonRepair';
-import { parseJsonPathToSegments, getAncestorPaths } from './utils/breadcrumb';
+import { getAncestorPaths } from './utils/breadcrumb';
 import { computeSearchResults } from './utils/search';
 import { validateBySchema } from './utils/schemaValidate';
 import { compressAndEscapeJson, inspectEscapedJsonString, unescapeJsonString } from './utils/jsonEscape';
 import { inferSchemaFromValue, SAMPLE_SCHEMA } from './utils/inferSchema';
 import JsonTreeView from './components/JsonTreeView';
 import JsonRawEditor from './components/JsonRawEditor';
-import Breadcrumb from './components/Breadcrumb';
 import SearchBar from './components/SearchBar';
 import RepairPreviewModal from './components/RepairPreviewModal';
 import AiRepairModal from './components/AiRepairModal';
@@ -744,15 +743,18 @@ export default function JsonWorkbenchPage() {
   // Ctrl+F / Cmd+F 快捷键聚焦搜索
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'f') {
         e.preventDefault();
         // 聚焦搜索框：通过 DOM 查询
         const input = document.querySelector<HTMLInputElement>('.jw-search-bar__input input');
         input?.focus();
+        input?.select();
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    // 捕获阶段：先于 CodeMirror 编辑器的 keydown 处理器执行，
+    // preventDefault 后 CM 会忽略该事件，内置查找面板不再弹出
+    window.addEventListener('keydown', handler, true);
+    return () => window.removeEventListener('keydown', handler, true);
   }, []);
 
   const handleExpandAll = useCallback((nodeId: string) => {
@@ -779,45 +781,6 @@ export default function JsonWorkbenchPage() {
   const handleScrollTargetHandled = useCallback(() => {
     setScrollTarget(null);
   }, []);
-
-  // 面包屑导航：点击路径段跳转
-  const handleBreadcrumbNavigate = useCallback((path: string) => {
-    // 选中目标节点
-    dispatch({ type: 'JSON_WB_SELECT_NODE', payload: path });
-
-    // 确保祖先链全部展开
-    const ancestorPaths = getAncestorPaths(path);
-    const next = new Set(state.expandedIds);
-    let changed = false;
-    for (const ap of ancestorPaths) {
-      const node = state.flatNodeList.find((n) => n.id === ap);
-      if (node && (node.type === 'object' || node.type === 'array') && !next.has(ap)) {
-        next.add(ap);
-        changed = true;
-      }
-    }
-    if (changed) {
-      // 需要直接更新 expandedIds，用一个 hack：dispatch EXPAND_ALL 对根节点
-      // 更好的方式是新增一个 JSON_WB_EXPAND_NODES action
-      // 但为了最小改动，我们直接在 dispatch 后设置
-      // 实际上 useReducer 的 dispatch 无法直接设置 expandedIds
-      // 所以需要一个新 action
-      dispatch({ type: 'JSON_WB_ENSURE_EXPANDED', payload: ancestorPaths });
-    }
-
-    // 同步 Raw 视图滚动
-    if (state.rawJson) {
-      const node = state.flatNodeList.find((n) => n.id === path);
-      if (node && node.parentId !== null) {
-        const keyPattern = `"${node.key}"`;
-        const idx = state.rawJson.indexOf(keyPattern);
-        if (idx >= 0) {
-          const lineNum = state.rawJson.substring(0, idx).split('\n').length;
-          setScrollTarget(lineNum);
-        }
-      }
-    }
-  }, [state.expandedIds, state.flatNodeList, state.rawJson]);
 
   // UTF-8 字节大小（用于大文件判断和文件大小显示）
   const rawJsonByteSize = useMemo(
@@ -1170,12 +1133,6 @@ export default function JsonWorkbenchPage() {
     return `文件较大（${sizeMB.toFixed(1)} MB），已启用性能模式`;
   }, [state.isLargeFile, state.largeFileHintDismissed, state.rawJson]);
 
-  // 面包屑路径段
-  const breadcrumbSegments = useMemo(
-    () => !isEscapedJson && state.selectedNodeId ? parseJsonPathToSegments(state.selectedNodeId) : [],
-    [isEscapedJson, state.selectedNodeId],
-  );
-
   const treePanel = isEscapedJson ? (
     <EscapedJsonResultPanel
       preview={escapedJsonInspection.value ?? ''}
@@ -1262,25 +1219,20 @@ export default function JsonWorkbenchPage() {
           </button>
         </div>
       )}
-      {(breadcrumbSegments.length > 0 || hasData) && (
+      {hasData && (
         <div className="jw-nav-row">
-          {breadcrumbSegments.length > 0 && (
-            <Breadcrumb segments={breadcrumbSegments} onNavigate={handleBreadcrumbNavigate} />
-          )}
-          {hasData && (
-            <SearchBar
-              query={state.searchQuery}
-              mode={state.searchMode}
-              resultIds={state.searchResults}
-              flatNodeList={state.flatNodeList}
-              hasData={hasData}
-              onQueryChange={handleSearchQueryChange}
-              onModeChange={handleSearchModeChange}
-              onResultClick={handleSearchResultClick}
-              onCollapseOthers={handleCollapseOthers}
-              onClear={handleSearchClear}
-            />
-          )}
+          <SearchBar
+            query={state.searchQuery}
+            mode={state.searchMode}
+            resultIds={state.searchResults}
+            flatNodeList={state.flatNodeList}
+            hasData={hasData}
+            onQueryChange={handleSearchQueryChange}
+            onModeChange={handleSearchModeChange}
+            onResultClick={handleSearchResultClick}
+            onCollapseOthers={handleCollapseOthers}
+            onClear={handleSearchClear}
+          />
         </div>
       )}
       {hasData && !showError && duplicateKeyCount > 0 && (

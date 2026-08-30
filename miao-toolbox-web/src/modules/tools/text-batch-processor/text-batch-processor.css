@@ -1,5 +1,5 @@
 /* ============================================================
-   文本批量处理 — "Emerald Atelier" split-pipeline 视觉语言
+   文本清洗台 — "Emerald Atelier" split-pipeline 视觉语言
    输入面板 → 流向连接器 → 输出面板
    ============================================================ */
 
@@ -93,6 +93,7 @@
 
 .tbp-page > .tbp-header,
 .tbp-page > .tbp-tabs-bar,
+.tbp-page > .tbp-op-bar,
 .tbp-page > .tbp-workspace {
   position: relative;
   z-index: 1;
@@ -103,8 +104,11 @@
    ============================================================ */
 
 .tbp-header {
-  padding: 14px 20px 12px;
+  padding: 11px 20px;
   flex-shrink: 0;
+  border-bottom: 1px solid var(--miao-border);
+  /* 与 TEXT 页签栏同底色 → 页头+页签+操作条连成一条仪表带 */
+  background: var(--miao-bg-elevated);
 }
 
 .tbp-header-inner {
@@ -115,33 +119,21 @@
 
 .tbp-header-icon {
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--miao-radius-md);
+  border-radius: 10px;
   color: #fff;
-  font-size: 19px;
+  font-size: 17px;
   background: linear-gradient(
     135deg,
     var(--tool-accent),
     color-mix(in srgb, var(--tool-accent) 72%, #000)
   );
-  box-shadow: 0 3px 10px color-mix(in srgb, var(--tool-accent) 35%, transparent);
-  isolation: isolate;
-}
-
-.tbp-header-icon::after {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  z-index: -1;
-  border-radius: calc(var(--miao-radius-md) + 2px);
-  background: color-mix(in srgb, var(--tool-accent) 50%, transparent);
-  filter: blur(8px);
-  opacity: 0.4;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--tool-accent) 28%, transparent);
 }
 
 .tbp-header-text {
@@ -151,37 +143,39 @@
 .tbp-header-text h2 {
   margin: 0;
   color: var(--miao-text-primary);
-  font-family: var(--miao-font-body);
-  font-size: 19px;
+  /* 衬线标题：与统计大数字 / TEXT·OPS 标签同一编辑体身份 */
+  font-family: var(--miao-font-display);
+  font-size: 18px;
   font-weight: 700;
   line-height: 1.25;
-  letter-spacing: 0;
+  letter-spacing: 0.02em;
 }
 
 .tbp-header-subtitle {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 2px 0 0;
-  color: var(--miao-text-secondary);
-  font-size: 12px;
+  gap: 7px;
+  margin: 3px 0 0;
+  color: var(--miao-text-tertiary);
+  font-size: 11.5px;
   font-weight: 500;
+  letter-spacing: 0.02em;
   line-height: 1.4;
 }
 
 .tbp-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   flex: 0 0 auto;
   border-radius: 50%;
   background: var(--miao-success);
-  box-shadow: 0 0 0 3px var(--miao-success-bg);
+  box-shadow: 0 0 0 2px var(--miao-success-bg);
   animation: tbp-pulse 2s ease-in-out infinite;
 }
 
 @keyframes tbp-pulse {
   0%, 100% {
-    box-shadow: 0 0 0 3px var(--miao-success-bg);
+    box-shadow: 0 0 0 2px var(--miao-success-bg);
   }
   50% {
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--miao-success) 20%, transparent);
@@ -200,11 +194,11 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  height: 30px;
+  height: 28px;
   padding: 0 12px;
   border: 1px solid var(--miao-border);
   border-radius: 8px;
-  background: var(--miao-bg-elevated);
+  background: transparent;
   color: var(--miao-text-secondary);
   font-size: 12px;
   font-weight: 600;
@@ -233,7 +227,7 @@
   display: flex;
   align-items: stretch;
   gap: 10px;
-  padding: 0 56px 0 20px; /* 右侧 56px 给"+"按钮预留位置（绝对定位） */
+  padding: 0 12px 0 20px; /* 左侧 20px 与页头/OPS 条对齐 */
   flex-shrink: 0;
   border-bottom: 1px solid var(--miao-border);
   background: var(--miao-bg-elevated);
@@ -416,24 +410,21 @@
 }
 
 .tbp-text-tab-add {
-  position: absolute;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  align-self: center;
+  margin-left: auto;
   width: 26px;
   height: 26px;
   border: 1px solid var(--miao-border);
   border-radius: 6px;
-  background: var(--miao-bg-elevated);
+  background: transparent;
   color: var(--miao-text-tertiary);
   font-size: 11px;
   cursor: pointer;
   transition: all 150ms ease;
   flex-shrink: 0;
-  z-index: 2;
 }
 
 .tbp-text-tab-add:hover {
@@ -520,16 +511,61 @@
   margin: 0 2px;
 }
 
-/* --- Tab chip 导航条（嵌入输入面板头）--- */
+/* --- Tab chip 导航条（独立处理操作条内，横跨工作区顶部）--- */
 
 .tbp-tab-strip {
   display: flex;
   gap: 0;
-  margin-left: auto;
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-width: 0;
   align-self: stretch;
   align-items: stretch;
-  padding-bottom: 0;
+}
+
+/* --- 处理操作条 — 流水线一等公民，横跨工作区顶部 --- */
+
+.tbp-op-bar {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  padding: 0 20px;
+  min-height: 34px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--miao-border);
+  background: color-mix(in srgb, var(--miao-bg-elevated) 55%, transparent);
+}
+
+.tbp-op-bar-marker {
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 2px;
+  background: linear-gradient(
+    180deg,
+    var(--tool-accent) 0%,
+    color-mix(in srgb, var(--tool-accent) 40%, transparent) 100%
+  );
+  border-radius: 0 2px 2px 0;
+  pointer-events: none;
+}
+
+.tbp-op-bar-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px 0 0;
+  border-right: 1px solid var(--miao-border);
+  flex-shrink: 0;
+}
+
+.tbp-op-bar-label-text {
+  font-family: var(--miao-font-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--miao-text-tertiary);
 }
 
 .tbp-tab-chip {
@@ -992,15 +1028,7 @@
   flex-shrink: 0;
 }
 
-.tbp-output-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--miao-text-secondary);
-  letter-spacing: 0.02em;
-}
-
 .tbp-output-tab-name {
-  margin-left: auto;
   font-size: 11px;
   font-weight: 600;
   color: var(--tbp-accent-deep);
@@ -1017,7 +1045,7 @@
   justify-content: center;
   width: 22px;
   height: 22px;
-  margin-left: 6px;
+  margin-left: auto;
   border: 1px solid var(--miao-border);
   border-radius: 5px;
   background: transparent;
@@ -3141,10 +3169,12 @@
   min-height: 0;
 }
 
-/* 统计卡片组（克制精致版：衬线大数字 + emerald 顶部条） */
+/* 统计卡片组（克制精致版：衬线大数字 + emerald 顶部条）
+   响应式策略：面板位于分栏布局的半幅内，视口媒体查询感知不到容器变窄，
+   因此用 auto-fit 网格让卡片自动换行 + 容器查询让数字字号随卡片宽度缩放。 */
 .tbp-stat-cards {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
 }
 
@@ -3161,6 +3191,9 @@
   box-shadow: 0 1px 0 color-mix(in srgb, var(--miao-border) 60%, transparent);
   overflow: hidden;
   transition: border-color 0.15s ease, transform 0.15s ease;
+  /* 每张卡片作为尺寸容器，供数字字号使用 cqi 单位自适应 */
+  container-type: inline-size;
+  min-width: 0;
 }
 
 .tbp-stat-card::before {
@@ -3191,8 +3224,13 @@
 
 .tbp-stat-card-value {
   font-family: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'STSong', serif;
+  /* 兜底：不支持容器查询单位的浏览器使用固定字号 */
   font-size: 32px;
+  /* 随卡片宽度自适应：保证 5 位数字（如 17892）在半幅分栏的窄卡片内也完整显示。
+     17cqi - 8px ≈ (卡片宽 - 内边距) / 5，数字永不溢出 */
+  font-size: clamp(18px, 17cqi - 8px, 32px);
   font-weight: 700;
+  white-space: nowrap;
   line-height: 1.1;
   color: var(--miao-text);
   letter-spacing: -0.01em;
@@ -3315,6 +3353,7 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: auto;
   background: var(--miao-surface);
   border: 1px solid var(--miao-border);
   border-radius: 8px;

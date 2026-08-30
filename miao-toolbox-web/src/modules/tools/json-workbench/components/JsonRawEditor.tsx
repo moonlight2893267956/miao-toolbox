@@ -6,7 +6,7 @@ import { json, jsonParseLinter } from '@codemirror/lang-json';
 import { syntaxHighlighting, defaultHighlightStyle, foldGutter, indentOnInput, bracketMatching, foldKeymap } from '@codemirror/language';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
-import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
+import { highlightSelectionMatches } from '@codemirror/search';
 import { linter, lintGutter } from '@codemirror/lint';
 import type { ParseError } from '../types';
 
@@ -131,7 +131,9 @@ export default function JsonRawEditor({
         keymap.of([
           ...closeBracketsKeymap,
           ...defaultKeymap,
-          ...searchKeymap,
+          // 注意：不加载 searchKeymap —— 其 Mod-f 绑定会抢占 Ctrl+F
+          // 弹出 CodeMirror 内置查找面板。Ctrl+F 应聚焦页面顶部搜索栏
+          //（全局 keydown 处理器负责），选中文本高亮由 highlightSelectionMatches 提供。
           ...historyKeymap,
           ...foldKeymap,
           indentWithTab,

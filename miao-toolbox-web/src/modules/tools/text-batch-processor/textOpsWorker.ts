@@ -1,4 +1,4 @@
-// 文本批量处理 — 正则引擎 Web Worker（Story 3.1）
+// 文本清洗台 — 正则引擎 Web Worker（Story 3.1）
 // 在独立线程执行 RegExp，主线程用 1s 竞速 + worker.terminate() 实现 ReDoS 防护。
 // 模式：
 //   - extract：扫描所有匹配（强制 g + d），返回每条的完整文本与位置

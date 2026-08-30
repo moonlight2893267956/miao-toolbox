@@ -98,7 +98,7 @@ const TextBatchProcessorPage: React.FC = () => {
             <FileTextOutlined />
           </div>
           <div className="tbp-header-text">
-            <h2>文本批量处理</h2>
+            <h2>文本清洗台</h2>
             <div className="tbp-header-subtitle">
               <span className="tbp-dot" />
               多页签文本工作台 · 去重 / 排序 / 提取 / 替换 / 词频
@@ -163,14 +163,34 @@ const TextBatchProcessorPage: React.FC = () => {
         </button>
       </div>
 
+      {/* ---- 处理操作条：流水线一等公民（横跨工作区，切换即改变输出面板） ---- */}
+      <div className="tbp-op-bar">
+        <span className="tbp-op-bar-marker" aria-hidden />
+        <div className="tbp-op-bar-label">
+          <span className="tbp-op-bar-label-text">OPS</span>
+        </div>
+        <div className="tbp-tab-strip">
+          {TBP_TABS.map((tab, idx) => (
+            <button
+              key={tab.key}
+              type="button"
+              className={`tbp-tab-chip ${activeTab.activeOp === tab.key ? 'active' : ''}`}
+              onClick={() => api.toggleOp(tab.key)}
+              title={tab.hint}
+            >
+              <span className="tbp-tab-chip-num">{String(idx + 1).padStart(2, '0')}</span>
+              <span className="tbp-tab-chip-label">{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* ---- 工作区 ---- */}
       <div className={`tbp-workspace ${hasOp ? 'has-tab' : ''}`}>
         <SharedTextInputArea
           inputText={activeTab.input}
           dispatch={dispatch}
           highlightRange={highlightRange}
-          activeOp={activeTab.activeOp}
-          onTabToggle={api.toggleOp}
         />
 
         {hasOp && (
@@ -182,9 +202,6 @@ const TextBatchProcessorPage: React.FC = () => {
             <div className="tbp-output-panel">
               <div className="tbp-output-head">
                 <span className="tbp-output-dot" />
-                <span className="tbp-output-label">
-                  {TBP_TABS.find((t) => t.key === activeTab.activeOp)?.label ?? '结果'}
-                </span>
                 <span className="tbp-output-tab-name">
                   {TBP_TABS.find((t) => t.key === activeTab.activeOp)?.description ?? ''}
                 </span>

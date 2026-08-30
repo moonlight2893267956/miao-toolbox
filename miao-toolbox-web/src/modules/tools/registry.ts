@@ -229,7 +229,7 @@ export const toolsRegistry: ToolMeta[] = [
   },
   {
     key: 'text-batch-processor',
-    title: '文本批量处理',
+    title: '文本清洗台',
     description: '去重、排序、提取、替换、词频统计——纯前端本地运算，文本不离开设备',
     icon: FileTextOutlined,
     status: '可用',

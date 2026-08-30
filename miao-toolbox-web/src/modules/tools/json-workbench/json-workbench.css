@@ -2344,9 +2344,8 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-   导航搜索行 — 面包屑 ⊕ 搜索栏 融合为一条连续表面
-   左：路径区（发丝线分隔） · 中：融入 bar 的搜索框 · 右：折叠
-   聚焦搜索时整条 bar 亮起靛蓝 ring（Raycast 式体验）
+   导航搜索行 — 搜索栏独立成一条连续表面
+   搜索框融入 bar（无自身边框），聚焦时整条 bar 亮起靛蓝 ring
    ═══════════════════════════════════════════════════════ */
 
 .jw-nav-row {
@@ -2375,25 +2374,6 @@
 
 :root[data-theme='dark'] .jw-nav-row {
   background: var(--jw-surface);
-  border-color: var(--jw-border);
-}
-
-/* ── 面包屑去卡化：成为 bar 内的路径区 ── */
-.jw-nav-row .jw-breadcrumb {
-  flex: 0 0 auto;
-  max-width: 32%;
-  margin: 0;
-  padding: 0 12px 0 0;
-  border: none;
-  border-right: 1px solid var(--jw-border);
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  overflow: hidden;
-}
-
-:root[data-theme='dark'] .jw-nav-row .jw-breadcrumb {
-  background: transparent;
   border-color: var(--jw-border);
 }
 
@@ -2445,6 +2425,13 @@
   border-color: var(--tool-accent-24);
   background: var(--tool-accent-7);
   color: var(--tool-accent);
+}
+
+/* ── 禁止 CodeMirror 内置查找/替换面板展示 ──
+   编辑器已不加载 searchKeymap（Ctrl+F 由全局处理器聚焦顶部搜索栏），
+   此规则为保底：即使面板被意外触发也不会渲染，搜索统一走顶部搜索栏。 */
+.jw-page .cm-panel.cm-search {
+  display: none !important;
 }
 
 /* ═══════════════════════════════════════════════════════

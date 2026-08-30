@@ -1,8 +1,7 @@
 import React, { useCallback, useRef, useEffect, useState } from 'react';
 import { Input, Alert } from 'antd';
 import type { TextAreaRef } from 'antd/es/input/TextArea';
-import type { TbpAction, TbpTabId } from '../types';
-import { TBP_TABS } from '../types';
+import type { TbpAction } from '../types';
 import FindReplaceBar from './FindReplaceBar';
 
 const MAX_INPUT_SIZE = 1_048_576;
@@ -16,8 +15,6 @@ interface SharedTextInputAreaProps {
   inputText: string;
   dispatch: React.Dispatch<TbpAction>;
   highlightRange?: HighlightRange | null;
-  activeOp: TbpTabId | null;
-  onTabToggle: (key: TbpTabId) => void;
 }
 
 function formatNumber(n: number): string {
@@ -28,8 +25,6 @@ const SharedTextInputArea: React.FC<SharedTextInputAreaProps> = ({
   inputText,
   dispatch,
   highlightRange,
-  activeOp,
-  onTabToggle,
 }) => {
   const [stats, setStats] = useState({ chars: 0, lines: 0 });
   const rafRef = useRef<number | null>(null);
@@ -141,20 +136,6 @@ const SharedTextInputArea: React.FC<SharedTextInputAreaProps> = ({
             <span className="tbp-input-stats-sep">/</span>
             {formatNumber(stats.lines)}<span className="tbp-input-stats-unit">行</span>
           </span>
-        </div>
-        <div className="tbp-tab-strip">
-          {TBP_TABS.map((tab, idx) => (
-            <button
-              key={tab.key}
-              type="button"
-              className={`tbp-tab-chip ${activeOp === tab.key ? 'active' : ''}`}
-              onClick={() => onTabToggle(tab.key)}
-              title={tab.hint}
-            >
-              <span className="tbp-tab-chip-num">{String(idx + 1).padStart(2, '0')}</span>
-              <span className="tbp-tab-chip-label">{tab.label}</span>
-            </button>
-          ))}
         </div>
       </div>
       <div className="tbp-textarea-wrap">
