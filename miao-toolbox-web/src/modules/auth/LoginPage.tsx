@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useLayoutEffect } from 'react';
 import { Form, Input, Button, Divider, message } from 'antd';
 import { GithubOutlined, GoogleOutlined, UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
@@ -26,8 +26,9 @@ const LoginPage: React.FC = () => {
   // 优先从 location.state.from 读取重定向路径，其次从 redirect 查询参数读取
   const redirectPath = (location.state as any)?.from?.pathname || searchParams.get('redirect') || '/tools';
 
-  // 添加页面级 class 以激活专属样式覆写
-  React.useEffect(() => {
+  // 添加页面级 class 以激活米黄暖调样式覆写。
+  // 用 useLayoutEffect 在首次绘制前生效，避免先闪一帧深色背景。
+  useLayoutEffect(() => {
     document.body.classList.add('miao-page-login');
     return () => {
       document.body.classList.remove('miao-page-login');

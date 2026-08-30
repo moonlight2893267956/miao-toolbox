@@ -3571,6 +3571,532 @@ body.miao-page-reset-password .miao-auth-panel::after {
    关键设计：0.01ms 而非 0 — 保留 transitionend / animationend 事件触发，
    避免下游 React 组件依赖这些事件清理状态时 hang。
    选择器 [class^='miao-'] + [class*=' miao-'] 是 CSS 前缀匹配惯用法（无原生支持）。 */
+/* ============================================================
+   登录页 · 米黄暖调主题（宣纸晨光 / Warm Rice Paper）
+   作用域：body.miao-page-login
+   —— 仅 /login 生效；注册 / 重置密码沿用原 geo 深色，互不干扰。
+   ============================================================ */
+
+body.miao-page-login {
+  /* ── 米黄纸感色板 ── */
+  --login-paper: #faf3e2;
+  --login-card: #fffdf7;
+  --login-card-sunk: #fdf7ea;
+  --login-ink: #3a2e20;
+  --login-ink-soft: #7c6a51;
+  --login-ink-mute: rgba(124, 106, 81, 0.55);
+  --login-line: rgba(150, 113, 66, 0.18);
+  --login-line-strong: rgba(150, 113, 66, 0.34);
+  --login-clay: #b0703a;
+  --login-clay-deep: #8e5527;
+
+  /* 登录成功覆盖层等组件读的是主题变量，这里同步为暖调，避免冷暖跳变 */
+  --miao-bg: #faf3e2;
+  --miao-text-primary: #3a2e20;
+  --miao-text-secondary: #7c6a51;
+  --miao-accent: #b0703a;
+  --miao-teal: #d9a15b;
+
+  background: var(--login-paper);
+}
+
+/* ── 页面底色：米黄渐变 ── */
+body.miao-page-login .miao-auth-page--geo {
+  background:
+    radial-gradient(72% 58% at 16% 10%, #fff8e8 0%, rgba(255, 248, 232, 0) 60%),
+    radial-gradient(60% 52% at 88% 18%, #f7e7c6 0%, rgba(247, 231, 198, 0) 62%),
+    radial-gradient(74% 64% at 82% 92%, #ecdbba 0%, rgba(236, 219, 186, 0) 66%),
+    linear-gradient(158deg, #fdf7ea 0%, #f8efdb 42%, #f0e3c7 100%);
+}
+
+/* 卡片背后的弥散光晕 */
+body.miao-page-login .miao-auth-page--geo::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 760px;
+  height: 760px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 252, 243, 0.95) 0%, rgba(255, 249, 235, 0.42) 46%, rgba(255, 249, 235, 0) 72%);
+  filter: blur(8px);
+  z-index: 1;
+  pointer-events: none;
+  animation: miao-login-halo 11s ease-in-out infinite;
+}
+
+/* 纸纹噪点（multiply 混合，模拟宣纸颗粒） */
+body.miao-page-login .miao-auth-page--geo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.45;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.42'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+/* ── 大气层：柔和暖色团块 ── */
+body.miao-page-login .miao-auth-page--geo .miao-auth-diagonal {
+  z-index: 0;
+  background:
+    radial-gradient(46% 38% at 20% 24%, rgba(255, 249, 234, 0.9) 0%, rgba(255, 249, 234, 0) 64%),
+    radial-gradient(40% 34% at 84% 68%, rgba(255, 252, 243, 0.7) 0%, rgba(255, 252, 243, 0) 62%);
+}
+
+/* 斜切色块：由深色改为半透明暖光带 */
+body.miao-page-login .miao-auth-page--geo .miao-auth-diagonal::before {
+  background: linear-gradient(135deg, rgba(255, 250, 236, 0.7) 0%, rgba(250, 238, 214, 0.26) 100%);
+  border-right: 1px solid rgba(150, 113, 66, 0.09);
+}
+
+/* 缓慢漂移的暖色晕染（琥珀 / 焦糖 / 沙） */
+body.miao-page-login .miao-auth-page--geo .miao-auth-diagonal::after {
+  content: '';
+  position: absolute;
+  inset: -22%;
+  background:
+    radial-gradient(24% 28% at 24% 32%, rgba(214, 168, 110, 0.3), rgba(214, 168, 110, 0) 70%),
+    radial-gradient(20% 24% at 72% 62%, rgba(196, 142, 88, 0.24), rgba(196, 142, 88, 0) 70%),
+    radial-gradient(28% 32% at 48% 84%, rgba(233, 205, 158, 0.36), rgba(233, 205, 158, 0) 70%);
+  filter: blur(26px);
+  animation: miao-login-drift 28s ease-in-out infinite;
+}
+
+/* ── 卡片本体：米白纸卡 + 双圈压印边 ── */
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel {
+  padding: 46px 42px 38px;
+  border-radius: 26px;
+  background: linear-gradient(168deg, rgba(255, 253, 247, 0.97) 0%, rgba(252, 246, 233, 0.94) 100%);
+  border: 1px solid rgba(150, 113, 66, 0.14);
+  box-shadow:
+    0 0 0 6px rgba(255, 251, 240, 0.55),
+    0 0 0 7px rgba(150, 113, 66, 0.07),
+    0 2px 4px rgba(90, 66, 36, 0.04),
+    0 30px 60px -26px rgba(90, 66, 36, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(14px) saturate(118%);
+  -webkit-backdrop-filter: blur(14px) saturate(118%);
+}
+
+/* 顶部暖色细线 */
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel::before {
+  height: 2px !important;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(176, 112, 58, 0.28) 24%,
+    rgba(176, 112, 58, 0.62) 50%,
+    rgba(176, 112, 58, 0.28) 76%,
+    transparent 100%
+  ) !important;
+  animation: miao-login-line-glow 5s ease-in-out infinite;
+}
+
+/* 右上角编号角标 */
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel::after {
+  content: '// SIGN IN';
+  top: 20px;
+  right: 26px;
+  color: rgba(150, 113, 66, 0.45) !important;
+}
+
+/* ── 标题：Fraunces 衬线 + 墨褐色 ── */
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel h2 {
+  font-family: 'Fraunces', var(--miao-font-display);
+  font-size: 31px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--login-ink);
+  -webkit-text-fill-color: var(--login-ink);
+  background: none;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-subtitle {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--login-ink-mute);
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-heading {
+  margin-bottom: 30px;
+}
+
+/* ── 输入框：暖调柔面（仅外层 affix-wrapper / 独立 input 加边框底色） ── */
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password {
+  padding: 9px 14px !important;
+  font-size: 15px !important;
+  color: var(--login-ink) !important;
+  background: var(--login-card-sunk) !important;
+  border: 1px solid var(--login-line) !important;
+  border-radius: 13px !important;
+  box-shadow: inset 0 1px 2px rgba(120, 90, 50, 0.05) !important;
+  transition: border-color 220ms ease, background 220ms ease, box-shadow 220ms ease !important;
+}
+
+/* 关键：把 affix-wrapper / password 内部真正承载文本的 <input> 还原为透明无框，
+   避免它继承 antd 默认的白底+灰边而形成"双层输入框" */
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper > input.ant-input,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password > input.ant-input {
+  padding: 0 !important;
+  font-size: 15px !important;
+  color: var(--login-ink) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+}
+
+/* 内层 input 在 focus 时也不要再画自己的边框 / 阴影 / 高亮底，
+   焦点视觉统一交给外层 .ant-input-affix-wrapper-focused */
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper > input.ant-input:focus,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password > input.ant-input:focus,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper > input.ant-input:hover,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password > input.ant-input:hover {
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input::placeholder,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password input::placeholder {
+  color: rgba(124, 106, 81, 0.48) !important;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-prefix,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-suffix,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password-icon {
+  color: rgba(124, 106, 81, 0.55) !important;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input:hover,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password:hover,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper:hover {
+  background: #fffef9 !important;
+  border-color: var(--login-line-strong) !important;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper:hover .ant-input-prefix,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper:hover .ant-input-suffix,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password:hover .ant-input-password-icon {
+  color: rgba(90, 66, 36, 0.8) !important;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input:focus,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper:focus,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper-focused,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password-focused,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password:focus {
+  background: #fffdf7 !important;
+  border-color: var(--login-clay) !important;
+  box-shadow:
+    0 0 0 3px rgba(176, 112, 58, 0.13),
+    inset 0 1px 2px rgba(120, 90, 50, 0.04) !important;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper-focused .ant-input-prefix,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper-focused .ant-input-suffix,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper-focused .ant-input-password-icon {
+  color: var(--login-clay) !important;
+}
+
+/* 浏览器自动填充：米白底 + 墨褐字 */
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input:-webkit-autofill,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper :-webkit-autofill,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password :-webkit-autofill,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel input:-webkit-autofill {
+  caret-color: var(--login-ink) !important;
+  -webkit-text-fill-color: var(--login-ink) !important;
+  -webkit-box-shadow: 0 0 0 1000px #fffdf7 inset !important;
+  box-shadow: 0 0 0 1000px #fffdf7 inset !important;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-form-item-label > label {
+  color: var(--login-ink-soft);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* 校验错误文字在暖底下的可读性 */
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-form-item-explain-error {
+  color: #b23c2e !important;
+}
+
+/* ── 主按钮：焦糖陶土渐变 ── */
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary {
+  height: 50px;
+  font-size: 15px;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em;
+  color: #fff8ec !important;
+  background: linear-gradient(135deg, #c07a3e 0%, #a9602d 52%, #8f4d24 100%) !important;
+  border: 1px solid rgba(122, 66, 28, 0.55) !important;
+  border-radius: 13px !important;
+  box-shadow:
+    0 10px 24px -8px rgba(150, 84, 38, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24) !important;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary::after {
+  background: linear-gradient(
+    105deg,
+    transparent 38%,
+    rgba(255, 244, 224, 0.32) 50%,
+    transparent 62%
+  ) !important;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #cd854a 0%, #b06733 52%, #98542a 100%) !important;
+  transform: translateY(-1px);
+  box-shadow:
+    0 14px 30px -8px rgba(150, 84, 38, 0.62),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow:
+    0 6px 16px -6px rgba(150, 84, 38, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary:disabled {
+  color: rgba(90, 66, 36, 0.4) !important;
+  background: #e6d9c0 !important;
+  border-color: rgba(150, 113, 66, 0.2) !important;
+  box-shadow: none !important;
+}
+
+/* ── 分隔线 ── */
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-divider,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-divider-inner-text {
+  font-size: 12.5px;
+  color: rgba(124, 106, 81, 0.6);
+  border-color: rgba(150, 113, 66, 0.14);
+}
+
+/* ── 社交按钮：米白纸面 ── */
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn {
+  height: 46px;
+  color: var(--login-ink-soft) !important;
+  background: rgba(255, 253, 247, 0.8) !important;
+  border-color: rgba(150, 113, 66, 0.18) !important;
+  border-radius: 13px;
+  box-shadow: 0 1px 2px rgba(90, 66, 36, 0.03) !important;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn::before {
+  background: linear-gradient(
+    105deg,
+    transparent 32%,
+    rgba(176, 112, 58, 0.09) 50%,
+    transparent 68%
+  ) !important;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn:hover {
+  color: var(--login-ink) !important;
+  background: #fffdf7 !important;
+  border-color: rgba(176, 112, 58, 0.4) !important;
+  box-shadow: 0 10px 22px -12px rgba(122, 84, 44, 0.5) !important;
+  transform: translateY(-1px);
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn .anticon {
+  color: var(--login-clay) !important;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn:disabled {
+  color: rgba(124, 106, 81, 0.38) !important;
+  background: rgba(255, 253, 247, 0.5) !important;
+  border-color: rgba(150, 113, 66, 0.1) !important;
+}
+
+/* ── 登录页专属片段 ── */
+body.miao-page-login .miao-login-submit-row {
+  margin-bottom: 14px;
+}
+
+body.miao-page-login .miao-login-forgot a {
+  font-size: 13px;
+  color: rgba(150, 113, 66, 0.8);
+}
+
+body.miao-page-login .miao-login-forgot a:hover {
+  color: var(--login-clay-deep);
+}
+
+body.miao-page-login .miao-login-footer {
+  font-size: 13.5px;
+  color: rgba(124, 106, 81, 0.72);
+}
+
+body.miao-page-login .miao-login-footer a {
+  font-weight: 600;
+  color: var(--login-clay-deep);
+}
+
+body.miao-page-login .miao-login-footer a:hover {
+  color: #a05b1f;
+  text-decoration: underline;
+}
+
+/* ── 左下品牌 / 右上坐标（抬到噪点层之上） ── */
+body.miao-page-login .miao-auth-page--geo .miao-auth-brand-geo,
+body.miao-page-login .miao-auth-page--geo .miao-auth-coord {
+  z-index: 5;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-brand-meta {
+  color: rgba(150, 113, 66, 0.55);
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-brand-logo-mark img {
+  filter: drop-shadow(0 2px 6px rgba(150, 113, 66, 0.22));
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-brand-logo-text {
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  color: rgba(58, 46, 32, 0.82);
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-brand-desc {
+  color: rgba(124, 106, 81, 0.62);
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-coord {
+  color: rgba(150, 113, 66, 0.5);
+}
+
+/* ── 几何装饰：由冷金改暖褐 ── */
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-ring {
+  border-color: rgba(150, 113, 66, 0.16);
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-ring::before {
+  background: conic-gradient(from 0deg, transparent 0%, rgba(176, 112, 58, 0.5) 10%, transparent 20%) border-box;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-ring-dot {
+  background: var(--login-clay);
+  box-shadow: 0 0 8px rgba(176, 112, 58, 0.45);
+  animation-name: miao-login-node-pulse;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-ring-sm {
+  border-color: rgba(150, 113, 66, 0.2);
+  animation-name: miao-login-pulse-ring;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-rect {
+  border-color: rgba(150, 113, 66, 0.14);
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-rect::before {
+  opacity: 0.45;
+  background: linear-gradient(90deg, transparent, var(--login-clay), transparent);
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-rect::after {
+  opacity: 0.35;
+  background: linear-gradient(180deg, transparent, var(--login-clay), transparent);
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-tri {
+  border-bottom-color: rgba(176, 112, 58, 0.06);
+  animation-name: miao-login-tri-glow;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-cross::before,
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-cross::after {
+  background: rgba(150, 113, 66, 0.3);
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-arc {
+  border-top-color: rgba(150, 113, 66, 0.16);
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-dots span {
+  background: rgba(150, 113, 66, 0.25);
+  animation-name: miao-login-dot-seq;
+}
+
+/* ── 扫描光线：暖褐替代冷金 ── */
+body.miao-page-login .miao-auth-page--geo .miao-auth-sweep-h {
+  background: linear-gradient(90deg, transparent 0%, transparent 30%, rgba(176, 112, 58, 0.45) 50%, transparent 70%, transparent 100%);
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-sweep-v {
+  background: linear-gradient(180deg, transparent 0%, transparent 30%, rgba(176, 112, 58, 0.42) 50%, transparent 70%, transparent 100%);
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-sweep-diag {
+  background: linear-gradient(90deg, transparent 0%, transparent 25%, rgba(176, 112, 58, 0.28) 50%, transparent 75%, transparent 100%);
+}
+
+/* ── 暖调专用动画 ── */
+@keyframes miao-login-halo {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.85; }
+  50% { transform: translate(-50%, -50%) scale(1.06); opacity: 1; }
+}
+
+@keyframes miao-login-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(2.5%, -2%, 0) scale(1.05); }
+  100% { transform: translate3d(-2%, 1.5%, 0) scale(1); }
+}
+
+@keyframes miao-login-line-glow {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+@keyframes miao-login-node-pulse {
+  0%, 100% { opacity: 0.3; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.85; transform: translate(-50%, -50%) scale(2.5); box-shadow: 0 0 20px rgba(176, 112, 58, 0.45); }
+}
+
+@keyframes miao-login-pulse-ring {
+  0%, 100% { border-color: rgba(150, 113, 66, 0.14); transform: scale(1); }
+  50% { border-color: rgba(150, 113, 66, 0.32); transform: scale(1.06); }
+}
+
+@keyframes miao-login-tri-glow {
+  0%, 100% { filter: none; border-bottom-color: rgba(176, 112, 58, 0.05); }
+  50% { filter: drop-shadow(0 0 18px rgba(176, 112, 58, 0.14)); border-bottom-color: rgba(176, 112, 58, 0.1); }
+}
+
+@keyframes miao-login-dot-seq {
+  0%, 100% { background: rgba(150, 113, 66, 0.18); box-shadow: none; }
+  15% { background: #b0703a; box-shadow: 0 0 8px rgba(176, 112, 58, 0.45); }
+  30% { background: rgba(150, 113, 66, 0.18); box-shadow: none; }
+}
+
+/* 窄屏：收紧留白，保留纸感 */
+@media (max-width: 520px) {
+  body.miao-page-login .miao-auth-page--geo .miao-auth-panel {
+    padding: 32px 24px 28px;
+    border-radius: 22px;
+    box-shadow:
+      0 0 0 5px rgba(255, 251, 240, 0.5),
+      0 0 0 6px rgba(150, 113, 66, 0.07),
+      0 24px 48px -22px rgba(90, 66, 36, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+
+  body.miao-page-login .miao-auth-page--geo .miao-auth-panel h2 {
+    font-size: 27px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   [class^='miao-'],
   [class*=' miao-'] {
