@@ -74,7 +74,7 @@ const AuthShell: React.FC<AuthShellProps> = ({
             <div className="miao-auth-brand-meta">Constructivism · 2026</div>
             <div className="miao-auth-brand-logo-row">
               <div className="miao-auth-brand-logo-mark">
-                <img src="/brand-logo-gold.svg" alt="" />
+                <img src="/brand-logo.svg" alt="" />
               </div>
               <span className="miao-auth-brand-logo-text">阿渺工具箱</span>
             </div>

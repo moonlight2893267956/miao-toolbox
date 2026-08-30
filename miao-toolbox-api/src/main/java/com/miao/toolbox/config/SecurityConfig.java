@@ -77,6 +77,7 @@ public class SecurityConfig {
                                 "/api/auth/oauth/**",
                                 "/api/auth/invite/**",
                                 "/api/auth/email/send-code",
+                                "/api/auth/email/verify-code",
                                 "/api/auth/email/register",
                                 "/api/auth/email/reset-password",
                                 "/actuator/**",

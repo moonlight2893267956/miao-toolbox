@@ -1015,10 +1015,10 @@ a {
 
 /* ====================== 重置密码页（极简高级风） ====================== */
 
-/* 覆写 AuthShell 右上角 // REGISTRATION 硬编码角标 */
-.miao-auth-page--geo .miao-auth-panel::after {
+/* 覆写 AuthShell 右上角 // REGISTRATION 硬编码角标（仅重置密码页） */
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel::after {
   content: '// RESET · PASSWORD RECOVERY' !important;
-  color: rgba(244, 241, 236, 0.35) !important;
+  color: rgba(150, 113, 66, 0.45) !important;
 }
 
 /* 让 .miao-auth-panel 的 ::after 角标显示 // RESET + 日期 */
@@ -1429,7 +1429,7 @@ a {
   width: 36px;
   height: 36px;
   object-fit: contain;
-  filter: drop-shadow(0 0 8px rgba(200, 169, 126, 0.1));
+  filter: drop-shadow(0 0 8px rgba(109, 40, 217, 0.15));
 }
 
 .miao-auth-page--geo .miao-auth-brand-logo-text {
@@ -1804,13 +1804,13 @@ a {
 /* 注册页角标 */
 body.miao-page-register .miao-auth-panel::after {
   content: '// REGISTER' !important;
-  color: rgba(200, 169, 126, 0.35) !important;
+  color: rgba(150, 113, 66, 0.45) !important;
 }
 
 /* 重置密码页角标 */
 body.miao-page-reset-password .miao-auth-panel::after {
   content: '// RESET' !important;
-  color: rgba(200, 169, 126, 0.35) !important;
+  color: rgba(150, 113, 66, 0.45) !important;
 }
 
 /* Tabs 标签栏：深色风格 */
@@ -3572,12 +3572,14 @@ body.miao-page-reset-password .miao-auth-panel::after {
    避免下游 React 组件依赖这些事件清理状态时 hang。
    选择器 [class^='miao-'] + [class*=' miao-'] 是 CSS 前缀匹配惯用法（无原生支持）。 */
 /* ============================================================
-   登录页 · 米黄暖调主题（宣纸晨光 / Warm Rice Paper）
-   作用域：body.miao-page-login
-   —— 仅 /login 生效；注册 / 重置密码沿用原 geo 深色，互不干扰。
+   Auth 页 · 米黄暖调主题（宣纸晨光 / Warm Rice Paper）
+   作用域：body.miao-page-login / body.miao-page-register / body.miao-page-reset-password
+   —— 登录 / 注册 / 重置密码三个 geo 页面统一暖调，互不干扰。
    ============================================================ */
 
-body.miao-page-login {
+body.miao-page-login,
+body.miao-page-register,
+body.miao-page-reset-password {
   /* ── 米黄纸感色板 ── */
   --login-paper: #faf3e2;
   --login-card: #fffdf7;
@@ -3601,7 +3603,9 @@ body.miao-page-login {
 }
 
 /* ── 页面底色：米黄渐变 ── */
-body.miao-page-login .miao-auth-page--geo {
+body.miao-page-login .miao-auth-page--geo,
+body.miao-page-register .miao-auth-page--geo,
+body.miao-page-reset-password .miao-auth-page--geo {
   background:
     radial-gradient(72% 58% at 16% 10%, #fff8e8 0%, rgba(255, 248, 232, 0) 60%),
     radial-gradient(60% 52% at 88% 18%, #f7e7c6 0%, rgba(247, 231, 198, 0) 62%),
@@ -3610,7 +3614,9 @@ body.miao-page-login .miao-auth-page--geo {
 }
 
 /* 卡片背后的弥散光晕 */
-body.miao-page-login .miao-auth-page--geo::before {
+body.miao-page-login .miao-auth-page--geo::before,
+body.miao-page-register .miao-auth-page--geo::before,
+body.miao-page-reset-password .miao-auth-page--geo::before {
   content: '';
   position: absolute;
   left: 50%;
@@ -3626,7 +3632,9 @@ body.miao-page-login .miao-auth-page--geo::before {
 }
 
 /* 纸纹噪点（multiply 混合，模拟宣纸颗粒） */
-body.miao-page-login .miao-auth-page--geo::after {
+body.miao-page-login .miao-auth-page--geo::after,
+body.miao-page-register .miao-auth-page--geo::after,
+body.miao-page-reset-password .miao-auth-page--geo::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -3639,7 +3647,9 @@ body.miao-page-login .miao-auth-page--geo::after {
 }
 
 /* ── 大气层：柔和暖色团块 ── */
-body.miao-page-login .miao-auth-page--geo .miao-auth-diagonal {
+body.miao-page-login .miao-auth-page--geo .miao-auth-diagonal,
+body.miao-page-register .miao-auth-page--geo .miao-auth-diagonal,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-diagonal {
   z-index: 0;
   background:
     radial-gradient(46% 38% at 20% 24%, rgba(255, 249, 234, 0.9) 0%, rgba(255, 249, 234, 0) 64%),
@@ -3647,13 +3657,17 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-diagonal {
 }
 
 /* 斜切色块：由深色改为半透明暖光带 */
-body.miao-page-login .miao-auth-page--geo .miao-auth-diagonal::before {
+body.miao-page-login .miao-auth-page--geo .miao-auth-diagonal::before,
+body.miao-page-register .miao-auth-page--geo .miao-auth-diagonal::before,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-diagonal::before {
   background: linear-gradient(135deg, rgba(255, 250, 236, 0.7) 0%, rgba(250, 238, 214, 0.26) 100%);
   border-right: 1px solid rgba(150, 113, 66, 0.09);
 }
 
 /* 缓慢漂移的暖色晕染（琥珀 / 焦糖 / 沙） */
-body.miao-page-login .miao-auth-page--geo .miao-auth-diagonal::after {
+body.miao-page-login .miao-auth-page--geo .miao-auth-diagonal::after,
+body.miao-page-register .miao-auth-page--geo .miao-auth-diagonal::after,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-diagonal::after {
   content: '';
   position: absolute;
   inset: -22%;
@@ -3666,7 +3680,9 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-diagonal::after {
 }
 
 /* ── 卡片本体：米白纸卡 + 双圈压印边 ── */
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel {
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel {
   padding: 46px 42px 38px;
   border-radius: 26px;
   background: linear-gradient(168deg, rgba(255, 253, 247, 0.97) 0%, rgba(252, 246, 233, 0.94) 100%);
@@ -3682,7 +3698,9 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-panel {
 }
 
 /* 顶部暖色细线 */
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel::before {
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel::before,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel::before,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel::before {
   height: 2px !important;
   border-radius: 2px;
   background: linear-gradient(
@@ -3697,7 +3715,9 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-panel::before {
 }
 
 /* 右上角编号角标 */
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel::after {
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel::after,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel::after,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel::after {
   content: '// SIGN IN';
   top: 20px;
   right: 26px;
@@ -3705,7 +3725,9 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-panel::after {
 }
 
 /* ── 标题：Fraunces 衬线 + 墨褐色 ── */
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel h2 {
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel h2,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel h2,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel h2 {
   font-family: 'Fraunces', var(--miao-font-display);
   font-size: 31px;
   font-weight: 700;
@@ -3715,19 +3737,27 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-panel h2 {
   background: none;
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-subtitle {
+body.miao-page-login .miao-auth-page--geo .miao-auth-subtitle,
+body.miao-page-register .miao-auth-page--geo .miao-auth-subtitle,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-subtitle {
   margin-top: 10px;
   font-size: 14px;
   color: var(--login-ink-mute);
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-heading {
+body.miao-page-login .miao-auth-page--geo .miao-auth-heading,
+body.miao-page-register .miao-auth-page--geo .miao-auth-heading,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-heading {
   margin-bottom: 30px;
 }
 
 /* ── 输入框：暖调柔面（仅外层 affix-wrapper / 独立 input 加边框底色） ── */
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper,
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password {
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-password,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-password {
   padding: 9px 14px !important;
   font-size: 15px !important;
   color: var(--login-ink) !important;
@@ -3741,7 +3771,11 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password {
 /* 关键：把 affix-wrapper / password 内部真正承载文本的 <input> 还原为透明无框，
    避免它继承 antd 默认的白底+灰边而形成"双层输入框" */
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper > input.ant-input,
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password > input.ant-input {
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper > input.ant-input,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper > input.ant-input,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password > input.ant-input,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-password > input.ant-input,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-password > input.ant-input {
   padding: 0 !important;
   font-size: 15px !important;
   color: var(--login-ink) !important;
@@ -3754,9 +3788,17 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password >
 /* 内层 input 在 focus 时也不要再画自己的边框 / 阴影 / 高亮底，
    焦点视觉统一交给外层 .ant-input-affix-wrapper-focused */
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper > input.ant-input:focus,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper > input.ant-input:focus,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper > input.ant-input:focus,
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password > input.ant-input:focus,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-password > input.ant-input:focus,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-password > input.ant-input:focus,
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper > input.ant-input:hover,
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password > input.ant-input:hover {
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper > input.ant-input:hover,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper > input.ant-input:hover,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password > input.ant-input:hover,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-password > input.ant-input:hover,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-password > input.ant-input:hover {
   padding: 0 !important;
   background: transparent !important;
   border: 0 !important;
@@ -3765,34 +3807,66 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password >
 }
 
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input::placeholder,
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password input::placeholder {
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input::placeholder,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input::placeholder,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password input::placeholder,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-password input::placeholder,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-password input::placeholder {
   color: rgba(124, 106, 81, 0.48) !important;
 }
 
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-prefix,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-prefix,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-prefix,
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-suffix,
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password-icon {
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-suffix,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-suffix,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password-icon,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-password-icon,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-password-icon {
   color: rgba(124, 106, 81, 0.55) !important;
 }
 
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input:hover,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input:hover,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input:hover,
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password:hover,
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper:hover {
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-password:hover,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-password:hover,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper:hover,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper:hover,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper:hover {
   background: #fffef9 !important;
   border-color: var(--login-line-strong) !important;
 }
 
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper:hover .ant-input-prefix,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper:hover .ant-input-prefix,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper:hover .ant-input-prefix,
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper:hover .ant-input-suffix,
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password:hover .ant-input-password-icon {
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper:hover .ant-input-suffix,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper:hover .ant-input-suffix,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password:hover .ant-input-password-icon,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-password:hover .ant-input-password-icon,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-password:hover .ant-input-password-icon {
   color: rgba(90, 66, 36, 0.8) !important;
 }
 
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input:focus,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input:focus,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input:focus,
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper:focus,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper:focus,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper:focus,
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper-focused,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper-focused,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper-focused,
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password-focused,
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password:focus {
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-password-focused,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-password-focused,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password:focus,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-password:focus,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-password:focus {
   background: #fffdf7 !important;
   border-color: var(--login-clay) !important;
   box-shadow:
@@ -3801,35 +3875,55 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password:f
 }
 
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper-focused .ant-input-prefix,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper-focused .ant-input-prefix,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper-focused .ant-input-prefix,
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper-focused .ant-input-suffix,
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper-focused .ant-input-password-icon {
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper-focused .ant-input-suffix,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper-focused .ant-input-suffix,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper-focused .ant-input-password-icon,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper-focused .ant-input-password-icon,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper-focused .ant-input-password-icon {
   color: var(--login-clay) !important;
 }
 
 /* 浏览器自动填充：米白底 + 墨褐字 */
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input:-webkit-autofill,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input:-webkit-autofill,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input:-webkit-autofill,
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper :-webkit-autofill,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper :-webkit-autofill,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-affix-wrapper :-webkit-autofill,
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-input-password :-webkit-autofill,
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel input:-webkit-autofill {
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-input-password :-webkit-autofill,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-input-password :-webkit-autofill,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel input:-webkit-autofill,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel input:-webkit-autofill,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel input:-webkit-autofill {
   caret-color: var(--login-ink) !important;
   -webkit-text-fill-color: var(--login-ink) !important;
   -webkit-box-shadow: 0 0 0 1000px #fffdf7 inset !important;
   box-shadow: 0 0 0 1000px #fffdf7 inset !important;
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-form-item-label > label {
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-form-item-label > label,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-form-item-label > label,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-form-item-label > label {
   color: var(--login-ink-soft);
   font-size: 13px;
   font-weight: 500;
 }
 
 /* 校验错误文字在暖底下的可读性 */
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-form-item-explain-error {
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-form-item-explain-error,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-form-item-explain-error,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-form-item-explain-error {
   color: #b23c2e !important;
 }
 
 /* ── 主按钮：焦糖陶土渐变 ── */
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary {
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-btn-primary,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-btn-primary {
   height: 50px;
   font-size: 15px;
   font-weight: 600 !important;
@@ -3843,7 +3937,9 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary {
     inset 0 1px 0 rgba(255, 255, 255, 0.24) !important;
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary::after {
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary::after,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-btn-primary::after,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-btn-primary::after {
   background: linear-gradient(
     105deg,
     transparent 38%,
@@ -3852,7 +3948,9 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary::aft
   ) !important;
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary:hover:not(:disabled) {
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary:hover:not(:disabled),
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-btn-primary:hover:not(:disabled),
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-btn-primary:hover:not(:disabled) {
   background: linear-gradient(135deg, #cd854a 0%, #b06733 52%, #98542a 100%) !important;
   transform: translateY(-1px);
   box-shadow:
@@ -3860,14 +3958,18 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary:hove
     inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary:active:not(:disabled) {
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary:active:not(:disabled),
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-btn-primary:active:not(:disabled),
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-btn-primary:active:not(:disabled) {
   transform: translateY(0);
   box-shadow:
     0 6px 16px -6px rgba(150, 84, 38, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary:disabled {
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary:disabled,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-btn-primary:disabled,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-btn-primary:disabled {
   color: rgba(90, 66, 36, 0.4) !important;
   background: #e6d9c0 !important;
   border-color: rgba(150, 113, 66, 0.2) !important;
@@ -3876,14 +3978,20 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-btn-primary:disa
 
 /* ── 分隔线 ── */
 body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-divider,
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-divider-inner-text {
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-divider,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-divider,
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-divider-inner-text,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-divider-inner-text,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-divider-inner-text {
   font-size: 12.5px;
   color: rgba(124, 106, 81, 0.6);
   border-color: rgba(150, 113, 66, 0.14);
 }
 
 /* ── 社交按钮：米白纸面 ── */
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn {
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn {
   height: 46px;
   color: var(--login-ink-soft) !important;
   background: rgba(255, 253, 247, 0.8) !important;
@@ -3892,7 +4000,9 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn
   box-shadow: 0 1px 2px rgba(90, 66, 36, 0.03) !important;
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn::before {
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn::before,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn::before,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn::before {
   background: linear-gradient(
     105deg,
     transparent 32%,
@@ -3901,7 +4011,9 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn
   ) !important;
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn:hover {
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn:hover,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn:hover,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn:hover {
   color: var(--login-ink) !important;
   background: #fffdf7 !important;
   border-color: rgba(176, 112, 58, 0.4) !important;
@@ -3909,136 +4021,196 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn
   transform: translateY(-1px);
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn .anticon {
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn .anticon,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn .anticon,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn .anticon {
   color: var(--login-clay) !important;
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn:disabled {
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn:disabled,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn:disabled,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .miao-auth-social-btn:disabled {
   color: rgba(124, 106, 81, 0.38) !important;
   background: rgba(255, 253, 247, 0.5) !important;
   border-color: rgba(150, 113, 66, 0.1) !important;
 }
 
 /* ── 登录页专属片段 ── */
-body.miao-page-login .miao-login-submit-row {
+body.miao-page-login .miao-login-submit-row,
+body.miao-page-register .miao-login-submit-row,
+body.miao-page-reset-password .miao-login-submit-row {
   margin-bottom: 14px;
 }
 
-body.miao-page-login .miao-login-forgot a {
+body.miao-page-login .miao-login-forgot a,
+body.miao-page-register .miao-login-forgot a,
+body.miao-page-reset-password .miao-login-forgot a {
   font-size: 13px;
   color: rgba(150, 113, 66, 0.8);
 }
 
-body.miao-page-login .miao-login-forgot a:hover {
+body.miao-page-login .miao-login-forgot a:hover,
+body.miao-page-register .miao-login-forgot a:hover,
+body.miao-page-reset-password .miao-login-forgot a:hover {
   color: var(--login-clay-deep);
 }
 
-body.miao-page-login .miao-login-footer {
+body.miao-page-login .miao-login-footer,
+body.miao-page-register .miao-login-footer,
+body.miao-page-reset-password .miao-login-footer {
   font-size: 13.5px;
   color: rgba(124, 106, 81, 0.72);
 }
 
-body.miao-page-login .miao-login-footer a {
+body.miao-page-login .miao-login-footer a,
+body.miao-page-register .miao-login-footer a,
+body.miao-page-reset-password .miao-login-footer a {
   font-weight: 600;
   color: var(--login-clay-deep);
 }
 
-body.miao-page-login .miao-login-footer a:hover {
+body.miao-page-login .miao-login-footer a:hover,
+body.miao-page-register .miao-login-footer a:hover,
+body.miao-page-reset-password .miao-login-footer a:hover {
   color: #a05b1f;
   text-decoration: underline;
 }
 
 /* ── 左下品牌 / 右上坐标（抬到噪点层之上） ── */
 body.miao-page-login .miao-auth-page--geo .miao-auth-brand-geo,
-body.miao-page-login .miao-auth-page--geo .miao-auth-coord {
+body.miao-page-register .miao-auth-page--geo .miao-auth-brand-geo,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-brand-geo,
+body.miao-page-login .miao-auth-page--geo .miao-auth-coord,
+body.miao-page-register .miao-auth-page--geo .miao-auth-coord,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-coord {
   z-index: 5;
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-brand-meta {
+body.miao-page-login .miao-auth-page--geo .miao-auth-brand-meta,
+body.miao-page-register .miao-auth-page--geo .miao-auth-brand-meta,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-brand-meta {
   color: rgba(150, 113, 66, 0.55);
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-brand-logo-mark img {
-  filter: drop-shadow(0 2px 6px rgba(150, 113, 66, 0.22));
+body.miao-page-login .miao-auth-page--geo .miao-auth-brand-logo-mark img,
+body.miao-page-register .miao-auth-page--geo .miao-auth-brand-logo-mark img,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-brand-logo-mark img {
+  filter: drop-shadow(0 2px 6px rgba(109, 40, 217, 0.25));
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-brand-logo-text {
+body.miao-page-login .miao-auth-page--geo .miao-auth-brand-logo-text,
+body.miao-page-register .miao-auth-page--geo .miao-auth-brand-logo-text,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-brand-logo-text {
   font-size: 16px;
   letter-spacing: 0.08em;
   color: rgba(58, 46, 32, 0.82);
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-brand-desc {
+body.miao-page-login .miao-auth-page--geo .miao-auth-brand-desc,
+body.miao-page-register .miao-auth-page--geo .miao-auth-brand-desc,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-brand-desc {
   color: rgba(124, 106, 81, 0.62);
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-coord {
+body.miao-page-login .miao-auth-page--geo .miao-auth-coord,
+body.miao-page-register .miao-auth-page--geo .miao-auth-coord,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-coord {
   color: rgba(150, 113, 66, 0.5);
 }
 
 /* ── 几何装饰：由冷金改暖褐 ── */
-body.miao-page-login .miao-auth-page--geo .miao-auth-geo-ring {
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-ring,
+body.miao-page-register .miao-auth-page--geo .miao-auth-geo-ring,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-geo-ring {
   border-color: rgba(150, 113, 66, 0.16);
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-geo-ring::before {
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-ring::before,
+body.miao-page-register .miao-auth-page--geo .miao-auth-geo-ring::before,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-geo-ring::before {
   background: conic-gradient(from 0deg, transparent 0%, rgba(176, 112, 58, 0.5) 10%, transparent 20%) border-box;
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-geo-ring-dot {
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-ring-dot,
+body.miao-page-register .miao-auth-page--geo .miao-auth-geo-ring-dot,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-geo-ring-dot {
   background: var(--login-clay);
   box-shadow: 0 0 8px rgba(176, 112, 58, 0.45);
   animation-name: miao-login-node-pulse;
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-geo-ring-sm {
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-ring-sm,
+body.miao-page-register .miao-auth-page--geo .miao-auth-geo-ring-sm,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-geo-ring-sm {
   border-color: rgba(150, 113, 66, 0.2);
   animation-name: miao-login-pulse-ring;
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-geo-rect {
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-rect,
+body.miao-page-register .miao-auth-page--geo .miao-auth-geo-rect,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-geo-rect {
   border-color: rgba(150, 113, 66, 0.14);
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-geo-rect::before {
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-rect::before,
+body.miao-page-register .miao-auth-page--geo .miao-auth-geo-rect::before,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-geo-rect::before {
   opacity: 0.45;
   background: linear-gradient(90deg, transparent, var(--login-clay), transparent);
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-geo-rect::after {
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-rect::after,
+body.miao-page-register .miao-auth-page--geo .miao-auth-geo-rect::after,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-geo-rect::after {
   opacity: 0.35;
   background: linear-gradient(180deg, transparent, var(--login-clay), transparent);
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-geo-tri {
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-tri,
+body.miao-page-register .miao-auth-page--geo .miao-auth-geo-tri,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-geo-tri {
   border-bottom-color: rgba(176, 112, 58, 0.06);
   animation-name: miao-login-tri-glow;
 }
 
 body.miao-page-login .miao-auth-page--geo .miao-auth-geo-cross::before,
-body.miao-page-login .miao-auth-page--geo .miao-auth-geo-cross::after {
+body.miao-page-register .miao-auth-page--geo .miao-auth-geo-cross::before,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-geo-cross::before,
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-cross::after,
+body.miao-page-register .miao-auth-page--geo .miao-auth-geo-cross::after,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-geo-cross::after {
   background: rgba(150, 113, 66, 0.3);
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-geo-arc {
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-arc,
+body.miao-page-register .miao-auth-page--geo .miao-auth-geo-arc,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-geo-arc {
   border-top-color: rgba(150, 113, 66, 0.16);
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-geo-dots span {
+body.miao-page-login .miao-auth-page--geo .miao-auth-geo-dots span,
+body.miao-page-register .miao-auth-page--geo .miao-auth-geo-dots span,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-geo-dots span {
   background: rgba(150, 113, 66, 0.25);
   animation-name: miao-login-dot-seq;
 }
 
 /* ── 扫描光线：暖褐替代冷金 ── */
-body.miao-page-login .miao-auth-page--geo .miao-auth-sweep-h {
+body.miao-page-login .miao-auth-page--geo .miao-auth-sweep-h,
+body.miao-page-register .miao-auth-page--geo .miao-auth-sweep-h,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-sweep-h {
   background: linear-gradient(90deg, transparent 0%, transparent 30%, rgba(176, 112, 58, 0.45) 50%, transparent 70%, transparent 100%);
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-sweep-v {
+body.miao-page-login .miao-auth-page--geo .miao-auth-sweep-v,
+body.miao-page-register .miao-auth-page--geo .miao-auth-sweep-v,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-sweep-v {
   background: linear-gradient(180deg, transparent 0%, transparent 30%, rgba(176, 112, 58, 0.42) 50%, transparent 70%, transparent 100%);
 }
 
-body.miao-page-login .miao-auth-page--geo .miao-auth-sweep-diag {
+body.miao-page-login .miao-auth-page--geo .miao-auth-sweep-diag,
+body.miao-page-register .miao-auth-page--geo .miao-auth-sweep-diag,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-sweep-diag {
   background: linear-gradient(90deg, transparent 0%, transparent 25%, rgba(176, 112, 58, 0.28) 50%, transparent 75%, transparent 100%);
 }
 
@@ -4082,7 +4254,9 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-sweep-diag {
 
 /* 窄屏：收紧留白，保留纸感 */
 @media (max-width: 520px) {
-  body.miao-page-login .miao-auth-page--geo .miao-auth-panel {
+  body.miao-page-login .miao-auth-page--geo .miao-auth-panel,
+  body.miao-page-register .miao-auth-page--geo .miao-auth-panel,
+  body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel {
     padding: 32px 24px 28px;
     border-radius: 22px;
     box-shadow:
@@ -4092,9 +4266,343 @@ body.miao-page-login .miao-auth-page--geo .miao-auth-sweep-diag {
       inset 0 1px 0 rgba(255, 255, 255, 0.9);
   }
 
-  body.miao-page-login .miao-auth-page--geo .miao-auth-panel h2 {
+  body.miao-page-login .miao-auth-page--geo .miao-auth-panel h2,
+  body.miao-page-register .miao-auth-page--geo .miao-auth-panel h2,
+  body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel h2 {
     font-size: 27px;
   }
+}
+
+/* ============================================================
+   注册 / 重置密码页 · 暖调组件覆写
+   ============================================================ */
+
+/* ── 注册页：Tabs ── */
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-tabs {
+  color: var(--login-ink-soft);
+}
+
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-tabs-tab {
+  color: rgba(124, 106, 81, 0.55) !important;
+}
+
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-tabs-tab:hover {
+  color: var(--login-ink-soft) !important;
+}
+
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--login-ink) !important;
+  font-weight: 600;
+}
+
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-tabs-ink-bar {
+  background: var(--login-clay) !important;
+}
+
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-tabs-nav::before {
+  border-bottom-color: rgba(150, 113, 66, 0.12) !important;
+}
+
+/* ── 注册页：邀请徽章 ── */
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-invite-badge {
+  background: rgba(176, 112, 58, 0.1);
+  border-color: rgba(176, 112, 58, 0.22);
+  color: var(--login-clay-deep);
+  box-shadow: 0 4px 12px rgba(90, 66, 36, 0.1), inset 0 1px 0 rgba(176, 112, 58, 0.12);
+}
+
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-invite-badge:hover {
+  background: rgba(176, 112, 58, 0.16);
+  border-color: rgba(176, 112, 58, 0.35);
+}
+
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-invite-badge.is-invalid {
+  background: rgba(178, 60, 46, 0.08);
+  border-color: rgba(178, 60, 46, 0.2);
+  color: #b23c2e;
+}
+
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-invite-badge.is-invalid:hover {
+  background: rgba(178, 60, 46, 0.14);
+  border-color: rgba(178, 60, 46, 0.32);
+}
+
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-invite-badge.is-loading {
+  background: rgba(176, 112, 58, 0.06);
+  border-color: rgba(176, 112, 58, 0.16);
+  color: var(--login-clay);
+}
+
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-invite-badge-tooltip .ant-tooltip-inner {
+  background: rgba(250, 243, 226, 0.95);
+  border: 1px solid rgba(150, 113, 66, 0.2);
+  color: var(--login-ink);
+  box-shadow: 0 8px 24px rgba(90, 66, 36, 0.2);
+}
+
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-invite-badge-tooltip .ant-tooltip-arrow::before {
+  background: rgba(250, 243, 226, 0.95);
+}
+
+/* ── 注册页：邮箱已验证提示 / 返回按钮 ── */
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-email-verified-hint {
+  background: rgba(176, 112, 58, 0.08);
+  border-color: rgba(176, 112, 58, 0.18);
+  color: var(--login-clay-deep);
+}
+
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-email-verified-hint .anticon {
+  color: var(--login-clay);
+}
+
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-email-back-btn {
+  color: rgba(124, 106, 81, 0.55);
+}
+
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-email-back-btn:hover {
+  color: var(--login-clay-deep);
+}
+
+/* ── 注册页：验证码发送按钮 ── */
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-code-send-btn {
+  color: var(--login-clay-deep);
+  background: linear-gradient(180deg, rgba(176, 112, 58, 0.12) 0%, rgba(176, 112, 58, 0.06) 100%);
+  border: 1px solid rgba(176, 112, 58, 0.3);
+}
+
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-code-send-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(176, 112, 58, 0.2) 0%, rgba(176, 112, 58, 0.12) 100%);
+  border-color: rgba(176, 112, 58, 0.5);
+  box-shadow: 0 0 14px rgba(176, 112, 58, 0.2);
+}
+
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .miao-code-send-btn:disabled {
+  color: rgba(124, 106, 81, 0.4);
+  background: rgba(150, 113, 66, 0.05);
+  border-color: rgba(150, 113, 66, 0.12);
+}
+
+/* ── 注册页：分隔线 / 底部引导 ── */
+body.miao-page-register .miao-register-divider {
+  color: rgba(124, 106, 81, 0.6);
+}
+
+body.miao-page-register .miao-register-footer {
+  color: rgba(124, 106, 81, 0.72);
+  font-size: 13.5px;
+}
+
+body.miao-page-register .miao-register-footer a {
+  color: var(--login-clay-deep);
+  font-weight: 600;
+}
+
+body.miao-page-register .miao-register-footer a:hover {
+  color: #a05b1f;
+  text-decoration: underline;
+}
+
+/* ── 重置密码页：步骤进度条 ── */
+body.miao-page-reset-password .miao-reset-step-node {
+  background: #fdf7ea;
+  border-color: rgba(150, 113, 66, 0.2);
+  color: rgba(124, 106, 81, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 0 0 rgba(176, 112, 58, 0);
+}
+
+body.miao-page-reset-password .miao-reset-step-node::before {
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(176, 112, 58, 0.5) 90deg, transparent 180deg, rgba(176, 112, 58, 0.18) 270deg, transparent 360deg);
+}
+
+body.miao-page-reset-password .miao-reset-step-node::after {
+  border-color: rgba(176, 112, 58, 0.2);
+}
+
+body.miao-page-reset-password .miao-reset-step:not(:last-child)::after {
+  background: repeating-linear-gradient(90deg, rgba(150, 113, 66, 0.18) 0 3px, transparent 3px 8px);
+}
+
+body.miao-page-reset-password .miao-reset-step:not(:last-child) .miao-reset-step-progress {
+  background: linear-gradient(90deg, var(--login-clay) 0%, rgba(176, 112, 58, 0.5) 100%);
+}
+
+body.miao-page-reset-password .miao-reset-step:not(:last-child) .miao-reset-step-progress::after {
+  background: var(--login-clay);
+  box-shadow: 0 0 10px rgba(176, 112, 58, 0.6);
+}
+
+body.miao-page-reset-password .miao-reset-step.is-done .miao-reset-step-node {
+  background: var(--login-clay);
+  border-color: var(--login-clay);
+  color: #fff8ec;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 0 18px rgba(176, 112, 58, 0.25);
+}
+
+body.miao-page-reset-password .miao-reset-step.is-active .miao-reset-step-node {
+  background: var(--login-clay);
+  border-color: var(--login-clay);
+  color: #fff8ec;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 0 5px rgba(176, 112, 58, 0.1), 0 0 30px rgba(176, 112, 58, 0.3);
+}
+
+body.miao-page-reset-password .miao-reset-step-label {
+  color: rgba(124, 106, 81, 0.5);
+}
+
+body.miao-page-reset-password .miao-reset-step-hint {
+  color: rgba(124, 106, 81, 0.35);
+}
+
+body.miao-page-reset-password .miao-reset-step.is-active .miao-reset-step-label {
+  color: var(--login-ink);
+  font-weight: 600;
+}
+
+body.miao-page-reset-password .miao-reset-step.is-active .miao-reset-step-hint {
+  color: var(--login-ink-soft);
+}
+
+body.miao-page-reset-password .miao-reset-step.is-done .miao-reset-step-label {
+  color: var(--login-ink-soft);
+}
+
+body.miao-page-reset-password .miao-reset-step.is-done .miao-reset-step-hint {
+  color: rgba(124, 106, 81, 0.5);
+}
+
+/* ── 重置密码页：表单 / 错误提示 ── */
+body.miao-page-reset-password .miao-reset-form .ant-form-item-label > label {
+  color: var(--login-ink-soft) !important;
+}
+
+body.miao-page-reset-password .miao-reset-form .ant-form-item-explain-error {
+  color: #b23c2e !important;
+}
+
+body.miao-page-reset-password .miao-reset-error {
+  background: rgba(178, 60, 46, 0.08);
+  border-color: rgba(178, 60, 46, 0.18);
+  color: #b23c2e;
+}
+
+/* ── 重置密码页：验证码头部 ── */
+body.miao-page-reset-password .miao-reset-code-hint {
+  color: var(--login-ink-soft);
+}
+
+body.miao-page-reset-password .miao-reset-code-hint strong {
+  color: var(--login-ink);
+}
+
+body.miao-page-reset-password .miao-reset-resend {
+  color: var(--login-clay);
+}
+
+body.miao-page-reset-password .miao-reset-resend:hover:not(:disabled) {
+  color: var(--login-clay-deep);
+  background: rgba(176, 112, 58, 0.08);
+}
+
+body.miao-page-reset-password .miao-reset-resend:disabled {
+  color: rgba(124, 106, 81, 0.35);
+}
+
+/* ── 裸 <input>（无 prefix/wrapper，重置密码页邮箱框等）也用登录页同款暖调柔面 ── */
+/* 只匹配 .ant-form-item-control-input-content 的直接子级 input，
+   不会命中 affix-wrapper 内部的 input，避免登录页再次出现双层框 */
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-form-item-control-input-content > input.ant-input,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-form-item-control-input-content > input.ant-input,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-form-item-control-input-content > input.ant-input {
+  padding: 9px 14px !important;
+  font-size: 15px !important;
+  color: var(--login-ink) !important;
+  background: var(--login-card-sunk) !important;
+  border: 1px solid var(--login-line) !important;
+  border-radius: 13px !important;
+  box-shadow: inset 0 1px 2px rgba(120, 90, 50, 0.05) !important;
+  transition: border-color 220ms ease, background 220ms ease, box-shadow 220ms ease !important;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-form-item-control-input-content > input.ant-input:hover,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-form-item-control-input-content > input.ant-input:hover,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-form-item-control-input-content > input.ant-input:hover {
+  background: #fffef9 !important;
+  border-color: var(--login-line-strong) !important;
+}
+
+body.miao-page-login .miao-auth-page--geo .miao-auth-panel .ant-form-item-control-input-content > input.ant-input:focus,
+body.miao-page-register .miao-auth-page--geo .miao-auth-panel .ant-form-item-control-input-content > input.ant-input:focus,
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-form-item-control-input-content > input.ant-input:focus {
+  background: #fffdf7 !important;
+  border-color: var(--login-clay) !important;
+  box-shadow: 0 0 0 3px rgba(176, 112, 58, 0.13) !important;
+  outline: none !important;
+}
+
+body.miao-page-reset-password .miao-auth-page--geo .miao-auth-panel .ant-form-item-control-input-content > input.ant-input[disabled] {
+  color: rgba(124, 106, 81, 0.5) !important;
+  background: rgba(150, 113, 66, 0.06) !important;
+  border-color: rgba(150, 113, 66, 0.12) !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+}
+
+/* ── 重置密码页：6 格验证码（与文本框同款暖调柔面） ── */
+body.miao-page-reset-password .miao-code-cell {
+  height: 56px;
+  color: var(--login-ink);
+  caret-color: var(--login-ink);
+  background: var(--login-card-sunk);
+  border: 1px solid var(--login-line);
+  border-radius: 13px;
+  box-shadow: inset 0 1px 2px rgba(120, 90, 50, 0.05);
+  transition: border-color 220ms ease, background 220ms ease, box-shadow 220ms ease;
+}
+
+body.miao-page-reset-password .miao-code-cell:hover:not(:disabled) {
+  background: #fffef9;
+  border-color: var(--login-line-strong);
+}
+
+body.miao-page-reset-password .miao-code-cell:focus {
+  background: #fffdf7;
+  border-color: var(--login-clay);
+  box-shadow: 0 0 0 3px rgba(176, 112, 58, 0.13);
+  outline: none;
+}
+
+body.miao-page-reset-password .miao-code-cell.is-filled {
+  color: var(--login-clay-deep);
+  background: #fffdf7;
+  border-color: rgba(176, 112, 58, 0.45);
+}
+
+/* ── 重置密码页：密码强度计 ── */
+body.miao-page-reset-password .miao-reset-strength-bar {
+  background: rgba(150, 113, 66, 0.12);
+}
+
+/* ── 重置密码页：返回登录 / 成功视图 ── */
+body.miao-page-reset-password .miao-reset-back button {
+  color: var(--login-ink-soft);
+}
+
+body.miao-page-reset-password .miao-reset-back button:hover {
+  color: var(--login-clay-deep);
+}
+
+body.miao-page-reset-password .miao-reset-success-orb {
+  background: rgba(176, 112, 58, 0.08);
+  border-color: rgba(176, 112, 58, 0.2);
+  color: var(--login-clay);
+}
+
+body.miao-page-reset-password .miao-reset-success-title {
+  color: var(--login-ink) !important;
+}
+
+body.miao-page-reset-password .miao-reset-success-text {
+  color: var(--login-ink-soft) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

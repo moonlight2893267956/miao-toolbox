@@ -184,4 +184,92 @@ class EmailCodeServiceTest {
                     .extracting("errorCode").isEqualTo(ErrorCode.EMAIL_VERIFY_RATE_LIMIT);
         }
     }
+
+    @Nested
+    @DisplayName("peekCode 测试（只校验不消费）")
+    class PeekCodeTests {
+
+        @Test
+        @DisplayName("验证码正确，返回 true 且不删除验证码")
+        void peekCode_correct_doesNotConsume() {
+            when(valueOperations.get(startsWith("miao:email:verify:count:"))).thenReturn(null);
+            when(valueOperations.get(startsWith("miao:email:code:"))).thenReturn("123456:REGISTER");
+
+            boolean result = emailCodeService.peekCode("test@example.com", "123456", EmailCodePurpose.REGISTER);
+
+            assertThat(result).isTrue();
+            // 关键：peek 模式不能消费验证码，否则最终提交会因验证码已被删除而失败
+            verify(redisTemplate, never()).delete(anyString());
+        }
+
+        @Test
+        @DisplayName("验证码错误，返回 false 且不删除验证码")
+        void peekCode_wrongCode() {
+            when(valueOperations.get(startsWith("miao:email:verify:count:"))).thenReturn(null);
+            when(valueOperations.get(startsWith("miao:email:code:"))).thenReturn("123456:REGISTER");
+
+            boolean result = emailCodeService.peekCode("test@example.com", "654321", EmailCodePurpose.REGISTER);
+
+            assertThat(result).isFalse();
+            verify(redisTemplate, never()).delete(anyString());
+        }
+
+        @Test
+        @DisplayName("验证码已过期，抛出异常")
+        void peekCode_expired() {
+            when(valueOperations.get(startsWith("miao:email:verify:count:"))).thenReturn(null);
+            when(valueOperations.get(startsWith("miao:email:code:"))).thenReturn(null);
+
+            assertThatThrownBy(() -> emailCodeService.peekCode("test@example.com", "123456", EmailCodePurpose.REGISTER))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.EMAIL_CODE_EXPIRED);
+        }
+
+        @Test
+        @DisplayName("验证码用途不匹配，抛出异常")
+        void peekCode_purposeMismatch() {
+            when(valueOperations.get(startsWith("miao:email:verify:count:"))).thenReturn(null);
+            when(valueOperations.get(startsWith("miao:email:code:"))).thenReturn("123456:REGISTER");
+
+            assertThatThrownBy(() -> emailCodeService.peekCode("test@example.com", "123456", EmailCodePurpose.RESET_PASSWORD))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.EMAIL_CODE_PURPOSE_MISMATCH);
+        }
+
+        @Test
+        @DisplayName("验证次数超过每日上限，抛出异常（peek 同样受限流约束，防暴力破解）")
+        void peekCode_dailyLimitExceeded() {
+            when(valueOperations.get(startsWith("miao:email:verify:count:"))).thenReturn("10");
+
+            assertThatThrownBy(() -> emailCodeService.peekCode("test@example.com", "123456", EmailCodePurpose.REGISTER))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.EMAIL_VERIFY_RATE_LIMIT);
+        }
+
+        @Test
+        @DisplayName("peek 校验失败也递增每日验证计数")
+        void peekCode_wrongCode_incrementsVerifyCount() {
+            when(valueOperations.get(startsWith("miao:email:verify:count:"))).thenReturn("3");
+            when(valueOperations.get(startsWith("miao:email:code:"))).thenReturn("123456:REGISTER");
+
+            boolean result = emailCodeService.peekCode("test@example.com", "999999", EmailCodePurpose.REGISTER);
+
+            assertThat(result).isFalse();
+            verify(valueOperations).increment(startsWith("miao:email:verify:count:"));
+        }
+
+        @Test
+        @DisplayName("peek 校验成功后仍可继续消费（verifyCode 幂等前置校验）")
+        void peekCode_thenVerifyCode_succeeds() {
+            when(valueOperations.get(startsWith("miao:email:verify:count:"))).thenReturn(null);
+            when(valueOperations.get(startsWith("miao:email:code:"))).thenReturn("123456:RESET_PASSWORD");
+
+            boolean peeked = emailCodeService.peekCode("test@example.com", "123456", EmailCodePurpose.RESET_PASSWORD);
+            boolean verified = emailCodeService.verifyCode("test@example.com", "123456", EmailCodePurpose.RESET_PASSWORD);
+
+            assertThat(peeked).isTrue();
+            assertThat(verified).isTrue();
+            verify(redisTemplate, times(1)).delete(startsWith("miao:email:code:"));
+        }
+    }
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Form, Input, message } from 'antd';
 import {
@@ -12,7 +12,7 @@ import {
 } from '@ant-design/icons';
 import { AnimatePresence, motion } from 'framer-motion';
 import AuthShell from './AuthShell';
-import { authService } from '../../services/authService';
+import { authService, resolveEmailCodeError } from '../../services/authService';
 import useReducedMotion from '../../hooks/useReducedMotion';
 
 const STEP_COUNT = 3;
@@ -59,7 +59,7 @@ const ResetPasswordPage: React.FC = () => {
 
   const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.body.classList.add('miao-page-reset-password');
     return () => {
       document.body.classList.remove('miao-page-reset-password');
@@ -89,6 +89,9 @@ const ResetPasswordPage: React.FC = () => {
       await authService.sendEmailCode({ email, purpose: 'RESET_PASSWORD' });
       setCountdown(60);
       setStep(2);
+      // 新验证码已发出，清空上一轮残留的输入，避免拿旧码去校验新码
+      setCode(['', '', '', '', '', '']);
+      setError(null);
       message.success('验证码已发送');
       setTimeout(() => codeRefs.current[0]?.focus(), 120);
     } catch (err: any) {
@@ -112,7 +115,21 @@ const ResetPasswordPage: React.FC = () => {
     setError(null);
     setLoading(true);
     try {
+      // 进入下一步之前先即时校验（只校验不消费，最终提交时后端仍会再次校验并消费）
+      const valid = await authService.verifyEmailCode({
+        email,
+        code: fullCode,
+        purpose: 'RESET_PASSWORD',
+      });
+      if (!valid) {
+        setError('验证码错误，请重新输入');
+        setCode(['', '', '', '', '', '']);
+        setTimeout(() => codeRefs.current[0]?.focus(), 60);
+        return;
+      }
       setStep(3);
+    } catch (err: any) {
+      setError(resolveEmailCodeError(err));
     } finally {
       setLoading(false);
     }
@@ -137,7 +154,17 @@ const ResetPasswordPage: React.FC = () => {
       await authService.resetPassword(email, code.join(''), newPassword);
       setSuccess(true);
     } catch (err: any) {
-      setError(err?.response?.data?.message || '重置失败，请检查验证码或稍后重试');
+      setError(resolveEmailCodeError(err, '重置失败，请稍后重试'));
+      // 验证码类错误（期间过期或被覆盖）退回第二步重新输入
+      const errCode = err?.response?.data?.code;
+      if (
+        errCode === 'EMAIL_CODE_INVALID' ||
+        errCode === 'EMAIL_CODE_EXPIRED' ||
+        errCode === 'EMAIL_CODE_PURPOSE_MISMATCH'
+      ) {
+        setStep(2);
+        setCode(['', '', '', '', '', '']);
+      }
     } finally {
       setLoading(false);
     }

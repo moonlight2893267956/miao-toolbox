@@ -27,6 +27,12 @@ export interface SendCodeParams {
   purpose: EmailCodePurpose;
 }
 
+export interface VerifyCodeParams {
+  email: string;
+  code: string;
+  purpose: EmailCodePurpose;
+}
+
 export interface InvitePreview {
   valid: boolean;
   roleName: string | null;
@@ -77,6 +83,16 @@ export const authService = {
 
   async sendEmailCode(params: SendCodeParams): Promise<void> {
     await axiosInstance.post('/api/auth/email/send-code', params);
+  },
+
+  /**
+   * 分步校验验证码（只校验，不消费）。
+   * 用于多步骤流程进入下一步之前即时反馈验证码是否正确；
+   * 校验通过不代表最终提交一定成功，最终提交时后端仍会再次校验并消费。
+   */
+  async verifyEmailCode(params: VerifyCodeParams): Promise<boolean> {
+    const response = await axiosInstance.post('/api/auth/email/verify-code', params);
+    return response.data.data?.valid === true;
   },
 
   async resetPassword(email: string, code: string, newPassword: string): Promise<void> {
@@ -136,3 +152,23 @@ export const authService = {
     return `${baseUrl}${separator}state=${encodeURIComponent(statePayload)}`;
   },
 };
+
+/** 验证码相关错误码 → 中文提示 */
+const EMAIL_CODE_ERROR_MESSAGES: Record<string, string> = {
+  EMAIL_CODE_INVALID: '验证码错误，请重新输入',
+  EMAIL_CODE_EXPIRED: '验证码已过期，请重新获取',
+  EMAIL_CODE_PURPOSE_MISMATCH: '验证码用途不匹配，请重新获取',
+  EMAIL_VERIFY_RATE_LIMIT: '验证次数过多，请明天再试',
+};
+
+/**
+ * 把验证码相关的后端错误转换为中文提示。
+ * 优先按错误码映射（文案更准确），未命中时回退到后端 message，最后才用兜底文案。
+ */
+export function resolveEmailCodeError(
+  err: unknown,
+  fallback = '验证码校验失败，请稍后重试',
+): string {
+  const data = (err as any)?.response?.data;
+  return EMAIL_CODE_ERROR_MESSAGES[data?.code] ?? data?.message ?? fallback;
+}

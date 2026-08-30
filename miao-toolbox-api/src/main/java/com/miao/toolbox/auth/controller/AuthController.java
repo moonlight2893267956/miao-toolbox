@@ -7,8 +7,11 @@ import com.miao.toolbox.auth.dto.LoginRequest;
 import com.miao.toolbox.auth.dto.LoginResponse;
 import com.miao.toolbox.auth.dto.RegisterRequest;
 import com.miao.toolbox.auth.dto.ResetPasswordRequest;
+import com.miao.toolbox.auth.dto.VerifyEmailCodeRequest;
+import com.miao.toolbox.auth.dto.VerifyEmailCodeResponse;
 import com.miao.toolbox.auth.entity.User;
 import com.miao.toolbox.auth.service.AuthService;
+import com.miao.toolbox.auth.service.EmailCodeService;
 import com.miao.toolbox.auth.service.RouteAccessService;
 import com.miao.toolbox.common.response.ApiResponse;
 import com.miao.toolbox.invite.dto.InvitePreviewResponse;
@@ -30,6 +33,7 @@ public class AuthController {
     private final AuthService authService;
     private final RouteAccessService routeAccessService;
     private final InviteService inviteService;
+    private final EmailCodeService emailCodeService;
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<Void>> register(@Valid @RequestBody RegisterRequest request) {
@@ -114,5 +118,20 @@ public class AuthController {
             @Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request.email(), request.code(), request.newPassword());
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    /**
+     * 分步校验验证码（只校验，不消费）。
+     *
+     * <p>供多步骤流程（邮箱注册第一步、忘记密码第二步）在进入下一步之前即时反馈验证码是否正确。
+     * 校验通过不会删除验证码，最终提交时仍会再次校验并消费。
+     *
+     * <p>该端点无需认证，因此校验次数受每日验证限流约束，防止暴力破解。
+     */
+    @PostMapping("/email/verify-code")
+    public ResponseEntity<ApiResponse<VerifyEmailCodeResponse>> verifyEmailCode(
+            @Valid @RequestBody VerifyEmailCodeRequest request) {
+        boolean valid = emailCodeService.peekCode(request.email(), request.code(), request.purpose());
+        return ResponseEntity.ok(ApiResponse.success(new VerifyEmailCodeResponse(valid)));
     }
 }

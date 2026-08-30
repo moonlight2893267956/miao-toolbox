@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useLayoutEffect } from 'react';
 import { Form, Input, Button, Divider, Tabs, message, Tooltip } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined, GiftOutlined, GithubOutlined, GoogleOutlined, ExclamationCircleOutlined, LoadingOutlined, ArrowLeftOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { authService } from '../../services/authService';
+import { authService, resolveEmailCodeError } from '../../services/authService';
 import AuthShell from './AuthShell';
 
 interface RegisterFormValues {
@@ -64,6 +64,8 @@ const RegisterPage: React.FC = () => {
   const [loading, setLoading] = React.useState(false);
   const [oauthLoading, setOauthLoading] = React.useState<'github' | 'google' | null>(null);
   const [emailStep, setEmailStep] = React.useState<'email' | 'account'>('email');
+  // 邮箱注册第一步：进入下一步前的验证码即时校验中
+  const [codeVerifying, setCodeVerifying] = React.useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const safetyTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -101,8 +103,8 @@ const RegisterPage: React.FC = () => {
     return () => { cancelled = true; };
   }, [inviteToken]);
 
-  // 添加页面级 class 以激活专属样式覆写
-  React.useEffect(() => {
+  // 添加页面级 class 以激活米黄暖调样式覆写
+  useLayoutEffect(() => {
     document.body.classList.add('miao-page-register');
     return () => {
       document.body.classList.remove('miao-page-register');
@@ -195,10 +197,14 @@ const RegisterPage: React.FC = () => {
       const code = response?.code;
       if (code === 'USER_ALREADY_EXISTS') {
         message.error(response?.message || '用户名或邮箱已存在');
-      } else if (code === 'EMAIL_CODE_INVALID') {
-        message.error('验证码错误');
-      } else if (code === 'EMAIL_CODE_EXPIRED') {
-        message.error('验证码已过期，请重新获取');
+      } else if (
+        code === 'EMAIL_CODE_INVALID' ||
+        code === 'EMAIL_CODE_EXPIRED' ||
+        code === 'EMAIL_CODE_PURPOSE_MISMATCH'
+      ) {
+        // 验证码类错误（分步校验通过后期间过期或被覆盖）退回第一步重新输入
+        message.error(resolveEmailCodeError(error));
+        setEmailStep('email');
       } else if (code === 'VALIDATION_FAILED') {
         message.error(response?.message || '输入校验失败');
       } else if (code === 'INVITE_TOKEN_INVALID' || code === 'INVITE_TOKEN_EXPIRED') {
@@ -377,13 +383,33 @@ const RegisterPage: React.FC = () => {
                 <Button
                   type="primary"
                   block
+                  loading={codeVerifying}
                   disabled={inviteInvalid || inviteLoading}
                   onClick={async () => {
                     try {
                       await emailForm.validateFields(['email', 'code']);
-                      setEmailStep('account');
                     } catch {
-                      // 校验失败，antd 自动显示错误
+                      // 字段校验失败，antd 自动显示错误
+                      return;
+                    }
+                    // 进入下一步之前先即时校验验证码（只校验不消费，最终提交时仍会再次校验）
+                    setCodeVerifying(true);
+                    try {
+                      const values = emailForm.getFieldsValue(['email', 'code']) as EmailRegisterFormValues;
+                      const valid = await authService.verifyEmailCode({
+                        email: values.email,
+                        code: values.code,
+                        purpose: 'REGISTER',
+                      });
+                      if (valid) {
+                        setEmailStep('account');
+                      } else {
+                        message.error('验证码错误，请重新输入');
+                      }
+                    } catch (error: any) {
+                      message.error(resolveEmailCodeError(error));
+                    } finally {
+                      setCodeVerifying(false);
                     }
                   }}
                 >
