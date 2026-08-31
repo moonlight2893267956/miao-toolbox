@@ -1,7 +1,21 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCorners,
+  type DragStartEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
   FolderOutlined,
-  FileOutlined,
   DeleteOutlined,
   DownloadOutlined,
   EyeOutlined,
@@ -9,11 +23,6 @@ import {
   PlusOutlined,
   HomeOutlined,
   EditOutlined,
-  FileTextOutlined,
-  FileImageOutlined,
-  FilePdfOutlined,
-  SoundOutlined,
-  VideoCameraOutlined,
   InboxOutlined,
   CloudUploadOutlined,
   UnorderedListOutlined,
@@ -21,14 +30,18 @@ import {
   RightOutlined,
   FolderOpenOutlined,
   SettingOutlined,
+  CaretRightOutlined,
+  CaretDownOutlined,
   ExclamationCircleFilled,
-  FileWordOutlined,
+  LinkOutlined,
   ShareAltOutlined,
   TeamOutlined,
   UserOutlined,
   FormOutlined,
   InfoCircleOutlined,
   ImportOutlined,
+  FullscreenOutlined,
+  FullscreenExitOutlined,
 } from '@ant-design/icons';
 import {
   Button,
@@ -50,95 +63,19 @@ import {
 import type { UploadProps, TreeProps, MenuProps } from 'antd';
 import ToolPageHeader from '../../../components/shared/ToolPageHeader';
 import { fileStorageApi } from './fileStorageApi';
-import PdfViewer from './PdfViewer';
-import DocxPreviewContainer from './DocxPreviewContainer';
+import FilePreviewer from './FilePreviewer';
+import GridThumbnail from './GridThumbnail';
+import { SortableFileCard, DroppableFolderCard, DroppableTreeNode } from './DndGridItems';
+import { getFileIcon } from './FileIcon';
+import { formatSize, getFileCategory, isPreviewable } from './fileCategory';
+import ShareLinkModal from './ShareLinkModal';
+import MyShareLinksView from './MyShareLinksView';
 import type { FileInfo, DirectoryInfo, DirectoryTreeNode, QuotaInfo, ShareInfo, SharedWithMeFile, UserOption } from './types';
 import './file-storage.css';
 
 const { Text } = Typography;
 
 type ViewMode = 'list' | 'grid';
-type FileCategory = 'image' | 'text' | 'audio' | 'video' | 'pdf' | 'docx' | 'other';
-
-const TEXT_EXTENSIONS = new Set([
-  '.sh', '.bash', '.zsh', '.py', '.rb', '.rs', '.go', '.java', '.c', '.h',
-  '.cpp', '.hpp', '.cc', '.cs', '.php', '.ts', '.tsx', '.js', '.jsx',
-  '.mjs', '.cjs', '.vue', '.html', '.htm', '.css', '.scss', '.sass',
-  '.less', '.json', '.xml', '.yml', '.yaml', '.toml', '.ini', '.cfg',
-  '.conf', '.env', '.sql', '.md', '.markdown', '.txt', '.log', '.csv',
-  '.tsv', '.gitignore', '.dockerignore', '.editorconfig', '.eslintrc',
-  '.prettierrc', '.babelrc', '.npmrc', '.yarnrc', '.properties', '.gradle',
-  '.cmake', '.makefile', '.dockerfile',
-]);
-
-const isTextFileByName = (fileName: string | null | undefined): boolean => {
-  if (!fileName) return false;
-  const lower = fileName.toLowerCase();
-  // 检查扩展名
-  for (const ext of TEXT_EXTENSIONS) {
-    if (lower.endsWith(ext)) return true;
-  }
-  // 无扩展名的常见文本文件名
-  const baseName = lower.split('/').pop() || '';
-  return ['makefile', 'dockerfile', 'vagrantfile', 'gemfile', 'rakefile', '.gitignore', '.env', '.npmrc'].includes(baseName);
-};
-
-const getFileCategory = (mimeType: string | null | undefined, fileName?: string | null | undefined): FileCategory => {
-  if (!mimeType) {
-    // MIME 为空时，根据文件名兜底
-    return isTextFileByName(fileName) ? 'text' : 'other';
-  }
-  if (mimeType.startsWith('image/')) return 'image';
-  if (mimeType.startsWith('text/')) return 'text';
-  if (mimeType.startsWith('application/x-shellscript')) return 'text';
-  if ([
-    'application/json', 'application/xml', 'application/javascript',
-    'application/x-yaml', 'application/x-yml', 'application/x-sh',
-    'application/x-python', 'application/x-java-source',
-    'application/x-csrc', 'application/x-c++src',
-    'application/x-go', 'application/x-rust', 'application/x-ruby',
-    'application/x-php', 'application/x-httpd-php',
-    'application/x-toml', 'application/x-ini', 'application/x-env',
-    'application/x-sql', 'application/x-latex',
-    'application/typescript', 'application/x-typescript',
-    'application/x-jsx', 'application/x-tsx', 'application/x-vue',
-    'application/x-scss', 'application/x-sass', 'application/x-less',
-    'application/x-markdown', 'application/x-conf', 'application/x-config',
-  ].includes(mimeType)) return 'text';
-  // application/octet-stream 时根据文件名兜底
-  if (mimeType === 'application/octet-stream' && isTextFileByName(fileName)) return 'text';
-  if (mimeType.startsWith('audio/')) return 'audio';
-  if (mimeType.startsWith('video/')) return 'video';
-  if (mimeType === 'application/pdf') return 'pdf';
-  if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || mimeType === 'application/msword') return 'docx';
-  return 'other';
-};
-
-const getFileIcon = (mimeType: string | null | undefined, className?: string, fileName?: string | null | undefined) => {
-  const cat = getFileCategory(mimeType, fileName);
-  const iconClass = className || 'fs-file-icon';
-  switch (cat) {
-    case 'image': return <FileImageOutlined className={iconClass} style={{ color: '#eb2f96' }} />;
-    case 'text': return <FileTextOutlined className={iconClass} style={{ color: '#1890ff' }} />;
-    case 'audio': return <SoundOutlined className={iconClass} style={{ color: '#722ed1' }} />;
-    case 'video': return <VideoCameraOutlined className={iconClass} style={{ color: '#fa8c16' }} />;
-    case 'pdf': return <FilePdfOutlined className={iconClass} style={{ color: '#f5222d' }} />;
-    case 'docx': return <FileWordOutlined className={iconClass} style={{ color: '#1677ff' }} />;
-    default: return <FileOutlined className={iconClass} style={{ color: '#8c8c8c' }} />;
-  }
-};
-
-const isPreviewable = (mimeType: string | null | undefined, fileName?: string | null | undefined): boolean => {
-  const cat = getFileCategory(mimeType, fileName);
-  return cat === 'image' || cat === 'text' || cat === 'audio' || cat === 'video' || cat === 'pdf' || cat === 'docx';
-};
-
-const formatSize = (bytes: number) => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
-};
 
 interface DirRow {
   type: 'dir';
@@ -192,8 +129,142 @@ const FileStoragePage: React.FC = () => {
   const dragCounterRef = useRef(0);
   const listAreaRef = useRef<HTMLDivElement>(null);
 
+  // ── 全屏 ──
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = useCallback(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    if (!document.fullscreenElement) {
+      void el.requestFullscreen?.();
+    } else {
+      void document.exitFullscreen?.();
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+
+  // ── @dnd-kit 拖拽排序 / 拖入文件夹 ──
+  /** 自定义文件排序（localStorage 持久化，按路径维度） */
+  const [customOrder, setCustomOrder] = useState<string[]>([]);
+  /** 当前拖拽中的文件（用于 DragOverlay 浮层渲染） */
+  const [activeDragFile, setActiveDragFile] = useState<FileInfo | null>(null);
+
+  /** 从 localStorage 读取当前路径的自定义排序 */
+  const loadCustomOrder = useCallback((path: string) => {
+    try {
+      const raw = localStorage.getItem(`miao-fs-order:${path}`);
+      return raw ? JSON.parse(raw) as string[] : [];
+    } catch {
+      return [];
+    }
+  }, []);
+
+  /** 保存自定义排序到 localStorage */
+  const saveCustomOrder = useCallback((path: string, order: string[]) => {
+    try {
+      localStorage.setItem(`miao-fs-order:${path}`, JSON.stringify(order));
+    } catch {
+      // localStorage 满或禁用时静默降级
+    }
+  }, []);
+
+  // 切换目录时加载自定义排序
+  useEffect(() => {
+    setCustomOrder(loadCustomOrder(currentPath));
+  }, [currentPath, loadCustomOrder]);
+
+  // dnd-kit 传感器：指针拖拽，8px 激活阈值避免误触
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+
+  /** 文件项的 sortable id */
+  const fileSortableId = (file: FileInfo) => `file-${file.id}`;
+  /** 文件夹的 droppable id */
+  const dirDroppableId = (dir: { id: number }) => `dir-${dir.id}`;
+
+  /** 拖拽开始：记录当前拖拽的文件用于 DragOverlay */
+  const handleDragStart = (event: DragStartEvent) => {
+    const id = event.active.id as string;
+    const file = files.find(f => fileSortableId(f) === id);
+    if (file) setActiveDragFile(file);
+  };
+
+  /** 拖拽结束：判断是排序、移入文件夹还是移入目录树节点 */
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveDragFile(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // 拖到目录树节点上 → 移动文件到该目录
+    if (overId.startsWith('tree-')) {
+      const targetPath = overId.slice(5); // 去掉 'tree-' 前缀
+      const file = files.find(f => fileSortableId(f) === activeId);
+      if (!file) return;
+      if (file.path === targetPath) {
+        message.info('文件已在此目录中');
+        return;
+      }
+      try {
+        await fileStorageApi.moveFile(file.id, targetPath);
+        const dirName = targetPath === '' ? '根目录' : targetPath.split('/').pop() || targetPath;
+        message.success(`已移动到「${dirName}」`);
+        loadFiles();
+        loadTree();
+      } catch {
+        message.error('移动失败');
+      }
+      return;
+    }
+
+    // 拖到网格文件夹上 → 移动文件
+    if (overId.startsWith('dir-')) {
+      const dir = directories.find(d => dirDroppableId(d) === overId);
+      const file = files.find(f => fileSortableId(f) === activeId);
+      if (!dir || !file) return;
+      if (file.path === dir.path) {
+        message.info('文件已在此目录中');
+        return;
+      }
+      try {
+        await fileStorageApi.moveFile(file.id, dir.path);
+        message.success(`已移动到「${dir.name}」`);
+        loadFiles();
+        loadTree();
+      } catch {
+        message.error('移动失败');
+      }
+      return;
+    }
+
+    // 拖到另一个文件上 → 排序
+    if (activeId !== overId) {
+      const fileNames = files.map(f => f.fileName);
+      const order = customOrder.length === fileNames.length ? [...customOrder] : fileNames;
+      const fromIdx = order.indexOf(files.find(f => fileSortableId(f) === activeId)?.fileName ?? '');
+      const toIdx = order.indexOf(files.find(f => fileSortableId(f) === overId)?.fileName ?? '');
+      if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+      const newOrder = arrayMove(order, fromIdx, toIdx);
+      setCustomOrder(newOrder);
+      saveCustomOrder(currentPath, newOrder);
+    }
+  };
+
   // 共享相关 state
-  const [activeView, setActiveView] = useState<'my' | 'shared'>('my');
+  const [activeView, setActiveView] = useState<'my' | 'shared' | 'myShares'>('my');
+  // 外链分享（PRD §4.12）
+  const [shareLinkModalOpen, setShareLinkModalOpen] = useState(false);
+  const [shareLinkTarget, setShareLinkTarget] = useState<FileInfo | null>(null);
+  const [myShareLinksReloadKey, setMyShareLinksReloadKey] = useState(0);
   const [sharedFiles, setSharedFiles] = useState<SharedWithMeFile[]>([]);
   const [sharedRows, setSharedRows] = useState<FileInfo[]>([]);
   const [sharedLoading, setSharedLoading] = useState(false);
@@ -675,10 +746,26 @@ const FileStoragePage: React.FC = () => {
     multiple: true,
   };
 
-  const rows: RowItem[] = useMemo(() => [
-    ...directories.map(d => ({ type: 'dir' as const, id: d.id, name: d.name, path: d.path })),
-    ...files.map(f => ({ ...f, type: 'file' as const })),
-  ], [directories, files]);
+  const rows: RowItem[] = useMemo(() => {
+    const dirRows: DirRow[] = directories.map(d => ({ type: 'dir' as const, id: d.id, name: d.name, path: d.path }));
+    let fileRows: FileRow[] = files.map(f => ({ ...f, type: 'file' as const }));
+
+    // 应用自定义排序：按 customOrder 中的文件名顺序排列，未包含的追加到末尾
+    if (customOrder.length > 0) {
+      const orderMap = new Map<string, number>();
+      customOrder.forEach((name, idx) => orderMap.set(name, idx));
+      fileRows = [...fileRows].sort((a, b) => {
+        const ai = orderMap.get(a.fileName);
+        const bi = orderMap.get(b.fileName);
+        if (ai !== undefined && bi !== undefined) return ai - bi;
+        if (ai !== undefined) return -1;
+        if (bi !== undefined) return 1;
+        return 0;
+      });
+    }
+
+    return [...dirRows, ...fileRows];
+  }, [directories, files, customOrder]);
 
   const fileActionsMenu = (record: FileInfo): MenuProps => ({
     items: [
@@ -723,6 +810,12 @@ const FileStoragePage: React.FC = () => {
         icon: <ShareAltOutlined />,
         label: '共享',
         onClick: () => openShareModal(record),
+      },
+      {
+        key: 'share-link',
+        icon: <LinkOutlined />,
+        label: '创建分享链接',
+        onClick: () => { setShareLinkTarget(record); setShareLinkModalOpen(true); },
       },
       { type: 'divider' as const },
       {
@@ -772,6 +865,7 @@ const FileStoragePage: React.FC = () => {
       { key: 'rename', label: '重新命名', onClick: () => { setRenameTarget(file); setRenameValue(file.fileName); setRenameModalOpen(true); } },
       { key: 'move', label: '移动到…', onClick: () => { setMoveTarget(file); setMoveTargetPath(''); setMoveModalOpen(true); } },
       { key: 'share', label: '共享…', onClick: () => openShareModal(file) },
+      { key: 'share-link', label: '创建分享链接…', onClick: () => { setShareLinkTarget(file); setShareLinkModalOpen(true); } },
       { type: 'divider' as const },
       { key: 'delete', label: '移到废纸篓', danger: true, onClick: () => openDeleteFile(file) },
     ],
@@ -941,169 +1035,77 @@ const FileStoragePage: React.FC = () => {
     },
   ];
 
+  // ── 拖拽排序 / 拖入文件夹：@dnd-kit 事件处理已在组件上方定义 ──
+
   const renderGrid = () => {
     if (rows.length === 0) return null;
+
+    // 文件夹 id 列表（droppable）
+    const dirIds = directories.map(d => dirDroppableId(d));
+    // 文件 id 列表（sortable）
+    const fileIds = rows
+      .filter((r): r is FileRow => r.type === 'file')
+      .map(f => fileSortableId(f));
+
     return (
       <div className="fs-grid">
-        {rows.map(item => {
-          if (item.type === 'dir') {
-            const dir = item as DirRow;
-            return (
-              <Dropdown
-                key={`dir-${dir.id}`}
-                menu={gridDirMenu(dir)}
-                trigger={['contextMenu']}
-                overlayClassName="fs-grid-dropdown"
-              >
-                <div
-                  className="fs-grid-item fs-grid-item--dir"
+        {/* 文件夹：droppable 目标 */}
+        {dirIds.length > 0 && (
+          <SortableContext items={dirIds} strategy={rectSortingStrategy}>
+            {directories.map(dir => {
+              const dirRow: DirRow = { type: 'dir', id: dir.id, name: dir.name, path: dir.path };
+              return (
+                <DroppableFolderCard
+                  key={dirDroppableId(dir)}
+                  dir={dir}
+                  dirId={dirDroppableId(dir)}
                   onClick={() => navigateToDir(dir.path)}
-                >
-                  <div className="fs-grid-thumb fs-grid-thumb--dir">
-                    <FolderOutlined className="fs-grid-thumb-icon" />
-                  </div>
-                  <div className="fs-grid-info">
-                    <div className="fs-grid-name" title={dir.name}>{dir.name}</div>
-                  </div>
-                </div>
-              </Dropdown>
-            );
-          }
-          const file = item as FileInfo;
-          return (
-            <Dropdown
-              key={`file-${file.id}`}
-              menu={gridFileMenu(file)}
-              trigger={['contextMenu']}
-              overlayClassName="fs-grid-dropdown"
-            >
-              <div
-                className="fs-grid-item"
-                onDoubleClick={() => isPreviewable(file.mimeType, file.fileName) && handlePreview(file)}
-              >
-                <div className="fs-grid-thumb">
-                  {getFileIcon(file.mimeType, 'fs-grid-thumb-icon', file.fileName)}
-                  {file.shared && (
-                    <Tooltip title="已共享给其他用户">
-                      <span className="fs-grid-thumb-badge" />
-                    </Tooltip>
-                  )}
-                </div>
-                <div className="fs-grid-info">
-                  <div className="fs-grid-name" title={file.fileName}>{file.fileName}</div>
-                </div>
-              </div>
-            </Dropdown>
-          );
-        })}
+                  contextMenu={gridDirMenu(dirRow)}
+                />
+              );
+            })}
+          </SortableContext>
+        )}
+
+        {/* 文件：sortable 可排序项 */}
+        {fileIds.length > 0 && (
+          <SortableContext items={fileIds} strategy={rectSortingStrategy}>
+            {rows
+              .filter((r): r is FileRow => r.type === 'file')
+              .map(file => (
+                <SortableFileCard
+                  key={fileSortableId(file)}
+                  file={file}
+                  fileId={fileSortableId(file)}
+                  isPreviewable={isPreviewable(file.mimeType, file.fileName)}
+                  onDoubleClick={() => isPreviewable(file.mimeType, file.fileName) && handlePreview(file)}
+                  contextMenu={gridFileMenu(file)}
+                />
+              ))}
+          </SortableContext>
+        )}
       </div>
     );
   };
 
-  const renderPreviewContent = () => {
-    if (!previewFile) return null;
-    const cat = getFileCategory(previewFile.mimeType, previewFile.fileName);
+  const treeSwitcherIcon: TreeProps['switcherIcon'] = (nodeProps) => {
+    const { isLeaf, expanded } = nodeProps as { isLeaf?: boolean; expanded?: boolean };
+    if (isLeaf) return null;
+    return expanded ? (
+      <CaretDownOutlined className="fs-tree-switcher-icon" />
+    ) : (
+      <CaretRightOutlined className="fs-tree-switcher-icon" />
+    );
+  };
 
-    if (previewLoading) {
-      return (
-        <div className="fs-preview-loading">
-          <Spin tip="加载中..." />
-        </div>
-      );
-    }
-
-    if (cat === 'image' && previewObjectUrl) {
-      return (
-        <div className="fs-preview-image-wrap">
-          <img src={previewObjectUrl} alt={previewFile.fileName} className="fs-preview-image" />
-          <div className="fs-preview-image-foot">{previewFile.fileName}</div>
-        </div>
-      );
-    }
-
-    if (cat === 'text' && previewText !== null) {
-      const isError = previewText.startsWith('预览失败');
-      return (
-        <div className={`fs-preview-text-wrap${isError ? ' fs-preview-text-wrap--error' : ''}`}>
-          <div className="fs-preview-text-header">
-            <span className="fs-preview-text-dot fs-preview-text-dot--red" />
-            <span className="fs-preview-text-dot fs-preview-text-dot--yellow" />
-            <span className="fs-preview-text-dot fs-preview-text-dot--green" />
-            <span className="fs-preview-text-filename">{previewFile.fileName}</span>
-            <span className="fs-preview-text-lang">{cat.toUpperCase()}</span>
-            {!isError && !editing && (
-              <Tooltip title={previewCanEdit ? '' : '当前无编辑权限'}>
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<EditOutlined />}
-                  className="fs-preview-edit-btn"
-                  disabled={!previewCanEdit}
-                  onClick={startEditing}
-                >
-                  编辑
-                </Button>
-              </Tooltip>
-            )}
-          </div>
-          {editing ? (
-            <textarea
-              className="fs-preview-editor"
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              spellCheck={false}
-            />
-          ) : (
-            <pre className="fs-preview-code"><code>{previewText}</code></pre>
-          )}
-        </div>
-      );
-    }
-
-    if (cat === 'audio' && previewObjectUrl) {
-      return (
-        <div className="fs-preview-media-wrap fs-preview-media-wrap--audio">
-          <div className="fs-preview-media-glow" />
-          <SoundOutlined className="fs-preview-media-icon" />
-          <div className="fs-preview-media-label">{previewFile.fileName}</div>
-          <audio controls src={previewObjectUrl} className="fs-preview-audio">
-            您的浏览器不支持音频播放
-          </audio>
-        </div>
-      );
-    }
-
-    if (cat === 'video' && previewObjectUrl) {
-      return (
-        <div className="fs-preview-media-wrap fs-preview-media-wrap--video">
-          <video controls src={previewObjectUrl} className="fs-preview-video">
-            您的浏览器不支持视频播放
-          </video>
-        </div>
-      );
-    }
-
-    if (cat === 'pdf' && previewObjectUrl) {
-      return (
-        <PdfViewer
-          url={previewObjectUrl}
-          fileName={previewFile.fileName}
-        />
-      );
-    }
-
-    if (cat === 'docx' && previewObjectUrl) {
-      return <DocxPreviewContainer url={previewObjectUrl} />;
-    }
-
-    return (
-      <div className="fs-preview-unsupported">
-        <div className="fs-preview-unsupported-art">
-          <FileOutlined className="fs-preview-unsupported-icon" />
-        </div>
-        <div className="fs-preview-unsupported-text">该文件类型暂不支持预览</div>
-        <div className="fs-preview-unsupported-hint">可点击「下载」获取原始文件</div>
-      </div>
+  const treeIcon: TreeProps['icon'] = (nodeProps) => {
+    const { isLeaf, expanded, key } = nodeProps as { isLeaf?: boolean; expanded?: boolean; key?: React.Key };
+    if (isLeaf) return null;
+    if (key === '') return <HomeOutlined className="fs-tree-icon-root" />;
+    return expanded ? (
+      <FolderOpenOutlined className="fs-tree-icon-folder" />
+    ) : (
+      <FolderOutlined className="fs-tree-icon-folder" />
     );
   };
 
@@ -1111,15 +1113,13 @@ const FileStoragePage: React.FC = () => {
     const convert = (nodes: DirectoryTreeNode[]): TreeProps['treeData'] =>
       nodes.map(node => ({
         key: node.path,
-        title: node.name,
-        icon: <FolderOutlined />,
+        title: <DroppableTreeNode name={node.name} path={node.path} />,
         children: node.children?.length ? convert(node.children) : undefined,
       }));
     return [
       {
         key: '',
-        title: '根目录',
-        icon: <HomeOutlined />,
+        title: <DroppableTreeNode name="根目录" path="" />,
         children: convert(directoryTree),
       },
     ];
@@ -1139,6 +1139,7 @@ const FileStoragePage: React.FC = () => {
     if (!area) return;
 
     const handleDragEnter = (e: DragEvent) => {
+      // @dnd-kit 使用 PointerEvent，不会触发原生 DragEvent，无需互斥
       e.preventDefault();
       e.stopPropagation();
       dragCounterRef.current++;
@@ -1186,12 +1187,18 @@ const FileStoragePage: React.FC = () => {
         <ToolPageHeader
           icon={<FolderOutlined />}
           title="文件管理"
-          subtitle="树形目录 · 网格/列表视图 · 拖拽上传"
+          subtitle="树形目录 · 网格/列表视图 · 拖拽上传 · 拖拽排序"
         />
       </div>
 
-      {/* 主体：左侧目录树 + 右侧文件区 */}
-      <div className="fs-body">
+      {/* 主体：左侧目录树 + 右侧文件区，DndContext 包裹使目录树节点也可作为 drop 目标 */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+      <div className="fs-body" ref={bodyRef}>
         {/* 左侧目录树 */}
         <aside className="fs-sidebar">
           {activeView === 'my' && (
@@ -1211,6 +1218,8 @@ const FileStoragePage: React.FC = () => {
                   showIcon
                   defaultExpandAll
                   blockNode
+                  switcherIcon={treeSwitcherIcon}
+                  icon={treeIcon}
                 />
               )}
               <div className="fs-sidebar-divider" />
@@ -1238,6 +1247,13 @@ const FileStoragePage: React.FC = () => {
           )}
           <div className="fs-sidebar-nav">
             <div
+              className={`fs-sidebar-nav-item${activeView === 'myShares' ? ' fs-sidebar-nav-item--active' : ''}`}
+              onClick={() => setActiveView('myShares')}
+            >
+              <LinkOutlined />
+              <span>我的分享</span>
+            </div>
+            <div
               className={`fs-sidebar-nav-item${activeView === 'shared' ? ' fs-sidebar-nav-item--active' : ''}`}
               onClick={() => setActiveView('shared')}
             >
@@ -1256,7 +1272,10 @@ const FileStoragePage: React.FC = () => {
 
         {/* 右侧主区域 */}
         <main className="fs-main" ref={listAreaRef}>
-          {activeView === 'shared' ? (
+          {activeView === 'myShares' ? (
+            /* ========== 我的分享视图（外链分享，PRD §4.12） ========== */
+            <MyShareLinksView key={myShareLinksReloadKey} />
+          ) : activeView === 'shared' ? (
             /* ========== 共享文件视图（与我的文件一致） ========== */
             <>
               <div className="fs-pathbar">
@@ -1387,6 +1406,12 @@ const FileStoragePage: React.FC = () => {
                 style={{ width: 220 }}
                 allowClear
               />
+              <Button
+                type="text"
+                icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
+                onClick={toggleFullscreen}
+                title={isFullscreen ? '退出全屏' : '全屏'}
+              />
             </div>
           </div>
 
@@ -1420,6 +1445,25 @@ const FileStoragePage: React.FC = () => {
           )}
         </main>
       </div>
+
+      {/* 拖拽浮层：跟随鼠标的半透明卡片预览 */}
+      <DragOverlay dropAnimation={{ duration: 200, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }}>
+        {activeDragFile ? (
+          <div className="fs-grid-item fs-grid-item--overlay">
+            <div className="fs-grid-thumb">
+              {getFileCategory(activeDragFile.mimeType, activeDragFile.fileName) === 'image' ? (
+                <GridThumbnail fileId={activeDragFile.id} fileName={activeDragFile.fileName} />
+              ) : (
+                getFileIcon(activeDragFile.mimeType, 'fs-grid-thumb-icon', activeDragFile.fileName)
+              )}
+            </div>
+            <div className="fs-grid-info">
+              <div className="fs-grid-name" title={activeDragFile.fileName}>{activeDragFile.fileName}</div>
+            </div>
+          </div>
+        ) : null}
+      </DragOverlay>
+      </DndContext>
 
       {/* 预览弹窗 */}
       <Modal
@@ -1459,7 +1503,20 @@ const FileStoragePage: React.FC = () => {
         forceRender
         destroyOnClose
       >
-        {renderPreviewContent()}
+        {previewFile && (
+          <FilePreviewer
+            fileName={previewFile.fileName}
+            mimeType={previewFile.mimeType}
+            objectUrl={previewObjectUrl}
+            text={previewText}
+            loading={previewLoading}
+            canEdit={previewCanEdit}
+            editing={editing}
+            editContent={editContent}
+            onEditContentChange={setEditContent}
+            onStartEdit={startEditing}
+          />
+        )}
       </Modal>
 
       {/* 新建目录弹窗 */}
@@ -1524,6 +1581,8 @@ const FileStoragePage: React.FC = () => {
             showIcon
             defaultExpandAll
             blockNode
+            switcherIcon={treeSwitcherIcon}
+            icon={treeIcon}
           />
         </div>
       </Modal>
@@ -1576,6 +1635,8 @@ const FileStoragePage: React.FC = () => {
             showIcon
             defaultExpandAll
             blockNode
+            switcherIcon={treeSwitcherIcon}
+            icon={treeIcon}
           />
         </div>
       </Modal>
@@ -1761,6 +1822,15 @@ const FileStoragePage: React.FC = () => {
           </div>
         )}
       </Modal>
+
+      {/* 创建外链分享弹窗：key 变化即重建实例，实现打开时重置为设置态 */}
+      <ShareLinkModal
+        key={`${shareLinkModalOpen}-${shareLinkTarget?.id ?? 'none'}`}
+        open={shareLinkModalOpen}
+        file={shareLinkTarget}
+        onClose={() => { setShareLinkModalOpen(false); setShareLinkTarget(null); }}
+        onCreated={() => setMyShareLinksReloadKey(k => k + 1)}
+      />
     </div>
   );
 };

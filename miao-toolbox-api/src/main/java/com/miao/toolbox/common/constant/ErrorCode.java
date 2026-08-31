@@ -37,6 +37,17 @@ public final class ErrorCode {
     // File storage errors
     public static final String FILE_NOT_FOUND = "FILE_NOT_FOUND";
 
+    // File share link errors（外链分享，PRD §4.12）
+    public static final String SHARE_LINK_NOT_FOUND = "SHARE_LINK_NOT_FOUND";
+    public static final String SHARE_LINK_EXPIRED = "SHARE_LINK_EXPIRED";
+    public static final String SHARE_LINK_REVOKED = "SHARE_LINK_REVOKED";
+    public static final String SHARE_LINK_EXHAUSTED = "SHARE_LINK_EXHAUSTED";
+    public static final String SHARE_ACCESS_CODE_INVALID = "SHARE_ACCESS_CODE_INVALID";
+    public static final String SHARE_ACCESS_TICKET_INVALID = "SHARE_ACCESS_TICKET_INVALID";
+    public static final String SHARE_FILE_TOO_LARGE = "SHARE_FILE_TOO_LARGE";
+    public static final String SHARE_FILE_TYPE_FORBIDDEN = "SHARE_FILE_TYPE_FORBIDDEN";
+    public static final String SHARE_UNLOCK_TOO_MANY_ATTEMPTS = "SHARE_UNLOCK_TOO_MANY_ATTEMPTS";
+
     // Invite errors
     public static final String INVITE_TOKEN_INVALID = "INVITE_TOKEN_INVALID";
     public static final String INVITE_TOKEN_EXPIRED = "INVITE_TOKEN_EXPIRED";

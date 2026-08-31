@@ -63,7 +63,10 @@ public class AntiReplayFilter extends OncePerRequestFilter {
                 || path.startsWith("/actuator")
                 || path.startsWith("/swagger-ui")
                 || path.startsWith("/v3/api-docs")
-                || path.startsWith("/api/network/webhook/");
+                || path.startsWith("/api/network/webhook/")
+                // 外链分享访客接口：访客无登录态，拿不到 signingKey，无法生成 HMAC 签名头。
+                // 不放行会被本过滤器以 400 REPLAY_PROTECTION_FAILED 拒绝（与 SecurityConfig 的 permitAll 配套）。
+                || path.startsWith("/api/public/share/");
     }
 
     @Override

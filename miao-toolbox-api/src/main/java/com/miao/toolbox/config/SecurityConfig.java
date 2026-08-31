@@ -88,6 +88,10 @@ public class SecurityConfig {
                         // Webhook 接收端点为公开接口（第三方回调，无登录态/签名），仅 POST 公开；
                         // SSE 订阅（GET）仍需登录，防止他人凭 hookId 窃听。
                         .requestMatchers(HttpMethod.POST, "/api/network/webhook/**").permitAll()
+                        // 外链分享访客接口为公开接口（凭链接码 + 提取码访问，无登录态）。
+                        // 注意：必须同时在 AntiReplayFilter.shouldNotFilter 的白名单中放行，否则匿名请求
+                        // 会因缺少 HMAC 签名头被 400 REPLAY_PROTECTION_FAILED 拦截。
+                        .requestMatchers("/api/public/share/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
                         .anyRequest().authenticated()
                 );

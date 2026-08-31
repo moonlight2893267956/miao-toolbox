@@ -33,6 +33,8 @@ const NetworkToolLayoutPreview = lazy(() => import('./modules/tools/network/Netw
 const NetworkToolList = lazy(() => import('./modules/tools/network/NetworkToolList'));
 const NetworkToolPage = lazy(() => import('./modules/tools/network/NetworkToolPage'));
 const FileStoragePage = lazy(() => import('./modules/tools/file-storage'));
+// 外链分享访问页：免登页面，必须放在 RequireAuth 之外
+const ShareAccessPage = lazy(() => import('./modules/share/ShareAccessPage'));
 const TextBatchProcessorPage = lazy(() => import('./modules/tools/text-batch-processor/TextBatchProcessorPage'));
 const DashboardPage = lazy(() => import('./modules/admin/DashboardPage'));
 const UserManagePage = lazy(() => import('./modules/admin/UserManagePage'));
@@ -133,6 +135,8 @@ function AppRoutes() {
         <Route path="messages" element={<RequireRoute code="PAGE_SETTINGS"><MessagesPage /></RequireRoute>} />
         <Route path="messages/:id" element={<RequireRoute code="PAGE_SETTINGS"><MessageDetailPage /></RequireRoute>} />
       </Route>
+      {/* 外链分享：免登访问，不套 AppLayout，必须位于通配路由之前 */}
+      <Route path="/s/:code" element={<ShareAccessPage />} />
       <Route path="*" element={<Navigate to="/tools" replace />} />
     </Routes>
     </Suspense>

@@ -1,0 +1,387 @@
+/* ============================================================
+   外链分享访问页 /s/:code（免登）
+   视觉体系沿用项目「纸质暖白 + 深靛蓝主色 + 陶土橙强调」，
+   全部色值走 index.css 已定义的 CSS 变量，深色模式自动继承。
+   ============================================================ */
+
+.share-page {
+  /* FilePreviewer 的 .fs-preview-* 样式依赖这两组变量，
+     原本作用域在 .fs-page / .fs-modal 内，分享页需自行声明 */
+  --tool-accent: #3B82F6;
+  --tool-accent-light: #60A5FA;
+  --tool-accent-dark: #2563EB;
+  --tool-accent-bg: rgba(59, 130, 246, 0.10);
+  --tool-accent-bg-hover: rgba(59, 130, 246, 0.16);
+  --fs-radius: var(--miao-radius-md, 10px);
+  --fs-radius-lg: 14px;
+  --fs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(120% 80% at 50% -20%, rgba(199, 91, 57, 0.06), transparent 60%),
+    var(--miao-bg);
+}
+
+/* ── 顶部品牌条 ── */
+.share-topbar {
+  height: 56px;
+  flex: 0 0 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--miao-border);
+  background: var(--miao-bg-elevated);
+}
+
+.share-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.share-brand-logo {
+  width: 26px;
+  height: 26px;
+  display: block;
+}
+
+.share-brand-name {
+  font-family: var(--miao-font-display), Georgia, serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--miao-text-primary);
+}
+
+.share-topbar-link {
+  font-size: 13px;
+  color: var(--miao-text-secondary);
+  text-decoration: none;
+  transition: color 0.18s ease;
+}
+
+.share-topbar-link:hover {
+  color: var(--miao-accent);
+}
+
+/* ── 主区 ── */
+.share-main {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 24px 56px;
+}
+
+.share-card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--miao-bg-elevated);
+  border: 1px solid var(--miao-border);
+  border-radius: var(--miao-radius-xl);
+  box-shadow: 0 18px 48px rgba(26, 26, 62, 0.08);
+  padding: 32px 32px 28px;
+  animation: share-card-in 0.2s ease both;
+}
+
+.share-card--preview {
+  max-width: 1080px;
+  padding: 20px 20px 24px;
+}
+
+@keyframes share-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── 文件信息 ── */
+.share-file-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.share-file-icon {
+  flex: 0 0 52px;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--miao-radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  background: var(--miao-bg-muted);
+}
+
+.share-file-meta {
+  min-width: 0;
+}
+
+.share-file-name {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--miao-text-primary);
+  word-break: break-all;
+}
+
+.share-file-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--miao-text-tertiary);
+}
+
+.share-file-footnote {
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--miao-text-secondary);
+}
+
+.share-file-footnote b {
+  font-weight: 600;
+  color: var(--miao-text-primary);
+}
+
+.share-divider {
+  height: 1px;
+  margin: 22px 0 20px;
+  background: var(--miao-border);
+}
+
+/* ── 提取码输入 ── */
+.share-code-label {
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--miao-text-secondary);
+}
+
+.share-code-input {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.share-code-cell {
+  width: 52px;
+  height: 58px;
+  border: 1px solid var(--miao-border-strong);
+  border-radius: var(--miao-radius-md);
+  background: var(--miao-bg);
+  color: var(--miao-text-primary);
+  font-family: var(--miao-font-mono), monospace;
+  font-size: 24px;
+  font-weight: 600;
+  text-align: center;
+  outline: none;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.share-code-cell:hover:not(:disabled) {
+  border-color: var(--miao-accent);
+}
+
+.share-code-cell:focus {
+  border-color: var(--miao-primary);
+  box-shadow: 0 0 0 3px rgba(26, 26, 62, 0.1);
+  transform: translateY(-2px);
+}
+
+.share-code-cell:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  background: var(--miao-bg-muted);
+}
+
+.share-code-input--error .share-code-cell {
+  border-color: #f5222d;
+  color: #f5222d;
+}
+
+.share-code-input--shake {
+  animation: share-shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes share-shake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-6px); }
+  40%, 60% { transform: translateX(6px); }
+}
+
+.share-code-error {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 13px;
+  color: #f5222d;
+}
+
+.share-submit-btn {
+  margin-top: 22px;
+  height: 44px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: var(--miao-radius-md);
+}
+
+.share-tip {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--miao-text-tertiary);
+}
+
+/* ── 预览视图 ── */
+.share-preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--miao-border);
+}
+
+.share-preview-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.share-preview-title-icon {
+  font-size: 20px;
+}
+
+.share-preview-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--miao-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.share-preview-size {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--miao-text-tertiary);
+}
+
+.share-preview-body {
+  min-height: 320px;
+  max-height: 68vh;
+  overflow: auto;
+  border-radius: var(--miao-radius-md);
+}
+
+/* ── 空状态 ── */
+.share-card--state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 56px 32px;
+  text-align: center;
+}
+
+.share-state-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: var(--miao-bg-muted);
+  color: var(--miao-accent);
+  font-size: 32px;
+}
+
+.share-state-title {
+  font-family: var(--miao-font-display), Georgia, serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--miao-text-primary);
+}
+
+.share-state-hint {
+  max-width: 380px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--miao-text-tertiary);
+}
+
+.share-state-actions {
+  margin-top: 12px;
+}
+
+/* ── 页脚 ── */
+.share-footer {
+  padding: 0 24px 28px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--miao-text-tertiary);
+}
+
+/* ── 响应式 ── */
+@media (max-width: 1023px) {
+  .share-card {
+    max-width: 92%;
+  }
+}
+
+@media (max-width: 767px) {
+  .share-main {
+    padding: 20px 0 40px;
+  }
+
+  .share-card {
+    max-width: 100%;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    padding: 24px 20px;
+  }
+
+  .share-card--preview {
+    padding: 16px 12px 20px;
+  }
+
+  .share-code-cell {
+    width: 44px;
+    height: 50px;
+    font-size: 20px;
+  }
+
+  .share-preview-body {
+    max-height: 60vh;
+  }
+}
+
+/* 尊重系统的减弱动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .share-card {
+    animation: none;
+  }
+
+  .share-code-cell:focus {
+    transform: none;
+  }
+
+  .share-code-input--shake {
+    animation: none;
+  }
+}

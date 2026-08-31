@@ -19,6 +19,7 @@ import com.miao.toolbox.storage.exception.StorageException;
 import com.miao.toolbox.storage.model.CosObjectResult;
 import com.miao.toolbox.storage.repository.DirectoryRepository;
 import com.miao.toolbox.storage.repository.FileRepository;
+import com.miao.toolbox.storage.repository.FileShareLinkRepository;
 import com.miao.toolbox.storage.repository.FileShareRepository;
 import com.miao.toolbox.storage.validator.FileNameValidator;
 import lombok.RequiredArgsConstructor;
@@ -54,6 +55,7 @@ public class FileService {
     private final FileRepository fileRepository;
     private final DirectoryRepository directoryRepository;
     private final FileShareRepository fileShareRepository;
+    private final FileShareLinkRepository fileShareLinkRepository;
     private final UserRepository userRepository;
     private final StorageService storageService;
     private final StorageProperties storageProperties;
@@ -187,6 +189,20 @@ public class FileService {
     public String getTextPreview(Long userId, Long fileId) {
         // 至少需要 VIEW 权限
         FileEntity file = requireFileAccess(userId, fileId, FileAccessLevel.VIEW);
+        return readTextPreview(file);
+    }
+
+    /**
+     * 获取文本文件预览内容（外链分享访客侧使用，已完成鉴权，直接以文件实体入参）
+     *
+     * @param file 已完成权限校验的文件实体
+     * @return 文本内容（截断到 textPreviewSizeLimit）
+     */
+    public String getTextPreview(FileEntity file) {
+        return readTextPreview(file);
+    }
+
+    private String readTextPreview(FileEntity file) {
         if (!isTextType(file.getMimeType()) && !isTextFileByName(file.getFileName())) {
             throw StorageException.previewNotSupported("仅支持文本类文件预览，当前类型: " + file.getMimeType());
         }
@@ -393,13 +409,16 @@ public class FileService {
     public void deleteFile(Long userId, Long fileId) {
         FileEntity file = getFileForUser(userId, fileId);
 
-        // 1. 删除 COS 对象
+        // 1. 删除该文件的外链分享记录（外键已级联，此处显式清理兜底）
+        fileShareLinkRepository.deleteByFileId(fileId);
+
+        // 2. 删除 COS 对象
         storageService.deleteObject(file.getCosKey());
 
-        // 2. 删除元数据
+        // 3. 删除元数据
         fileRepository.delete(file);
 
-        // 3. 原子更新配额（下限为 0）
+        // 4. 原子更新配额（下限为 0）
         userRepository.decrementStorageUsed(userId, file.getSizeBytes());
 
         log.info("File deleted: userId={}, fileId={}, cosKey={}", userId, fileId, file.getCosKey());

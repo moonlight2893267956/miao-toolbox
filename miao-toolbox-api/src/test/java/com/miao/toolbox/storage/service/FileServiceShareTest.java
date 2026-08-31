@@ -10,6 +10,7 @@ import com.miao.toolbox.storage.entity.FileEntity;
 import com.miao.toolbox.storage.entity.FileShareEntity;
 import com.miao.toolbox.storage.repository.DirectoryRepository;
 import com.miao.toolbox.storage.repository.FileRepository;
+import com.miao.toolbox.storage.repository.FileShareLinkRepository;
 import com.miao.toolbox.storage.repository.FileShareRepository;
 import com.miao.toolbox.storage.config.StorageProperties;
 import com.miao.toolbox.storage.validator.FileNameValidator;
@@ -39,6 +40,7 @@ class FileServiceShareTest {
     @Mock private FileRepository fileRepository;
     @Mock private DirectoryRepository directoryRepository;
     @Mock private FileShareRepository fileShareRepository;
+    @Mock private FileShareLinkRepository fileShareLinkRepository;
     @Mock private UserRepository userRepository;
     @Mock private StorageService storageService;
     @Mock private StorageProperties storageProperties;
@@ -56,7 +58,7 @@ class FileServiceShareTest {
     @BeforeEach
     void setUp() {
         fileService = new FileService(
-                fileRepository, directoryRepository, fileShareRepository,
+                fileRepository, directoryRepository, fileShareRepository, fileShareLinkRepository,
                 userRepository, storageService, storageProperties, fileNameValidator, notificationService
         );
 

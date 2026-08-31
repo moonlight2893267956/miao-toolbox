@@ -7,3 +7,14 @@ miao:
     presigned-url-expiry: 3600
     default-quota-bytes: 1073741824
     text-preview-size-limit: 1048576
+    # 外链分享配置（PRD §4.12），全部为非敏感业务配置
+    share:
+      max-file-size: 209715200
+      forbidden-mime-types: []
+      share-code-length: 10
+      access-code-length: 4
+      default-expire-days:
+      max-visits-limit: 1000
+      ticket-ttl-minutes: 30
+      max-unlock-fail-attempts: 5
+      unlock-fail-window-minutes: 10

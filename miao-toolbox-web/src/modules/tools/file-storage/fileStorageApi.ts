@@ -9,6 +9,8 @@ import type {
   ShareInfo,
   SharedWithMeFile,
   UserOption,
+  ShareLinkInfo,
+  CreateShareLinkPayload,
 } from './types';
 
 const BASE = '/api/storage';
@@ -164,5 +166,24 @@ export const fileStorageApi = {
   updateTextContent: async (fileId: number, content: string): Promise<FileInfo> => {
     const resp = await axiosInstance.put(`${BASE}/files/${fileId}/content`, { content });
     return resp.data.data;
+  },
+
+  // ==================== 外链分享管理（PRD §4.12） ====================
+
+  // 创建外链分享（返回的 accessCode 明文仅此一次）
+  createShareLink: async (payload: CreateShareLinkPayload): Promise<ShareLinkInfo> => {
+    const resp = await axiosInstance.post(`${BASE}/share-links`, payload);
+    return resp.data.data;
+  },
+
+  // 我的分享列表
+  listShareLinks: async (): Promise<ShareLinkInfo[]> => {
+    const resp = await axiosInstance.get(`${BASE}/share-links`);
+    return resp.data.data;
+  },
+
+  // 取消分享
+  revokeShareLink: async (linkId: number): Promise<void> => {
+    await axiosInstance.delete(`${BASE}/share-links/${linkId}`);
   },
 };

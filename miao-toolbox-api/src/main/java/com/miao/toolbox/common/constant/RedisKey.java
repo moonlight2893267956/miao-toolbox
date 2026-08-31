@@ -20,4 +20,10 @@ public final class RedisKey {
     public static final String EMAIL_SEND_COUNT_PREFIX = "miao:email:send:count:";
     /** Daily verify count, value = count, TTL = 24h */
     public static final String EMAIL_VERIFY_COUNT_PREFIX = "miao:email:verify:count:";
+
+    // File share link（外链分享）
+    /** 分享访问票据，key = prefix + ticket，value = shareCode:fileId，TTL = ticket-ttl-minutes */
+    public static final String SHARE_TICKET_PREFIX = "miao:share:ticket:";
+    /** 提取码校验失败计数，key = prefix + shareCode + ":" + ip，value = count，TTL = 10 分钟 */
+    public static final String SHARE_UNLOCK_FAIL_PREFIX = "miao:share:unlock:fail:";
 }
