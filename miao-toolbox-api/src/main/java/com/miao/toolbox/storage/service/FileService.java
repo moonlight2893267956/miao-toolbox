@@ -408,20 +408,26 @@ public class FileService {
     @Transactional
     public void deleteFile(Long userId, Long fileId) {
         FileEntity file = getFileForUser(userId, fileId);
+        String cosKey = file.getCosKey();
+        long sizeBytes = file.getSizeBytes();
 
         // 1. 删除该文件的外链分享记录（外键已级联，此处显式清理兜底）
         fileShareLinkRepository.deleteByFileId(fileId);
 
-        // 2. 删除 COS 对象
-        storageService.deleteObject(file.getCosKey());
-
-        // 3. 删除元数据
+        // 2. 先删除元数据并回退配额
+        //    顺序要求：先库后 COS。反过来的话，COS 删除成功但事务回滚时，
+        //    数据库记录仍指向一个已删除的对象，用户侧表现为"文件还在但打不开"，数据实质已丢失。
         fileRepository.delete(file);
+        userRepository.decrementStorageUsed(userId, sizeBytes);
 
-        // 4. 原子更新配额（下限为 0）
-        userRepository.decrementStorageUsed(userId, file.getSizeBytes());
+        // 3. 最后删除 COS 对象：失败仅残留孤立对象，由 OrphanFileCleanupJob 兜底回收
+        try {
+            storageService.deleteObject(cosKey);
+        } catch (Exception e) {
+            log.error("COS 对象删除失败，残留为孤立文件待清理: cosKey={}, error={}", cosKey, e.getMessage());
+        }
 
-        log.info("File deleted: userId={}, fileId={}, cosKey={}", userId, fileId, file.getCosKey());
+        log.info("File deleted: userId={}, fileId={}, cosKey={}", userId, fileId, cosKey);
     }
 
     // ==================== 重命名 ====================
@@ -440,14 +446,20 @@ public class FileService {
         String safeName = fileNameValidator.validate(newName);
 
         // COS 上需要 copy + delete（key 包含文件名）
+        // 顺序要求：先 copy 新 key → 再更新数据库 → 最后删除旧 key。
+        // 若先删旧 key 后写库，一旦事务回滚（DB 仍指向旧 key、旧对象已删），文件将永久丢失且不可恢复。
+        // 现在的顺序下任何一步失败都只产生孤立对象（由 OrphanFileCleanupJob 兜底回收），不会丢数据。
+        String oldCosKey = file.getCosKey();
         String newCosKey = storageService.buildKey(userId, file.getPath(), safeName);
-        storageService.copyObject(file.getCosKey(), newCosKey);
-        storageService.deleteObject(file.getCosKey());
+        storageService.copyObject(oldCosKey, newCosKey);
 
         // 更新元数据
         file.setFileName(safeName);
         file.setCosKey(newCosKey);
         file = fileRepository.save(file);
+
+        // 数据库已落库，此时删除旧对象才是安全的
+        storageService.deleteObject(oldCosKey);
 
         log.info("File renamed: userId={}, fileId={}, newName={}", userId, fileId, safeName);
         return toFileInfoDTO(file, isFileShared(file.getId()));
@@ -476,14 +488,18 @@ public class FileService {
         }
 
         // COS 上需要 copy + delete（key 包含路径）
+        // 顺序要求同 renameFile：先 copy → 再落库 → 最后删旧对象，避免事务回滚导致数据永久丢失
+        String oldCosKey = file.getCosKey();
         String newCosKey = storageService.buildKey(userId, targetPath, file.getFileName());
-        storageService.copyObject(file.getCosKey(), newCosKey);
-        storageService.deleteObject(file.getCosKey());
+        storageService.copyObject(oldCosKey, newCosKey);
 
         // 更新元数据
         file.setPath(targetPath);
         file.setCosKey(newCosKey);
         file = fileRepository.save(file);
+
+        // 数据库已落库，此时删除旧对象才是安全的
+        storageService.deleteObject(oldCosKey);
 
         log.info("File moved: userId={}, fileId={}, newPath={}", userId, fileId, targetPath);
         return toFileInfoDTO(file, isFileShared(file.getId()));
@@ -592,21 +608,29 @@ public class FileService {
                 .filter(d -> d.getUserId().equals(userId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_FAILED, "目录不存在", 404));
 
-        // 1. 查找并删除目录下所有文件（含子目录中的文件）
+        // 1. 查找目录下所有文件（含子目录中的文件）
         List<FileEntity> files = fileRepository.findByUserIdAndPathPrefix(userId, dir.getPath());
         long totalSize = 0;
+        List<String> cosKeys = new ArrayList<>();
         for (FileEntity file : files) {
-            storageService.deleteObject(file.getCosKey());
+            cosKeys.add(file.getCosKey());
             totalSize += file.getSizeBytes();
         }
+
+        // 2. 先删除数据库记录、子目录并回退配额（顺序要求同 deleteFile：先库后 COS）
         fileRepository.deleteByUserIdAndPathPrefix(userId, dir.getPath());
-
-        // 2. 删除子目录
         directoryRepository.deleteByUserIdAndPathPrefix(userId, dir.getPath());
-
-        // 3. 原子更新配额（下限 0）
         if (totalSize > 0) {
             userRepository.decrementStorageUsed(userId, totalSize);
+        }
+
+        // 3. 最后删除 COS 对象：单个失败不影响整体，残留对象由清理任务回收
+        for (String cosKey : cosKeys) {
+            try {
+                storageService.deleteObject(cosKey);
+            } catch (Exception e) {
+                log.error("目录删除时 COS 对象删除失败，残留为孤立文件待清理: cosKey={}, error={}", cosKey, e.getMessage());
+            }
         }
 
         log.info("Directory deleted: userId={}, dirPath={}, filesDeleted={}, sizeFreed={}",

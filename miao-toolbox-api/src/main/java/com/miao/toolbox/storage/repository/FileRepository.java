@@ -41,6 +41,15 @@ public interface FileRepository extends JpaRepository<FileEntity, Long> {
     List<FileEntity> findByUserIdAndPathAndFileName(Long userId, String path, String fileName);
 
     /**
+     * 批量校验 COS key 是否存在数据库记录（用于孤立文件清理任务）
+     *
+     * @param keys COS key 集合
+     * @return 存在记录的 COS key 子集
+     */
+    @Query("SELECT f.cosKey FROM FileEntity f WHERE f.cosKey IN :keys")
+    List<String> findExistingCosKeys(@Param("keys") java.util.Collection<String> keys);
+
+    /**
      * 模糊搜索文件名（忽略大小写）
      */
     Page<FileEntity> findByUserIdAndFileNameContainingIgnoreCase(Long userId, String keyword, Pageable pageable);

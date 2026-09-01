@@ -27,7 +27,9 @@ import com.miao.toolbox.storage.repository.FileRepository;
 import com.miao.toolbox.storage.repository.FileShareRepository;
 import com.miao.toolbox.storage.service.StorageService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdminStorageService {
@@ -171,14 +173,20 @@ public class AdminStorageService {
         FileEntity file = fileRepository.findByIdAndUserId(fileId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FILE_NOT_FOUND, "文件不存在"));
 
+        String cosKey = file.getCosKey();
+
         // 删除共享记录
         fileShareRepository.deleteByFileId(fileId);
 
-        // 删除 COS 对象
-        storageService.deleteObject(file.getCosKey());
-
-        // 删除数据库记录
+        // 先删除数据库记录（顺序要求：先库后 COS，避免事务回滚后记录指向已删除的对象）
         fileRepository.delete(file);
+
+        // 再删除 COS 对象：失败仅残留孤立文件，由 OrphanFileCleanupJob 兜底回收
+        try {
+            storageService.deleteObject(cosKey);
+        } catch (Exception e) {
+            log.error("管理员删除文件时 COS 对象删除失败，残留为孤立文件待清理: cosKey={}, error={}", cosKey, e.getMessage());
+        }
     }
 
     private FileInfoDTO toFileInfoDTO(FileEntity f) {

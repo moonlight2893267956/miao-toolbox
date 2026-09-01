@@ -47,6 +47,60 @@ public class StorageProperties {
     private Share share = new Share();
 
     /**
+     * 孤立文件清理任务配置（OrphanFileCleanupJob）
+     */
+    private OrphanCleanup orphanCleanup = new OrphanCleanup();
+
+    /**
+     * 孤立文件清理相关配置
+     * <p>
+     * Nacos 中对应 miao.storage.orphan-cleanup.*。该任务会删除 COS 上"数据库无对应记录"的对象，
+     * 具有一定危险性，默认开启保护期与熔断阈值，禁止裸删。
+     */
+    @Data
+    public static class OrphanCleanup {
+
+        /**
+         * 是否启用清理任务（false 时整个 Bean 不注册）
+         */
+        private boolean enabled = true;
+
+        /**
+         * 干跑模式：只记录日志，不真正删除（排查期建议打开）
+         */
+        private boolean dryRun = false;
+
+        /**
+         * 执行 cron，默认每天凌晨 3 点
+         */
+        private String cron = "0 0 3 * * ?";
+
+        /**
+         * 保护期（小时）：lastModified 距今不足该时长的对象一律跳过
+         * <p>
+         * 目的：避免误删"刚上传/刚 copy 完但数据库记录尚未提交"的在途文件。
+         */
+        private int gracePeriodHours = 48;
+
+        /**
+         * 单次任务最大删除数量，达到上限即中止（防止批量误删扩大影响面）
+         */
+        private int maxDeletePerRun = 500;
+
+        /**
+         * 熔断阈值：孤儿数 / 扫描总数 超过该比例时中止整个任务（可能数据库异常或多环境共用 bucket）
+         * <p>
+         * 设为 1 或更大表示关闭熔断。
+         */
+        private double abortOrphanRatio = 0.5;
+
+        /**
+         * 熔断生效的最小扫描量（扫描数低于该值时不按比例熔断，避免少量文件误触发）
+         */
+        private int abortMinScanned = 20;
+    }
+
+    /**
      * 外链分享相关配置
      * <p>
      * 全部为非敏感业务配置，不引入任何密钥。Nacos 中对应 miao.storage.share.*。
