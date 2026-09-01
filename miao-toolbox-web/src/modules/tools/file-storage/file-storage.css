@@ -2080,58 +2080,276 @@ tr:hover .fs-action-btn {
   color: var(--miao-teal, #00d4aa);
 }
 
+:root {
+  --share-card-bg: var(--miao-bg-elevated);
+  --share-card-border: var(--miao-border);
+  --share-card-shadow: 0 10px 32px rgba(26, 26, 62, 0.07);
+  --share-card-shadow-hover: 0 18px 44px rgba(26, 26, 62, 0.10);
+  --share-accent-active: #22c55e;
+  --share-accent-expired: var(--miao-text-tertiary);
+  --share-accent-exhausted: #f59e0b;
+  --share-accent-revoked: #ef4444;
+}
+
+[data-theme='dark'] {
+  --share-card-bg: var(--miao-bg-elevated);
+  --share-card-shadow: 0 10px 32px rgba(0, 0, 0, 0.22);
+  --share-card-shadow-hover: 0 18px 44px rgba(0, 0, 0, 0.30);
+}
+
 /* ---- 我的分享列表 ---- */
+/* 视觉方向：「档案索引卡」—— 把每条外链分享做成一张带标签的卡片，
+   比默认表格更有物品感，同时保留清晰的扫描效率。 */
 
 .fs-sharelinks {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px 20px 24px;
+  gap: 18px;
+  padding: 16px 20px 28px;
+  overflow-y: auto;
 }
 
-.fs-sharelinks-bar {
+.fs-sharelinks-header {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
+  padding-bottom: 4px;
 }
 
-.fs-sharelinks-stat {
+.fs-sharelinks-title {
+  margin: 0;
+  font-family: var(--miao-font-display), Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--miao-text-primary);
+  letter-spacing: 0.2px;
+}
+
+.fs-sharelinks-subtitle {
+  margin: 6px 0 0;
   font-size: 13px;
   color: var(--miao-text-secondary);
 }
 
-.fs-sharelinks-stat b {
+.fs-sharelinks-subtitle b {
   font-weight: 600;
   color: var(--miao-text-primary);
 }
 
-.fs-sharelink-file {
+.fs-sharelinks-refresh {
+  border-radius: var(--miao-radius-md, 8px);
+}
+
+.fs-sharelinks-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── 分享卡片 ── */
+.fs-sharelink-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 20px 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 100%),
+    var(--share-card-bg);
+  border: 1px solid var(--share-card-border);
+  border-radius: var(--miao-radius-lg, 14px);
+  box-shadow: var(--share-card-shadow);
+  transition: transform 0.25s var(--fs-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+              box-shadow 0.25s var(--fs-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  overflow: hidden;
+}
+
+.fs-sharelink-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.035'/%3E%3C/svg%3E");
+  opacity: 0.7;
+  mix-blend-mode: overlay;
+}
+
+.fs-sharelink-card-accent {
+  position: absolute;
+  top: 0;
+  left: 20px;
+  width: 42px;
+  height: 4px;
+  border-radius: 0 0 4px 4px;
+  background: var(--tool-accent, #3B82F6);
+  box-shadow: 0 2px 8px var(--tool-accent-bg, rgba(59, 130, 246, 0.25));
+}
+
+.fs-sharelink-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.fs-sharelink-card-file {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 14px;
   min-width: 0;
 }
 
-.fs-sharelink-file > span {
+.fs-sharelink-card-icon {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  border-radius: var(--miao-radius-md, 10px);
+  background: var(--miao-bg-muted);
+  color: var(--tool-accent, #3B82F6);
+  box-shadow: inset 0 0 0 1px var(--miao-border);
+}
+
+.fs-sharelink-card-icon-svg {
+  font-size: 22px;
+}
+
+.fs-sharelink-card-file-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.fs-sharelink-card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--miao-text-primary);
+  line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.fs-sharelink-file-icon {
-  flex: 0 0 auto;
-  font-size: 16px;
+.fs-sharelink-card-size {
+  font-size: 12px;
+  color: var(--miao-text-tertiary);
+}
+
+/* 状态标签：做成「印章」感 */
+.fs-sharelink-card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px !important;
+  margin: 0 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.4px;
+  border-radius: 999px !important;
+  border-style: dashed !important;
+  transform: rotate(-1.5deg);
+  transition: transform 0.2s ease;
+}
+
+.fs-sharelink-card:hover .fs-sharelink-card-status {
+  transform: rotate(0deg);
+}
+
+.fs-sharelink-card-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.fs-sharelink-card-status--active {
+  color: var(--share-accent-active) !important;
+  background: rgba(34, 197, 94, 0.08) !important;
+  border-color: rgba(34, 197, 94, 0.35) !important;
+}
+
+.fs-sharelink-card-status--expired {
+  color: var(--share-accent-expired) !important;
+  background: var(--miao-bg-muted) !important;
+  border-color: var(--miao-border-strong) !important;
+}
+
+.fs-sharelink-card-status--exhausted {
+  color: var(--share-accent-exhausted) !important;
+  background: rgba(245, 158, 11, 0.08) !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+
+.fs-sharelink-card-status--revoked {
+  color: var(--share-accent-revoked) !important;
+  background: rgba(239, 68, 68, 0.08) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+.fs-sharelink-card-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--miao-border) 12%, var(--miao-border) 88%, transparent);
+  position: relative;
+  z-index: 1;
+}
+
+.fs-sharelink-card-body {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) auto auto auto;
+  gap: 20px 28px;
+  position: relative;
+  z-index: 1;
+}
+
+.fs-sharelink-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.fs-sharelink-field-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--miao-text-tertiary);
+}
+
+.fs-sharelink-field-value {
+  font-size: 13px;
+  color: var(--miao-text-secondary);
+}
+
+.fs-sharelink-field-sep {
+  color: var(--miao-border-strong);
+  margin: 0 2px;
+}
+
+.fs-sharelink-field--link {
+  min-width: 0;
 }
 
 .fs-sharelink-url-row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .fs-sharelink-url {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2139,17 +2357,201 @@ tr:hover .fs-action-btn {
   font-family: var(--miao-font-mono), monospace;
   font-size: 12px;
   color: var(--miao-text-secondary);
+  background: var(--miao-bg-muted);
+  padding: 5px 10px;
+  border-radius: var(--miao-radius-sm, 6px);
+  border: 1px solid var(--miao-border);
+}
+
+.fs-sharelink-copy-btn {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--miao-radius-sm, 6px) !important;
+  color: var(--miao-text-secondary) !important;
+  transition: all 0.2s ease;
+}
+
+.fs-sharelink-copy-btn:hover {
+  color: var(--tool-accent, #3B82F6) !important;
+  background: var(--tool-accent-bg, rgba(59, 130, 246, 0.10)) !important;
+}
+
+.fs-sharelink-copy-btn.is-copied {
+  color: var(--share-accent-active) !important;
+  background: rgba(34, 197, 94, 0.10) !important;
 }
 
 .fs-sharelink-code-mask {
   font-family: var(--miao-font-mono), monospace;
-  letter-spacing: 2px;
+  font-size: 13px;
+  letter-spacing: 3px;
   color: var(--miao-text-tertiary);
   cursor: help;
 }
 
-.fs-sharelink-muted {
+.fs-sharelink-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  position: relative;
+  z-index: 1;
+}
+
+.fs-sharelink-revoke-btn {
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: var(--miao-radius-sm, 6px);
+  opacity: 0.85;
+  transition: opacity 0.2s ease;
+}
+
+.fs-sharelink-revoke-btn:hover {
+  opacity: 1;
+}
+
+.fs-sharelink-revoke-placeholder {
+  font-size: 13px;
   color: var(--miao-text-tertiary);
+  padding: 4px 10px;
+}
+
+/* ── 空状态 ── */
+.fs-sharelinks-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 64px 24px;
+  animation: fs-sharelink-empty-in 0.45s ease both;
+}
+
+@keyframes fs-sharelink-empty-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fs-sharelinks-empty-art {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  color: var(--tool-accent, #3B82F6);
+  background: var(--tool-accent-bg, rgba(59, 130, 246, 0.10));
+  border-radius: 50%;
+  margin-bottom: 18px;
+  box-shadow: 0 8px 24px var(--tool-accent-bg, rgba(59, 130, 246, 0.12));
+}
+
+.fs-sharelinks-empty-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--miao-text-primary);
+}
+
+.fs-sharelinks-empty-hint {
+  margin: 8px 0 0;
+  max-width: 320px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--miao-text-tertiary);
+}
+
+/* ── 骨架屏 ── */
+.fs-sharelinks-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: fs-sharelink-pulse 1.6s ease-in-out infinite;
+}
+
+.fs-sharelink-skeleton-card {
+  height: 132px;
+  border-radius: var(--miao-radius-lg, 14px);
+  background: var(--miao-bg-elevated);
+  border: 1px solid var(--miao-border);
+}
+
+@keyframes fs-sharelink-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* ── 响应式 ── */
+@media (max-width: 880px) {
+  .fs-sharelink-card-body {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 16px 24px;
+  }
+
+  .fs-sharelink-field--link {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 560px) {
+  .fs-sharelinks {
+    padding: 12px 14px 20px;
+  }
+
+  .fs-sharelinks-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .fs-sharelink-card {
+    padding: 16px 16px 12px;
+    gap: 14px;
+  }
+
+  .fs-sharelink-card-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .fs-sharelink-card-status {
+    align-self: flex-start;
+  }
+
+  .fs-sharelink-card-body {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .fs-sharelink-url {
+    font-size: 11px;
+  }
+}
+
+/* 尊重系统的减弱动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .fs-sharelink-card,
+  .fs-sharelink-card-status,
+  .fs-sharelink-copy-btn {
+    transition: none;
+  }
+
+  .fs-sharelink-card:hover .fs-sharelink-card-status {
+    transform: none;
+  }
+
+  .fs-sharelinks-empty,
+  .fs-sharelinks-skeleton {
+    animation: none;
+  }
 }
 
 .fs-share-add {
