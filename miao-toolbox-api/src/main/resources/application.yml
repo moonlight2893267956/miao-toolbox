@@ -16,3 +16,21 @@ spring:
         # 而不是静默返回空配置导致后续 bean 初始化失败。
         import-check:
           enabled: true
+  flyway:
+    # 忽略「数据库已应用、但本地脚本已被删除」的版本化迁移。
+    # 背景：V25/V26（register/drop fun_tools 路由）曾在 90d842b 误提交并被部分环境执行，
+    # 随后在 22869ee 作为误提交内容移除，两者净效果为零（插入一条路由后又删除）。
+    # 已执行过它们的库启动时会报
+    #   "Detected applied migration not resolved locally: 25/26"，
+    # Flyway 校验失败会直接阻断整个应用启动。
+    #
+    # 语法说明：Flyway 的 ignoreMigrationPatterns 为 "{type}:{state}"，
+    # type 仅支持 * / repeatable / versioned，不支持按版本号精确指定，
+    # 故此处只能放宽到 versioned:missing（仅放行"缺失的已应用版本化迁移"，
+    # 不影响 repeatable 迁移，也不放宽 checksum 不匹配等其它校验）。
+    #
+    # 注意：这是对历史脏数据的兼容兜底，团队约定仍然禁止删除已提交的迁移文件。
+    # 若希望彻底消除脏数据，可在各环境库上执行（等价于 flyway repair 对该条的处理）：
+    #   DELETE FROM flyway_schema_history WHERE version IN ('25','26');
+    ignore-migration-patterns:
+      - "versioned:missing"
