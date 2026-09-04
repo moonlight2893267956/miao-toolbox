@@ -45,6 +45,11 @@ public class FileEntity {
     @Column(name = "cos_etag")
     private String cosEtag;
 
+    /** 目录内自定义排序序号（「自定义」排序模式，越小越靠前；V30 迁移引入） */
+    @Column(name = "custom_order", nullable = false)
+    @Builder.Default
+    private Integer customOrder = 0;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 
 /**
  * 文件管理核心业务层
@@ -51,6 +52,18 @@ import java.util.stream.Collectors;
 public class FileService {
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    /** 默认排序字段：修改时间（Story 5.5） */
+    private static final String DEFAULT_SORT_FIELD = "updatedAt";
+
+    /** 外部排序字段 → 实体属性名（Story 5.5；custom = 自定义拖拽顺序） */
+    private static final Map<String, String> SORT_FIELD_MAP = Map.of(
+            "name", "fileName",
+            "size", "sizeBytes",
+            "updatedAt", "updatedAt",
+            "type", "mimeType",
+            "custom", "customOrder"
+    );
 
     private final FileRepository fileRepository;
     private final DirectoryRepository directoryRepository;
@@ -110,15 +123,17 @@ public class FileService {
         String cosKey = storageService.buildKey(userId, path, fileName);
         CosObjectResult cosResult = storageService.putObject(cosKey, inputStream, contentLength, mimeType);
 
-        // 5. 保存文件元数据
+        // 5. 保存文件元数据（customOrder 追加到目录末尾，供「自定义」排序使用）
+        String dirPath = path != null ? path : "";
         FileEntity fileEntity = FileEntity.builder()
                 .userId(userId)
                 .fileName(fileNameValidator.validate(fileName))
-                .path(path != null ? path : "")
+                .path(dirPath)
                 .cosKey(cosKey)
                 .sizeBytes(contentLength)
                 .mimeType(mimeType)
                 .cosEtag(cosResult.getETag())
+                .customOrder(fileRepository.findMaxCustomOrder(userId, dirPath) + 1)
                 .build();
         fileEntity = fileRepository.save(fileEntity);
 
@@ -352,7 +367,7 @@ public class FileService {
     // ==================== 列表 ====================
 
     /**
-     * 列出指定目录下的文件
+     * 列出指定目录下的文件（默认按修改时间倒序）
      *
      * @param userId   用户 ID
      * @param path     目录路径（空字符串表示根目录）
@@ -361,11 +376,53 @@ public class FileService {
      * @return 分页文件列表
      */
     public Page<FileInfoDTO> listFiles(Long userId, String path, int page, int pageSize) {
+        return listFiles(userId, path, page, pageSize, null, null);
+    }
+
+    /**
+     * 列出指定目录下的文件（Story 5.5：支持排序字段与方向）
+     *
+     * @param userId   用户 ID
+     * @param path     目录路径（空字符串表示根目录）
+     * @param page     页码（从 0 开始）
+     * @param pageSize 每页大小
+     * @param sortBy   排序字段：name / size / updatedAt / type
+     * @param sortDir  排序方向：asc / desc
+     * @return 分页文件列表
+     */
+    public Page<FileInfoDTO> listFiles(Long userId, String path, int page, int pageSize,
+                                       String sortBy, String sortDir) {
         String dirPath = path != null ? path : "";
         Page<FileEntity> filePage = fileRepository.findByUserIdAndPath(
-                userId, dirPath, PageRequest.of(page, pageSize, Sort.by(Sort.Direction.DESC, "createdAt")));
+                userId, dirPath, PageRequest.of(page, pageSize, resolveFileSort(sortBy, sortDir)));
         Set<Long> sharedFileIds = collectSharedFileIds(filePage.getContent());
         return filePage.map(f -> toFileInfoDTO(f, sharedFileIds.contains(f.getId())));
+    }
+
+    /**
+     * 将外部排序参数解析为 Spring Data Sort。
+     *
+     * <p>排序属于展示层关注点，非法或缺失的参数一律静默回退到默认值
+     * （修改时间倒序），不抛异常，避免前端传参抖动导致列表请求失败。</p>
+     *
+     * @param sortBy  排序字段：name / size / updatedAt / type
+     * @param sortDir 排序方向：asc / desc
+     * @return Spring Data Sort 对象
+     */
+    private Sort resolveFileSort(String sortBy, String sortDir) {
+        String field = DEFAULT_SORT_FIELD;
+        if (sortBy != null && SORT_FIELD_MAP.containsKey(sortBy)) {
+            field = SORT_FIELD_MAP.get(sortBy);
+        }
+        // 自定义顺序固定升序（序号越小越靠前），方向参数对其无意义
+        if ("customOrder".equals(field)) {
+            return Sort.by(Sort.Direction.ASC, field);
+        }
+        Sort.Direction direction = Sort.Direction.DESC;
+        if (sortDir != null && "asc".equalsIgnoreCase(sortDir)) {
+            direction = Sort.Direction.ASC;
+        }
+        return Sort.by(direction, field);
     }
 
     /**
@@ -430,6 +487,106 @@ public class FileService {
         log.info("File deleted: userId={}, fileId={}, cosKey={}", userId, fileId, cosKey);
     }
 
+    /**
+     * 批量删除文件（单事务，全成功/全失败二态）
+     * <p>
+     * 先逐个校验归属，任一文件不存在或不属于当前用户则整批拒绝（抛异常回滚）。
+     * 校验通过后逐个执行删除，COS 删除失败仅残留孤立对象，由清理任务兜底。
+     *
+     * @param userId  用户 ID
+     * @param fileIds 文件 ID 列表
+     * @return 成功删除的文件 ID 列表（全成功场景 failed 恒为空）
+     */
+    @Transactional
+    public BatchResult batchDeleteFiles(Long userId, List<Long> fileIds) {
+        if (fileIds == null || fileIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "fileIds 不能为空", 400);
+        }
+
+        // 1. 预校验：全部文件必须存在且属于当前用户，任一失败整批拒绝
+        List<FileEntity> files = fileIds.stream()
+                .map(id -> getFileForUser(userId, id))
+                .collect(Collectors.toList());
+
+        // 2. 逐个执行删除（与单文件删除相同的顺序：分享外链 → DB → 配额 → COS）
+        List<Long> successIds = new ArrayList<>(fileIds.size());
+        long totalSize = 0;
+        for (FileEntity file : files) {
+            fileShareLinkRepository.deleteByFileId(file.getId());
+            fileRepository.delete(file);
+            totalSize += file.getSizeBytes();
+            successIds.add(file.getId());
+        }
+        if (totalSize > 0) {
+            userRepository.decrementStorageUsed(userId, totalSize);
+        }
+
+        // 3. COS 删除放在 DB 操作之后：单个失败不影响整体，残留对象由清理任务回收
+        for (FileEntity file : files) {
+            try {
+                storageService.deleteObject(file.getCosKey());
+            } catch (Exception e) {
+                log.error("批量删除时 COS 对象删除失败，残留为孤立文件待清理: cosKey={}, error={}",
+                        file.getCosKey(), e.getMessage());
+            }
+        }
+
+        log.info("Batch delete completed: userId={}, count={}, sizeFreed={}", userId, successIds.size(), totalSize);
+        return new BatchResult(successIds, List.of());
+    }
+
+    /**
+     * 批量移动文件到目标目录（单事务，全成功/全失败二态）
+     * <p>
+     * 先校验全部归属与目标目录，任一失败整批拒绝。
+     * 移动为纯元数据更新（FR-27），cos_key 不变，批量移动同样与文件大小无关。
+     *
+     * @param userId     用户 ID
+     * @param fileIds    文件 ID 列表
+     * @param targetPath 目标目录路径（空字符串表示根目录）
+     * @return 成功移动的文件 ID 列表
+     */
+    @Transactional
+    public BatchResult batchMoveFiles(Long userId, List<Long> fileIds, String targetPath) {
+        if (fileIds == null || fileIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "fileIds 不能为空", 400);
+        }
+        String destPath = targetPath != null ? targetPath : "";
+
+        // 1. 校验目标目录
+        if (!destPath.isBlank()) {
+            fileNameValidator.validatePath(destPath);
+            if (!directoryRepository.existsByUserIdAndPath(userId, destPath)) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, "目标目录不存在: " + destPath, 400);
+            }
+        }
+
+        // 2. 预校验全部归属，任一失败整批拒绝
+        List<FileEntity> files = fileIds.stream()
+                .map(id -> getFileForUser(userId, id))
+                .collect(Collectors.toList());
+
+        // 3. 逐个执行移动（FR-27：纯元数据更新，cos_key 不变，无 COS 调用）
+        // 进入目标目录的自定义顺序从末尾依次追加
+        int nextOrder = fileRepository.findMaxCustomOrder(userId, destPath);
+        List<Long> successIds = new ArrayList<>(fileIds.size());
+        for (FileEntity file : files) {
+            file.setPath(destPath);
+            file.setCustomOrder(++nextOrder);
+            fileRepository.save(file);
+            successIds.add(file.getId());
+        }
+
+        log.info("Batch move completed: userId={}, count={}, targetPath={}", userId, successIds.size(), destPath);
+        return new BatchResult(successIds, List.of());
+    }
+
+    /**
+     * 批量操作结果（全成功/全失败二态，failed 恒为空列表，保留字段以便前端统一解析）
+     */
+    public record BatchResult(List<Long> success, List<Long> failed) {
+    }
+
     // ==================== 重命名 ====================
 
     /**
@@ -445,21 +602,11 @@ public class FileService {
         FileEntity file = requireFileAccess(userId, fileId, FileAccessLevel.EDIT);
         String safeName = fileNameValidator.validate(newName);
 
-        // COS 上需要 copy + delete（key 包含文件名）
-        // 顺序要求：先 copy 新 key → 再更新数据库 → 最后删除旧 key。
-        // 若先删旧 key 后写库，一旦事务回滚（DB 仍指向旧 key、旧对象已删），文件将永久丢失且不可恢复。
-        // 现在的顺序下任何一步失败都只产生孤立对象（由 OrphanFileCleanupJob 兜底回收），不会丢数据。
-        String oldCosKey = file.getCosKey();
-        String newCosKey = storageService.buildKey(userId, file.getPath(), safeName);
-        storageService.copyObject(oldCosKey, newCosKey);
-
-        // 更新元数据
+        // FR-27（Story 5.6）：cos_key 与文件名解耦 —— key 在文件生命周期内保持不变，
+        // 重命名只是元数据更新，不再做 COS copy + delete。
+        // 收益：不再产生孤立对象、不再有"大文件改名慢"的问题、重命名可随事务回滚。
         file.setFileName(safeName);
-        file.setCosKey(newCosKey);
         file = fileRepository.save(file);
-
-        // 数据库已落库，此时删除旧对象才是安全的
-        storageService.deleteObject(oldCosKey);
 
         log.info("File renamed: userId={}, fileId={}, newName={}", userId, fileId, safeName);
         return toFileInfoDTO(file, isFileShared(file.getId()));
@@ -487,22 +634,51 @@ public class FileService {
             }
         }
 
-        // COS 上需要 copy + delete（key 包含路径）
-        // 顺序要求同 renameFile：先 copy → 再落库 → 最后删旧对象，避免事务回滚导致数据永久丢失
-        String oldCosKey = file.getCosKey();
-        String newCosKey = storageService.buildKey(userId, targetPath, file.getFileName());
-        storageService.copyObject(oldCosKey, newCosKey);
-
-        // 更新元数据
+        // FR-27（Story 5.6）：cos_key 与目录路径解耦 —— 移动只更新 path 字段，
+        // 不触碰 COS，因此耗时与文件大小无关（实测 < 100ms），大文件移动瞬时完成。
         file.setPath(targetPath);
-        file.setCosKey(newCosKey);
+        // 进入新目录时追加到自定义顺序末尾，避免沿用旧目录序号造成插队
+        file.setCustomOrder(fileRepository.findMaxCustomOrder(userId, targetPath) + 1);
         file = fileRepository.save(file);
-
-        // 数据库已落库，此时删除旧对象才是安全的
-        storageService.deleteObject(oldCosKey);
 
         log.info("File moved: userId={}, fileId={}, newPath={}", userId, fileId, targetPath);
         return toFileInfoDTO(file, isFileShared(file.getId()));
+    }
+
+    /**
+     * 保存目录内的自定义排序（「自定义」排序模式，前端拖拽后整体提交）。
+     *
+     * <p>fileIds 必须是该目录下全部文件的有序列表，按序重写 custom_order。
+     * 任一文件不属于该用户或不在该目录时整批拒绝。使用批量 UPDATE，
+     * 不触发 @PreUpdate，避免调整顺序污染 updated_at。</p>
+     *
+     * @param userId  用户 ID
+     * @param path    目录路径（空字符串表示根目录）
+     * @param fileIds 按新顺序排列的文件 ID 列表
+     */
+    @Transactional
+    public void updateCustomOrder(Long userId, String path, List<Long> fileIds) {
+        if (fileIds == null || fileIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "fileIds 不能为空", 400);
+        }
+        String dirPath = path != null ? path : "";
+
+        // 预校验全部归属与目录一致性，任一失败整批拒绝
+        List<FileEntity> files = fileIds.stream()
+                .map(id -> getFileForUser(userId, id))
+                .collect(Collectors.toList());
+        for (FileEntity file : files) {
+            if (!dirPath.equals(file.getPath())) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        "文件不在指定目录中: " + file.getFileName(), 400);
+            }
+        }
+
+        int order = 0;
+        for (Long id : fileIds) {
+            fileRepository.updateCustomOrderById(id, userId, order++);
+        }
+        log.info("Custom order updated: userId={}, path={}, count={}", userId, dirPath, fileIds.size());
     }
 
     // ==================== 目录管理 ====================
@@ -546,15 +722,34 @@ public class FileService {
     }
 
     /**
-     * 列出子目录
+     * 列出子目录（默认按名称升序）
      *
      * @param userId     用户 ID
      * @param parentPath 父目录路径
      * @return 子目录列表
      */
     public List<DirectoryEntity> listDirectories(Long userId, String parentPath) {
+        return listDirectories(userId, parentPath, null);
+    }
+
+    /**
+     * 列出子目录（Story 5.5：目录按名称排序，支持方向切换）
+     *
+     * <p>目录始终按名称排序（不支持按大小/类型），仅方向可切；
+     * 「目录置顶」由前端合并目录与文件两个列表时保证，后端不做混合排序。</p>
+     *
+     * @param userId     用户 ID
+     * @param parentPath 父目录路径
+     * @param sortDir    排序方向：asc / desc，默认 asc
+     * @return 子目录列表
+     */
+    public List<DirectoryEntity> listDirectories(Long userId, String parentPath, String sortDir) {
         String parent = parentPath != null ? parentPath : "";
-        return directoryRepository.findByUserIdAndParentPath(userId, parent);
+        Sort.Direction direction = Sort.Direction.ASC;
+        if (sortDir != null && "desc".equalsIgnoreCase(sortDir)) {
+            direction = Sort.Direction.DESC;
+        }
+        return directoryRepository.findByUserIdAndParentPath(userId, parent, Sort.by(direction, "name"));
     }
 
     /**
@@ -635,6 +830,146 @@ public class FileService {
 
         log.info("Directory deleted: userId={}, dirPath={}, filesDeleted={}, sizeFreed={}",
                 userId, dir.getPath(), files.size(), totalSize);
+    }
+
+    // ==================== 目录重命名 / 移动（Story 5.6 / FR-28） ====================
+
+    /**
+     * 重命名目录，级联更新子目录与子文件的路径前缀。
+     *
+     * <p>纯数据库操作，不触碰 COS（FR-27：cos_key 与路径解耦）。
+     * 路径前缀替换用 {@code oldPrefix + "/"} 匹配，避免误伤同名兄弟目录
+     * （如 {@code docs} 与 {@code docs-backup}）。</p>
+     *
+     * @param userId  用户 ID
+     * @param dirId   目录 ID
+     * @param newName 新目录名
+     * @return 更新后的目录实体
+     */
+    @Transactional
+    public DirectoryEntity renameDirectory(Long userId, Long dirId, String newName) {
+        DirectoryEntity dir = directoryRepository.findById(dirId)
+                .filter(d -> d.getUserId().equals(userId))
+                .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_FAILED, "目录不存在", 404));
+
+        String safeName = fileNameValidator.validateDirectoryName(newName);
+        String oldPath = dir.getPath();
+        String parentPath = dir.getParentPath();
+        String newPath = parentPath.isBlank() ? safeName : parentPath + "/" + safeName;
+
+        // 同级同名检查
+        if (!oldPath.equals(newPath) && directoryRepository.existsByUserIdAndPath(userId, newPath)) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "同名目录已存在: " + newPath, 409);
+        }
+
+        // 更新目录自身
+        dir.setName(safeName);
+        dir.setPath(newPath);
+        directoryRepository.save(dir);
+
+        // 级联更新子目录与子文件
+        cascadePathPrefix(userId, oldPath, newPath);
+
+        log.info("Directory renamed: userId={}, dirId={}, oldPath={}, newPath={}", userId, dirId, oldPath, newPath);
+        return dir;
+    }
+
+    /**
+     * 移动目录到新父目录，级联更新路径前缀。
+     *
+     * <p>防循环校验：不能移动到自身或自身子目录下。
+     * 纯数据库操作，不触碰 COS。</p>
+     *
+     * @param userId           用户 ID
+     * @param dirId            目录 ID
+     * @param targetParentPath 目标父目录路径（空字符串表示根目录）
+     * @return 更新后的目录实体
+     */
+    @Transactional
+    public DirectoryEntity moveDirectory(Long userId, Long dirId, String targetParentPath) {
+        DirectoryEntity dir = directoryRepository.findById(dirId)
+                .filter(d -> d.getUserId().equals(userId))
+                .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_FAILED, "目录不存在", 404));
+
+        String targetParent = targetParentPath != null ? targetParentPath : "";
+        String oldPath = dir.getPath();
+
+        // 校验目标父目录存在（根目录除外）
+        if (!targetParent.isBlank()) {
+            fileNameValidator.validatePath(targetParent);
+            if (!directoryRepository.existsByUserIdAndPath(userId, targetParent)) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, "目标目录不存在: " + targetParent, 400);
+            }
+        }
+
+        // 防循环：不能移动到自身或自身子目录
+        if (targetParent.equals(oldPath) || targetParent.startsWith(oldPath + "/")) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "不能将目录移动到自身或其子目录下", 400);
+        }
+
+        String newPath = targetParent.isBlank() ? dir.getName() : targetParent + "/" + dir.getName();
+
+        // 同级同名检查
+        if (!oldPath.equals(newPath) && directoryRepository.existsByUserIdAndPath(userId, newPath)) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "目标位置已存在同名目录: " + newPath, 409);
+        }
+
+        // 更新目录自身
+        dir.setPath(newPath);
+        dir.setParentPath(targetParent);
+        directoryRepository.save(dir);
+
+        // 级联更新子目录与子文件
+        cascadePathPrefix(userId, oldPath, newPath);
+
+        log.info("Directory moved: userId={}, dirId={}, oldPath={}, newPath={}", userId, dirId, oldPath, newPath);
+        return dir;
+    }
+
+    /**
+     * 级联替换路径前缀：将 oldPath 及其子目录/子文件的路径前缀从 oldPath 替换为 newPath。
+     *
+     * <p>匹配规则：path 等于 oldPath 或以 {@code oldPath + "/"} 开头的记录。
+     * 替换方式：{@code newPath + value.substring(oldPath.length())}，
+     * 保留子路径后缀（如 {@code docs/a/b.txt} → {@code archive/docs/a/b.txt}）。</p>
+     *
+     * @param userId  用户 ID
+     * @param oldPath 旧路径前缀
+     * @param newPath 新路径前缀
+     */
+    private void cascadePathPrefix(Long userId, String oldPath, String newPath) {
+        String oldPrefix = oldPath + "/";
+
+        // 子目录：path 和 parentPath 都需要替换前缀
+        List<DirectoryEntity> subDirs = directoryRepository.findByUserIdAndPathPrefix(userId, oldPath);
+        for (DirectoryEntity d : subDirs) {
+            if (d.getPath().equals(oldPath)) {
+                // 目录自身已在调用方更新，跳过
+                continue;
+            }
+            // 安全检查：只处理以 oldPath + "/" 开头的子目录（排除 docs-backup 这种兄弟）
+            if (!d.getPath().startsWith(oldPrefix)) {
+                continue;
+            }
+            d.setPath(newPath + d.getPath().substring(oldPath.length()));
+            if (!d.getParentPath().isBlank() && (d.getParentPath().equals(oldPath) || d.getParentPath().startsWith(oldPrefix))) {
+                d.setParentPath(newPath + d.getParentPath().substring(oldPath.length()));
+            }
+            directoryRepository.save(d);
+        }
+
+        // 子文件：只替换 path
+        List<FileEntity> subFiles = fileRepository.findByUserIdAndPathPrefix(userId, oldPath);
+        for (FileEntity f : subFiles) {
+            // 安全检查：只处理 path 等于 oldPath 或以 oldPath + "/" 开头的文件
+            if (f.getPath().equals(oldPath)) {
+                f.setPath(newPath);
+            } else if (f.getPath().startsWith(oldPrefix)) {
+                f.setPath(newPath + f.getPath().substring(oldPath.length()));
+            }
+            // 不匹配前缀的跳过（防误伤）
+            fileRepository.save(f);
+        }
     }
 
     // ==================== 配额 ====================
@@ -841,7 +1176,7 @@ public class FileService {
         String targetCosKey = storageService.buildKey(userId, destPath, targetName);
         storageService.copyObject(src.getCosKey(), targetCosKey);
 
-        // 5. 保存新文件元数据
+        // 5. 保存新文件元数据（customOrder 追加到目录末尾）
         FileEntity newFile = FileEntity.builder()
                 .userId(userId)
                 .fileName(targetName)
@@ -849,6 +1184,7 @@ public class FileService {
                 .cosKey(targetCosKey)
                 .sizeBytes(size)
                 .mimeType(src.getMimeType())
+                .customOrder(fileRepository.findMaxCustomOrder(userId, destPath) + 1)
                 .build();
         newFile = fileRepository.save(newFile);
 

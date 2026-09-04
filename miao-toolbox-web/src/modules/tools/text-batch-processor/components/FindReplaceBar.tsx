@@ -64,6 +64,8 @@ const FindReplaceBar: React.FC<FindReplaceBarProps> = ({ textareaRef, value, onC
   const findInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const shouldFocusTextarea = useRef(false);
+  const valueRef = useRef(value);
+  valueRef.current = value;
 
   const total = matches.length;
 
@@ -88,22 +90,22 @@ const FindReplaceBar: React.FC<FindReplaceBarProps> = ({ textareaRef, value, onC
     setCurrentMatch(positions.length > 0 ? 0 : -1);
   }, [query, caseSensitive, value]);
 
-  // 选中当前匹配并滚动到可视区（仅导航时抢焦点）
+  // 选中当前匹配并滚动到可视区（仅在用户显式导航时执行，编辑文本时不跳转）
   useEffect(() => {
     if (currentMatch < 0 || currentMatch >= matches.length) return;
+    if (!shouldFocusTextarea.current) return;
     const el = textareaRef.current?.nativeElement as HTMLTextAreaElement | undefined;
     if (!el) return;
     const start = matches[currentMatch];
     const end = start + query.length;
-    if (shouldFocusTextarea.current) {
-      el.focus({ preventScroll: true });
-      shouldFocusTextarea.current = false;
-    }
+    el.focus({ preventScroll: true });
+    shouldFocusTextarea.current = false;
     el.setSelectionRange(start, end);
-    const lineNum = value.slice(0, start).split('\n').length - 1;
+    const v = valueRef.current;
+    const lineNum = v.slice(0, start).split('\n').length - 1;
     const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20;
     el.scrollTop = Math.max(0, lineNum * lineHeight - el.clientHeight / 3);
-  }, [currentMatch, matches, query, value, textareaRef]);
+  }, [currentMatch, matches, query, textareaRef]);
 
   const go = useCallback((delta: 1 | -1) => {
     if (total === 0) return;

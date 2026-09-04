@@ -54,6 +54,21 @@ export interface PagedResponse<T> {
   pageSize: number;
 }
 
+/** Story 5.5：排序字段（与后端 FileService.SORT_FIELD_MAP 一一对应）；custom = 自定义拖拽顺序 */
+export type SortBy = 'name' | 'size' | 'updatedAt' | 'type' | 'custom';
+
+/** Story 5.5：排序方向 */
+export type SortDir = 'asc' | 'desc';
+
+/** 排序字段的中文标签，供工具栏下拉使用 */
+export const SORT_BY_LABELS: Record<SortBy, string> = {
+  name: '名称',
+  size: '大小',
+  updatedAt: '修改时间',
+  type: '类型',
+  custom: '自定义',
+};
+
 export interface ShareInfo {
   id: number;
   fileId: number;

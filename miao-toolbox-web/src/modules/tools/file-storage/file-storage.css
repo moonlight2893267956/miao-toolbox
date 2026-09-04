@@ -203,12 +203,14 @@
   font-size: 13px;
 }
 
+/* 行间距归零：让 droppable 区域在垂直方向首尾相接，
+   否则鼠标落在行间空隙时 over=null，高亮会反复闪灭 */
 .fs-directory-tree .ant-tree-treenode {
   display: flex;
   align-items: center;
   width: 100%;
-  padding: 1px 0;
-  margin: 1px 0;
+  padding: 0;
+  margin: 0;
   border-radius: 8px;
   transition: background 150ms ease;
 }
@@ -216,13 +218,20 @@
 .fs-directory-tree .ant-tree-node-content-wrapper {
   flex: 1;
   min-width: 0;
-  padding: 5px 8px 5px 6px;
+  /* 垂直留白交给 .fs-tree-node 的 padding，保证 drop 区填满整行 */
+  padding: 0 4px 0 0;
   border-radius: 8px;
-  min-height: 28px;
+  min-height: 0;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   transition: all 150ms ease;
+}
+
+/* title 吃掉剩余宽度，使内部 droppable 横向铺满整行 */
+.fs-directory-tree .ant-tree-title {
+  flex: 1;
+  min-width: 0;
 }
 
 .fs-directory-tree .ant-tree-treenode:hover .ant-tree-node-content-wrapper:not(.ant-tree-node-selected) {
@@ -230,9 +239,9 @@
 }
 
 .fs-directory-tree .ant-tree-node-selected {
-  background: var(--tool-accent-bg) !important;
+  background: color-mix(in srgb, var(--tool-accent) 10%, transparent) !important;
   color: var(--tool-accent-dark) !important;
-  box-shadow: inset 3px 0 0 var(--tool-accent);
+  font-weight: 600;
 }
 
 .fs-directory-tree .ant-tree-node-selected .ant-tree-icon__customize,
@@ -260,11 +269,15 @@
   font-size: 10px;
 }
 
-.fs-directory-tree .ant-tree-icon__customize {
+/* 选择器叠加 .ant-tree-iconEle 提升优先级，压过 antd cssinjs 的默认 block/基线对齐 */
+.fs-directory-tree .ant-tree-iconEle.ant-tree-icon__customize {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  vertical-align: middle;
   color: var(--miao-text-tertiary);
   font-size: 14px;
+  line-height: 0;
   transition: color 150ms ease;
 }
 
@@ -280,8 +293,25 @@
   color: var(--miao-text-secondary);
 }
 
+/* macOS 风格 PNG 根目录图标 */
+img.fs-tree-icon-img,
+img.fs-tree-icon-root {
+  display: block;
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
 .fs-tree-icon-folder {
   color: var(--miao-text-secondary);
+}
+
+/* macOS 风格 PNG 文件夹图标 */
+img.fs-tree-icon-folder {
+  display: block; /* 消除 inline 图片基线空隙 */
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
 }
 
 .fs-directory-tree .ant-tree-title {
@@ -295,26 +325,76 @@
 
 /* ── 目录树拖拽放置反馈 ── */
 
-/* 树节点 title 容器：无额外字号/行高，完全继承 antd Tree 默认 */
+/* 树节点 droppable：铺满整行（横向 + 纵向），碰撞区最大化。
+   注意：这里绝不能对元素自身做 transform / 尺寸变化，
+   否则 dnd-kit 重算碰撞时会在边界反复触发 over 切换 —— 也就是闪烁的根因。 */
 .fs-tree-node {
-  border-radius: 4px;
-  transition: background 160ms ease, box-shadow 160ms ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  /* 右侧 52px 常驻留给「移入此处」徽章，避免 isOver 时宽度变化 */
+  padding: 7px 52px 7px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  transition: background 140ms ease,
+              border-color 140ms ease,
+              box-shadow 140ms ease;
 }
 
+.fs-tree-node-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* hover 时给出"可放置"的微提示：浅蓝边 + 浅底，不喧宾夺主 */
+.fs-tree-node:hover {
+  background: color-mix(in srgb, var(--tool-accent) 6%, transparent);
+  border-color: color-mix(in srgb, var(--tool-accent) 22%, transparent);
+}
+
+/* isOver 时只改「不改变几何」的属性：背景 / 边框 / 阴影。
+   左侧 3px 蓝条用 inset 阴影实现，同样不占布局、不触发重排。 */
 .fs-tree-node--drop-target {
-  background: color-mix(in srgb, var(--tool-accent) 14%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tool-accent) 24%, transparent);
+  background: color-mix(in srgb, var(--tool-accent) 18%, transparent);
+  border-color: color-mix(in srgb, var(--tool-accent) 60%, transparent);
+  border-style: solid;
+  box-shadow:
+    inset 3px 0 0 var(--tool-accent),
+    0 4px 14px color-mix(in srgb, var(--tool-accent) 28%, transparent);
 }
 
+/* 徽章常驻 DOM 并绝对定位：宽度由 padding-right 预留，
+   显隐只走 opacity + scale，节点盒子尺寸始终不变 —— 不会触发碰撞重算 */
 .fs-tree-node-badge {
-  margin-left: 6px;
-  padding: 1px 7px;
-  border-radius: 999px;
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%) scale(0.82);
+  transform-origin: right center;
+  opacity: 0;
+  padding: 2px 8px;
+  border-radius: 10px;
   background: var(--tool-accent);
   color: #fff;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  animation: fs-dnd-hint-in 200ms ease;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--tool-accent) 45%, transparent);
+  transition: opacity 140ms ease, transform 180ms var(--fs-ease);
+}
+
+.fs-tree-node--drop-target .fs-tree-node-badge {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
 }
 
 /* ============================================================
@@ -353,56 +433,7 @@
   align-items: center;
 }
 
-/* 刷新按钮：胶囊式 + 旋转动画 */
-.fs-btn-refresh {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 5px !important;
-  height: 28px !important;
-  padding: 0 12px !important;
-  font-size: 12px !important;
-  font-weight: 500 !important;
-  color: var(--miao-text-secondary) !important;
-  background: var(--miao-bg-muted) !important;
-  border: 1px solid transparent !important;
-  border-radius: 14px !important;
-  transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-
-.fs-btn-refresh .anticon {
-  font-size: 13px !important;
-  color: var(--miao-text-tertiary) !important;
-  transition: color 180ms ease, transform 600ms cubic-bezier(0.4, 0, 0.2, 1) !important;
-  transform-origin: center center;
-}
-
-.fs-btn-refresh:hover:not(:disabled):not(.ant-btn-loading) {
-  background: var(--tool-accent-bg) !important;
-  border-color: color-mix(in srgb, var(--tool-accent) 25%, transparent) !important;
-  color: var(--tool-accent-dark) !important;
-}
-
-.fs-btn-refresh:hover:not(:disabled):not(.ant-btn-loading) .anticon {
-  color: var(--tool-accent-dark) !important;
-  transform: rotate(-180deg);
-}
-
-.fs-btn-refresh:active:not(:disabled):not(.ant-btn-loading) .anticon {
-  transform: rotate(-360deg);
-  transition: transform 700ms cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-
-.fs-btn-refresh.ant-btn-loading {
-  background: var(--tool-accent-bg) !important;
-  border-color: color-mix(in srgb, var(--tool-accent) 25%, transparent) !important;
-  color: var(--tool-accent-dark) !important;
-  cursor: wait;
-}
-
-.fs-btn-refresh.ant-btn-loading .anticon {
-  color: var(--tool-accent-dark) !important;
-  animation: fs-refresh-spin 900ms linear infinite;
-}
+/* 刷新按钮已重做为 .fs-btn-icon（旧 .fs-btn-refresh 已弃用） */
 
 @keyframes fs-refresh-spin {
   from {
@@ -450,7 +481,7 @@
 }
 
 /* ============================================================
-   工具栏
+   工具栏：左 = 创建类（上传 / 新建目录），右 = 视图与维护
    ============================================================ */
 .fs-toolbar {
   display: flex;
@@ -461,7 +492,7 @@
   flex-shrink: 0;
   border-bottom: 1px solid var(--miao-border);
   background: var(--miao-bg);
-  min-height: 52px;
+  min-height: 56px;
 }
 
 .fs-toolbar-left {
@@ -475,20 +506,81 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-/* 上传按钮品牌化 */
+/* 主操作（上传）：克制的实色蓝，不再用渐变和浮起阴影，避免抢戏 */
 .fs-toolbar .fs-btn-upload {
-  background: linear-gradient(135deg, var(--tool-accent), var(--tool-accent-dark));
-  border-color: transparent;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--tool-accent) 30%, transparent);
-  transition: all 200ms var(--fs-ease);
+  background: var(--tool-accent) !important;
+  border-color: var(--tool-accent) !important;
+  color: #fff !important;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--tool-accent-dark) 22%, transparent);
 }
 
-.fs-toolbar .fs-btn-upload:hover {
-  background: linear-gradient(135deg, var(--tool-accent-light), var(--tool-accent));
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--tool-accent) 40%, transparent);
-  transform: translateY(-1px);
+.fs-toolbar .fs-btn-upload:hover:not(:disabled) {
+  background: var(--tool-accent-dark) !important;
+  border-color: var(--tool-accent-dark) !important;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--tool-accent) 32%, transparent);
+}
+
+.fs-toolbar .fs-btn-upload:active:not(:disabled) {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tool-accent) 18%, transparent);
+}
+
+/* 次级操作（新建目录）：白底 + 1px 边框 */
+.fs-toolbar .fs-btn-secondary {
+  background: var(--miao-bg-elevated) !important;
+  border-color: var(--miao-border) !important;
+  color: var(--miao-text-primary) !important;
+}
+
+.fs-toolbar .fs-btn-secondary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tool-accent) 6%, var(--miao-bg-elevated)) !important;
+  border-color: color-mix(in srgb, var(--tool-accent) 30%, var(--miao-border)) !important;
+  color: var(--tool-accent-dark) !important;
+}
+
+/* 图标方按钮（刷新、全屏）：仅图标，32x32 正方形 */
+.fs-toolbar .fs-btn-icon {
+  width: 32px !important;
+  min-width: 32px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--miao-text-secondary) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.fs-toolbar .fs-btn-icon:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tool-accent) 8%, transparent) !important;
+  color: var(--tool-accent-dark) !important;
+}
+
+.fs-toolbar .fs-btn-icon:active:not(:disabled) {
+  background: color-mix(in srgb, var(--tool-accent) 14%, transparent) !important;
+}
+
+/* 工具栏内的视觉分隔线：左（创建）与右（视图）分组 */
+.fs-toolbar-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 2px;
+  background: color-mix(in srgb, var(--miao-border) 80%, transparent);
+  flex-shrink: 0;
+}
+
+/* 搜索框：宽度和聚焦反馈 */
+.fs-toolbar .fs-search-input {
+  width: 200px;
+}
+
+/* 视图切换 Segmented：保持 antd 默认结构，只调外观 */
+.fs-toolbar .fs-view-segmented.ant-segmented {
+  background: color-mix(in srgb, var(--miao-border) 40%, var(--miao-bg-elevated));
+  border-radius: 8px;
+  padding: 2px;
 }
 
 /* 视图切换 */
@@ -522,6 +614,14 @@
   font-size: 12px !important;
   color: var(--miao-text-tertiary) !important;
   transition: color 150ms ease !important;
+}
+
+/* macOS 风格 PNG 根目录图标 */
+.fs-pathbar-home img.fs-pathbar-home-icon {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  display: block;
 }
 
 .fs-pathbar-home:hover {
@@ -573,6 +673,49 @@
   color: var(--tool-accent-dark);
   background: color-mix(in srgb, var(--tool-accent) 10%, var(--miao-bg-elevated));
   border-radius: 12px;
+}
+
+/* ── 面包屑拖放（Story 5.7 / FR-31）：拖拽悬停上级段高亮可放置 ── */
+.fs-crumb-drop {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 12px;
+}
+
+.fs-crumb-drop--over .fs-pathbar-home,
+.fs-crumb-drop--over .fs-pathbar-segment {
+  background: var(--tool-accent) !important;
+  color: #fff !important;
+}
+
+.fs-crumb-drop-badge {
+  position: absolute;
+  left: 50%;
+  bottom: -20px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  line-height: 1;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--tool-accent);
+  color: #fff;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--tool-accent) 40%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+  z-index: 10;
+}
+
+.fs-crumb-drop--over .fs-crumb-drop-badge {
+  opacity: 1;
+}
+
+/* ── spring-load 幽灵卡片（Story 5.7）：隐形占位，保持拖拽源节点跨目录挂载 ── */
+.fs-grid-item--ghost {
+  opacity: 0 !important;
+  pointer-events: none;
 }
 
 /* ============================================================
@@ -638,6 +781,14 @@
   font-size: 17px;
 }
 
+/* macOS 风格 PNG 文件夹图标 */
+img.fs-dir-cell-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .fs-dir-cell-name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -655,6 +806,13 @@
 .fs-file-icon {
   font-size: 16px;
   flex-shrink: 0;
+}
+
+/* macOS 风格 PNG 文件类型图标 */
+img.fs-file-icon {
+  width: 17px;
+  height: 17px;
+  object-fit: contain;
 }
 
 .fs-file-cell-name {
@@ -739,6 +897,54 @@ tr:hover .fs-action-btn {
   pointer-events: none;
 }
 
+/* 多选拖拽浮层：最多堆 3 张卡片，错开 6px 形成叠放感（FR-25） */
+.fs-drag-stack {
+  position: relative;
+  width: 120px;
+  height: 118px;
+  pointer-events: none;
+}
+
+.fs-drag-stack-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 120px;
+  background: var(--miao-bg-elevated, var(--miao-bg, #fff));
+  backdrop-filter: blur(2px);
+}
+
+.fs-drag-stack-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 9;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: var(--tool-accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 22px;
+  text-align: center;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--tool-accent) 45%, transparent);
+}
+
+/* 移动成功后的退场动画：卡片缩小淡出，避免文件"啪"一下消失。
+   CSS animation 的级联优先级高于 inline style，
+   因此能覆盖 useSortable 写在 style 上的 opacity / transform。 */
+@keyframes fs-grid-item-exit {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.6); }
+}
+
+.fs-grid-item--exiting {
+  animation: fs-grid-item-exit 180ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  pointer-events: none;
+}
+
 /* drop 目标高亮：蓝色描边 + 柔光底 + 微放大 */
 .fs-grid-item--drop-target {
   border-color: var(--tool-accent);
@@ -786,6 +992,7 @@ tr:hover .fs-action-btn {
 @media (prefers-reduced-motion: reduce) {
   .fs-grid-item--dragging,
   .fs-grid-item--drop-target { transform: none; transition: none; }
+  .fs-grid-item--exiting { animation: none; }
   .fs-grid-item--dir.fs-grid-item--drop-target .fs-grid-thumb-icon { animation: none; }
   .fs-grid-drop-hint { animation: none; }
 }
@@ -804,6 +1011,13 @@ tr:hover .fs-action-btn {
 .fs-grid-thumb-icon {
   font-size: 60px;
   display: block;
+}
+
+/* macOS 风格 PNG 文件夹图标：与文件缩略图 76px 统一 */
+img.fs-grid-thumb-icon {
+  width: 76px;
+  height: 76px;
+  object-fit: contain;
 }
 
 /* ── 图片缩略图 ── */
@@ -908,6 +1122,36 @@ tr:hover .fs-action-btn {
   border-radius: 3px;
 }
 
+/* ── 行内重命名输入框（macOS Finder 风格）── */
+.fs-inline-rename {
+  width: 100%;
+  max-width: 100%;
+  font-size: 12px;
+  font-weight: 400;
+  font-family: inherit;
+  color: var(--miao-text-primary);
+  background: var(--miao-bg-elevated);
+  border: 1.5px solid var(--tool-accent);
+  border-radius: 4px;
+  padding: 2px 6px;
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tool-accent) 15%, transparent);
+  text-align: center;
+  /* 防止长文件名撑破卡片 */
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* 列表视图中的行内重命名：左对齐，与文件名样式一致 */
+.fs-file-cell .fs-inline-rename,
+.fs-dir-cell .fs-inline-rename {
+  text-align: left;
+  font-size: 13px;
+  padding: 1px 6px;
+  flex: 1;
+  min-width: 0;
+}
+
 .fs-grid-thumb-badge {
   position: absolute;
   right: 0;
@@ -950,6 +1194,15 @@ tr:hover .fs-action-btn {
   font-size: 48px;
   margin-bottom: 16px;
   opacity: 0.3;
+}
+
+/* macOS 风格 PNG 空状态图标 */
+img.fs-empty-icon {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  opacity: 1;
+  filter: drop-shadow(0 4px 12px rgba(26, 26, 62, 0.12));
 }
 
 .fs-empty-text {
@@ -1069,23 +1322,6 @@ tr:hover .fs-action-btn {
   align-items: center;
   gap: 12px;
   min-width: 0;
-}
-
-.fs-preview-badge {
-  width: 38px;
-  height: 38px;
-  flex-shrink: 0;
-  border-radius: 11px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--tool-accent-bg);
-  color: var(--tool-accent-dark);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tool-accent) 24%, transparent);
-}
-
-.fs-preview-badge-icon {
-  font-size: 19px;
 }
 
 .fs-preview-title-text {
@@ -1628,6 +1864,23 @@ tr:hover .fs-action-btn {
 .fs-drop-overlay-icon {
   font-size: 40px;
   color: var(--tool-accent);
+}
+
+/* macOS 风格 PNG 云上传图标 */
+img.fs-drop-overlay-icon {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  animation: fs-drop-float 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes fs-drop-float {
+  from { transform: translateY(0); }
+  to { transform: translateY(-6px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  img.fs-drop-overlay-icon { animation: none; }
 }
 
 .fs-drop-overlay-text {
@@ -2224,6 +2477,12 @@ tr:hover .fs-action-btn {
   font-size: 22px;
 }
 
+img.fs-sharelink-card-icon-svg {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
 .fs-sharelink-card-file-meta {
   display: flex;
   flex-direction: column;
@@ -2656,6 +2915,12 @@ tr:hover .fs-action-btn {
   flex-shrink: 0;
 }
 
+img.fs-detail-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
 .fs-detail-name {
   flex: 1;
   font-size: 14px;
@@ -2682,4 +2947,315 @@ tr:hover .fs-action-btn {
   color: var(--miao-text-primary);
   text-align: right;
   word-break: break-all;
+}
+
+/* ============================================================
+   多选：选中态 + 橡皮筋框选 + 状态条（Story 5.1）
+   ============================================================ */
+
+/* 选中态：Finder 风格——缩略图不加任何框线，
+   文件名变实心蓝底白字胶囊，胶囊本身就是选中指示器 */
+.fs-grid-item--selected {
+  background: transparent !important;
+}
+
+.fs-grid-item--selected .fs-grid-name {
+  background: var(--tool-accent);
+  color: #fff;
+  font-weight: 600;
+  border-radius: 5px;
+  padding: 1px 7px;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--tool-accent) 35%, transparent);
+}
+
+/* 选中 + 拖拽中：拖拽态优先 */
+.fs-grid-item--selected.fs-grid-item--dragging {
+  opacity: 0.25;
+  transform: scale(0.92);
+}
+
+/* 选中 + 放置目标 */
+.fs-grid-item--selected.fs-grid-item--drop-target {
+  border-color: var(--tool-accent) !important;
+  background: color-mix(in srgb, var(--tool-accent) 12%, transparent) !important;
+}
+
+/* 橡皮筋选框：更柔和的蓝色 + 圆角 */
+.fs-rubber-band {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--tool-accent) 8%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--tool-accent) 45%, transparent);
+  border-radius: 4px;
+  transition: none;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tool-accent) 10%, transparent);
+}
+
+/* 多选底部状态条：浮层胶囊式，Finder 风格 */
+.fs-selection-bar {
+  position: sticky;
+  bottom: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 7px 18px;
+  margin: 12px auto 0;
+  width: fit-content;
+  background: color-mix(in srgb, var(--tool-accent) 12%, var(--miao-bg-elevated));
+  backdrop-filter: blur(12px);
+  border: 1px solid color-mix(in srgb, var(--tool-accent) 20%, transparent);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tool-accent-dark);
+  user-select: none;
+  box-shadow:
+    0 2px 12px color-mix(in srgb, var(--tool-accent) 15%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--tool-accent) 8%, transparent);
+  animation: fs-selection-bar-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 状态条前的小圆点指示器 */
+.fs-selection-bar::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tool-accent);
+  flex-shrink: 0;
+  animation: fs-selection-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes fs-selection-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fs-selection-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fs-selection-bar { animation: none; }
+  .fs-selection-bar::before { animation: none; }
+}
+
+/* ============================================================
+   Story 5.5：排序胶囊 + 弹出面板
+   把「字段 + 方向」收编为单控件：触发器是一个带色点的胶囊，
+   点击展开 Combobox 风格面板（字段列表 + 方向翻转）。
+   ============================================================ */
+
+.fs-sort-control {
+  display: inline-flex;
+}
+
+/* ── 触发器：圆角胶囊，淡蓝底 + 1px 蓝边 ── */
+.fs-sort-trigger {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px 0 12px !important;
+  border-radius: 8px !important;
+  background: color-mix(in srgb, var(--tool-accent) 7%, var(--miao-bg-elevated)) !important;
+  border: 1px solid color-mix(in srgb, var(--tool-accent) 18%, transparent) !important;
+  color: var(--miao-text-primary) !important;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  transition: background 160ms var(--fs-ease),
+              border-color 160ms var(--fs-ease),
+              box-shadow 160ms var(--fs-ease);
+}
+
+.fs-sort-trigger:hover {
+  background: color-mix(in srgb, var(--tool-accent) 12%, var(--miao-bg-elevated)) !important;
+  border-color: color-mix(in srgb, var(--tool-accent) 32%, transparent) !important;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--tool-accent) 8%, transparent);
+}
+
+.fs-sort-trigger:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--tool-accent) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.fs-sort-trigger-label {
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+
+/* 触发器右侧小箭头：展开时旋转 180°（data-open 由 Dropdown.onOpenChange 同步） */
+.fs-sort-trigger-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+  color: color-mix(in srgb, var(--tool-accent) 60%, var(--miao-text-secondary));
+  transition: transform 220ms var(--fs-ease);
+}
+
+.fs-sort-trigger[data-open="true"] .fs-sort-trigger-arrow {
+  transform: rotate(180deg);
+}
+
+/* ── 色点：每个字段的视觉锚点，6px 实心圆 + 同色柔光环 ── */
+.fs-sort-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 10%, transparent);
+}
+
+/* ── 弹出面板：圆角 elevated 卡片，浮起阴影 ── */
+.fs-sort-panel {
+  background: var(--miao-bg-elevated);
+  border-radius: 12px;
+  padding: 8px;
+  min-width: 200px;
+  box-shadow:
+    0 18px 40px rgba(8, 12, 28, 0.18),
+    0 6px 14px rgba(8, 12, 28, 0.08),
+    0 0 0 1px color-mix(in srgb, var(--miao-border) 55%, transparent);
+  animation: fs-sort-panel-in 160ms var(--fs-ease);
+  transform-origin: top right;
+}
+
+@keyframes fs-sort-panel-in {
+  from { opacity: 0; transform: scale(0.96) translateY(-6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.fs-sort-panel-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--miao-text-tertiary);
+  padding: 6px 10px 4px;
+  text-transform: uppercase;
+}
+
+/* ── 字段选项 ── */
+.fs-sort-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  color: var(--miao-text-primary);
+  font-size: 13px;
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms var(--fs-ease), color 120ms;
+}
+
+.fs-sort-option:hover {
+  background: color-mix(in srgb, var(--tool-accent) 6%, transparent);
+}
+
+.fs-sort-option--active {
+  background: color-mix(in srgb, var(--tool-accent) 12%, transparent);
+  color: var(--tool-accent-dark);
+  font-weight: 600;
+}
+
+.fs-sort-option--active .fs-sort-dot {
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.fs-sort-option-label {
+  flex: 1 1 auto;
+}
+
+.fs-sort-option-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tool-accent);
+  opacity: 0.85;
+}
+
+/* ── 分隔线 ── */
+.fs-sort-divider {
+  height: 1px;
+  margin: 6px 4px;
+  background: color-mix(in srgb, var(--miao-border) 75%, transparent);
+}
+
+/* ── 自定义排序提示（拖拽调整顺序）── */
+.fs-sort-custom-hint {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 6px 4px 2px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tool-accent) 7%, transparent);
+  color: var(--miao-text-secondary);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.fs-sort-custom-hint svg {
+  flex: none;
+  color: var(--tool-accent);
+  opacity: 0.8;
+}
+
+/* ── 方向翻转按钮 ── */
+.fs-sort-dir-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  color: var(--miao-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 120ms var(--fs-ease), color 120ms;
+}
+
+.fs-sort-dir-toggle:hover {
+  background: color-mix(in srgb, var(--tool-accent) 6%, transparent);
+  color: var(--miao-text-primary);
+}
+
+.fs-sort-dir-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--tool-accent) 14%, transparent);
+  color: var(--tool-accent-dark);
+  transition: transform 260ms var(--fs-ease);
+}
+
+.fs-sort-dir-icon[data-dir="desc"] {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fs-sort-panel { animation: none; }
+  .fs-sort-trigger-arrow,
+  .fs-sort-dir-icon { transition: none; }
 }

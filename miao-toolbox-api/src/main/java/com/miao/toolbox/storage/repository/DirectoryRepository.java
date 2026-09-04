@@ -1,6 +1,7 @@
 package com.miao.toolbox.storage.repository;
 
 import com.miao.toolbox.storage.entity.DirectoryEntity;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -17,6 +18,11 @@ public interface DirectoryRepository extends JpaRepository<DirectoryEntity, Long
      * 查找用户指定父目录下的子目录
      */
     List<DirectoryEntity> findByUserIdAndParentPath(Long userId, String parentPath);
+
+    /**
+     * 查找用户指定父目录下的子目录（Story 5.5：支持排序）
+     */
+    List<DirectoryEntity> findByUserIdAndParentPath(Long userId, String parentPath, Sort sort);
 
     /**
      * 查找用户全部目录

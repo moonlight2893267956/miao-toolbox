@@ -83,6 +83,23 @@ public interface FileRepository extends JpaRepository<FileEntity, Long> {
      */
     boolean existsByIdAndUserId(Long id, Long userId);
 
+    // ===== 自定义排序（「自定义」排序模式）=====
+
+    /**
+     * 目录当前最大自定义排序序号（新文件追加到末尾用）
+     */
+    @Query("SELECT COALESCE(MAX(f.customOrder), 0) FROM FileEntity f WHERE f.userId = :userId AND f.path = :path")
+    int findMaxCustomOrder(@Param("userId") Long userId, @Param("path") String path);
+
+    /**
+     * 更新单个文件的自定义排序序号。
+     * 用批量 UPDATE 而非实体 save，避免触发 @PreUpdate 刷新 updated_at——
+     * 调整顺序不是内容修改，不应改变「修改时间」排序的结果。
+     */
+    @Modifying
+    @Query("UPDATE FileEntity f SET f.customOrder = :sortOrder WHERE f.id = :id AND f.userId = :userId")
+    int updateCustomOrderById(@Param("id") Long id, @Param("userId") Long userId, @Param("sortOrder") int sortOrder);
+
     /**
      * 查找指定用户的指定文件
      */

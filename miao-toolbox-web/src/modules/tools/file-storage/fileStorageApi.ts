@@ -6,6 +6,8 @@ import type {
   DirectoryTreeNode,
   QuotaInfo,
   PagedResponse,
+  SortBy,
+  SortDir,
   ShareInfo,
   SharedWithMeFile,
   UserOption,
@@ -53,10 +55,16 @@ export const fileStorageApi = {
     return { blob: resp.data, filename };
   },
 
-  // 列出文件
-  listFiles: async (path: string = '', page: number = 0, pageSize: number = 50): Promise<PagedResponse<FileInfo>> => {
+  // 列出文件（Story 5.5：sortBy = name | size | updatedAt | type，sortDir = asc | desc）
+  listFiles: async (
+    path: string = '',
+    page: number = 0,
+    pageSize: number = 50,
+    sortBy?: SortBy,
+    sortDir?: SortDir,
+  ): Promise<PagedResponse<FileInfo>> => {
     const resp = await axiosInstance.get(`${BASE}/files`, {
-      params: { path, page, pageSize },
+      params: { path, page, pageSize, sortBy, sortDir },
     });
     return resp.data.data;
   },
@@ -86,16 +94,33 @@ export const fileStorageApi = {
     return resp.data.data;
   },
 
+  // 保存目录内的自定义排序（「自定义」排序模式：fileIds 为按新顺序排列的全部文件 ID）
+  updateFileOrder: async (path: string, fileIds: number[]): Promise<void> => {
+    await axiosInstance.put(`${BASE}/files/custom-order`, { path, fileIds });
+  },
+
+  // 批量删除文件（单事务，任一无权时整批拒绝）
+  batchDeleteFiles: async (fileIds: number[]): Promise<{ success: number[]; failed: number[] }> => {
+    const resp = await axiosInstance.post(`${BASE}/files/batch-delete`, { fileIds });
+    return resp.data.data;
+  },
+
+  // 批量移动文件（单事务，任一无权时整批拒绝）
+  batchMoveFiles: async (fileIds: number[], targetPath: string): Promise<{ success: number[]; failed: number[] }> => {
+    const resp = await axiosInstance.post(`${BASE}/files/batch-move`, { fileIds, targetPath });
+    return resp.data.data;
+  },
+
   // 创建目录
   createDirectory: async (name: string, parentPath: string = ''): Promise<DirectoryInfo> => {
     const resp = await axiosInstance.post(`${BASE}/directories`, { name, parentPath });
     return resp.data.data;
   },
 
-  // 列出子目录
-  listDirectories: async (parentPath: string = ''): Promise<DirectoryInfo[]> => {
+  // 列出子目录（Story 5.5：目录按名称排序，方向可切）
+  listDirectories: async (parentPath: string = '', sortDir?: SortDir): Promise<DirectoryInfo[]> => {
     const resp = await axiosInstance.get(`${BASE}/directories`, {
-      params: { parentPath },
+      params: { parentPath, sortDir },
     });
     return resp.data.data;
   },
@@ -109,6 +134,18 @@ export const fileStorageApi = {
   // 删除目录
   deleteDirectory: async (dirId: number): Promise<void> => {
     await axiosInstance.delete(`${BASE}/directories/${dirId}`);
+  },
+
+  // 重命名目录（Story 5.6 / FR-28）
+  renameDirectory: async (dirId: number, newName: string): Promise<DirectoryInfo> => {
+    const resp = await axiosInstance.put(`${BASE}/directories/${dirId}/rename`, { newName });
+    return resp.data.data;
+  },
+
+  // 移动目录（Story 5.6 / FR-28）
+  moveDirectory: async (dirId: number, targetParentPath: string): Promise<DirectoryInfo> => {
+    const resp = await axiosInstance.put(`${BASE}/directories/${dirId}/move`, { targetParentPath });
+    return resp.data.data;
   },
 
   // 获取配额信息

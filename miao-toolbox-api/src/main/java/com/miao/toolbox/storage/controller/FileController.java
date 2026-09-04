@@ -160,16 +160,21 @@ public class FileController {
     // ==================== 文件列表 ====================
 
     /**
-     * 列出目录下的文件
+     * 列出目录下的文件（Story 5.5：支持排序字段与方向）
+     *
+     * @param sortBy  排序字段：name / size / updatedAt / type，默认 updatedAt
+     * @param sortDir 排序方向：asc / desc，默认 desc
      */
     @GetMapping("/files")
     public ApiResponse<PagedResponse<FileInfoDTO>> listFiles(
             @AuthenticationPrincipal Object principal,
             @RequestParam(value = "path", defaultValue = "") String path,
             @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "pageSize", defaultValue = "20") int pageSize) {
+            @RequestParam(value = "pageSize", defaultValue = "20") int pageSize,
+            @RequestParam(value = "sortBy", required = false) String sortBy,
+            @RequestParam(value = "sortDir", required = false) String sortDir) {
         Long userId = extractUserId(principal);
-        var filePage = fileService.listFiles(userId, path, page, pageSize);
+        var filePage = fileService.listFiles(userId, path, page, pageSize, sortBy, sortDir);
         PagedResponse<FileInfoDTO> response = new PagedResponse<>(
                 filePage.getContent(), filePage.getTotalElements(), filePage.getNumber(), filePage.getSize());
         return ApiResponse.success(response);
@@ -229,6 +234,70 @@ public class FileController {
         return ApiResponse.success(fileService.moveFile(userId, fileId, body.get("newPath")));
     }
 
+    /**
+     * 批量删除文件（单事务，任一文件无权时整批拒绝）
+     */
+    @PostMapping("/files/batch-delete")
+    public ApiResponse<FileService.BatchResult> batchDeleteFiles(
+            @AuthenticationPrincipal Object principal,
+            @RequestBody BatchFileIdsRequest body) {
+        Long userId = extractUserId(principal);
+        return ApiResponse.success(fileService.batchDeleteFiles(userId, body.fileIds()));
+    }
+
+    /**
+     * 批量移动文件（单事务，任一文件无权时整批拒绝）
+     */
+    @PostMapping("/files/batch-move")
+    public ApiResponse<FileService.BatchResult> batchMoveFiles(
+            @AuthenticationPrincipal Object principal,
+            @RequestBody BatchMoveRequest body) {
+        Long userId = extractUserId(principal);
+        return ApiResponse.success(fileService.batchMoveFiles(userId, body.fileIds(), body.targetPath()));
+    }
+
+    /**
+     * 保存目录内的自定义排序（「自定义」排序模式，前端拖拽后整体提交）
+     */
+    @PutMapping("/files/custom-order")
+    public ApiResponse<Void> updateCustomOrder(
+            @AuthenticationPrincipal Object principal,
+            @RequestBody CustomOrderRequest body) {
+        Long userId = extractUserId(principal);
+        fileService.updateCustomOrder(userId, body.path(), body.fileIds());
+        return ApiResponse.success(null);
+    }
+
+    /**
+     * 批量删除请求体
+     */
+    public record BatchFileIdsRequest(List<Long> fileIds) {
+    }
+
+    /**
+     * 自定义排序请求体：path + 按新顺序排列的文件 ID 列表
+     */
+    public record CustomOrderRequest(String path, List<Long> fileIds) {
+    }
+
+    /**
+     * 批量移动请求体
+     */
+    public record BatchMoveRequest(List<Long> fileIds, String targetPath) {
+    }
+
+    /**
+     * 目录重命名请求体（Story 5.6）
+     */
+    public record RenameDirectoryRequest(String newName) {
+    }
+
+    /**
+     * 目录移动请求体（Story 5.6）
+     */
+    public record MoveDirectoryRequest(String targetParentPath) {
+    }
+
     // ==================== 目录管理 ====================
 
     /**
@@ -245,14 +314,17 @@ public class FileController {
     }
 
     /**
-     * 列出子目录
+     * 列出子目录（Story 5.5：目录按名称排序，方向可切）
+     *
+     * @param sortDir 排序方向：asc / desc，默认 asc
      */
     @GetMapping("/directories")
     public ApiResponse<List<DirectoryEntity>> listDirectories(
             @AuthenticationPrincipal Object principal,
-            @RequestParam(value = "parentPath", defaultValue = "") String parentPath) {
+            @RequestParam(value = "parentPath", defaultValue = "") String parentPath,
+            @RequestParam(value = "sortDir", required = false) String sortDir) {
         Long userId = extractUserId(principal);
-        return ApiResponse.success(fileService.listDirectories(userId, parentPath));
+        return ApiResponse.success(fileService.listDirectories(userId, parentPath, sortDir));
     }
 
     /**
@@ -275,6 +347,30 @@ public class FileController {
         Long userId = extractUserId(principal);
         fileService.deleteDirectory(userId, dirId);
         return ApiResponse.success(null);
+    }
+
+    /**
+     * 重命名目录（Story 5.6 / FR-28）：级联更新子目录与子文件路径前缀
+     */
+    @PutMapping("/directories/{dirId}/rename")
+    public ApiResponse<DirectoryEntity> renameDirectory(
+            @AuthenticationPrincipal Object principal,
+            @PathVariable Long dirId,
+            @RequestBody RenameDirectoryRequest body) {
+        Long userId = extractUserId(principal);
+        return ApiResponse.success(fileService.renameDirectory(userId, dirId, body.newName()));
+    }
+
+    /**
+     * 移动目录（Story 5.6 / FR-28）：级联更新路径前缀，防循环
+     */
+    @PutMapping("/directories/{dirId}/move")
+    public ApiResponse<DirectoryEntity> moveDirectory(
+            @AuthenticationPrincipal Object principal,
+            @PathVariable Long dirId,
+            @RequestBody MoveDirectoryRequest body) {
+        Long userId = extractUserId(principal);
+        return ApiResponse.success(fileService.moveDirectory(userId, dirId, body.targetParentPath()));
     }
 
     // ==================== 配额 ====================
