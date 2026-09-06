@@ -308,8 +308,9 @@ location ^~ /api/ {
     proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-Host  $host;
-    client_max_body_size 100M;
-    proxy_read_timeout 180s;
+    client_max_body_size 500M;
+    proxy_send_timeout 600s;
+    proxy_read_timeout 600s;
     proxy_send_timeout 180s;
     proxy_connect_timeout 60s;
     proxy_http_version 1.1;

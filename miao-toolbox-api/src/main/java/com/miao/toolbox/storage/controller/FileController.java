@@ -53,12 +53,24 @@ public class FileController {
     public ApiResponse<UploadResultDTO> uploadFile(
             @AuthenticationPrincipal Object principal,
             @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "path", defaultValue = "") String path) throws IOException {
+            @RequestParam(value = "path", defaultValue = "") String path,
+            @RequestParam(value = "conflictStrategy", required = false) String conflictStrategy) throws IOException {
         Long userId = extractUserId(principal);
         UploadResultDTO result = fileService.uploadFile(
                 userId, path, file.getOriginalFilename(),
-                file.getInputStream(), file.getSize(), file.getContentType());
+                file.getInputStream(), file.getSize(), file.getContentType(), conflictStrategy);
         return ApiResponse.success(result);
+    }
+
+    /**
+     * 检测目标目录下的同名文件（Story 5.11 / FR-36：上传/移动/粘贴前的冲突检查）
+     */
+    @PostMapping("/files/check-conflict")
+    public ApiResponse<List<String>> checkConflict(
+            @AuthenticationPrincipal Object principal,
+            @RequestBody CheckConflictRequest body) {
+        Long userId = extractUserId(principal);
+        return ApiResponse.success(fileService.findConflictingFileNames(userId, body.path(), body.fileNames()));
     }
 
     // ==================== 文件下载 ====================
@@ -246,14 +258,30 @@ public class FileController {
     }
 
     /**
-     * 批量移动文件（单事务，任一文件无权时整批拒绝）
+     * 批量移动文件（单事务，任一文件无权时整批拒绝）。
+     * conflictStrategy（Story 5.11 / FR-36）：目标目录同名时的处理策略
+     * replace / keepBoth / skip，不传则保持旧行为（直接覆盖路径）。
      */
     @PostMapping("/files/batch-move")
     public ApiResponse<FileService.BatchResult> batchMoveFiles(
             @AuthenticationPrincipal Object principal,
             @RequestBody BatchMoveRequest body) {
         Long userId = extractUserId(principal);
-        return ApiResponse.success(fileService.batchMoveFiles(userId, body.fileIds(), body.targetPath()));
+        return ApiResponse.success(
+                fileService.batchMoveFiles(userId, body.fileIds(), body.targetPath(), body.conflictStrategy()));
+    }
+
+    /**
+     * 批量复制文件（Story 5.10 / FR-34 剪贴板粘贴：复制模式粘贴到当前目录）。
+     *
+     * <p>复制会真实复制 COS 对象并占用额外配额，目标目录内同名文件自动追加序号。
+     */
+    @PostMapping("/files/batch-copy")
+    public ApiResponse<FileService.BatchResult> batchCopyFiles(
+            @AuthenticationPrincipal Object principal,
+            @RequestBody BatchMoveRequest body) {
+        Long userId = extractUserId(principal);
+        return ApiResponse.success(fileService.batchCopyFiles(userId, body.fileIds(), body.targetPath()));
     }
 
     /**
@@ -281,9 +309,22 @@ public class FileController {
     }
 
     /**
-     * 批量移动请求体
+     * 批量移动请求体。conflictStrategy（Story 5.11 / FR-36）：
+     * 目标目录同名时的处理策略 replace / keepBoth / skip，可为空（保持旧行为）
      */
-    public record BatchMoveRequest(List<Long> fileIds, String targetPath) {
+    public record BatchMoveRequest(List<Long> fileIds, String targetPath, String conflictStrategy) {
+    }
+
+    /**
+     * 同名冲突检测请求体（Story 5.11 / FR-36）
+     */
+    public record CheckConflictRequest(String path, List<String> fileNames) {
+    }
+
+    /**
+     * 目录自定义排序请求体（Story 5.12）：parentPath + 按新顺序排列的子目录 ID
+     */
+    public record DirectoryOrderRequest(String parentPath, List<Long> dirIds) {
     }
 
     /**
@@ -322,9 +363,22 @@ public class FileController {
     public ApiResponse<List<DirectoryEntity>> listDirectories(
             @AuthenticationPrincipal Object principal,
             @RequestParam(value = "parentPath", defaultValue = "") String parentPath,
-            @RequestParam(value = "sortDir", required = false) String sortDir) {
+            @RequestParam(value = "sortDir", required = false) String sortDir,
+            @RequestParam(value = "sortBy", required = false) String sortBy) {
         Long userId = extractUserId(principal);
-        return ApiResponse.success(fileService.listDirectories(userId, parentPath, sortDir));
+        return ApiResponse.success(fileService.listDirectories(userId, parentPath, sortDir, sortBy));
+    }
+
+    /**
+     * 保存目录内的自定义顺序（Story 5.12：「自定义」排序模式下拖拽文件夹换位置）
+     */
+    @PutMapping("/directories/custom-order")
+    public ApiResponse<Void> updateDirectoryOrder(
+            @AuthenticationPrincipal Object principal,
+            @RequestBody DirectoryOrderRequest body) {
+        Long userId = extractUserId(principal);
+        fileService.updateDirectoryOrder(userId, body.parentPath(), body.dirIds());
+        return ApiResponse.success(null);
     }
 
     /**

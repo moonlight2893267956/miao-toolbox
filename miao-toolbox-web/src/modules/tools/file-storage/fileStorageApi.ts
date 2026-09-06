@@ -8,6 +8,7 @@ import type {
   PagedResponse,
   SortBy,
   SortDir,
+  ConflictStrategy,
   ShareInfo,
   SharedWithMeFile,
   UserOption,
@@ -18,19 +19,41 @@ import type {
 const BASE = '/api/storage';
 
 export const fileStorageApi = {
-  // 文件上传
-  uploadFile: async (file: File, path: string = ''): Promise<UploadResult> => {
+  // 文件上传（Story 5.11：支持进度回调、AbortController 取消、同名冲突策略）
+  uploadFile: async (
+    file: File,
+    path: string = '',
+    options?: { onProgress?: (pct: number) => void; signal?: AbortSignal; conflictStrategy?: ConflictStrategy },
+  ): Promise<UploadResult> => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('path', path);
-    const resp = await axiosInstance.post(`${BASE}/files`, formData);
+    if (options?.conflictStrategy) formData.append('conflictStrategy', options.conflictStrategy);
+    const resp = await axiosInstance.post(`${BASE}/files`, formData, {
+      onUploadProgress: (e) => {
+        if (e.total) options?.onProgress?.(Math.round((e.loaded / e.total) * 100));
+      },
+      signal: options?.signal,
+      // 全局 timeout 是 15s，大文件上传光传输就要远超这个时间——
+      // 超时只会让前端单方面报错，后端仍会继续上传成功（COS 有文件、界面显示失败）。
+      // 上传进度本身就是活性指标，这里关闭超时（0 = 不限制）。
+      timeout: 0,
+    });
     return resp.data.data;
+  },
+
+  // 检测目标目录下的同名文件（Story 5.11 / FR-36：上传/移动/粘贴前的冲突检查）
+  checkConflict: async (path: string, fileNames: string[]): Promise<string[]> => {
+    const resp = await axiosInstance.post(`${BASE}/files/check-conflict`, { path, fileNames });
+    return resp.data.data ?? [];
   },
 
   // 预览文件（后端代理，返回 Blob，用于图片/音视频等二进制预览）
   previewFile: async (fileId: number): Promise<Blob> => {
     const resp = await axiosInstance.get(`${BASE}/files/${fileId}/preview`, {
       responseType: 'blob',
+      // 大文件预览下载同样会超过全局 15s 超时
+      timeout: 0,
     });
     return resp.data;
   },
@@ -105,9 +128,21 @@ export const fileStorageApi = {
     return resp.data.data;
   },
 
-  // 批量移动文件（单事务，任一无权时整批拒绝）
-  batchMoveFiles: async (fileIds: number[], targetPath: string): Promise<{ success: number[]; failed: number[] }> => {
-    const resp = await axiosInstance.post(`${BASE}/files/batch-move`, { fileIds, targetPath });
+  // 批量移动文件（单事务，任一无权时整批拒绝）。
+  // conflictStrategy（Story 5.11 / FR-36）：目标同名时的策略，不传保持旧行为
+  batchMoveFiles: async (
+    fileIds: number[],
+    targetPath: string,
+    conflictStrategy?: ConflictStrategy,
+  ): Promise<{ success: number[]; failed: number[] }> => {
+    const resp = await axiosInstance.post(`${BASE}/files/batch-move`, { fileIds, targetPath, conflictStrategy });
+    return resp.data.data;
+  },
+
+  // 批量复制文件（Story 5.10 / FR-34：剪贴板「复制」模式粘贴到目标目录）
+  // 后端真实复制 COS 对象并占额外配额，目标目录同名文件自动追加 " (1)" 序号
+  batchCopyFiles: async (fileIds: number[], targetPath: string): Promise<{ success: number[]; failed: number[] }> => {
+    const resp = await axiosInstance.post(`${BASE}/files/batch-copy`, { fileIds, targetPath });
     return resp.data.data;
   },
 
@@ -118,11 +153,17 @@ export const fileStorageApi = {
   },
 
   // 列出子目录（Story 5.5：目录按名称排序，方向可切）
-  listDirectories: async (parentPath: string = '', sortDir?: SortDir): Promise<DirectoryInfo[]> => {
+  // 列出子目录（Story 5.5：按名称排序；Story 5.12：sortBy=custom 时按自定义顺序）
+  listDirectories: async (parentPath: string = '', sortDir?: SortDir, sortBy?: SortBy): Promise<DirectoryInfo[]> => {
     const resp = await axiosInstance.get(`${BASE}/directories`, {
-      params: { parentPath, sortDir },
+      params: { parentPath, sortDir, sortBy },
     });
     return resp.data.data;
+  },
+
+  // 保存目录内的自定义顺序（Story 5.12：dirIds 为按新顺序排列的全部子目录 ID）
+  updateDirectoryOrder: async (parentPath: string, dirIds: number[]): Promise<void> => {
+    await axiosInstance.put(`${BASE}/directories/custom-order`, { parentPath, dirIds });
   },
 
   // 获取完整目录树

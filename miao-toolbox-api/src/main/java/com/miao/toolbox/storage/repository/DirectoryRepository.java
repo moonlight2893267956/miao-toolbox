@@ -25,6 +25,21 @@ public interface DirectoryRepository extends JpaRepository<DirectoryEntity, Long
     List<DirectoryEntity> findByUserIdAndParentPath(Long userId, String parentPath, Sort sort);
 
     /**
+     * 父目录下当前最大自定义排序序号（新建目录追加到末尾用）
+     */
+    @Query("SELECT COALESCE(MAX(d.customOrder), 0) FROM DirectoryEntity d WHERE d.userId = :userId AND d.parentPath = :parentPath")
+    int findMaxCustomOrder(@Param("userId") Long userId, @Param("parentPath") String parentPath);
+
+    /**
+     * 更新单个目录的自定义排序序号。
+     * 用批量 UPDATE 而非实体 save，避免触发 @PrePersist/更新 created_at——
+     * 调整顺序不是内容修改，不应影响创建时间。
+     */
+    @Modifying
+    @Query("UPDATE DirectoryEntity d SET d.customOrder = :sortOrder WHERE d.id = :id AND d.userId = :userId")
+    int updateCustomOrderById(@Param("id") Long id, @Param("userId") Long userId, @Param("sortOrder") int sortOrder);
+
+    /**
      * 查找用户全部目录
      */
     List<DirectoryEntity> findByUserIdOrderByPathAsc(Long userId);

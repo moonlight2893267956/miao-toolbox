@@ -141,3 +141,28 @@ export interface CreateShareLinkPayload {
   /** 访问次数上限，null 表示不限 */
   maxVisits?: number | null;
 }
+
+/**
+ * 同名冲突处理策略（Story 5.11 / FR-36）
+ * - replace：替换目标目录同名旧文件
+ * - keepBoth：保留两者，新文件自动追加 " (1)" 序号
+ * - skip：跳过该文件
+ */
+export type ConflictStrategy = 'replace' | 'keepBoth' | 'skip';
+
+/** 上传队列任务状态（Story 5.11 / FR-35） */
+export type UploadTaskStatus = 'queued' | 'uploading' | 'success' | 'error' | 'canceled';
+
+/** 上传队列任务 */
+export interface UploadTask {
+  uid: string;
+  file: File;
+  /** 上传目标目录 */
+  path: string;
+  /** 同名冲突策略（有冲突时由用户选择） */
+  conflictStrategy?: ConflictStrategy;
+  /** 进度 0-100 */
+  progress: number;
+  status: UploadTaskStatus;
+  errorMsg?: string;
+}

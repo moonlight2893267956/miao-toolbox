@@ -22,9 +22,9 @@ public class StorageProperties {
     private String basePath = "files";
 
     /**
-     * 单文件大小上限（字节），默认 100MB
+     * 单文件大小上限（字节），默认 500MB
      */
-    private long maxFileSize = 100 * 1024 * 1024L;
+    private long maxFileSize = 500 * 1024 * 1024L;
 
     /**
      * 预签名 URL 过期时间（秒），默认 1 小时

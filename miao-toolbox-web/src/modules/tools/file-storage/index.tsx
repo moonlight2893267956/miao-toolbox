@@ -6,7 +6,9 @@ import {
   useDndContext,
   useSensor,
   useSensors,
-  closestCorners,
+  pointerWithin,
+  rectIntersection,
+  type CollisionDetection,
   type DragStartEvent,
   type DragEndEvent,
 } from '@dnd-kit/core';
@@ -14,6 +16,7 @@ import {
   SortableContext,
   rectSortingStrategy,
   arrayMove,
+  type SortingStrategy,
 } from '@dnd-kit/sortable';
 import FolderIcon from './FolderIcon';
 import homeIconUrl from '../../../assets/fs-icons/icon-home.png';
@@ -41,6 +44,9 @@ import {
   TeamOutlined,
   UserOutlined,
   FormOutlined,
+  FolderAddOutlined,
+  SnippetsOutlined,
+  SelectOutlined,
   InfoCircleOutlined,
   ImportOutlined,
   FullscreenOutlined,
@@ -68,19 +74,56 @@ import ToolPageHeader from '../../../components/shared/ToolPageHeader';
 import { fileStorageApi } from './fileStorageApi';
 import FilePreviewer from './FilePreviewer';
 import GridThumbnail from './GridThumbnail';
-import { SortableFileCard, DroppableFolderCard, DroppableTreeNode, DroppableBreadcrumb } from './DndGridItems';
+import { SortableFileCard, DroppableFolderCard, DroppableTreeNode, DroppableBreadcrumb, sortableTableComponents } from './DndGridItems';
 import { InlineRenameInput } from './InlineRenameInput';
 import { getFileIcon } from './FileIcon';
 import { formatSize, getFileCategory, isPreviewable } from './fileCategory';
 import ShareLinkModal from './ShareLinkModal';
 import MyShareLinksView from './MyShareLinksView';
 import { useRubberBandSelection } from './useRubberBandSelection';
-import type { FileInfo, DirectoryInfo, DirectoryTreeNode, QuotaInfo, ShareInfo, SharedWithMeFile, UserOption, SortBy, SortDir } from './types';
+import { UploadQueuePanel, ConflictStrategyModal } from './UploadQueue';
+import type { ConflictDecision, ConflictFileMeta } from './UploadQueue';
+import type { FileInfo, DirectoryInfo, DirectoryTreeNode, QuotaInfo, ShareInfo, SharedWithMeFile, UserOption, SortBy, SortDir, UploadTask, ConflictStrategy } from './types';
 import './file-storage.css';
 
 const { Text } = Typography;
 
 type ViewMode = 'list' | 'grid';
+
+/**
+ * 碰撞检测：鼠标指针优先（pointerWithin），指针不在任何 drop 目标内时回退矩形相交。
+ *
+ * 不能用 closestCorners：它只比较拖拽项与各 droppable 的角点距离、完全不看指针位置，
+ * 会出现「鼠标明明在面包屑上，over 却判给网格里的卡片」。
+ * spring-load 场景下尤其致命——被拖文件会作为幽灵卡片留在已进入目录的网格里，
+ * 幽灵卡片的角点更近就会导致面包屑的 isOver 为 false，spring-load 回上级目录不触发，
+ * 最终松手时文件被移进错误的目录。
+ */
+const collisionDetection: CollisionDetection = (args) => {
+  const pointerCollisions = pointerWithin(args);
+  if (pointerCollisions.length > 0) {
+    return pointerCollisions;
+  }
+  return rectIntersection(args);
+};
+
+/**
+ * 排序策略：拖文件时文件夹卡片不参与让位（保持原位）。
+ *
+ * 网格是文件夹与文件混排的单一 SortableContext，默认的 rectSortingStrategy
+ * 会让所有卡片都参与让位——拖文件经过文件夹时文件夹会跟着平移跳动。
+ * 文件夹的顺序只在拖文件夹时才需要调整，故此处对文件夹返回 null（不位移）。
+ */
+const makeSortingStrategy = (
+  rowIsDir: boolean[],
+  activeIsDir: boolean,
+): SortingStrategy => (args) => {
+  // 拖文件 → 文件夹卡片不动；拖文件夹 → 全部按默认策略让位
+  if (!activeIsDir && rowIsDir[args.index]) {
+    return null;
+  }
+  return rectSortingStrategy(args);
+};
 
 interface DirRow {
   type: 'dir';
@@ -94,6 +137,22 @@ interface FileRow extends FileInfo {
 }
 
 type RowItem = DirRow | FileRow;
+
+/**
+ * 剪贴板内容（Story 5.10 / FR-34）。
+ * 仅内存态，不持久化——页面刷新即清空。
+ */
+interface ClipboardState {
+  /** copy：粘贴为复制（真实复制 COS 对象）；cut：粘贴为移动 */
+  mode: 'copy' | 'cut';
+  /** 文件快照：存副本而非引用，避免后续列表刷新影响剪贴板内容 */
+  files: FileInfo[];
+  /** 复制/剪切时所在目录，用于识别「粘贴回同一目录」 */
+  sourcePath: string;
+}
+
+/** 上传并发上限（Story 5.11 / FR-35，默认 3，超出排队） */
+const MAX_CONCURRENT_UPLOADS = 3;
 
 // ── 多选 reducer ──
 
@@ -181,7 +240,6 @@ const FileStoragePage: React.FC = () => {
   const [currentPath, setCurrentPath] = useState('');
   const [loading, setLoading] = useState(false);
   const [treeLoading, setTreeLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [quota, setQuota] = useState<QuotaInfo | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -191,6 +249,13 @@ const FileStoragePage: React.FC = () => {
   // 行内重命名（macOS Finder 风格）：统一管理文件与目录的行内重命名
   // renamingId = null 表示无行内编辑；非 null 时对应卡片渲染 InlineRenameInput
   const [renamingId, setRenamingId] = useState<string | null>(null);
+  // 键盘焦点项（FR-33）：与选中态独立的「焦点环」，方向键在其上移动
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  // 跨类型自定义行序（Story 5.12）：文件夹与文件交错排列的顺序，
+  // 仅在跨类型重排后设置；null 时 rows 回退到默认「目录在前、文件在后」
+  const [customRowOrder, setCustomRowOrder] = useState<string[] | null>(null);
+  // 剪贴板（Story 5.10 / FR-34）：内存态，mode 决定粘贴为复制还是移动
+  const [clipboard, setClipboard] = useState<ClipboardState | null>(null);
   const [moveModalOpen, setMoveModalOpen] = useState(false);
   const [moveTarget, setMoveTarget] = useState<FileInfo | null>(null);
   const [moveTargetPath, setMoveTargetPath] = useState('');
@@ -244,14 +309,21 @@ const FileStoragePage: React.FC = () => {
   // ── @dnd-kit 拖拽移入文件夹 / 目录树（Story 5.4）──
   /** 当前拖拽中的文件集合（用于 DragOverlay 浮层渲染，多选时为整组） */
   const [activeDragFiles, setActiveDragFiles] = useState<FileInfo[]>([]);
+  /** 当前拖拽类型：文件夹拖拽时 activeDragFiles 为空，需要单独标记以渲染浮层 */
+  const [activeDragKind, setActiveDragKind] = useState<'none' | 'file' | 'dir'>('none');
   /** 正在播放退场动画的卡片 id：移动成功后先淡出再移除，避免原地"停留" */
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
   /** spring-load 幽灵文件：进入新目录后仍挂载被拖卡片，保持 dnd-kit 拖拽跨目录存活（Story 5.7） */
   const [ghostFiles, setGhostFiles] = useState<FileInfo[]>([]);
   const ghostFilesRef = useRef<FileInfo[]>([]);
+  /** spring-load 幽灵目录（Story 5.12）：文件夹拖拽进入新目录后同样保持拖拽源挂载 */
+  const [ghostDirs, setGhostDirs] = useState<DirectoryInfo[]>([]);
+  const ghostDirsRef = useRef<DirectoryInfo[]>([]);
   const dragActiveRef = useRef(false);
   const springLoadedRef = useRef(false);
   const activeDragFilesRef = useRef<FileInfo[]>([]);
+  /** 当前被拖拽的文件夹（spring-load ghost 与移入判定用，Story 5.12） */
+  const activeDragDirRef = useRef<DirectoryInfo | null>(null);
 
   // ── Story 5.5：排序由后端字段统一决定（多设备一致）；
   //    排序「选择」本身记入 localStorage，避免每次刷新都要重选（如自定义模式）──
@@ -308,17 +380,24 @@ const FileStoragePage: React.FC = () => {
 
   /** 拖拽开始：记录本次拖拽的文件集合用于 DragOverlay */
   const handleDragStart = (event: DragStartEvent) => {
-    const dragFiles = resolveDragFiles(event.active.id as string);
+    const activeId = event.active.id as string;
+    const dragFiles = resolveDragFiles(activeId);
     dragActiveRef.current = true;
     springLoadedRef.current = false;
     activeDragFilesRef.current = dragFiles;
     setActiveDragFiles(dragFiles);
+    setActiveDragKind(activeId.startsWith('dir-') ? 'dir' : 'file');
+    // 文件夹拖拽（Story 5.12）：记录被拖目录，供 spring-load ghost 与移入判定使用
+    activeDragDirRef.current = activeId.startsWith('dir-')
+      ? directories.find(d => `dir-${d.id}` === activeId) ?? null
+      : null;
   };
 
   /** 拖拽结束：判断是排序、移入文件夹还是移入目录树节点（支持多选整组移动） */
   const handleDragEnd = async (event: DragEndEvent) => {
     dragActiveRef.current = false;
     setActiveDragFiles([]);
+    setActiveDragKind('none');
     const springGhosted = springLoadedRef.current;
     springLoadedRef.current = false;
     const ghosts = ghostFilesRef.current;
@@ -329,6 +408,11 @@ const FileStoragePage: React.FC = () => {
       const gids = new Set(ghosts.map(g => g.id));
       setFiles(prev => prev.filter(f => !gids.has(f.id)));
     }
+    // 文件夹幽灵同样清理（Story 5.12：spring-load 后移除幽灵目录占位）
+    const ghostDirsSnapshot = ghostDirsRef.current;
+    ghostDirsRef.current = [];
+    setGhostDirs([]);
+    const ghostDirIdsSet = new Set(ghostDirsSnapshot.map(d => d.id));
     const { active, over } = event;
 
     const activeId = active.id as string;
@@ -342,6 +426,14 @@ const FileStoragePage: React.FC = () => {
       const pending = dragFiles.filter(f => f.path !== targetPath);
       if (pending.length === 0) {
         message.info('文件已在此目录中');
+        // 关键：未被移动的文件刚在 handleDragEnd 开头作为「幽灵占位」从列表中移除，
+        // 必须重新拉取恢复，否则文件会凭空消失（只有刷新才回来）。
+        // 视图若停留在 spring-load 中途进入的目录，也要一并切回目标目录。
+        if (currentPath !== targetPath) {
+          navigateToDir(targetPath);  // 内部会 setCurrentPath + loadFiles
+        } else {
+          loadFiles();
+        }
         return;
       }
       const pendingIds = pending.map(f => f.id);
@@ -366,16 +458,20 @@ const FileStoragePage: React.FC = () => {
       dispatchSelection({ type: 'remove', ids: pendingSortIds });
 
       try {
-        if (pending.length === 1) {
-          await fileStorageApi.moveFile(pending[0].id, targetPath);
-        } else {
-          await fileStorageApi.batchMoveFiles(pendingIds, targetPath);
-        }
-        message.success(
-          pending.length === 1
-            ? `已移动到「${targetName}」`
-            : `已移动 ${pending.length} 个文件到「${targetName}」`,
+        const moved = await moveWithConflictCheck(
+          pending.map(f => ({ id: f.id, name: f.fileName, mimeType: f.mimeType })),
+          targetPath,
         );
+        if (moved === null) {
+          // 用户在冲突弹窗中取消：回滚乐观更新
+          loadFiles();
+          return;
+        }
+        if (moved > 0) {
+          message.success(`已移动 ${moved} 个文件到「${targetName}」`);
+        } else {
+          message.info('已跳过全部同名文件');
+        }
         loadTree();
         loadFiles();
       } catch {
@@ -417,43 +513,147 @@ const FileStoragePage: React.FC = () => {
       return;
     }
 
-    // ── 拖动的是文件夹（Story 5.7 / FR-29）→ 目录移动 ──
+    // 跨类型重排（Story 5.12）：文件拖到文件夹上 / 文件夹拖到文件上 = 换位置。
+    // 必须在「文件夹拖拽」和「文件拖拽」的同类型分支之前，否则会被各自的
+    // 末尾 return 吞掉（文件夹分支只处理 dir- 目标，文件分支只处理 file- 目标）。
+    // 目录与文件在后端是两张表、两套 custom_order，前端把合并列表的新顺序
+    // 拆回目录组和文件组，分别提交各自的顺序。
+    // 仅在未 spring-load 时生效（spring-load 进入后释放 = 移入，不是重排）。
+    if (!springGhosted && (
+      (activeId.startsWith('file-') && overId.startsWith('dir-')) ||
+      (activeId.startsWith('dir-') && overId.startsWith('file-'))
+    )) {
+      if (isSearching) {
+        message.info('搜索结果不支持拖拽排序，请清除搜索后在目录内操作');
+        return;
+      }
+      // 合并列表（与 rows 同构：目录在前、文件在后），排除幽灵占位。
+      // 注意用函数开头的快照 ghosts——ghostFilesRef.current 此时已被清空
+      const ghostFileIds = new Set(ghosts.map(g => g.id));
+      const ghostDirIds = new Set(ghostDirsSnapshot.map(d => d.id));
+      const dirList = directories.filter(d => !ghostDirIds.has(d.id));
+      const fileList = files.filter(f => !ghostFileIds.has(f.id) && f.path === currentPath);
+      const combined = [
+        ...dirList.map(d => ({ type: 'dir' as const, id: d.id })),
+        ...fileList.map(f => ({ type: 'file' as const, id: f.id })),
+      ];
+      const fromIdx = combined.findIndex(r => `${r.type}-${r.id}` === activeId);
+      const toIdx = combined.findIndex(r => `${r.type}-${r.id}` === overId);
+      if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
+      const reorderedCombined = arrayMove(combined, fromIdx, toIdx);
+
+      // 拆回目录组和文件组，保持各自在合并列表中的相对顺序
+      const newDirOrder = reorderedCombined.filter(r => r.type === 'dir').map(r => r.id);
+      const newFileOrder = reorderedCombined.filter(r => r.type === 'file').map(r => r.id);
+
+      // 乐观更新：立即重排两组
+      const newDirs = newDirOrder.map(id => dirList.find(d => d.id === id)!).filter(Boolean);
+      const newFiles = newFileOrder.map(id => fileList.find(f => f.id === id)!).filter(Boolean);
+      setDirectories(newDirs);
+      setFiles(newFiles);
+      // 跨类型重排的关键：记录合并后的顺序，让 rows 按此交错排列而非固定「目录在前」
+      setCustomRowOrder(reorderedCombined.map(r => `${r.type}-${r.id}`));
+
+      if (sortBy === 'custom') {
+        try {
+          // 位置调整是即时可见的视觉反馈，成功时不弹提示（失败才需要告知）
+          await Promise.all([
+            newDirOrder.length > 0 ? fileStorageApi.updateDirectoryOrder(currentPath, newDirOrder) : Promise.resolve(),
+            newFileOrder.length > 0 ? fileStorageApi.updateFileOrder(currentPath, newFileOrder) : Promise.resolve(),
+          ]);
+        } catch {
+          message.error('保存排序失败');
+          loadFiles();
+        }
+      }
+      return;
+    }
+
+    // ── 拖动的是文件夹（Story 5.7 / FR-29 + Story 5.12 重排）──
     if (activeId.startsWith('dir-')) {
-      const draggedDir = directories.find(d => dirDroppableId(d) === activeId);
+      // spring-load 进入过目标目录时用 ref 里的目录（视图已切换，directories 是新目录的列表）
+      const draggedDir = activeDragDirRef.current
+        ?? directories.find(d => dirDroppableId(d) === activeId);
       if (!draggedDir) return;
 
-      let targetParentPath: string | null = null;
-      let targetName = '根目录';
+      /** 移动目录到指定父目录（tree / crumb / spring-load 移入共用） */
+      const moveDir = async (targetParentPath: string, targetName: string) => {
+        // 防循环：不能移到自身或自身子目录（FR-28）
+        if (targetParentPath === draggedDir.path || targetParentPath.startsWith(`${draggedDir.path}/`)) {
+          message.warning('不能移动到自身或其子目录');
+          return;
+        }
+        // 已在该父目录下
+        if (draggedDir.parentPath === targetParentPath) {
+          message.info(`「${draggedDir.name}」已在该目录中`);
+          // 幽灵目录占位已在 handleDragEnd 开头被移除，必须重新拉取恢复，
+          // 否则文件夹凭空消失（与文件版 moveTo 的修复同构）
+          if (currentPath !== targetParentPath) {
+            navigateToDir(targetParentPath);
+          } else {
+            loadFiles();
+          }
+          return;
+        }
+        try {
+          await fileStorageApi.moveDirectory(draggedDir.id, targetParentPath);
+          message.success(`已移动文件夹「${draggedDir.name}」到「${targetName}」`);
+          loadTree();
+          loadFiles();
+        } catch {
+          message.error('移动文件夹失败');
+        }
+      };
+
+      // 目录树 / 面包屑是「明确的目标指示」，优先于 spring-load 的当前目录语义：
+      // 即便已经 spring-load 进入了某个目录，只要最终落在导航目标上，
+      // 就应该移到该导航目标，而不是当前目录（否则无法从中途进入的目录里退出）。
       if (overId.startsWith('tree-')) {
-        targetParentPath = overId.slice(5);
-      } else if (overId.startsWith('crumb-')) {
-        targetParentPath = overId.slice(6);
-      } else if (overId.startsWith('dir-')) {
+        const target = overId.slice(5);
+        await moveDir(target, target === '' ? '根目录' : target.split('/').pop() || target);
+        return;
+      }
+      if (overId.startsWith('crumb-')) {
+        const target = overId.slice(6);
+        await moveDir(target, target === '' ? '根目录' : target.split('/').pop() || target);
+        return;
+      }
+
+      // spring-load 进入过目标目录 → 释放在里面任意位置 = 移入该目录（与文件行为一致）
+      if (springGhosted) {
+        const dirName = currentPath === '' ? '根目录' : currentPath.split('/').pop() || currentPath;
+        await moveDir(currentPath, dirName);
+        return;
+      }
+
+      // 拖到网格里的另一个文件夹上（Story 5.12）：
+      // 快速释放 = 换位置（重排）；想移入则悬停 2400ms spring-load 进入后释放。
+      // 非自定义排序模式下重排仅前端临时生效（后端按名称排序，刷新后恢复），
+      // 自定义模式下调后端持久化。
+      if (overId.startsWith('dir-')) {
         const overDir = directories.find(d => dirDroppableId(d) === overId);
         if (!overDir) return;
-        targetParentPath = overDir.path;
-        targetName = overDir.name;
-      }
-      if (targetParentPath === null) return;
 
-      // 防循环：不能移到自身或自身子目录（FR-28）
-      if (targetParentPath === draggedDir.path || targetParentPath.startsWith(`${draggedDir.path}/`)) {
-        message.warning('不能移动到自身或其子目录');
+        // 重排：把被拖目录从当前位置移到目标目录的位置
+        const list = directories.filter(d => ghostDirIdsSet.has(d.id) === false);
+        const fromIdx = list.findIndex(d => `dir-${d.id}` === activeId);
+        const toIdx = list.findIndex(d => `dir-${d.id}` === overId);
+        if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
+        const reordered = arrayMove(list, fromIdx, toIdx);
+        // 乐观更新：立即重排
+        setDirectories(reordered);
+        setCustomRowOrder(prev => prev ? arrayMove(prev, prev.indexOf(activeId), prev.indexOf(overId)) : null);
+        if (sortBy === 'custom') {
+          // 自定义模式：持久化到后端（成功即视觉反馈，不弹提示）
+          try {
+            await fileStorageApi.updateDirectoryOrder(currentPath, reordered.map(d => d.id));
+          } catch {
+            message.error('保存文件夹排序失败');
+            loadFiles();
+          }
+        }
+        // 非自定义模式：前端临时排序，刷新后恢复（后端按名称排序）
         return;
-      }
-      // 已在该父目录下
-      if (draggedDir.parentPath === targetParentPath) {
-        message.info(`「${draggedDir.name}」已在该目录中`);
-        return;
-      }
-
-      try {
-        await fileStorageApi.moveDirectory(draggedDir.id, targetParentPath);
-        message.success(`已移动文件夹「${draggedDir.name}」到「${targetName}」`);
-        loadTree();
-        loadFiles();
-      } catch {
-        message.error('移动文件夹失败');
       }
       return;
     }
@@ -484,15 +684,16 @@ const FileStoragePage: React.FC = () => {
 
     // 「自定义」排序模式：拖到另一个文件上 = 调整顺序（仅被拖文件参与重排，
     // 多选整组拖拽仍走上方文件夹/树/面包屑的移动分支）
-    if (sortBy === 'custom' && overId.startsWith('file-')) {
+    if (sortBy === 'custom' && overId.startsWith('file-') && activeId.startsWith('file-')) {
       // 搜索结果是跨目录集合，目录内顺序没有意义，且提交会被后端目录校验拒绝
       if (isSearching) {
         message.info('搜索结果不支持拖拽排序，请清除搜索后在目录内操作');
         return;
       }
       // 只重排确实属于当前目录的文件：排除幽灵卡片与任何 path 不符的残留记录，
-      // 否则后端「文件不在指定目录中」会整批拒绝
-      const ghostIdSet = new Set(ghostFilesRef.current.map(g => g.id));
+      // 否则后端「文件不在指定目录中」会整批拒绝。
+      // 注意用函数开头的快照 ghosts——ghostFilesRef.current 此时已被清空
+      const ghostIdSet = new Set(ghosts.map(g => g.id));
       const list = files.filter(f => !ghostIdSet.has(f.id) && f.path === currentPath);
       const oldIndex = list.findIndex(f => fileSortableId(f) === activeId);
       const newIndex = list.findIndex(f => fileSortableId(f) === overId);
@@ -500,6 +701,13 @@ const FileStoragePage: React.FC = () => {
       // 乐观更新：立即重排，随后整体提交新顺序
       const reordered = arrayMove(list, oldIndex, newIndex);
       setFiles(reordered);
+      // 同步跨类型行序（若此前发生过跨类型重排，保持交错顺序的一致性）
+      setCustomRowOrder(prev => {
+        if (!prev) return null;
+        const from = prev.indexOf(activeId);
+        const to = prev.indexOf(overId);
+        return from >= 0 && to >= 0 ? arrayMove(prev, from, to) : prev;
+      });
       try {
         await fileStorageApi.updateFileOrder(currentPath, reordered.map(f => f.id));
       } catch {
@@ -509,7 +717,11 @@ const FileStoragePage: React.FC = () => {
       return;
     }
 
+
     // 其他排序模式下，拖到另一个文件上不触发任何操作（排序统一由后端字段决定）
+
+    // 清理被拖目录记录（与 handleDragCancel 对称；handleDragStart 会重新设置）
+    activeDragDirRef.current = null;
   };
 
   /** 拖拽被取消（拖拽源节点意外卸载等）：清理幽灵并恢复真实列表 */
@@ -517,9 +729,12 @@ const FileStoragePage: React.FC = () => {
     dragActiveRef.current = false;
     springLoadedRef.current = false;
     activeDragFilesRef.current = [];
+    activeDragDirRef.current = null;
     ghostFilesRef.current = [];
     setActiveDragFiles([]);
+    setActiveDragKind('none');
     setGhostFiles([]);
+    setGhostDirs([]);
     loadFiles();
   };
 
@@ -554,16 +769,25 @@ const FileStoragePage: React.FC = () => {
     try {
       const [fileResp, dirs, quotaInfo] = await Promise.all([
         fileStorageApi.listFiles(currentPath, 0, 1000, sortBy, sortDir),
-        fileStorageApi.listDirectories(currentPath, sortDir),
+        fileStorageApi.listDirectories(currentPath, sortDir, sortBy),
         fileStorageApi.getQuotaInfo(),
       ]);
+      // 从服务端拉取数据后，跨类型行序与后端两组各自排序不一致，清空回退默认「目录在前」
+      setCustomRowOrder(null);
       setFiles(() => {
         // spring-load 幽灵合并：拖拽跨目录时保留被拖文件卡片，防止拖拽源节点卸载导致拖拽中断
         if (!dragActiveRef.current || ghostFilesRef.current.length === 0) return fileResp.items;
         const ids = new Set(fileResp.items.map(f => f.id));
         return [...fileResp.items, ...ghostFilesRef.current.filter(g => !ids.has(g.id))];
       });
-      setDirectories(dirs);
+      // spring-load 幽灵目录合并（Story 5.12）：文件夹拖拽进入新目录后
+      // 保留被拖目录卡片，防止拖拽源节点卸载导致拖拽中断
+      let finalDirs = dirs;
+      if (dragActiveRef.current && ghostDirsRef.current.length > 0) {
+        const dirIds = new Set(dirs.map(d => d.id));
+        finalDirs = [...dirs, ...ghostDirsRef.current.filter(g => !dirIds.has(g.id))];
+      }
+      setDirectories(finalDirs);
       setQuota(quotaInfo);
     } catch {
       message.error('加载文件列表失败');
@@ -780,20 +1004,258 @@ const FileStoragePage: React.FC = () => {
     }
   };
 
-  const handleUpload = async (file: File) => {
-    setUploading(true);
-    try {
-      await fileStorageApi.uploadFile(file, currentPath);
-      message.success(`${file.name} 上传成功`);
+  // ── 上传队列（Story 5.11 / FR-35）：并发上限 3，逐文件进度、取消、失败重试 ──
+  const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([]);
+  const [uploadPanelOpen, setUploadPanelOpen] = useState(false);
+  const [uploadPanelCollapsed, setUploadPanelCollapsed] = useState(false);
+  // 冲突策略弹窗的挂起请求：resolve 由用户操作触发（Story 5.11 / FR-36）
+  const [conflictModal, setConflictModal] = useState<{
+    fileNames: string[];
+    conflictFiles: ConflictFileMeta[];
+    resolve: (decisions: ConflictDecision[] | null) => void;
+  } | null>(null);
+  const uploadControllersRef = useRef(new Map<string, AbortController>());
+  const pendingUploadsRef = useRef<UploadTask[]>([]);
+  const activeUploadCountRef = useRef(0);
+  const uploadTasksRef = useRef<UploadTask[]>([]);
+
+  useEffect(() => {
+    uploadTasksRef.current = uploadTasks;
+  }, [uploadTasks]);
+
+  // 是否有上传任务进行中（派生值，供上传按钮 loading；避免 effect 内同步 setState）
+  const uploading = uploadTasks.some(t => t.status === 'uploading' || t.status === 'queued');
+
+  const updateUploadTask = useCallback((uid: string, patch: Partial<UploadTask>) => {
+    setUploadTasks(prev => prev.map(t => (t.uid === uid ? { ...t, ...patch } : t)));
+  }, []);
+
+  const runUploadRef = useRef<(task: UploadTask) => Promise<void>>(async () => {});
+  const pumpUploadQueueRef = useRef<() => void>(() => {});
+  /** 上传完成后的界面刷新（ref 转发，避免与 loadFiles/loadTree 形成循环依赖） */
+  const refreshAfterUploadRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    refreshAfterUploadRef.current = () => {
       loadFiles();
       loadTree();
-    } catch {
-      message.error(`${file.name} 上传失败`);
+    };
+  });
+
+  const runUpload = useCallback(async (task: UploadTask) => {
+    const controller = new AbortController();
+    uploadControllersRef.current.set(task.uid, controller);
+    updateUploadTask(task.uid, { status: 'uploading', progress: 0 });
+    try {
+      await fileStorageApi.uploadFile(task.file, task.path, {
+        signal: controller.signal,
+        conflictStrategy: task.conflictStrategy,
+        onProgress: pct => updateUploadTask(task.uid, { progress: pct }),
+      });
+      updateUploadTask(task.uid, { status: 'success', progress: 100 });
+      refreshAfterUploadRef.current();
+    } catch (err) {
+      const canceled = controller.signal.aborted
+        || (err as { code?: string })?.code === 'ERR_CANCELED';
+      updateUploadTask(task.uid, canceled
+        ? { status: 'canceled' }
+        : {
+            status: 'error',
+            errorMsg:
+              (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '上传失败',
+          });
     } finally {
-      setUploading(false);
+      uploadControllersRef.current.delete(task.uid);
+      activeUploadCountRef.current -= 1;
+      pumpUploadQueueRef.current();
+    }
+  }, [updateUploadTask]);
+  useEffect(() => {
+    runUploadRef.current = runUpload;
+  }, [runUpload]);
+
+  /** 调度器：并发未满且队列非空时启动下一个上传 */
+  const pumpUploadQueue = useCallback(() => {
+    while (activeUploadCountRef.current < MAX_CONCURRENT_UPLOADS && pendingUploadsRef.current.length > 0) {
+      const task = pendingUploadsRef.current.shift();
+      if (!task) break;
+      activeUploadCountRef.current += 1;
+      void runUploadRef.current(task);
+    }
+  }, []);
+  useEffect(() => {
+    pumpUploadQueueRef.current = pumpUploadQueue;
+  }, [pumpUploadQueue]);
+
+  const enqueueUploads = useCallback((items: { file: File; conflictStrategy?: ConflictStrategy }[]) => {
+    if (items.length === 0) return;
+    const tasks: UploadTask[] = items.map(({ file, conflictStrategy }, i) => ({
+      uid: `${Date.now()}-${i}-${file.name}`,
+      file,
+      path: currentPath,
+      conflictStrategy,
+      progress: 0,
+      status: 'queued',
+    }));
+    setUploadTasks(prev => [...prev, ...tasks]);
+    pendingUploadsRef.current.push(...tasks);
+    setUploadPanelOpen(true);
+    setUploadPanelCollapsed(false);
+    pumpUploadQueueRef.current();
+  }, [currentPath]);
+
+  const cancelUpload = useCallback((uid: string) => {
+    const controller = uploadControllersRef.current.get(uid);
+    if (controller) {
+      controller.abort();  // runUpload 的 catch 分支负责标记取消
+    } else {
+      // 尚在排队：直接出队并标记
+      pendingUploadsRef.current = pendingUploadsRef.current.filter(t => t.uid !== uid);
+      updateUploadTask(uid, { status: 'canceled' });
+    }
+  }, [updateUploadTask]);
+
+  const retryUpload = useCallback((uid: string) => {
+    const task = uploadTasksRef.current.find(t => t.uid === uid);
+    if (!task) return;
+    const restarted: UploadTask = { ...task, status: 'queued', progress: 0, errorMsg: undefined };
+    updateUploadTask(uid, { status: 'queued', progress: 0, errorMsg: undefined });
+    pendingUploadsRef.current.push(restarted);
+    pumpUploadQueueRef.current();
+  }, [updateUploadTask]);
+
+  const clearFinishedUploads = useCallback(() => {
+    setUploadTasks(prev => prev.filter(t => t.status === 'uploading' || t.status === 'queued'));
+  }, []);
+
+  // 全部上传成功（无失败）后 3 秒自动收起队列并清空任务；
+  // 有失败时保留面板，等用户重试或手动关闭
+  useEffect(() => {
+    if (uploadTasks.length === 0) return;
+    const active = uploadTasks.some(t => t.status === 'uploading' || t.status === 'queued');
+    const failed = uploadTasks.some(t => t.status === 'error');
+    if (active || failed) return;
+    const timer = window.setTimeout(() => {
+      setUploadPanelOpen(false);
+      setUploadTasks([]);
+    }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [uploadTasks]);
+
+  /**
+   * 批量上传入口（Story 5.11 / FR-36）：先做同名冲突检测，
+   * 有冲突时弹策略选择，再按策略入队（skip 不发起上传）。
+   */
+  const handleUploadBatch = useCallback(async (files: File[]) => {
+    if (files.length === 0) return;
+    let conflicts: string[] = [];
+    try {
+      conflicts = await fileStorageApi.checkConflict(currentPath, files.map(f => f.name));
+    } catch {
+      // 检测接口失败时不阻塞上传，按无冲突处理
+    }
+    let strategies: Map<string, ConflictStrategy> | null = null;
+    if (conflicts.length > 0) {
+      const conflictFiles = files
+        .filter(f => conflicts.includes(f.name))
+        .map(f => ({ name: f.name, mimeType: f.type }));
+      const decided = await new Promise<ConflictDecision[] | null>(resolve => {
+        setConflictModal({
+          fileNames: files.map(f => f.name),
+          conflictFiles,
+          resolve,
+        });
+      });
+      if (!decided) return;  // 用户取消：中止整批
+      strategies = new Map(decided.map(d => [d.name, d.strategy]));
+    }
+    enqueueUploads(
+      files
+        .filter(f => (strategies?.get(f.name) ?? 'keepBoth') !== 'skip')
+        .map(f => ({ file: f, conflictStrategy: strategies?.get(f.name) })),
+    );
+  }, [currentPath, enqueueUploads]);
+
+  /**
+   * 带同名冲突检测的移动（Story 5.11 / FR-36）：拖拽移动、菜单移动、粘贴（剪切）共用。
+   * 返回 null 表示用户在冲突弹窗中取消；否则返回实际移动成功的文件数。
+   */
+  const moveWithConflictCheck = useCallback(async (
+    entries: { id: number; name: string; mimeType?: string }[],
+    targetPath: string,
+  ): Promise<number | null> => {
+    if (entries.length === 0) return 0;
+    let conflicts: string[] = [];
+    try {
+      conflicts = await fileStorageApi.checkConflict(targetPath, entries.map(e => e.name));
+    } catch {
+      // 检测接口失败时按无冲突处理
+    }
+    if (conflicts.length > 0) {
+      const decided = await new Promise<ConflictDecision[] | null>(resolve => {
+        setConflictModal({
+          fileNames: entries.map(e => e.name),
+          conflictFiles: entries
+            .filter(e => conflicts.includes(e.name))
+            .map(e => ({ name: e.name, mimeType: e.mimeType })),
+          resolve,
+        });
+      });
+      if (!decided) return null;
+      // 后端单次请求只接受一个全局策略，按策略分组分别调用
+      const idByName = new Map(entries.map(e => [e.name, e.id]));
+      const groups: Record<'replace' | 'keepBoth', number[]> = { replace: [], keepBoth: [] };
+      decided.forEach(d => {
+        if (d.strategy === 'skip') return;
+        const id = idByName.get(d.name);
+        if (id != null) groups[d.strategy].push(id);
+      });
+      const results = await Promise.allSettled([
+        groups.replace.length > 0
+          ? fileStorageApi.batchMoveFiles(groups.replace, targetPath, 'replace')
+          : Promise.resolve(null),
+        groups.keepBoth.length > 0
+          ? fileStorageApi.batchMoveFiles(groups.keepBoth, targetPath, 'keepBoth')
+          : Promise.resolve(null),
+      ]);
+      let moved = 0;
+      let failed = false;
+      results.forEach(r => {
+        if (r.status === 'fulfilled' && r.value) moved += r.value.success.length;
+        if (r.status === 'rejected') failed = true;
+      });
+      if (failed) message.error('部分文件移动失败');
+      return moved;
+    }
+    const result = await fileStorageApi.batchMoveFiles(entries.map(e => e.id), targetPath);
+    return result.success.length;
+  }, []);
+
+  /** 同一批选择的文件合并为一次冲突检测（Upload 组件逐文件回调，用 50ms 窗口聚合） */
+  const uploadBatchBufferRef = useRef<File[]>([]);
+  const uploadBatchTimerRef = useRef<number | null>(null);
+  const handleUpload = useCallback((file: File) => {
+    uploadBatchBufferRef.current.push(file);
+    if (uploadBatchTimerRef.current == null) {
+      uploadBatchTimerRef.current = window.setTimeout(() => {
+        const batch = uploadBatchBufferRef.current;
+        uploadBatchBufferRef.current = [];
+        uploadBatchTimerRef.current = null;
+        void handleUploadBatch(batch);
+      }, 50);
     }
     return false;
-  };
+  }, [handleUploadBatch]);
+
+  // ── 空白处右键菜单（macOS Finder 风格）──
+  const [blankMenuOpen, setBlankMenuOpen] = useState(false);
+  const blankFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBlankContextMenu = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    // 卡片/表格行上的右键由各自的上下文菜单处理，这里只在空白处弹出
+    if (target.closest('.fs-grid-item, .ant-table-tbody, .ant-dropdown')) return;
+    setBlankMenuOpen(true);
+  }, []);
 
   const handleDownload = async (fileId: number) => {
     try {
@@ -1080,11 +1542,22 @@ const FileStoragePage: React.FC = () => {
    * （新目录文件夹/树节点/面包屑正常移动，空白处释放 = 移入当前目录）。
    */
   const springLoadTo = (path: string) => {
-    if (dragActiveRef.current && activeDragFilesRef.current.length > 0) {
-      const dragged = activeDragFilesRef.current;
-      ghostFilesRef.current = dragged;
-      springLoadedRef.current = true;
-      setGhostFiles(dragged);
+    if (dragActiveRef.current) {
+      // 文件拖拽：幽灵文件保持卡片挂载（Story 5.7）
+      if (activeDragFilesRef.current.length > 0) {
+        const dragged = activeDragFilesRef.current;
+        ghostFilesRef.current = dragged;
+        springLoadedRef.current = true;
+        setGhostFiles(dragged);
+      }
+      // 文件夹拖拽（Story 5.12）：幽灵目录保持拖拽源挂载，
+      // 否则进入新目录后被拖卡片卸载 → dnd-kit 拖拽中断
+      else if (activeDragDirRef.current) {
+        const draggedDir = activeDragDirRef.current;
+        ghostDirsRef.current = [draggedDir];
+        springLoadedRef.current = true;
+        setGhostDirs([draggedDir]);
+      }
     }
     navigateToDir(path, { keepSelection: true });
   };
@@ -1104,10 +1577,26 @@ const FileStoragePage: React.FC = () => {
     const dirRows: DirRow[] = directories.map(d => ({ type: 'dir' as const, id: d.id, name: d.name, path: d.path }));
     const fileRows: FileRow[] = files.map(f => ({ ...f, type: 'file' as const }));
 
-    // Story 5.5：文件顺序完全由后端排序结果决定，前端不再做任何重排。
-    // 目录排在文件前面 → 天然满足「目录置顶」。
+    // 跨类型重排后按 customRowOrder 交错排列（Story 5.12）；
+    // 否则默认「目录在前、文件在后」
+    if (customRowOrder && customRowOrder.length === dirRows.length + fileRows.length) {
+      const dirMap = new Map(dirRows.map(d => [`dir-${d.id}`, d]));
+      const fileMap = new Map(fileRows.map(f => [`file-${f.id}`, f]));
+      const ordered: RowItem[] = [];
+      for (const id of customRowOrder) {
+        if (id.startsWith('dir-')) {
+          const d = dirMap.get(id);
+          if (d) ordered.push(d);
+        } else {
+          const f = fileMap.get(id);
+          if (f) ordered.push(f);
+        }
+      }
+      // customRowOrder 可能与实际数据不匹配（如文件被删除），不匹配时回退默认顺序
+      if (ordered.length === dirRows.length + fileRows.length) return ordered;
+    }
     return [...dirRows, ...fileRows];
-  }, [directories, files]);
+  }, [directories, files, customRowOrder]);
 
   // ── 多选：有序 id 列表（用于 Shift 范围选中） ──
   const allRowIds = useMemo(
@@ -1121,12 +1610,105 @@ const FileStoragePage: React.FC = () => {
     [sharedRows],
   );
 
+  // ── 剪贴板（Story 5.10 / FR-34）：当前选中的文件（目录不进剪贴板） ──
+  const selectedFiles = useMemo(
+    () => rows.filter((r): r is FileRow => r.type === 'file' && selection.selectedIds.has(`file-${r.id}`)),
+    [rows, selection.selectedIds],
+  );
+
+  /**
+   * 粘贴剪贴板内容到当前目录（Story 5.10 / FR-34）。
+   * 复制模式 → 批量复制（真实复制 COS 对象，同名自动追加 " (1)"）；
+   * 剪切模式 → 批量移动，粘贴后清空剪贴板（Finder 的一次性剪贴板行为）。
+   */
+  const pasteFromClipboard = useCallback(async () => {
+    const clip = clipboard;
+    if (!clip || clip.files.length === 0) return;
+    const fileIds = clip.files.map(f => f.id);
+
+    // 剪切回同一目录：无实际变化，直接提示，避免无意义的请求
+    if (clip.mode === 'cut' && clip.sourcePath === currentPath) {
+      message.info('文件已在该目录中');
+      return;
+    }
+
+    const verb = clip.mode === 'copy' ? '复制' : '移动';
+    const hide = message.loading(`正在${verb} ${fileIds.length} 个文件…`, 0);
+    try {
+      let movedCount: number;
+      if (clip.mode === 'copy') {
+        const result = await fileStorageApi.batchCopyFiles(fileIds, currentPath);
+        movedCount = result.success.length;
+      } else {
+        // 剪切粘贴同样走同名冲突检测（Story 5.11 / FR-36）
+        const moved = await moveWithConflictCheck(
+          clip.files.map(f => ({ id: f.id, name: f.fileName, mimeType: f.mimeType })),
+          currentPath,
+        );
+        if (moved === null) return;  // 用户在冲突弹窗中取消
+        movedCount = moved;
+      }
+      if (movedCount === 0) {
+        message.info('已跳过全部同名文件');
+        return;
+      }
+      message.success(`已${verb} ${movedCount} 个文件`);
+      // 剪切是一次性操作：粘贴后清空剪贴板
+      if (clip.mode === 'cut') setClipboard(null);
+      dispatchSelection({ type: 'clear' });
+      await loadFiles();
+    } catch {
+      message.error(`${verb}失败`);
+    } finally {
+      hide();
+    }
+  }, [clipboard, currentPath, loadFiles, dispatchSelection, moveWithConflictCheck]);
+
+  /** 空白处右键菜单项（macOS Finder 风格）：新建/上传/粘贴/全选/刷新 */
+  const blankMenuItems: MenuProps['items'] = useMemo(() => [
+    {
+      key: 'new-folder',
+      icon: <FolderAddOutlined />,
+      label: '新建文件夹',
+      onClick: () => { setNewDirName(''); setNewDirModalOpen(true); },
+    },
+    {
+      key: 'upload',
+      icon: <CloudUploadOutlined />,
+      label: '上传文件',
+      onClick: () => blankFileInputRef.current?.click(),
+    },
+    { type: 'divider' as const },
+    {
+      key: 'paste',
+      icon: <SnippetsOutlined />,
+      label: '粘贴',
+      disabled: !clipboard || clipboard.files.length === 0,
+      onClick: () => void pasteFromClipboard(),
+    },
+    {
+      key: 'select-all',
+      icon: <SelectOutlined />,
+      label: '全选',
+      onClick: () => dispatchSelection({ type: 'selectAll', ids: allRowIds }),
+    },
+    { type: 'divider' as const },
+    {
+      key: 'refresh',
+      icon: <ReloadOutlined />,
+      label: '刷新',
+      onClick: () => { void loadFiles(); loadTree(); },
+    },
+  ], [clipboard, pasteFromClipboard, allRowIds, dispatchSelection, loadFiles, loadTree]);
+
   // ── 多选：卡片点击处理 ──
   const handleItemClick = useCallback((e: React.MouseEvent, id: string) => {
     const isMultiSelectKey = e.metaKey || e.ctrlKey;
     const isRangeKey = e.shiftKey;
     // 共享文件视图用 sharedRowIds 做 Shift 范围基准
     const allIds = activeView === 'shared' ? sharedRowIds : allRowIds;
+    // 鼠标点击同步键盘焦点（FR-33），保证键鼠操作共享同一个焦点基准
+    setFocusedId(id);
 
     if (isRangeKey && selection.lastSelectedId) {
       dispatchSelection({ type: 'selectRange', fromId: selection.lastSelectedId, toId: id, allIds });
@@ -1145,44 +1727,261 @@ const FileStoragePage: React.FC = () => {
     }
   }, []);
 
-  // ── 多选：键盘事件（Cmd+A / Esc） ──
+  // ── 键盘导航（FR-33）：焦点环 + 方向键移动 + Finder 常用快捷键 ──
+
+  /**
+   * 键盘处理所需的「最新值」快照。
+   * 用 ref 承载，使 window 监听器只注册一次，同时始终读到最新 state（避免闭包过期）。
+   */
+  const kbState = useRef({
+    activeView, viewMode, rows, allRowIds, sharedRowIds, sharedRows,
+    focusedId, renamingId, previewOpen, selection, activeDragFiles,
+    currentPath, clipboard, selectedFiles, pasteFromClipboard,
+    handlePreview, openDeleteFile, openDeleteDir,
+  });
+  // 渲染后同步最新值到 ref（不在 render 期间写 ref，遵守并发渲染规则；
+  // 监听器注册一次即可始终读到最新 state，避免闭包过期）
+  useEffect(() => {
+    kbState.current = {
+      activeView, viewMode, rows, allRowIds, sharedRowIds, sharedRows,
+      focusedId, renamingId, previewOpen, selection, activeDragFiles,
+      currentPath, clipboard, selectedFiles, pasteFromClipboard,
+      handlePreview, openDeleteFile, openDeleteDir,
+    };
+  });
+
+  /** 焦点项 id → 展示名（首字母跳转用） */
+  const nameById = useMemo(() => {
+    const m = new Map<string, string>();
+    rows.forEach(r => m.set(`${r.type}-${r.id}`, r.type === 'dir' ? r.name : r.fileName));
+    sharedRows.forEach(f => m.set(`file-${f.id}`, f.fileName));
+    return m;
+  }, [rows, sharedRows]);
+
+  /** 是否有打开的 antd 弹窗：弹窗内不接管键盘（避免抢走输入框 / 确认按钮的按键） */
+  const hasOpenModal = useCallback(
+    () => Array.from(document.querySelectorAll<HTMLElement>('.ant-modal-wrap'))
+      .some(w => w.style.display !== 'none' && w.offsetParent !== null),
+    [],
+  );
+
+  /** 实测网格列数：auto-fill 布局列数随容器宽度变化，只能在运行时量 */
+  const measureGridColumns = useCallback((anchorId: string | null) => {
+    const anchor = anchorId
+      ? document.querySelector<HTMLElement>(`[data-item-id="${anchorId}"]`)
+      : null;
+    const container = anchor?.closest('.fs-grid') ?? document.querySelector<HTMLElement>('.fs-grid');
+    if (!container) return 1;
+    const items = Array.from(container.querySelectorAll<HTMLElement>('.fs-grid-item'));
+    if (items.length === 0) return 1;
+    const firstTop = items[0].offsetTop;
+    let cols = 0;
+    for (const item of items) {
+      if (item.offsetTop !== firstTop) break;
+      cols += 1;
+    }
+    return Math.max(1, cols);
+  }, []);
+
+  /** 焦点项滚动到可视区（网格用 data-item-id，列表视图用焦点行 class） */
+  const scrollFocusIntoView = useCallback((id: string) => {
+    requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(`[data-item-id="${id}"]`)
+        ?? document.querySelector<HTMLElement>('.fs-row--focused');
+      el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
+  }, []);
+
+  /** 预览当前焦点项（仅可预览的文件响应，目录无预览） */
+  const openPreviewOfFocused = useCallback(() => {
+    const s = kbState.current;
+    if (!s.focusedId) return;
+    if (s.activeView === 'shared') {
+      const f = s.sharedRows.find(x => `file-${x.id}` === s.focusedId);
+      if (f && isPreviewable(f.mimeType, f.fileName)) s.handlePreview(f);
+      return;
+    }
+    const row = s.rows.find(r => `${r.type}-${r.id}` === s.focusedId);
+    if (row && row.type === 'file' && isPreviewable(row.mimeType, row.fileName)) {
+      s.handlePreview(row);
+    }
+  }, []);
+
+  /**
+   * 移动焦点：delta 为索引偏移（网格上下为 ±列数、左右为 ±1；列表视图恒为 ±1）。
+   * Shift 按下时扩展选区，否则改为单选该焦点项（与 Finder 一致）。
+   */
+  const moveFocus = useCallback((delta: number, extend: boolean) => {
+    const s = kbState.current;
+    const ids = s.activeView === 'shared' ? s.sharedRowIds : s.allRowIds;
+    if (ids.length === 0) return;
+    const cur = s.focusedId ? ids.indexOf(s.focusedId) : -1;
+    const nextIdx = cur < 0 ? 0 : Math.min(ids.length - 1, Math.max(0, cur + delta));
+    const nextId = ids[nextIdx];
+    setFocusedId(nextId);
+    if (extend && cur >= 0) {
+      dispatchSelection({ type: 'selectRange', fromId: ids[cur], toId: nextId, allIds: ids });
+    } else {
+      dispatchSelection({ type: 'select', id: nextId });
+    }
+    scrollFocusIntoView(nextId);
+  }, [dispatchSelection, scrollFocusIntoView]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // 仅在「我的文件」或「共享文件」网格视图激活时响应
-      if (activeView === 'myShares') return;
+      const s = kbState.current;
+      if (s.activeView === 'myShares') return;
 
-      // Cmd+A / Ctrl+A 全选
+      // 输入框 / 行内重命名 / 弹窗打开时不接管键盘
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      if (s.renamingId) return;
+      if (hasOpenModal()) return;
+      // 拖拽进行中：Esc 等按键交由 dnd-kit 处理（取消拖拽），此处不接管
+      if (s.activeDragFiles.length > 0) return;
+
+      const ids = s.activeView === 'shared' ? s.sharedRowIds : s.allRowIds;
+      if (ids.length === 0) return;
+
+      // Cmd/Ctrl + A：全选
       if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
-        // 检查焦点是否在输入框/搜索框内，若是则不拦截
-        const active = document.activeElement;
-        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || (active as HTMLElement).isContentEditable)) {
-          return;
-        }
         e.preventDefault();
-        const ids = activeView === 'shared'
-          ? sharedRows.map(f => `file-${f.id}`)
-          : allRowIds;
-        if (ids.length > 0) {
-          dispatchSelection({ type: 'selectAll', ids });
-        }
+        dispatchSelection({ type: 'selectAll', ids });
+        return;
       }
 
-      // Esc 清空
-      if (e.key === 'Escape') {
-        if (selection.selectedIds.size > 0) {
-          dispatchSelection({ type: 'clear' });
+      // Cmd/Ctrl + O：打开预览
+      if ((e.metaKey || e.ctrlKey) && e.key === 'o') {
+        e.preventDefault();
+        openPreviewOfFocused();
+        return;
+      }
+
+      // Cmd/Ctrl + C：复制选中文件进剪贴板
+      // 页面有文本选区时不拦截，保留浏览器原生复制
+      if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+        const sel = window.getSelection();
+        if (sel && !sel.isCollapsed) return;
+        if (s.activeView !== 'my' || s.selectedFiles.length === 0) return;
+        e.preventDefault();
+        setClipboard({ mode: 'copy', files: s.selectedFiles, sourcePath: s.currentPath });
+        message.success(`已复制 ${s.selectedFiles.length} 个文件`);
+        return;
+      }
+
+      // Cmd/Ctrl + X：剪切选中文件进剪贴板
+      if ((e.metaKey || e.ctrlKey) && e.key === 'x') {
+        if (s.activeView !== 'my' || s.selectedFiles.length === 0) return;
+        e.preventDefault();
+        setClipboard({ mode: 'cut', files: s.selectedFiles, sourcePath: s.currentPath });
+        message.success(`已剪切 ${s.selectedFiles.length} 个文件`);
+        return;
+      }
+
+      // Cmd/Ctrl + V：粘贴剪贴板内容到当前目录
+      if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
+        if (s.activeView !== 'my' || !s.clipboard) return;
+        e.preventDefault();
+        void s.pasteFromClipboard();
+        return;
+      }
+
+      // 网格按行列移动（列数实测），列表视图上下即逐行
+      const cols = s.viewMode === 'grid' ? measureGridColumns(s.focusedId) : 1;
+
+      switch (e.key) {
+        case 'ArrowRight':
+          e.preventDefault();
+          moveFocus(1, e.shiftKey);
+          return;
+        case 'ArrowLeft':
+          e.preventDefault();
+          moveFocus(-1, e.shiftKey);
+          return;
+        case 'ArrowDown':
+          e.preventDefault();
+          moveFocus(cols, e.shiftKey);
+          return;
+        case 'ArrowUp':
+          e.preventDefault();
+          moveFocus(-cols, e.shiftKey);
+          return;
+        case 'Enter': {
+          // 进入行内重命名（FR-32）；共享文件视图不可重命名
+          if (s.activeView === 'my' && s.focusedId) {
+            e.preventDefault();
+            setRenamingId(s.focusedId);
+          }
+          return;
+        }
+        case ' ': {
+          // Space：快速预览开关
+          e.preventDefault();
+          if (s.previewOpen) {
+            setPreviewOpen(false);
+          } else {
+            openPreviewOfFocused();
+          }
+          return;
+        }
+        case 'Delete':
+        case 'Backspace': {
+          // 删除焦点项（走确认弹窗）
+          if (s.activeView !== 'my' || !s.focusedId) return;
+          const row = s.rows.find(r => `${r.type}-${r.id}` === s.focusedId);
+          if (!row) return;
+          e.preventDefault();
+          if (row.type === 'dir') {
+            s.openDeleteDir(row);
+          } else {
+            s.openDeleteFile(row);
+          }
+          return;
+        }
+        case 'Escape': {
+          // 预览打开时优先关闭预览，否则清空选择
+          if (s.previewOpen) {
+            setPreviewOpen(false);
+          } else if (s.selection.selectedIds.size > 0) {
+            dispatchSelection({ type: 'clear' });
+          }
+          return;
+        }
+        default:
+          break;
+      }
+
+      // 首字母跳转：单个可打印字符且无修饰键时，循环定位到下一个名称匹配项
+      if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey && /\S/.test(e.key)) {
+        const ch = e.key.toLowerCase();
+        const start = s.focusedId ? ids.indexOf(s.focusedId) + 1 : 0;
+        for (let i = 0; i < ids.length; i++) {
+          const idx = (start + i) % ids.length;
+          const name = nameById.get(ids[idx]) ?? '';
+          if (name.toLowerCase().startsWith(ch)) {
+            e.preventDefault();
+            setFocusedId(ids[idx]);
+            dispatchSelection({ type: 'select', id: ids[idx] });
+            scrollFocusIntoView(ids[idx]);
+            return;
+          }
         }
       }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [activeView, allRowIds, sharedRows, selection.selectedIds.size]);
+  }, [moveFocus, openPreviewOfFocused, nameById, hasOpenModal, measureGridColumns, scrollFocusIntoView, dispatchSelection]);
 
   // ── 多选：切换视图/搜索时清空选择 ──
-  useEffect(() => {
+  // 切换视图时清空选择与焦点：用渲染期比较（React 官方推荐的响应 props 变化模式），
+  // 避免 effect 内同步 setState 触发级联渲染
+  const [prevActiveView, setPrevActiveView] = useState(activeView);
+  if (activeView !== prevActiveView) {
+    setPrevActiveView(activeView);
     dispatchSelection({ type: 'clear' });
-  }, [activeView]);
+    setFocusedId(null);
+  }
 
   // ── 多选：橡皮筋框选 ──
   const getGridItems = useCallback(() => {
@@ -1290,9 +2089,21 @@ const FileStoragePage: React.FC = () => {
   const confirmBatchMove = useCallback(async () => {
     setBatchMoving(true);
     try {
-      const result = await fileStorageApi.batchMoveFiles(batchMoveIds, batchMovePath);
+      const nameById = new Map(files.map(f => [f.id, f.fileName]));
+      const moved = await moveWithConflictCheck(
+        batchMoveIds.map(id => ({ id, name: nameById.get(id) ?? String(id) })),
+        batchMovePath,
+      );
+      if (moved === null) {
+        setBatchMoveOpen(false);
+        return;  // 用户在冲突弹窗中取消
+      }
       const dirName = batchMovePath === '' ? '根目录' : batchMovePath.split('/').pop() || batchMovePath;
-      message.success(`已移动 ${result.success.length} 个文件到「${dirName}」`);
+      if (moved > 0) {
+        message.success(`已移动 ${moved} 个文件到「${dirName}」`);
+      } else {
+        message.info('已跳过全部同名文件');
+      }
       setBatchMoveOpen(false);
       dispatchSelection({ type: 'clear' });
       refreshAll();
@@ -1301,7 +2112,7 @@ const FileStoragePage: React.FC = () => {
     } finally {
       setBatchMoving(false);
     }
-  }, [batchMoveIds, batchMovePath, refreshAll]);
+  }, [batchMoveIds, batchMovePath, refreshAll, files, moveWithConflictCheck]);
 
   const openBatchShare = useCallback((ids: number[]) => {
     if (ids.length === 0) return;
@@ -1586,7 +2397,7 @@ const FileStoragePage: React.FC = () => {
               menu={sharedFileMenu(file)}
             >
               <div
-                className={`fs-grid-item${isSelected ? ' fs-grid-item--selected' : ''}`}
+                className={`fs-grid-item${isSelected ? ' fs-grid-item--selected' : ''}${focusedId === fileId ? ' fs-grid-item--focused' : ''}`}
                 data-item-id={fileId}
                 onClick={(e) => handleItemClick(e, fileId)}
                 onDoubleClick={() => isPreviewable(file.mimeType, file.fileName) && handlePreview(file)}
@@ -1707,16 +2518,16 @@ const FileStoragePage: React.FC = () => {
   // ── 拖拽移入文件夹 / 目录树：@dnd-kit 事件处理已在组件上方定义 ──
 
   const renderGrid = () => {
-    if (rows.length === 0 && ghostFiles.length === 0) return null;
+    if (rows.length === 0 && ghostFiles.length === 0 && ghostDirs.length === 0) return null;
 
-    // 文件夹 id 列表（droppable）
-    const dirIds = directories.map(d => dirDroppableId(d));
     // spring-load 幽灵卡片 id 集合（渲染为隐形占位，保持拖拽源节点挂载）
     const ghostIds = new Set(ghostFiles.map(f => f.id));
-    // 文件 id 列表（sortable）
-    const fileIds = rows
-      .filter((r): r is FileRow => r.type === 'file')
-      .map(f => fileSortableId(f));
+    // spring-load 幽灵目录 id 集合（Story 5.12：文件夹拖拽跨目录时保持拖拽源挂载）
+    const ghostDirIds = new Set(ghostDirs.map(d => d.id));
+
+    // 拖文件时文件夹不参与让位，避免卡片跟着平移跳动
+    const rowIsDir = rows.map(r => r.type === 'dir');
+    const sortingStrategy = makeSortingStrategy(rowIsDir, activeDragKind === 'dir');
 
     return (
       <div className="fs-grid">
@@ -1733,18 +2544,23 @@ const FileStoragePage: React.FC = () => {
           />
         )}
 
-        {/* 文件夹：droppable 目标 */}
-        {dirIds.length > 0 && (
-          <SortableContext items={dirIds} strategy={rectSortingStrategy}>
-            {directories.map(dir => {
-              const dirRow: DirRow = { type: 'dir', id: dir.id, name: dir.name, path: dir.path };
-              const dirId = dirDroppableId(dir);
+        {/* 单一 SortableContext 按 rows 顺序混合渲染文件夹与文件卡片。
+            此前是「文件夹块 + 文件块」两个独立区域，DOM 上文件夹永远在文件前，
+            跨类型重排（Story 5.12）在 rows 交错后必须按 rows 渲染才能看到效果。 */}
+        <SortableContext items={allRowIds} strategy={sortingStrategy}>
+          {rows.map(row => {
+            if (row.type === 'dir') {
+              const dirId = dirDroppableId(row);
+              const dir = directories.find(d => d.id === row.id);
+              if (!dir) return null;
               return (
                 <DroppableFolderCard
                   key={dirId}
                   dir={dir}
                   dirId={dirId}
                   isSelected={selection.selectedIds.has(dirId)}
+                  isFocused={focusedId === dirId}
+                  isGhost={ghostDirIds.has(dir.id)}
                   isRenaming={renamingId === dirId}
                   onRename={(newName) => confirmDirRename(dir.id, dir.path, newName)}
                   onRenameCancel={() => setRenamingId(null)}
@@ -1752,44 +2568,35 @@ const FileStoragePage: React.FC = () => {
                   onItemClick={(e) => handleItemClick(e, dirId)}
                   onDoubleClick={() => navigateToDir(dir.path)}
                   onSpringLoad={() => springLoadTo(dir.path)}
-                  contextMenu={gridDirMenu(dirRow)}
+                  contextMenu={gridDirMenu(row)}
                 />
               );
-            })}
-          </SortableContext>
-        )}
-
-        {/* 文件：sortable 可排序项 */}
-        {fileIds.length > 0 && (
-          <SortableContext items={fileIds} strategy={rectSortingStrategy}>
-            {rows
-              .filter((r): r is FileRow => r.type === 'file')
-              .map(file => {
-                const fid = fileSortableId(file);
-                // 多选拖拽时：选集中所有卡片都置灰（FR-25 / Finder 行为）
-                const inMultiDragSet = activeDragFiles.length > 0 && selection.selectedIds.has(fid);
-                return (
-                  <SortableFileCard
-                    key={fid}
-                    file={file}
-                    fileId={fid}
-                    isSelected={selection.selectedIds.has(fid)}
-                    isMultiDragging={inMultiDragSet}
-                    isExiting={exitingIds.has(fid)}
-                    isRenaming={renamingId === fid}
-                    onRename={(newName) => confirmFileRename(file.id, newName)}
-                    onRenameCancel={() => setRenamingId(null)}
-                    onRenameStart={() => setRenamingId(fid)}
-                    isGhost={ghostIds.has(file.id)}
-                    isPreviewable={isPreviewable(file.mimeType, file.fileName)}
-                    onItemClick={(e) => handleItemClick(e, fid)}
-                    onDoubleClick={() => isPreviewable(file.mimeType, file.fileName) && handlePreview(file)}
-                    contextMenu={gridFileMenu(file)}
-                  />
-                );
-              })}
-          </SortableContext>
-        )}
+            }
+            const fid = fileSortableId(row);
+            // 多选拖拽时：选集中所有卡片都置灰（FR-25 / Finder 行为）
+            const inMultiDragSet = activeDragFiles.length > 0 && selection.selectedIds.has(fid);
+            return (
+              <SortableFileCard
+                key={fid}
+                file={row}
+                fileId={fid}
+                isSelected={selection.selectedIds.has(fid)}
+                isFocused={focusedId === fid}
+                isMultiDragging={inMultiDragSet}
+                isExiting={exitingIds.has(fid)}
+                isRenaming={renamingId === fid}
+                onRename={(newName) => confirmFileRename(row.id, newName)}
+                onRenameCancel={() => setRenamingId(null)}
+                onRenameStart={() => setRenamingId(fid)}
+                isGhost={ghostIds.has(row.id)}
+                isPreviewable={isPreviewable(row.mimeType, row.fileName)}
+                onItemClick={(e) => handleItemClick(e, fid)}
+                onDoubleClick={() => isPreviewable(row.mimeType, row.fileName) && handlePreview(row)}
+                contextMenu={gridFileMenu(row)}
+              />
+            );
+          })}
+        </SortableContext>
       </div>
     );
   };
@@ -1896,7 +2703,7 @@ const FileStoragePage: React.FC = () => {
       {/* 主体：左侧目录树 + 右侧文件区，DndContext 包裹使目录树节点也可作为 drop 目标 */}
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={collisionDetection}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
@@ -2251,22 +3058,44 @@ const FileStoragePage: React.FC = () => {
             </div>
           </div>
 
-          {/* 文件列表 */}
-          <div className="fs-list-area" onClick={handleBlankClick}>
+          {/* 文件列表（空白处右键弹出 Finder 风格菜单） */}
+          <Dropdown
+            menu={{ items: blankMenuItems }}
+            trigger={['contextMenu']}
+            open={blankMenuOpen}
+            onOpenChange={setBlankMenuOpen}
+          >
+            <div className="fs-list-area" onClick={handleBlankClick} onContextMenu={handleBlankContextMenu}>
             {rows.length === 0 && !loading ? (
               <div className="fs-empty">
                 <img src={inboxIconUrl} alt="" className="fs-empty-icon" width={64} height={64} draggable={false} />
                 <div className="fs-empty-text">暂无文件，拖拽文件到此处或点击上传</div>
               </div>
             ) : viewMode === 'list' ? (
-              <Table
-                dataSource={rows}
-                columns={columns}
-                rowKey={r => `${r.type}-${r.id}`}
-                size="small"
-                loading={loading}
-                pagination={rows.length > 50 ? { pageSize: 50, showSizeChanger: false, showTotal: (t) => `共 ${t} 项` } : false}
-              />
+              <SortableContext items={allRowIds} strategy={rectSortingStrategy}>
+                <Table
+                  dataSource={rows}
+                  columns={columns}
+                  rowKey={r => `${r.type}-${r.id}`}
+                  rowClassName={(r) => {
+                    const rid = `${r.type}-${r.id}`;
+                    const cls = focusedId === rid ? 'fs-row--focused' : '';
+                    return selection.selectedIds.has(rid) ? `${cls} fs-row--selected` : cls;
+                  }}
+                  onRow={(r) => ({
+                    onClick: (e) => {
+                      // 行内操作按钮/输入框不触发行选中，避免误选
+                      const t = e.target as HTMLElement;
+                      if (t.closest('button, input, .ant-dropdown-trigger, .ant-select')) return;
+                      handleItemClick(e, `${r.type}-${r.id}`);
+                    },
+                  })}
+                  components={sortableTableComponents}
+                  size="small"
+                  loading={loading}
+                  pagination={rows.length > 50 ? { pageSize: 50, showSizeChanger: false, showTotal: (t) => `共 ${t} 项` } : false}
+                />
+              </SortableContext>
             ) : (
               renderGrid()
             )}
@@ -2277,7 +3106,20 @@ const FileStoragePage: React.FC = () => {
                 已选中 {selection.selectedIds.size} 个项目
               </div>
             )}
-          </div>
+            </div>
+          </Dropdown>
+
+          {/* 空白右键「上传文件」的隐藏选择器 */}
+          <input
+            ref={blankFileInputRef}
+            type="file"
+            multiple
+            hidden
+            onChange={(e) => {
+              Array.from(e.target.files ?? []).forEach(f => handleUpload(f));
+              e.target.value = '';
+            }}
+          />
 
           {/* 拖拽上传遮罩 */}
           <div className={`fs-drop-overlay ${dragActive ? 'fs-drop-active' : ''}`}>
@@ -2293,9 +3135,33 @@ const FileStoragePage: React.FC = () => {
           悬停到 drop 目标（目录树/文件夹）上时自动降低浮层透明度，
           露出下方目标节点的蓝边/徽章，让放置位置一目了然。 */}
       <DragOverlay dropAnimation={{ duration: 200, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }}>
-        {activeDragFiles.length > 0 ? <DragOverlayContent files={activeDragFiles} /> : null}
+        {activeDragFiles.length > 0 || activeDragKind === 'dir' ? <DragOverlayContent files={activeDragFiles} directories={directories} /> : null}
       </DragOverlay>
       </DndContext>
+
+      {/* 上传队列面板（Story 5.11 / FR-35）：右下角悬浮，可折叠 */}
+      {uploadPanelOpen && (
+        <UploadQueuePanel
+          tasks={uploadTasks}
+          collapsed={uploadPanelCollapsed}
+          onToggleCollapse={() => setUploadPanelCollapsed(c => !c)}
+          onCancel={cancelUpload}
+          onRetry={retryUpload}
+          onClearFinished={clearFinishedUploads}
+          onClose={() => setUploadPanelOpen(false)}
+        />
+      )}
+
+      {/* 同名冲突策略弹窗（Story 5.11 / FR-36，上传/移动/粘贴共用） */}
+      <ConflictStrategyModal
+        open={conflictModal != null}
+        fileNames={conflictModal?.fileNames ?? []}
+        conflictFiles={conflictModal?.conflictFiles ?? []}
+        onDecide={decisions => {
+          conflictModal?.resolve(decisions);
+          setConflictModal(null);
+        }}
+      />
 
       {/* 预览弹窗 */}
       <Modal
@@ -2797,11 +3663,37 @@ export default FileStoragePage;
 // DragOverlay body: reads current over from useDndContext.
 // When hovering a drop target (tree-*/dir-*) the overlay fades
 // and shrinks so the highlighted node + "move here" badge show through.
-const DragOverlayContent: React.FC<{ files: FileInfo[] }> = ({ files }) => {
-  const { over } = useDndContext();
+const DragOverlayContent: React.FC<{ files: FileInfo[]; directories: DirectoryInfo[] }> = ({ files, directories }) => {
+  const { over, active } = useDndContext();
   const overId = over ? String(over.id) : '';
-  const overDropTarget = overId.startsWith('tree-') || overId.startsWith('dir-');
-  // 悬停在 drop 目标上时让浮层半透明 + 缩小，露出下方节点的高亮反馈
+  const activeId = active ? String(active.id) : '';
+  const isFolderDrag = activeId.startsWith('dir-');
+  // 悬停在任意 drop 目标（目录树节点 / 网格文件夹 / 面包屑路径段）上时
+  // 让浮层半透明 + 缩小，露出下方目标的高亮反馈，让放置位置一目了然
+  const overDropTarget =
+    overId.startsWith('tree-') || overId.startsWith('dir-') || overId.startsWith('crumb-');
+
+  // 文件夹拖拽（FR-29）：resolveDragFiles 不含目录，activeDragFiles 为空，
+  // 不处理则 DragOverlay 渲染 null → 拖文件夹没有任何视觉反馈。
+  // 用 active.id 反查 directories 渲染文件夹样式的浮层。
+  if (isFolderDrag) {
+    const draggedDir = directories.find(d => `dir-${d.id}` === activeId);
+    if (draggedDir) {
+      return (
+        <div className={`fs-drag-stack${overDropTarget ? ' fs-drag-stack--over-target' : ''}`}>
+          <div className="fs-grid-item fs-grid-item--dir fs-grid-item--overlay fs-drag-stack-card">
+            <div className="fs-grid-thumb fs-grid-thumb--dir">
+              <FolderIcon className="fs-grid-thumb-icon" size={76} />
+            </div>
+            <div className="fs-grid-info">
+              <div className="fs-grid-name">{draggedDir.name}</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  }
   const baseOpacity = overDropTarget ? 0.38 : 1;
 
   return (
