@@ -14,6 +14,8 @@ import type {
   UserOption,
   ShareLinkInfo,
   CreateShareLinkPayload,
+  TrashItemType,
+  TrashView,
 } from './types';
 
 const BASE = '/api/storage';
@@ -172,9 +174,34 @@ export const fileStorageApi = {
     return resp.data.data;
   },
 
-  // 删除目录
+  // 删除目录（V32：移入废纸篓）
   deleteDirectory: async (dirId: number): Promise<void> => {
     await axiosInstance.delete(`${BASE}/directories/${dirId}`);
+  },
+
+  // ── 废纸篓（V32 软删除）──
+
+  /** 废纸篓列表：顶层文件 + 顶层目录 */
+  listTrash: async (): Promise<TrashView> => {
+    const resp = await axiosInstance.get(`${BASE}/trash`);
+    return resp.data.data;
+  },
+
+  /** 恢复废纸篓条目到原位置 */
+  restoreTrashItem: async (type: TrashItemType, id: number): Promise<void> => {
+    const seg = type === 'file' ? 'files' : 'directories';
+    await axiosInstance.post(`${BASE}/trash/${seg}/${id}/restore`);
+  },
+
+  /** 彻底删除废纸篓条目（物理删除，不可恢复） */
+  purgeTrashItem: async (type: TrashItemType, id: number): Promise<void> => {
+    const seg = type === 'file' ? 'files' : 'directories';
+    await axiosInstance.delete(`${BASE}/trash/${seg}/${id}`);
+  },
+
+  /** 清空废纸篓 */
+  emptyTrash: async (): Promise<void> => {
+    await axiosInstance.delete(`${BASE}/trash`);
   },
 
   // 重命名目录（Story 5.6 / FR-28）

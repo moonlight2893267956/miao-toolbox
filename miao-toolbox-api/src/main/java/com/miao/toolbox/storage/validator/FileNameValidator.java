@@ -18,6 +18,9 @@ public class FileNameValidator {
 
     private static final int MAX_NAME_LENGTH = 255;
 
+    /** 系统保留目录名：废纸篓路径前缀（V32），用户不可创建，否则前缀替换会误伤 */
+    private static final String RESERVED_DIR_NAME = "__trash";
+
     /**
      * 校验并清洗文件名
      *
@@ -31,13 +34,18 @@ public class FileNameValidator {
 
     /**
      * 校验并清洗目录名（单段目录名，不允许路径分隔符）
+     * <p>额外拒绝系统保留名（{@code __trash}），该名称被废纸篓机制用作路径前缀。</p>
      *
      * @param dirName 原始目录名
      * @return 清洗后的安全目录名
      * @throws StorageException 目录名不合法时抛出
      */
     public String validateDirectoryName(String dirName) {
-        return validate(dirName, "目录名");
+        String sanitized = validate(dirName, "目录名");
+        if (RESERVED_DIR_NAME.equalsIgnoreCase(sanitized)) {
+            throw StorageException.fileNameInvalid("该目录名为系统保留名称，请更换");
+        }
+        return sanitized;
     }
 
     /**
@@ -72,6 +80,9 @@ public class FileNameValidator {
             }
             if (seg.contains("\\")) {
                 throw StorageException.fileNameInvalid("目录路径不能包含反斜杠");
+            }
+            if (RESERVED_DIR_NAME.equalsIgnoreCase(seg)) {
+                throw StorageException.fileNameInvalid("目录路径包含系统保留名称");
             }
         }
         if (path.length() > MAX_NAME_LENGTH * 4) {

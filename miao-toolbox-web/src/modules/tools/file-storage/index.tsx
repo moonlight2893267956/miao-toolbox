@@ -25,6 +25,7 @@ import uploadCloudIconUrl from '../../../assets/fs-icons/icon-upload-cloud.png';
 import {
   FolderOutlined,
   DeleteOutlined,
+  RestOutlined,
   DownloadOutlined,
   EyeOutlined,
   ReloadOutlined,
@@ -82,6 +83,7 @@ import ShareLinkModal from './ShareLinkModal';
 import MyShareLinksView from './MyShareLinksView';
 import { useRubberBandSelection } from './useRubberBandSelection';
 import { UploadQueuePanel, ConflictStrategyModal } from './UploadQueue';
+import { TrashView } from './TrashView';
 import type { ConflictDecision, ConflictFileMeta } from './UploadQueue';
 import type { FileInfo, DirectoryInfo, DirectoryTreeNode, QuotaInfo, ShareInfo, SharedWithMeFile, UserOption, SortBy, SortDir, UploadTask, ConflictStrategy } from './types';
 import './file-storage.css';
@@ -739,7 +741,7 @@ const FileStoragePage: React.FC = () => {
   };
 
   // 共享相关 state
-  const [activeView, setActiveView] = useState<'my' | 'shared' | 'myShares'>('my');
+  const [activeView, setActiveView] = useState<'my' | 'shared' | 'myShares' | 'trash'>('my');
   // 外链分享（PRD §4.12）
   const [shareLinkModalOpen, setShareLinkModalOpen] = useState(false);
   const [shareLinkTarget, setShareLinkTarget] = useState<FileInfo | null>(null);
@@ -1402,7 +1404,7 @@ const FileStoragePage: React.FC = () => {
     setDeleting(true);
     try {
       await fileStorageApi.deleteFile(deleteFileTarget.id);
-      message.success('文件已删除');
+      message.success('已移入废纸篓，30 天内可恢复');
       dispatchSelection({ type: 'remove', ids: [fileSortableId(deleteFileTarget)] });
       loadFiles();
       loadTree();
@@ -1419,7 +1421,7 @@ const FileStoragePage: React.FC = () => {
     setDeleting(true);
     try {
       await fileStorageApi.deleteDirectory(deleteDirTarget.id);
-      message.success('目录已删除');
+      message.success('目录已移入废纸篓，30 天内可恢复');
       dispatchSelection({ type: 'remove', ids: [dirDroppableId({ id: deleteDirTarget.id })] });
       refreshAll();
     } catch {
@@ -2076,7 +2078,7 @@ const FileStoragePage: React.FC = () => {
     setBatchDeleting(true);
     try {
       const result = await fileStorageApi.batchDeleteFiles(batchDeleteIds);
-      message.success(`已删除 ${result.success.length} 个文件`);
+      message.success(`${result.success.length} 个文件已移入废纸篓，30 天内可恢复`);
       setBatchDeleteOpen(false);
       dispatchSelection({ type: 'clear' });
       refreshAll();
@@ -2786,6 +2788,13 @@ const FileStoragePage: React.FC = () => {
               <FolderOpenOutlined />
               <span>我的文件</span>
             </div>
+            <div
+              className={`fs-sidebar-nav-item${activeView === 'trash' ? ' fs-sidebar-nav-item--active' : ''}`}
+              onClick={() => setActiveView('trash')}
+            >
+              <RestOutlined />
+              <span>废纸篓</span>
+            </div>
           </div>
         </aside>
 
@@ -2839,6 +2848,9 @@ const FileStoragePage: React.FC = () => {
                 )}
               </div>
             </>
+          ) : activeView === 'trash' ? (
+            /* ========== 废纸篓视图（V32）：棋盘网格展示已删除项 ========== */
+            <TrashView onChanged={refreshAll} />
           ) : (
             /* ========== 我的文件视图 ========== */
             <>
@@ -3284,18 +3296,18 @@ const FileStoragePage: React.FC = () => {
         </div>
       </Modal>
 
-      {/* 删除文件确认弹窗 */}
+      {/* 删除文件确认弹窗（V32：移入废纸篓） */}
       <Modal
         title={
           <span className="fs-delete-title">
             <ExclamationCircleFilled className="fs-delete-title-icon" />
-            删除文件
+            移入废纸篓
           </span>
         }
         open={!!deleteFileTarget}
         onOk={confirmDeleteFile}
         onCancel={() => setDeleteFileTarget(null)}
-        okText="删除"
+        okText="移入废纸篓"
         cancelText="取消"
         okButtonProps={{ danger: true, loading: deleting }}
         cancelButtonProps={{ disabled: deleting }}
@@ -3303,7 +3315,7 @@ const FileStoragePage: React.FC = () => {
       >
         <div className="fs-delete-body">
           <div className="fs-delete-name">{deleteFileTarget?.fileName}</div>
-          <div className="fs-delete-hint">删除后文件将无法恢复，确定要删除该文件吗？</div>
+          <div className="fs-delete-hint">文件将移入废纸篓并保留 30 天，期间可随时恢复；彻底删除才释放存储空间。</div>
         </div>
       </Modal>
 
@@ -3338,18 +3350,18 @@ const FileStoragePage: React.FC = () => {
         </div>
       </Modal>
 
-      {/* 删除目录确认弹窗 */}
+      {/* 删除目录确认弹窗（V32：移入废纸篓） */}
       <Modal
         title={
           <span className="fs-delete-title">
             <ExclamationCircleFilled className="fs-delete-title-icon" />
-            删除目录
+            移入废纸篓
           </span>
         }
         open={!!deleteDirTarget}
         onOk={confirmDeleteDir}
         onCancel={() => setDeleteDirTarget(null)}
-        okText="删除"
+        okText="移入废纸篓"
         cancelText="取消"
         okButtonProps={{ danger: true, loading: deleting }}
         cancelButtonProps={{ disabled: deleting }}
@@ -3357,30 +3369,30 @@ const FileStoragePage: React.FC = () => {
       >
         <div className="fs-delete-body">
           <div className="fs-delete-name">{deleteDirTarget?.name}</div>
-          <div className="fs-delete-hint">该目录及其下所有文件和子目录都将被永久删除，且无法恢复。确定要删除吗？</div>
+          <div className="fs-delete-hint">该目录及其下所有文件和子目录将移入废纸篓并保留 30 天，期间可随时整棵恢复。</div>
         </div>
       </Modal>
 
-      {/* 批量删除确认弹窗 */}
+      {/* 批量删除确认弹窗（V32：移入废纸篓） */}
       <Modal
         title={
           <span className="fs-delete-title">
             <ExclamationCircleFilled className="fs-delete-title-icon" />
-            删除文件
+            移入废纸篓
           </span>
         }
         open={batchDeleteOpen}
         onOk={confirmBatchDelete}
         onCancel={() => setBatchDeleteOpen(false)}
-        okText="删除"
+        okText="移入废纸篓"
         cancelText="取消"
         okButtonProps={{ danger: true, loading: batchDeleting }}
         cancelButtonProps={{ disabled: batchDeleting }}
         modalRender={(node) => <div className="fs-delete-modal-shell">{node}</div>}
       >
         <div className="fs-delete-body">
-          <div className="fs-delete-name">将删除 {batchDeleteIds.length} 个文件</div>
-          <div className="fs-delete-hint">删除后文件将无法恢复，确定要删除选中的 {batchDeleteIds.length} 个文件吗？</div>
+          <div className="fs-delete-name">将移入废纸篓 {batchDeleteIds.length} 个文件</div>
+          <div className="fs-delete-hint">文件将移入废纸篓并保留 30 天，期间可随时恢复；彻底删除才释放存储空间。</div>
         </div>
       </Modal>
 

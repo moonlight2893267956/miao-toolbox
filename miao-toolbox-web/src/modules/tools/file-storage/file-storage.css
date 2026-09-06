@@ -3042,6 +3042,67 @@ img.fs-detail-icon {
   animation: fs-selection-bar-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* 废纸篓选中状态条内的批量操作按钮：主次分明（实底主操作 + 幽灵危险操作） */
+.fs-selection-bar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 6px;
+  padding-left: 10px;
+  border-left: 1px solid color-mix(in srgb, var(--tool-accent) 22%, transparent);
+  font-weight: 400;
+}
+
+.fs-sel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 120ms var(--fs-ease), box-shadow 120ms var(--fs-ease), color 120ms var(--fs-ease);
+}
+
+/* 放回原处：主题色实底白字（安全主操作，视觉重心） */
+.fs-sel-btn--restore {
+  border: none;
+  background: var(--tool-accent);
+  color: #fff;
+  box-shadow: 0 1px 5px color-mix(in srgb, var(--tool-accent) 45%, transparent);
+}
+
+.fs-sel-btn--restore:hover {
+  background: var(--tool-accent-dark);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--tool-accent) 55%, transparent);
+}
+
+.fs-sel-btn--restore:active {
+  transform: translateY(0.5px);
+  box-shadow: none;
+}
+
+/* 彻底删除：透明底红字，hover 实底红（危险操作退后一步） */
+.fs-sel-btn--purge {
+  border: none;
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
+}
+
+.fs-sel-btn--purge:hover {
+  background: #dc2626;
+  color: #fff;
+  box-shadow: 0 1px 5px rgba(220, 38, 38, 0.35);
+}
+
+.fs-sel-btn--purge:active {
+  transform: translateY(0.5px);
+  box-shadow: none;
+}
+
 /* 状态条前的小圆点指示器 */
 .fs-selection-bar::before {
   content: '';
@@ -3607,4 +3668,161 @@ img.fs-detail-icon {
 /* 可拖拽行默认 cursor */
 .ant-table-tbody tr[data-row-key] {
   cursor: grab;
+}
+
+/* ── 废纸篓视图（V32）：棋盘网格 ── */
+.fs-trash-loading {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+/* 卡片：与「我的文件」网格完全同构的图标（fs-grid-thumb 渲染） */
+.fs-trash-card {
+  overflow: visible;
+}
+
+/* 副标题：大小 · 删除时间 */
+.fs-trash-card-sub {
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--miao-text-tertiary);
+  margin-top: 2px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* hover 浮起的暗化操作层：覆盖缩略图，玻璃胶囊工具条居中 */
+.fs-trash-card-hover {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.10), rgba(15, 23, 42, 0.34));
+  opacity: 0;
+  transition: opacity 150ms var(--fs-ease);
+}
+
+.fs-trash-card:hover .fs-trash-card-hover,
+.fs-trash-card:focus-within .fs-trash-card-hover {
+  opacity: 1;
+}
+
+/* 一体化玻璃胶囊：深色拟态 + 白字，两个操作用细分隔线隔开 */
+.fs-trash-hover-bar {
+  display: inline-flex;
+  align-items: stretch;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(30, 41, 59, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(14px) saturate(1.5);
+  -webkit-backdrop-filter: blur(14px) saturate(1.5);
+  box-shadow:
+    0 8px 24px rgba(2, 6, 23, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.fs-trash-hover-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background 120ms var(--fs-ease);
+}
+
+.fs-trash-hover-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.fs-trash-hover-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.fs-trash-hover-divider {
+  width: 1px;
+  margin: 2px 1px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.fs-trash-hover-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.85);
+}
+
+/* ── 废纸篓顶栏按钮：极简幽灵按钮，摆脱 antd 默认样式 ── */
+.fs-trash-top-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--miao-border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--miao-text-secondary);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 120ms var(--fs-ease),
+    border-color 120ms var(--fs-ease),
+    background 120ms var(--fs-ease);
+}
+
+.fs-trash-top-btn:hover {
+  color: var(--miao-text-primary);
+  border-color: color-mix(in srgb, var(--tool-accent) 45%, var(--miao-border));
+  background: color-mix(in srgb, var(--tool-accent) 6%, transparent);
+}
+
+.fs-trash-top-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.fs-trash-top-btn--danger {
+  color: #dc2626;
+  border-color: color-mix(in srgb, #dc2626 35%, var(--miao-border));
+}
+
+.fs-trash-top-btn--danger:hover {
+  color: #fff;
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.fs-trash-top-btn--danger.is-busy {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.fs-trash-footnote {
+  margin: 10px 4px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--miao-bg-elevated);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--miao-text-tertiary);
+}
+
+/* 触屏/窄屏下操作层常显（无 hover） */
+@media (hover: none) {
+  .fs-trash-card-hover {
+    opacity: 1;
+  }
 }

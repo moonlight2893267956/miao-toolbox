@@ -39,6 +39,11 @@ public interface FileShareLinkRepository extends JpaRepository<FileShareLinkEnti
     void deleteByFileId(Long fileId);
 
     /**
+     * 删除一批文件的分享记录（废纸篓彻底删除目录 / 清空时批量清理）
+     */
+    void deleteByFileIdIn(java.util.Collection<Long> fileIds);
+
+    /**
      * 原子递增访问次数，仅当未达上限时生效。
      *
      * @return 受影响行数，0 表示已达上限（并发安全，不会超发）

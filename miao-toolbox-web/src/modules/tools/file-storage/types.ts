@@ -34,6 +34,27 @@ export interface DirectoryInfo {
   createdAt: string;
 }
 
+// ── 废纸篓（V32 软删除）──
+
+export type TrashItemType = 'file' | 'directory';
+
+/** 废纸篓条目：文件或目录（仅顶层项，子孙随目录一起展示/恢复） */
+export interface TrashItem {
+  id: number;
+  type: TrashItemType;
+  name: string;
+  /** 文件为其删除前所在目录路径；目录为其原路径 */
+  originalPath: string;
+  sizeBytes: number | null;
+  mimeType: string | null;
+  deletedAt: string;
+}
+
+export interface TrashView {
+  files: TrashItem[];
+  directories: TrashItem[];
+}
+
 export interface DirectoryTreeNode {
   id: number;
   name: string;

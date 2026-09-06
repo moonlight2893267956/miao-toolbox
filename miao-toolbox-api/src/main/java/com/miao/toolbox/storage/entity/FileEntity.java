@@ -5,11 +5,16 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
 
 /**
  * 文件实体 — 对应 files 表
+ * <p>
+ * 废纸篓机制（V32）：deleted_at 非空表示已删除（在废纸篓中）。
+ * {@code @SQLRestriction} 让所有常规查询自动排除已删除文件，
+ * 废纸篓查询用 native SQL 绕过限制。
  */
 @Data
 @NoArgsConstructor
@@ -17,6 +22,7 @@ import java.time.LocalDateTime;
 @Builder
 @Entity
 @Table(name = "files")
+@SQLRestriction("deleted_at IS NULL")
 public class FileEntity {
 
     @Id
@@ -55,6 +61,10 @@ public class FileEntity {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    /** 废纸篓标记：NULL=正常，非空=删除时间（V32 废纸篓机制） */
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     @PrePersist
     protected void onCreate() {

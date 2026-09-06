@@ -80,14 +80,14 @@ class FileServiceBatchTest {
                 .build();
     }
 
-    // ==================== batchDeleteFiles ====================
+    // ==================== batchDeleteFiles（V32：删除 = 移入废纸篓） ====================
 
     @Nested
-    @DisplayName("batchDeleteFiles - 批量删除")
+    @DisplayName("batchDeleteFiles - 批量删除（软删除进废纸篓）")
     class BatchDeleteTests {
 
         @Test
-        @DisplayName("全部属于自己：单事务删除全部，配额原子释放，返回 success 列表")
+        @DisplayName("全部属于自己：批量标记 deleted_at 进废纸篓，配额/COS/分享记录均不动")
         void batchDelete_success() {
             when(fileRepository.findById(FILE_A)).thenReturn(Optional.of(fileA));
             when(fileRepository.findById(FILE_B)).thenReturn(Optional.of(fileB));
@@ -96,14 +96,13 @@ class FileServiceBatchTest {
 
             assertThat(result.success()).containsExactlyInAnyOrder(FILE_A, FILE_B);
             assertThat(result.failed()).isEmpty();
-            verify(fileShareLinkRepository).deleteByFileId(FILE_A);
-            verify(fileShareLinkRepository).deleteByFileId(FILE_B);
-            verify(fileRepository).delete(fileA);
-            verify(fileRepository).delete(fileB);
-            // 配额按总量一次性原子释放：1024 + 2048 = 3072
-            verify(userRepository).decrementStorageUsed(USER_ID, 3072L);
-            verify(storageService).deleteObject(fileA.getCosKey());
-            verify(storageService).deleteObject(fileB.getCosKey());
+            verify(fileRepository).moveToTrashById(eq(USER_ID), eq(FILE_A), any(LocalDateTime.class));
+            verify(fileRepository).moveToTrashById(eq(USER_ID), eq(FILE_B), any(LocalDateTime.class));
+            // 废纸篓语义：物理删除、配额回退、COS 清理都不在此刻发生
+            verify(fileRepository, never()).delete(any(FileEntity.class));
+            verify(userRepository, never()).decrementStorageUsed(anyLong(), anyLong());
+            verify(storageService, never()).deleteObject(anyString());
+            verify(fileShareLinkRepository, never()).deleteByFileId(anyLong());
         }
 
         @Test
@@ -117,7 +116,7 @@ class FileServiceBatchTest {
                     .extracting("code")
                     .isEqualTo("FILE_NOT_FOUND");
 
-            verify(fileRepository, never()).delete(any(FileEntity.class));
+            verify(fileRepository, never()).moveToTrashById(anyLong(), anyLong(), any(LocalDateTime.class));
             verify(userRepository, never()).decrementStorageUsed(anyLong(), anyLong());
             verify(storageService, never()).deleteObject(anyString());
         }
@@ -130,7 +129,7 @@ class FileServiceBatchTest {
                     .extracting("errorCode")
                     .isEqualTo(ErrorCode.VALIDATION_FAILED);
 
-            verify(fileRepository, never()).delete(any(FileEntity.class));
+            verify(fileRepository, never()).moveToTrashById(anyLong(), anyLong(), any(LocalDateTime.class));
         }
 
         @Test
@@ -140,22 +139,6 @@ class FileServiceBatchTest {
                     .isInstanceOf(BusinessException.class)
                     .extracting("errorCode")
                     .isEqualTo(ErrorCode.VALIDATION_FAILED);
-        }
-
-        @Test
-        @DisplayName("COS 删除失败不影响整体：仅记录日志，DB 删除已生效")
-        void batchDelete_cosFailure_continues() {
-            when(fileRepository.findById(FILE_A)).thenReturn(Optional.of(fileA));
-            when(fileRepository.findById(FILE_B)).thenReturn(Optional.of(fileB));
-            doThrow(new RuntimeException("COS unavailable"))
-                    .when(storageService).deleteObject(fileA.getCosKey());
-
-            FileService.BatchResult result = fileService.batchDeleteFiles(USER_ID, List.of(FILE_A, FILE_B));
-
-            assertThat(result.success()).containsExactlyInAnyOrder(FILE_A, FILE_B);
-            verify(fileRepository).delete(fileA);
-            verify(fileRepository).delete(fileB);
-            verify(userRepository).decrementStorageUsed(USER_ID, 3072L);
         }
     }
 

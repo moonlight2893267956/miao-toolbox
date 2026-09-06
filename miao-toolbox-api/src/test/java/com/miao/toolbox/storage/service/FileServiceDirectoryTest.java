@@ -128,32 +128,21 @@ class FileServiceDirectoryTest {
     class DirectoryRename {
 
         @Test
-        @DisplayName("重命名根目录下目录：自身 path 更新 + 子目录/子文件路径前缀级联")
+        @DisplayName("重命名根目录下目录：自身 path 更新 + 级联委托给 bulk update（覆盖含软删子树）")
         void renameRootDir_cascadeChildren() {
             DirectoryEntity docs = dir(DIR_ID, "docs", "docs", "");
             when(directoryRepository.findById(DIR_ID)).thenReturn(Optional.of(docs));
             when(fileNameValidator.validateDirectoryName("archive")).thenReturn("archive");
             when(directoryRepository.existsByUserIdAndPath(USER_ID, "archive")).thenReturn(false);
 
-            // 子目录 docs/sub → archive/sub
-            DirectoryEntity subDir = dir(11L, "sub", "docs/sub", "docs");
-            // 子文件 docs/a.txt → archive/a.txt
-            FileEntity subFile = file(200L, "a.txt", "docs", "1/docs/a.txt");
-
-            when(directoryRepository.findByUserIdAndPathPrefix(USER_ID, "docs"))
-                    .thenReturn(List.of(docs, subDir));
-            when(fileRepository.findByUserIdAndPathPrefix(USER_ID, "docs"))
-                    .thenReturn(List.of(subFile));
-
             DirectoryEntity result = fileService.renameDirectory(USER_ID, DIR_ID, "archive");
 
             assertThat(result.getName()).isEqualTo("archive");
             assertThat(result.getPath()).isEqualTo("archive");
-            // 子目录路径前缀已级联
-            assertThat(subDir.getPath()).isEqualTo("archive/sub");
-            assertThat(subDir.getParentPath()).isEqualTo("archive");
-            // 子文件路径前缀已级联
-            assertThat(subFile.getPath()).isEqualTo("archive");
+            // V32：级联改为 bulk update（@SQLRestriction 会过滤掉废纸篓中的子孙，
+            // 逐实体 save 会漏改已删项路径），此处验证委托参数正确
+            verify(directoryRepository).cascadePathPrefix(USER_ID, "docs", "archive");
+            verify(fileRepository).cascadePathPrefix(USER_ID, "docs", "archive");
             // 无 COS 调用
             verify(storageService, never()).copyObject(anyString(), anyString());
         }
@@ -166,16 +155,12 @@ class FileServiceDirectoryTest {
             when(fileNameValidator.validateDirectoryName("renamed")).thenReturn("renamed");
             when(directoryRepository.existsByUserIdAndPath(USER_ID, "docs/renamed")).thenReturn(false);
 
-            // 子文件 docs/sub/nested/b.txt → docs/renamed/nested/b.txt
-            FileEntity nestedFile = file(201L, "b.txt", "docs/sub/nested", "1/docs/sub/nested/b.txt");
-            when(fileRepository.findByUserIdAndPathPrefix(USER_ID, "docs/sub"))
-                    .thenReturn(List.of(nestedFile));
-
             fileService.renameDirectory(USER_ID, DIR_ID, "renamed");
 
             assertThat(subDir.getPath()).isEqualTo("docs/renamed");
             assertThat(subDir.getParentPath()).isEqualTo("docs");
-            assertThat(nestedFile.getPath()).isEqualTo("docs/renamed/nested");
+            verify(directoryRepository).cascadePathPrefix(USER_ID, "docs/sub", "docs/renamed");
+            verify(fileRepository).cascadePathPrefix(USER_ID, "docs/sub", "docs/renamed");
         }
 
         @Test
@@ -209,21 +194,18 @@ class FileServiceDirectoryTest {
     class DirectoryMove {
 
         @Test
-        @DisplayName("移动到根目录：path 更新 + 子内容级联")
+        @DisplayName("移动到根目录：path 更新 + 子内容级联委托 bulk update")
         void moveToRoot_cascade() {
             DirectoryEntity subDir = dir(DIR_ID, "sub", "docs/sub", "docs");
             when(directoryRepository.findById(DIR_ID)).thenReturn(Optional.of(subDir));
             when(directoryRepository.existsByUserIdAndPath(USER_ID, "sub")).thenReturn(false);
 
-            FileEntity subFile = file(200L, "a.txt", "docs/sub", "1/docs/sub/a.txt");
-            when(fileRepository.findByUserIdAndPathPrefix(USER_ID, "docs/sub"))
-                    .thenReturn(List.of(subFile));
-
             DirectoryEntity result = fileService.moveDirectory(USER_ID, DIR_ID, "");
 
             assertThat(result.getPath()).isEqualTo("sub");
             assertThat(result.getParentPath()).isEqualTo("");
-            assertThat(subFile.getPath()).isEqualTo("sub");
+            verify(directoryRepository).cascadePathPrefix(USER_ID, "docs/sub", "sub");
+            verify(fileRepository).cascadePathPrefix(USER_ID, "docs/sub", "sub");
         }
 
         @Test
@@ -234,15 +216,12 @@ class FileServiceDirectoryTest {
             when(directoryRepository.existsByUserIdAndPath(USER_ID, "archive")).thenReturn(true);
             when(directoryRepository.existsByUserIdAndPath(USER_ID, "archive/sub")).thenReturn(false);
 
-            FileEntity subFile = file(200L, "a.txt", "docs/sub", "1/docs/sub/a.txt");
-            when(fileRepository.findByUserIdAndPathPrefix(USER_ID, "docs/sub"))
-                    .thenReturn(List.of(subFile));
-
             DirectoryEntity result = fileService.moveDirectory(USER_ID, DIR_ID, "archive");
 
             assertThat(result.getPath()).isEqualTo("archive/sub");
             assertThat(result.getParentPath()).isEqualTo("archive");
-            assertThat(subFile.getPath()).isEqualTo("archive/sub");
+            verify(directoryRepository).cascadePathPrefix(USER_ID, "docs/sub", "archive/sub");
+            verify(fileRepository).cascadePathPrefix(USER_ID, "docs/sub", "archive/sub");
         }
 
         @Test
@@ -301,24 +280,19 @@ class FileServiceDirectoryTest {
     class PrefixSafety {
 
         @Test
-        @DisplayName("重命名 docs → archive：docs-backup 的路径不受影响")
+        @DisplayName("重命名 docs → archive：级联范围仅限 docs/ 前缀，docs-backup 天然不匹配")
         void rename_doesNotAffectSibling() {
             DirectoryEntity docs = dir(DIR_ID, "docs", "docs", "");
             when(directoryRepository.findById(DIR_ID)).thenReturn(Optional.of(docs));
             when(fileNameValidator.validateDirectoryName("archive")).thenReturn("archive");
             when(directoryRepository.existsByUserIdAndPath(USER_ID, "archive")).thenReturn(false);
 
-            // docs-backup 不应被级联（path 不以 "docs/" 开头）
-            DirectoryEntity docsBackup = dir(12L, "docs-backup", "docs-backup", "");
-            when(directoryRepository.findByUserIdAndPathPrefix(USER_ID, "docs"))
-                    .thenReturn(List.of(docs, docsBackup));
-            when(fileRepository.findByUserIdAndPathPrefix(USER_ID, "docs"))
-                    .thenReturn(List.of());
-
             fileService.renameDirectory(USER_ID, DIR_ID, "archive");
 
-            // docs-backup 路径不变
-            assertThat(docsBackup.getPath()).isEqualTo("docs-backup");
+            // bulk update 的 WHERE path LIKE 'docs/%' 只命中 docs 子树，
+            // docs-backup（docs-backup 不以 docs/ 开头）天然不受影响
+            verify(directoryRepository).cascadePathPrefix(USER_ID, "docs", "archive");
+            verify(fileRepository).cascadePathPrefix(USER_ID, "docs", "archive");
         }
     }
 }

@@ -31,6 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.InputStream;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -477,7 +478,11 @@ public class FileService {
     // ==================== 删除 ====================
 
     /**
-     * 删除文件
+     * 删除文件 → 移入废纸篓（V32 软删除）
+     * <p>
+     * 仅标记 deleted_at，元数据与 COS 对象保留、配额不回退（废纸篓占用配额）。
+     * 物理删除由废纸篓的「彻底删除 / 30 天自动清理」执行。
+     * 外链分享记录保留：软删期间文件查询被 @SQLRestriction 排除，分享自然失效；恢复后分享复活。
      *
      * @param userId 用户 ID
      * @param fileId 文件 ID
@@ -485,37 +490,19 @@ public class FileService {
     @Transactional
     public void deleteFile(Long userId, Long fileId) {
         FileEntity file = getFileForUser(userId, fileId);
-        String cosKey = file.getCosKey();
-        long sizeBytes = file.getSizeBytes();
-
-        // 1. 删除该文件的外链分享记录（外键已级联，此处显式清理兜底）
-        fileShareLinkRepository.deleteByFileId(fileId);
-
-        // 2. 先删除元数据并回退配额
-        //    顺序要求：先库后 COS。反过来的话，COS 删除成功但事务回滚时，
-        //    数据库记录仍指向一个已删除的对象，用户侧表现为"文件还在但打不开"，数据实质已丢失。
-        fileRepository.delete(file);
-        userRepository.decrementStorageUsed(userId, sizeBytes);
-
-        // 3. 最后删除 COS 对象：失败仅残留孤立对象，由 OrphanFileCleanupJob 兜底回收
-        try {
-            storageService.deleteObject(cosKey);
-        } catch (Exception e) {
-            log.error("COS 对象删除失败，残留为孤立文件待清理: cosKey={}, error={}", cosKey, e.getMessage());
-        }
-
-        log.info("File deleted: userId={}, fileId={}, cosKey={}", userId, fileId, cosKey);
+        fileRepository.moveToTrashById(userId, fileId, LocalDateTime.now());
+        log.info("File moved to trash: userId={}, fileId={}, fileName={}", userId, fileId, file.getFileName());
     }
 
     /**
-     * 批量删除文件（单事务，全成功/全失败二态）
+     * 批量删除文件 → 批量移入废纸篓（V32 软删除，单事务全成功/全失败）
      * <p>
      * 先逐个校验归属，任一文件不存在或不属于当前用户则整批拒绝（抛异常回滚）。
-     * 校验通过后逐个执行删除，COS 删除失败仅残留孤立对象，由清理任务兜底。
+     * 仅标记 deleted_at，配额与 COS 均不动，物理删除由废纸篓流程执行。
      *
      * @param userId  用户 ID
      * @param fileIds 文件 ID 列表
-     * @return 成功删除的文件 ID 列表（全成功场景 failed 恒为空）
+     * @return 成功移入废纸篓的文件 ID 列表（全成功场景 failed 恒为空）
      */
     @Transactional
     public BatchResult batchDeleteFiles(Long userId, List<Long> fileIds) {
@@ -528,30 +515,15 @@ public class FileService {
                 .map(id -> getFileForUser(userId, id))
                 .collect(Collectors.toList());
 
-        // 2. 逐个执行删除（与单文件删除相同的顺序：分享外链 → DB → 配额 → COS）
+        // 2. 批量软删除进废纸篓
+        LocalDateTime now = LocalDateTime.now();
         List<Long> successIds = new ArrayList<>(fileIds.size());
-        long totalSize = 0;
         for (FileEntity file : files) {
-            fileShareLinkRepository.deleteByFileId(file.getId());
-            fileRepository.delete(file);
-            totalSize += file.getSizeBytes();
+            fileRepository.moveToTrashById(userId, file.getId(), now);
             successIds.add(file.getId());
         }
-        if (totalSize > 0) {
-            userRepository.decrementStorageUsed(userId, totalSize);
-        }
 
-        // 3. COS 删除放在 DB 操作之后：单个失败不影响整体，残留对象由清理任务回收
-        for (FileEntity file : files) {
-            try {
-                storageService.deleteObject(file.getCosKey());
-            } catch (Exception e) {
-                log.error("批量删除时 COS 对象删除失败，残留为孤立文件待清理: cosKey={}, error={}",
-                        file.getCosKey(), e.getMessage());
-            }
-        }
-
-        log.info("Batch delete completed: userId={}, count={}, sizeFreed={}", userId, successIds.size(), totalSize);
+        log.info("Batch move to trash: userId={}, count={}", userId, successIds.size());
         return new BatchResult(successIds, List.of());
     }
 
@@ -993,7 +965,12 @@ public class FileService {
     }
 
     /**
-     * 删除目录及其下所有文件
+     * 删除目录 → 整棵子树移入废纸篓（V32 软删除）
+     * <p>
+     * 目录子树（含此前已单独软删、随目录进废纸篓的文件）的 path/parent_path
+     * 迁移到 {@code __trash/{dirId}/} 前缀下：释放原路径供新建同名目录
+     * （directories 有 UNIQUE (user_id, path) 约束），恢复时按前缀还原。
+     * 配额与 COS 均不动，物理删除由废纸篓流程执行。
      *
      * @param userId 用户 ID
      * @param dirId  目录 ID
@@ -1004,33 +981,18 @@ public class FileService {
                 .filter(d -> d.getUserId().equals(userId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_FAILED, "目录不存在", 404));
 
-        // 1. 查找目录下所有文件（含子目录中的文件）
-        List<FileEntity> files = fileRepository.findByUserIdAndPathPrefix(userId, dir.getPath());
-        long totalSize = 0;
-        List<String> cosKeys = new ArrayList<>();
-        for (FileEntity file : files) {
-            cosKeys.add(file.getCosKey());
-            totalSize += file.getSizeBytes();
-        }
+        String trashPrefix = TrashService.TRASH_PREFIX + dirId + "/";
+        LocalDateTime now = LocalDateTime.now();
 
-        // 2. 先删除数据库记录、子目录并回退配额（顺序要求同 deleteFile：先库后 COS）
-        fileRepository.deleteByUserIdAndPathPrefix(userId, dir.getPath());
-        directoryRepository.deleteByUserIdAndPathPrefix(userId, dir.getPath());
-        if (totalSize > 0) {
-            userRepository.decrementStorageUsed(userId, totalSize);
-        }
+        // 1. 目录自身：标记删除 + path 迁移（parent_path 保留原父，恢复时直接回原位）
+        directoryRepository.moveToTrashSelf(userId, dirId, trashPrefix, now);
+        // 2. 子孙目录：标记删除 + path/parent_path 迁移（bulk update 覆盖软删状态）
+        directoryRepository.moveToTrashSubDirs(userId, dir.getPath(), trashPrefix, now);
+        // 3. 子树文件（含已软删的）：标记删除 + path 迁移
+        fileRepository.moveToTrashByPathPrefix(userId, dir.getPath(), trashPrefix, now);
 
-        // 3. 最后删除 COS 对象：单个失败不影响整体，残留对象由清理任务回收
-        for (String cosKey : cosKeys) {
-            try {
-                storageService.deleteObject(cosKey);
-            } catch (Exception e) {
-                log.error("目录删除时 COS 对象删除失败，残留为孤立文件待清理: cosKey={}, error={}", cosKey, e.getMessage());
-            }
-        }
-
-        log.info("Directory deleted: userId={}, dirPath={}, filesDeleted={}, sizeFreed={}",
-                userId, dir.getPath(), files.size(), totalSize);
+        log.info("Directory moved to trash: userId={}, dirId={}, dirPath={}, trashPrefix={}",
+                userId, dirId, dir.getPath(), trashPrefix);
     }
 
     // ==================== 目录重命名 / 移动（Story 5.6 / FR-28） ====================
@@ -1128,49 +1090,24 @@ public class FileService {
     }
 
     /**
-     * 级联替换路径前缀：将 oldPath 及其子目录/子文件的路径前缀从 oldPath 替换为 newPath。
+     * 级联替换路径前缀：将 oldPath 下的子目录/子文件的路径前缀从 oldPath 替换为 newPath。
      *
-     * <p>匹配规则：path 等于 oldPath 或以 {@code oldPath + "/"} 开头的记录。
+     * <p>匹配规则：path 以 {@code oldPath + "/"} 开头的记录（目录自身由调用方更新）。
      * 替换方式：{@code newPath + value.substring(oldPath.length())}，
      * 保留子路径后缀（如 {@code docs/a/b.txt} → {@code archive/docs/a/b.txt}）。</p>
+     *
+     * <p>V32：改为 bulk UPDATE —— {@code @SQLRestriction} 会把废纸篓中的
+     * 子孙从「加载实体再 save」的链路里过滤掉，逐实体 save 会漏改已删除项的路径；
+     * bulk update 不受 restriction 影响，软删除的子树也能保持路径一致，
+     * 恢复时才能回到重命名后的正确位置。</p>
      *
      * @param userId  用户 ID
      * @param oldPath 旧路径前缀
      * @param newPath 新路径前缀
      */
     private void cascadePathPrefix(Long userId, String oldPath, String newPath) {
-        String oldPrefix = oldPath + "/";
-
-        // 子目录：path 和 parentPath 都需要替换前缀
-        List<DirectoryEntity> subDirs = directoryRepository.findByUserIdAndPathPrefix(userId, oldPath);
-        for (DirectoryEntity d : subDirs) {
-            if (d.getPath().equals(oldPath)) {
-                // 目录自身已在调用方更新，跳过
-                continue;
-            }
-            // 安全检查：只处理以 oldPath + "/" 开头的子目录（排除 docs-backup 这种兄弟）
-            if (!d.getPath().startsWith(oldPrefix)) {
-                continue;
-            }
-            d.setPath(newPath + d.getPath().substring(oldPath.length()));
-            if (!d.getParentPath().isBlank() && (d.getParentPath().equals(oldPath) || d.getParentPath().startsWith(oldPrefix))) {
-                d.setParentPath(newPath + d.getParentPath().substring(oldPath.length()));
-            }
-            directoryRepository.save(d);
-        }
-
-        // 子文件：只替换 path
-        List<FileEntity> subFiles = fileRepository.findByUserIdAndPathPrefix(userId, oldPath);
-        for (FileEntity f : subFiles) {
-            // 安全检查：只处理 path 等于 oldPath 或以 oldPath + "/" 开头的文件
-            if (f.getPath().equals(oldPath)) {
-                f.setPath(newPath);
-            } else if (f.getPath().startsWith(oldPrefix)) {
-                f.setPath(newPath + f.getPath().substring(oldPath.length()));
-            }
-            // 不匹配前缀的跳过（防误伤）
-            fileRepository.save(f);
-        }
+        directoryRepository.cascadePathPrefix(userId, oldPath, newPath);
+        fileRepository.cascadePathPrefix(userId, oldPath, newPath);
     }
 
     // ==================== 配额 ====================
