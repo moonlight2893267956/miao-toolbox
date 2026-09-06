@@ -244,8 +244,8 @@ const FileStoragePage: React.FC = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [newDirModalOpen, setNewDirModalOpen] = useState(false);
-  const [newDirName, setNewDirName] = useState('');
+  // Finder 风格新建目录：直接创建并进入行内重命名，不再弹 Modal
+  const [creatingDir, setCreatingDir] = useState(false);
   // 行内重命名（macOS Finder 风格）：统一管理文件与目录的行内重命名
   // renamingId = null 表示无行内编辑；非 null 时对应卡片渲染 InlineRenameInput
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -1430,16 +1430,25 @@ const FileStoragePage: React.FC = () => {
     }
   };
 
-  const handleCreateDir = async () => {
-    if (!newDirName.trim()) return;
+  /** Finder 风格新建：立即创建「未命名文件夹」并聚焦行内改名（重名自动追加序号） */
+  const handleCreateDirInline = async () => {
+    if (creatingDir) return;
+    setCreatingDir(true);
     try {
-      await fileStorageApi.createDirectory(newDirName, currentPath);
-      message.success('目录创建成功');
-      setNewDirModalOpen(false);
-      setNewDirName('');
+      const base = '未命名文件夹';
+      const existing = new Set(directories.map(d => d.name));
+      let name = base;
+      for (let n = 2; existing.has(name); n++) name = `${base} ${n}`;
+
+      const created = await fileStorageApi.createDirectory(name, currentPath);
+      // 乐观插入列表并立刻进入行内重命名（macOS Finder 体验）
+      setDirectories(prev => [...prev, created]);
+      startRename(`dir-${created.id}`);
       refreshAll();
     } catch {
       message.error('创建目录失败');
+    } finally {
+      setCreatingDir(false);
     }
   };
 
@@ -1670,7 +1679,7 @@ const FileStoragePage: React.FC = () => {
       key: 'new-folder',
       icon: <FolderAddOutlined />,
       label: '新建文件夹',
-      onClick: () => { setNewDirName(''); setNewDirModalOpen(true); },
+      onClick: handleCreateDirInline,
     },
     {
       key: 'upload',
@@ -2915,7 +2924,7 @@ const FileStoragePage: React.FC = () => {
                   上传文件
                 </Button>
               </Upload>
-              <Button icon={<PlusOutlined />} onClick={() => setNewDirModalOpen(true)} className="fs-btn-secondary">
+              <Button icon={<PlusOutlined />} onClick={handleCreateDirInline} loading={creatingDir} className="fs-btn-secondary">
                 新建目录
               </Button>
             </div>
@@ -3212,25 +3221,6 @@ const FileStoragePage: React.FC = () => {
             onStartEdit={startEditing}
           />
         )}
-      </Modal>
-
-      {/* 新建目录弹窗 */}
-      <Modal
-        title="新建目录"
-        open={newDirModalOpen}
-        onOk={handleCreateDir}
-        onCancel={() => { setNewDirModalOpen(false); setNewDirName(''); }}
-        okText="创建"
-        cancelText="取消"
-        rootClassName="fs-modal"
-      >
-        <Input
-          placeholder="目录名称"
-          value={newDirName}
-          onChange={(e) => setNewDirName(e.target.value)}
-          onPressEnter={handleCreateDir}
-          autoFocus
-        />
       </Modal>
 
       {/* 移动到弹窗 — 目录树选择 */}
