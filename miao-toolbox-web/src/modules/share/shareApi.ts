@@ -54,6 +54,7 @@ export const shareApi = {
     const resp = await publicApi.get(`${BASE}/${encodeURIComponent(shareCode)}/preview`, {
       params: { st: ticket },
       responseType: 'blob',
+      timeout: 0, // 大文件预览不受全局 30s 超时限制，中断由用户/浏览器控制
     });
     return resp.data;
   },
@@ -63,6 +64,7 @@ export const shareApi = {
     const resp = await publicApi.get(`${BASE}/${encodeURIComponent(shareCode)}/download`, {
       params: { st: ticket },
       responseType: 'blob',
+      timeout: 0, // 大文件下载不受全局 30s 超时限制，中断由用户/浏览器控制
     });
     const disposition = resp.headers['content-disposition'] as string | undefined;
     let filename = 'download';

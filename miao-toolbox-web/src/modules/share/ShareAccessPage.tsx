@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Button, Spin } from 'antd';
+import { Button, Spin, message } from 'antd';
 import {
   DownloadOutlined,
   FileOutlined,
@@ -205,9 +205,16 @@ const ShareAccessPage: React.FC = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (e) {
-      const err = toShareError(e, 'SHARE_ACCESS_TICKET_INVALID', '下载失败');
-      setInvalid(err);
-      setPhase('invalid');
+      const hasResponse = !!(e as { response?: unknown })?.response;
+      if (hasResponse) {
+        // 服务端明确拒绝（票据失效/分享失效等），进入失效态
+        const err = toShareError(e, 'SHARE_ACCESS_TICKET_INVALID', '下载失败');
+        setInvalid(err);
+        setPhase('invalid');
+      } else {
+        // 无响应：网络中断/请求被取消，凭证仍然有效，停留当前页可重试
+        message.error('网络异常，下载中断，请重试');
+      }
     } finally {
       setDownloading(false);
     }
