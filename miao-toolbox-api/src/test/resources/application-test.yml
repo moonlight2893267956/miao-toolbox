@@ -54,3 +54,8 @@ app:
       max-send-per-hour: 5
       max-verify-per-day: 10
       length: 6
+
+# 定时任务调度模块（epic-task-scheduler）：测试专用加密密钥
+scheduler:
+  crypto:
+    secret: test-scheduler-crypto-secret-key
