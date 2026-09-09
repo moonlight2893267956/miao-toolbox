@@ -37,6 +37,9 @@ class SchedulerServiceTest {
     @Mock
     private ThreadPoolTaskScheduler taskScheduler;
 
+    @Mock
+    private ExecutionEngine executionEngine;
+
     private SchedulerService service;
 
     private ScheduledTask newTask(Long id, TaskStatus status) {
@@ -57,7 +60,7 @@ class SchedulerServiceTest {
     @DisplayName("register 注册 CronTrigger 并记录句柄")
     @Test
     void registerSchedulesCronTrigger() {
-        service = new SchedulerService(taskScheduler);
+        service = new SchedulerService(taskScheduler, executionEngine);
         ScheduledFuture<?> future = mock(ScheduledFuture.class);
         doReturn(future).when(taskScheduler).schedule(any(Runnable.class), any(CronTrigger.class));
 
@@ -69,7 +72,7 @@ class SchedulerServiceTest {
     @DisplayName("register 幂等：重复注册先取消旧句柄")
     @Test
     void registerCancelsExistingFirst() {
-        service = new SchedulerService(taskScheduler);
+        service = new SchedulerService(taskScheduler, executionEngine);
         ScheduledFuture<?> old = mock(ScheduledFuture.class);
         ScheduledFuture<?> next = mock(ScheduledFuture.class);
         doReturn(old).doReturn(next).when(taskScheduler)
@@ -84,7 +87,7 @@ class SchedulerServiceTest {
     @DisplayName("unregister 取消调度；未注册时静默")
     @Test
     void unregisterCancelsAndIsIdempotent() {
-        service = new SchedulerService(taskScheduler);
+        service = new SchedulerService(taskScheduler, executionEngine);
         ScheduledFuture<?> future = mock(ScheduledFuture.class);
         doReturn(future).when(taskScheduler).schedule(any(Runnable.class), any(CronTrigger.class));
         service.register(newTask(2L, TaskStatus.ENABLED));
@@ -95,22 +98,24 @@ class SchedulerServiceTest {
         verify(future, times(1)).cancel(false);
     }
 
-    @DisplayName("cron 触发回调进入 onCronTrigger（1.3 接入执行引擎的挂点）")
+    @DisplayName("cron 触发回调转交 ExecutionEngine.triggerScheduled")
     @Test
-    void scheduledRunnableInvokesTriggerHook() {
-        service = new SchedulerService(taskScheduler);
+    void scheduledRunnableInvokesEngine() {
+        service = new SchedulerService(taskScheduler, executionEngine);
         doAnswer(inv -> new SimpleTestFuture(inv.getArgument(0)))
                 .when(taskScheduler).schedule(any(Runnable.class), any(CronTrigger.class));
         service.register(newTask(3L, TaskStatus.ENABLED));
 
-        // 直接调用 hook 验证不抛异常（触发路径占位，1.3 接 ExecutionEngine）
+        // 模拟调度器执行触发回调 → 验证转交执行引擎
         service.onCronTrigger(3L);
+
+        verify(executionEngine).triggerScheduled(3L);
     }
 
     @DisplayName("nextRunAt：ENABLED 返回下次执行时间；PAUSED 返回 null")
     @Test
     void nextRunAtDependsOnStatus() {
-        service = new SchedulerService(taskScheduler);
+        service = new SchedulerService(taskScheduler, executionEngine);
 
         LocalDateTime enabledNext = service.nextRunAt(newTask(4L, TaskStatus.ENABLED));
         LocalDateTime pausedNext = service.nextRunAt(newTask(5L, TaskStatus.PAUSED));
@@ -123,7 +128,7 @@ class SchedulerServiceTest {
     @DisplayName("nextRunAt：cron 非法返回 null 不抛异常")
     @Test
     void nextRunAtWithInvalidCronReturnsNull() {
-        service = new SchedulerService(taskScheduler);
+        service = new SchedulerService(taskScheduler, executionEngine);
         ScheduledTask bad = newTask(6L, TaskStatus.ENABLED);
         bad.setCronExpression("not-a-cron");
 
@@ -133,7 +138,7 @@ class SchedulerServiceTest {
     @DisplayName("runAfterCommit：无事务时立即执行")
     @Test
     void runAfterCommitExecutesImmediatelyWithoutTransaction() {
-        service = new SchedulerService(taskScheduler);
+        service = new SchedulerService(taskScheduler, executionEngine);
         AtomicInteger ran = new AtomicInteger();
 
         service.runAfterCommit(ran::incrementAndGet);
@@ -144,7 +149,7 @@ class SchedulerServiceTest {
     @DisplayName("runAfterCommit：有事务时提交后才执行")
     @Test
     void runAfterCommitDefersUntilCommit() {
-        service = new SchedulerService(taskScheduler);
+        service = new SchedulerService(taskScheduler, executionEngine);
         AtomicInteger ran = new AtomicInteger();
         TransactionSynchronizationManager.initSynchronization();
         try {

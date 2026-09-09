@@ -16,45 +16,44 @@ import java.time.ZoneId;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 调度生命周期管理（架构 AR-5，NFR-2/NFR-3）。
  *
- * <p>维护 taskId → {@link ScheduledFuture} 与 taskId → running 标志两张内存表：
- * <ul>
- *   <li>{@code scheduledFutures} — create/edit/pause/resume/delete 统一经此协调</li>
- *   <li>{@code runningFlags} — skip 重叠判断（1.3 执行引擎使用，AtomicBoolean CAS）</li>
- * </ul>
+ * <p>维护 taskId → {@link ScheduledFuture} 内存表，create/edit/pause/resume/delete
+ * 统一经此协调；cron 到点触发回调 {@link ExecutionEngine#triggerScheduled(Long)}
+ * （skip 重叠与执行在 ExecutionEngine，线程模型见其类注释）。
  *
  * <p><b>事务边界规则（架构实现模式）：</b>register/unregister 必须在 DB 事务提交后执行，
  * 调用方通过 {@link #runAfterCommit(Runnable)} 注册回调——避免事务回滚后调度残留。
  *
- * <p>单实例（NFR-4）：内存表即全量状态；应用重启后由 SchedulerRecoveryRunner 重建（1.3）。
+ * <p>单实例（NFR-4）：内存表即全量状态；应用重启后由 SchedulerRecoveryRunner 重建。
  */
 @Slf4j
 @Service
 public class SchedulerService {
 
     private final ThreadPoolTaskScheduler taskScheduler;
+    private final ExecutionEngine executionEngine;
 
     /** taskId → 调度句柄 */
     private final Map<Long, ScheduledFuture<?>> scheduledFutures = new ConcurrentHashMap<>();
 
-    /** taskId → 是否执行中（skip 重叠） */
-    private final Map<Long, AtomicBoolean> runningFlags = new ConcurrentHashMap<>();
-
-    public SchedulerService(@Qualifier("schedulerTaskScheduler") ThreadPoolTaskScheduler taskScheduler) {
+    public SchedulerService(@Qualifier("schedulerTaskScheduler") ThreadPoolTaskScheduler taskScheduler,
+                            ExecutionEngine executionEngine) {
         this.taskScheduler = taskScheduler;
+        this.executionEngine = executionEngine;
     }
 
     /**
-     * 注册任务调度（幂等：已存在先取消）。触发回调为 {@link #onCronTrigger(Long)}。
+     * 注册任务调度（幂等：已存在先取消）。触发回调为 ExecutionEngine.triggerScheduled。
      *
      * <p>注册失败（如 cron 非法）仅记录错误不向上抛——afterCommit 回调中的异常
      * 会把已提交事务的请求炸成 500；调度缺失由重启恢复（NFR-2）兜底重建。
+     *
+     * @return 是否注册成功（重启恢复统计用）
      */
-    public void register(ScheduledTask task) {
+    public boolean register(ScheduledTask task) {
         unregister(task.getId());
         try {
             CronTrigger trigger = new CronTrigger(task.getCronExpression(),
@@ -62,12 +61,13 @@ public class SchedulerService {
             ScheduledFuture<?> future = taskScheduler.schedule(
                     () -> onCronTrigger(task.getId()), trigger);
             scheduledFutures.put(task.getId(), future);
-            runningFlags.putIfAbsent(task.getId(), new AtomicBoolean(false));
             log.info("[task:{}] scheduler registered, cron={} tz={}",
                     task.getId(), task.getCronExpression(), task.getTimezone());
+            return true;
         } catch (Exception e) {
             log.error("[task:{}] scheduler register FAILED, cron={}: {}",
                     task.getId(), task.getCronExpression(), e.getMessage());
+            return false;
         }
     }
 
@@ -109,11 +109,11 @@ public class SchedulerService {
     }
 
     /**
-     * cron 触发回调——1.3 Story 接入 ExecutionEngine 后改为调用执行引擎
-     * （skip 重叠检查 + 异步提交执行）。当前为骨架占位，仅记录触发日志。
+     * cron 触发回调（运行在调度线程）——转交执行引擎做 skip 重叠检查与异步执行。
      */
     void onCronTrigger(Long taskId) {
-        log.info("[task:{}] cron triggered (execution engine pending in ts-1-3)", taskId);
+        log.info("[task:{}] cron triggered", taskId);
+        executionEngine.triggerScheduled(taskId);
     }
 
     /**
