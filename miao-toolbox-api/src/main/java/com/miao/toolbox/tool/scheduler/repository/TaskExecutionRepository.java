@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Repository
 public interface TaskExecutionRepository extends JpaRepository<TaskExecution, Long> {
@@ -30,4 +31,13 @@ public interface TaskExecutionRepository extends JpaRepository<TaskExecution, Lo
     @Modifying
     @Query("DELETE FROM TaskExecution e WHERE e.triggeredAt < :before")
     long deleteByTriggeredAtBefore(@Param("before") LocalDateTime before);
+
+    /** 批量取每任务最新一条执行记录（FR-1 列表的"上次执行状态"，id 自增即时间序，避免 N+1） */
+    @Query("""
+            SELECT e FROM TaskExecution e
+            WHERE e.taskId IN :taskIds
+              AND e.id IN (SELECT MAX(e2.id) FROM TaskExecution e2
+                           WHERE e2.taskId IN :taskIds GROUP BY e2.taskId)
+            """)
+    List<TaskExecution> findLatestByTaskIds(@Param("taskIds") List<Long> taskIds);
 }

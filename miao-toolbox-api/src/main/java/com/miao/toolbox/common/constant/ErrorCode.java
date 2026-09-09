@@ -89,4 +89,11 @@ public final class ErrorCode {
     public static final String NETWORK_INVALID_INPUT = "NETWORK_INVALID_INPUT";
     public static final String NETWORK_RATE_LIMITED = "NETWORK_RATE_LIMITED";
     public static final String NETWORK_HTTP_FETCH_FAILED = "NETWORK_HTTP_FETCH_FAILED";
+
+    // Task scheduler (epic-task-scheduler)
+    public static final String SCHEDULER_TASK_NOT_FOUND = "SCHEDULER_TASK_NOT_FOUND";
+    public static final String SCHEDULER_TASK_NAME_DUPLICATED = "SCHEDULER_TASK_NAME_DUPLICATED";
+    public static final String SCHEDULER_CRON_INVALID = "SCHEDULER_CRON_INVALID";
+    public static final String SCHEDULER_TARGET_INVALID = "SCHEDULER_TARGET_INVALID";
+    public static final String SCHEDULER_TASK_RUNNING = "SCHEDULER_TASK_RUNNING";
 }
