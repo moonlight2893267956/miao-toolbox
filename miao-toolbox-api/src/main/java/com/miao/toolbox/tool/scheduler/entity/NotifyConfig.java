@@ -2,6 +2,7 @@ package com.miao.toolbox.tool.scheduler.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Builder.Default;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -31,7 +32,8 @@ public class NotifyConfig {
         /** 回调 URL（http/https，保存时经 SSRF 校验） */
         private String url;
         /** 触发条件（默认 ON_FAILURE） */
-        private NotifyTrigger trigger;
+        @Default
+        private NotifyTrigger trigger = NotifyTrigger.ON_FAILURE;
     }
 
     /** 邮件通知配置 */
@@ -43,6 +45,7 @@ public class NotifyConfig {
         /** 收件人列表（多个） */
         private java.util.List<String> recipients;
         /** 触发条件（默认 ON_FAILURE） */
-        private NotifyTrigger trigger;
+        @Default
+        private NotifyTrigger trigger = NotifyTrigger.ON_FAILURE;
     }
 }

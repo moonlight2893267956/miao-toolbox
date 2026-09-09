@@ -15,6 +15,7 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Builder.Default;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -78,19 +79,23 @@ public class ScheduledTask {
     /** 启停状态 */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
-    private TaskStatus status;
+    @Default
+    private TaskStatus status = TaskStatus.ENABLED;
 
     /** 失败重试次数（0-5） */
     @Column(name = "retry_count", nullable = false)
-    private Integer retryCount;
+    @Default
+    private Integer retryCount = 0;
 
     /** 重试间隔（秒） */
     @Column(name = "retry_interval", nullable = false)
-    private Integer retryInterval;
+    @Default
+    private Integer retryInterval = 60;
 
     /** 单次执行超时（秒） */
     @Column(name = "timeout_seconds", nullable = false)
-    private Integer timeoutSeconds;
+    @Default
+    private Integer timeoutSeconds = 30;
 
     /** 通知配置（JSON 列，可空 = 不通知） */
     @JdbcTypeCode(SqlTypes.JSON)
