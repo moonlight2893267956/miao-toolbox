@@ -8,13 +8,15 @@ import com.miao.toolbox.tool.scheduler.dto.CreateTaskRequest;
 import com.miao.toolbox.tool.scheduler.dto.TaskListItemResponse;
 import com.miao.toolbox.tool.scheduler.dto.TaskResponse;
 import com.miao.toolbox.tool.scheduler.dto.UpdateTaskRequest;
-import com.miao.toolbox.tool.scheduler.entity.ExecutionStatus;
 import com.miao.toolbox.tool.scheduler.entity.HttpTargetConfig;
+import com.miao.toolbox.tool.scheduler.entity.NotifyConfig;
+import com.miao.toolbox.tool.scheduler.entity.NotifyTrigger;
 import com.miao.toolbox.tool.scheduler.entity.ScheduledTask;
 import com.miao.toolbox.tool.scheduler.entity.TargetHeader;
 import com.miao.toolbox.tool.scheduler.entity.TargetType;
 import com.miao.toolbox.tool.scheduler.entity.TaskExecution;
 import com.miao.toolbox.tool.scheduler.entity.TaskStatus;
+import com.miao.toolbox.tool.scheduler.entity.NotifyConfig;
 import com.miao.toolbox.tool.scheduler.repository.ScheduledTaskRepository;
 import com.miao.toolbox.tool.scheduler.repository.TaskExecutionRepository;
 import com.miao.toolbox.tool.scheduler.util.SensitiveMasker;
@@ -33,8 +35,8 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.regex.Pattern;
 
 /**
  * 定时任务 CRUD 编排（FR-1/FR-2/FR-13/FR-14）。
@@ -56,6 +58,9 @@ public class TaskService {
     private static final int DEFAULT_RETRY_COUNT = 0;
     private static final int DEFAULT_RETRY_INTERVAL = 60;
     private static final int DEFAULT_TIMEOUT_SECONDS = 30;
+    /** 通知邮箱格式（实用级校验，非 RFC 5322 全量） */
+    private static final java.util.regex.Pattern EMAIL_PATTERN =
+            java.util.regex.Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
 
     private final ScheduledTaskRepository taskRepository;
     private final TaskExecutionRepository executionRepository;
@@ -90,7 +95,7 @@ public class TaskService {
                 .retryCount(req.getRetryCount() != null ? req.getRetryCount() : DEFAULT_RETRY_COUNT)
                 .retryInterval(req.getRetryInterval() != null ? req.getRetryInterval() : DEFAULT_RETRY_INTERVAL)
                 .timeoutSeconds(req.getTimeoutSeconds() != null ? req.getTimeoutSeconds() : DEFAULT_TIMEOUT_SECONDS)
-                .notifyConfig(req.getNotifyConfig())
+                .notifyConfig(normalizeAndValidateNotify(req.getNotifyConfig()))
                 .build();
         ScheduledTask saved = taskRepository.save(task);
 
@@ -135,7 +140,7 @@ public class TaskService {
         if (req.getTimeoutSeconds() != null) {
             task.setTimeoutSeconds(req.getTimeoutSeconds());
         }
-        task.setNotifyConfig(req.getNotifyConfig());
+        task.setNotifyConfig(normalizeAndValidateNotify(req.getNotifyConfig()));
         ScheduledTask saved = taskRepository.save(task);
 
         boolean wasEnabled = saved.getStatus() == TaskStatus.ENABLED;
@@ -271,22 +276,7 @@ public class TaskService {
                 throw new BusinessException(ErrorCode.SCHEDULER_TARGET_INVALID,
                         "HTTP 目标配置结构与 targetType 不匹配", 400);
             }
-            URI uri;
-            try {
-                uri = URI.create(http.getUrl());
-            } catch (Exception e) {
-                throw new BusinessException(ErrorCode.SCHEDULER_TARGET_INVALID, "目标 URL 格式非法", 400);
-            }
-            String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
-            if (!"http".equals(scheme) && !"https".equals(scheme)) {
-                throw new BusinessException(ErrorCode.SCHEDULER_TARGET_INVALID,
-                        "目标 URL 仅支持 http/https 协议", 400);
-            }
-            String host = uri.getHost();
-            if (host == null || host.isBlank()) {
-                throw new BusinessException(ErrorCode.SCHEDULER_TARGET_INVALID, "目标 URL 缺少主机名", 400);
-            }
-            ssrfProtector.resolveAndValidate(host);
+            validateHttpUrl(http.getUrl(), "目标 URL");
         } else if (targetType == TargetType.PRESET) {
             if (!(config instanceof com.miao.toolbox.tool.scheduler.entity.PresetTargetConfig preset)
                     || preset.getTemplate() == null || preset.getTemplate().isBlank()) {
@@ -294,6 +284,79 @@ public class TaskService {
                         "预置模板目标缺少 template", 400);
             }
         }
+    }
+
+    /**
+     * HTTP URL 校验（FR-13，供任务目标与 Webhook 回调共用）：协议白名单、
+     * 主机名非空、SSRF（SsrfProtector 拦截抛 NETWORK_SSRF_BLOCKED 透传）。
+     */
+    private void validateHttpUrl(String url, String label) {
+        URI uri;
+        try {
+            uri = URI.create(url);
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.SCHEDULER_TARGET_INVALID, label + "格式非法", 400);
+        }
+        String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
+        if (!"http".equals(scheme) && !"https".equals(scheme)) {
+            throw new BusinessException(ErrorCode.SCHEDULER_TARGET_INVALID,
+                    label + "仅支持 http/https 协议", 400);
+        }
+        String host = uri.getHost();
+        if (host == null || host.isBlank()) {
+            throw new BusinessException(ErrorCode.SCHEDULER_TARGET_INVALID, label + "缺少主机名", 400);
+        }
+        ssrfProtector.resolveAndValidate(host);
+    }
+
+    /**
+     * 通知配置校验与规范化（FR-10/FR-11/FR-13）：
+     * Webhook URL 保存时即做协议/SSRF 校验（违规 URL 保存时拒绝）；收件人校验邮箱格式；
+     * trigger 缺省兜底 ON_FAILURE（Jackson 反序列化不经过 Builder 默认值）。
+     * 返回规范化后的配置（原参数对象不被修改）。
+     */
+    private NotifyConfig normalizeAndValidateNotify(NotifyConfig notify) {
+        if (notify == null) {
+            return null;
+        }
+        boolean empty = (notify.getWebhook() == null || notify.getWebhook().getUrl() == null
+                || notify.getWebhook().getUrl().isBlank())
+                && (notify.getEmail() == null || notify.getEmail().getRecipients() == null
+                || notify.getEmail().getRecipients().isEmpty());
+        if (empty) {
+            return null;
+        }
+
+        NotifyConfig.WebhookNotify webhook = notify.getWebhook();
+        if (webhook != null && webhook.getUrl() != null && !webhook.getUrl().isBlank()) {
+            validateHttpUrl(webhook.getUrl().trim(), "Webhook 回调 URL");
+        }
+        NotifyConfig.EmailNotify email = notify.getEmail();
+        if (email != null && email.getRecipients() != null && !email.getRecipients().isEmpty()) {
+            for (String recipient : email.getRecipients()) {
+                if (recipient == null || !EMAIL_PATTERN.matcher(recipient.trim()).matches()) {
+                    throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                            "通知邮箱格式无效：" + recipient, 400);
+                }
+            }
+        }
+
+        NotifyTrigger webhookTrigger = webhook == null ? null
+                : (webhook.getTrigger() == null ? NotifyTrigger.ON_FAILURE : webhook.getTrigger());
+        NotifyTrigger emailTrigger = email == null ? null
+                : (email.getTrigger() == null ? NotifyTrigger.ON_FAILURE : email.getTrigger());
+
+        return NotifyConfig.builder()
+                .webhook(webhook == null ? null : NotifyConfig.WebhookNotify.builder()
+                        .url(webhook.getUrl() == null ? null : webhook.getUrl().trim())
+                        .trigger(webhookTrigger)
+                        .build())
+                .email(email == null ? null : NotifyConfig.EmailNotify.builder()
+                        .recipients(email.getRecipients().stream()
+                                .map(String::trim).toList())
+                        .trigger(emailTrigger)
+                        .build())
+                .build();
     }
 
     // ------------------------------------------------------------
@@ -325,7 +388,12 @@ public class TaskService {
                     String v = h.getValue();
                     if (v == null || v.isBlank() || SENSITIVE_PLACEHOLDER.equals(v)) {
                         String kept = oldSensitive.get(h.getName());
-                        return new TargetHeader(h.getName(), kept == null ? "" : kept, true);
+                        if (kept == null) {
+                            // 无旧密文可保留：新建、或编辑时 header 改名/新增——占位值会让密钥静默丢失，拒绝
+                            throw new BusinessException(ErrorCode.SCHEDULER_TARGET_INVALID,
+                                    "敏感 header '" + h.getName() + "' 需要提供实际值（当前为占位符且无历史值可保留）", 400);
+                        }
+                        return new TargetHeader(h.getName(), kept, true);
                     }
                     return new TargetHeader(h.getName(), cryptoService.encrypt(v), true);
                 })

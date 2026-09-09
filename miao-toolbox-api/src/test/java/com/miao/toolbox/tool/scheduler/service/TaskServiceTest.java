@@ -36,6 +36,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -400,5 +401,150 @@ class TaskServiceTest {
         assertThat(config.getHeaders().get(0).getValue()).isEqualTo("****");
         assertThat(resp.getLastExecutionStatus()).isEqualTo("FAILED");
         assertThat(resp.getNextRunAt()).isNotNull();
+    }
+
+    // ------------------------------------------------------------
+    // Code review patch 覆盖（P3/P4）
+    // ------------------------------------------------------------
+
+    @DisplayName("[P3] 创建时敏感 header 为占位值且无历史值 → 拒绝")
+    @Test
+    void createTaskRejectsPlaceholderWithoutHistory() {
+        when(taskRepository.existsByName(anyString())).thenReturn(false);
+        CreateTaskRequest req = createRequest(httpConfig("https://example.com",
+                TargetHeader.builder().name("Authorization").value("****").sensitive(true).build()));
+
+        assertThatThrownBy(() -> taskService.createTask(req))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", "SCHEDULER_TARGET_INVALID")
+                .hasMessageContaining("Authorization");
+        verify(taskRepository, never()).save(any());
+    }
+
+    @DisplayName("[P3] 编辑时敏感 header 改名 + 占位值 → 拒绝（防密钥静默丢失）")
+    @Test
+    void updateTaskRejectsRenamedHeaderWithPlaceholder() {
+        ScheduledTask existing = savedTask(14L, "健康检查",
+                httpConfig("https://example.com",
+                        TargetHeader.builder().name("Authorization").value("old-cipher").sensitive(true).build()),
+                TaskStatus.ENABLED);
+        when(taskRepository.findById(14L)).thenReturn(java.util.Optional.of(existing));
+
+        UpdateTaskRequest req = UpdateTaskRequest.builder()
+                .name("健康检查")
+                .targetType(TargetType.HTTP)
+                .targetConfig(httpConfig("https://example.com",
+                        // header 改名为 X-Token，占位值在旧密文中无对应——拒绝
+                        TargetHeader.builder().name("X-Token").value("****").sensitive(true).build()))
+                .cronExpression("*/5 * * * *")
+                .timezone("Asia/Shanghai")
+                .build();
+
+        assertThatThrownBy(() -> taskService.updateTask(14L, req))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", "SCHEDULER_TARGET_INVALID")
+                .hasMessageContaining("X-Token");
+    }
+
+    @DisplayName("[P4] Webhook URL 内网地址 → 保存时 NETWORK_SSRF_BLOCKED 拒绝")
+    @Test
+    void createTaskRejectsInternalWebhookUrl() throws Exception {
+        when(taskRepository.existsByName(anyString())).thenReturn(false);
+        // 先过目标 URL 的 SSRF（公网放行），再校验 Webhook URL 时拦截内网
+        when(ssrfProtector.resolveAndValidate("example.com"))
+                .thenReturn(InetAddress.getByName("93.184.216.34"));
+        when(ssrfProtector.resolveAndValidate("10.0.0.5"))
+                .thenThrow(new BusinessException("NETWORK_SSRF_BLOCKED", "内网地址", 400));
+
+        CreateTaskRequest req = createRequest(httpConfig("https://example.com"));
+        req.setNotifyConfig(com.miao.toolbox.tool.scheduler.entity.NotifyConfig.builder()
+                .webhook(com.miao.toolbox.tool.scheduler.entity.NotifyConfig.WebhookNotify.builder()
+                        .url("http://10.0.0.5/hook")
+                        .trigger(com.miao.toolbox.tool.scheduler.entity.NotifyTrigger.ON_FAILURE)
+                        .build())
+                .build());
+
+        assertThatThrownBy(() -> taskService.createTask(req))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", "NETWORK_SSRF_BLOCKED");
+        verify(taskRepository, never()).save(any());
+    }
+
+    @DisplayName("[P4] Webhook URL 非法协议 → SCHEDULER_TARGET_INVALID")
+    @Test
+    void createTaskRejectsWebhookWithBadProtocol() {
+        when(taskRepository.existsByName(anyString())).thenReturn(false);
+        CreateTaskRequest req = createRequest(httpConfig("https://example.com"));
+        req.setNotifyConfig(com.miao.toolbox.tool.scheduler.entity.NotifyConfig.builder()
+                .webhook(com.miao.toolbox.tool.scheduler.entity.NotifyConfig.WebhookNotify.builder()
+                        .url("ftp://example.com/hook")
+                        .build())
+                .build());
+
+        assertThatThrownBy(() -> taskService.createTask(req))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", "SCHEDULER_TARGET_INVALID")
+                .hasMessageContaining("Webhook");
+    }
+
+    @DisplayName("[P4] 通知邮箱格式无效 → VALIDATION_FAILED")
+    @Test
+    void createTaskRejectsInvalidEmailRecipient() {
+        when(taskRepository.existsByName(anyString())).thenReturn(false);
+        CreateTaskRequest req = createRequest(httpConfig("https://example.com"));
+        req.setNotifyConfig(com.miao.toolbox.tool.scheduler.entity.NotifyConfig.builder()
+                .email(com.miao.toolbox.tool.scheduler.entity.NotifyConfig.EmailNotify.builder()
+                        .recipients(List.of("admin@example.com", "not-an-email"))
+                        .build())
+                .build());
+
+        assertThatThrownBy(() -> taskService.createTask(req))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", "VALIDATION_FAILED")
+                .hasMessageContaining("not-an-email");
+    }
+
+    @DisplayName("[P4] 通知配置 trigger 缺省兜底 ON_FAILURE + 全空配置归一为 null")
+    @Test
+    void notifyTriggerDefaultsAndEmptyNormalizesToNull() {
+        runAfterCommitImmediately();
+        when(taskRepository.existsByName(anyString())).thenReturn(false);
+        when(taskRepository.save(any(ScheduledTask.class))).thenAnswer(inv -> {
+            ScheduledTask t = inv.getArgument(0);
+            t.setId(20L);
+            return t;
+        });
+        // webhook URL 配置但 trigger 未传（Jackson 反序列化 null 场景）
+        CreateTaskRequest req = createRequest(httpConfig("https://example.com"));
+        req.setNotifyConfig(com.miao.toolbox.tool.scheduler.entity.NotifyConfig.builder()
+                .webhook(com.miao.toolbox.tool.scheduler.entity.NotifyConfig.WebhookNotify.builder()
+                        .url("https://open.feishu.cn/hook/abc")
+                        .build())
+                .build());
+
+        taskService.createTask(req);
+
+        ArgumentCaptor<ScheduledTask> captor = ArgumentCaptor.forClass(ScheduledTask.class);
+        verify(taskRepository).save(captor.capture());
+        com.miao.toolbox.tool.scheduler.entity.NotifyConfig notify = captor.getValue().getNotifyConfig();
+        assertThat(notify.getWebhook().getTrigger())
+                .isEqualTo(com.miao.toolbox.tool.scheduler.entity.NotifyTrigger.ON_FAILURE);
+
+        // 全空配置（对象存在但 URL 空、无收件人）归一为 null = 不通知
+        CreateTaskRequest emptyNotify = createRequest(httpConfig("https://example.com"));
+        emptyNotify.setNotifyConfig(com.miao.toolbox.tool.scheduler.entity.NotifyConfig.builder()
+                .webhook(com.miao.toolbox.tool.scheduler.entity.NotifyConfig.WebhookNotify.builder()
+                        .url("").build())
+                .build());
+        when(taskRepository.existsByName("健康检查")).thenReturn(false);
+        when(taskRepository.save(any(ScheduledTask.class))).thenAnswer(inv -> {
+            ScheduledTask t = inv.getArgument(0);
+            t.setId(21L);
+            return t;
+        });
+        taskService.createTask(emptyNotify);
+        ArgumentCaptor<ScheduledTask> captor2 = ArgumentCaptor.forClass(ScheduledTask.class);
+        verify(taskRepository, times(2)).save(captor2.capture());
+        assertThat(captor2.getAllValues().get(1).getNotifyConfig()).isNull();
     }
 }
