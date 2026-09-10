@@ -13,6 +13,7 @@ import {
   PartitionOutlined,
   RobotOutlined,
   SafetyOutlined,
+  ScheduleOutlined,
   SettingOutlined,
   TeamOutlined,
   SoundOutlined,
@@ -507,6 +508,12 @@ export function resolveTabLabel(path: string): string {
     const id = path.split('/').filter(Boolean).pop() ?? '';
     if (NETWORK_TAB_LABELS[id]) return NETWORK_TAB_LABELS[id];
   }
+  // 定时任务子页面（新建 / 编辑 / 详情）：避免标签退化成路径末段的 id
+  if (path.startsWith('/tools/task-scheduler/')) {
+    if (path.endsWith('/new')) return '新建定时任务';
+    if (path.endsWith('/edit')) return '编辑定时任务';
+    return '任务详情';
+  }
   return tabTitleFromPath(path);
 }
 
@@ -524,6 +531,11 @@ export function resolveTabIcon(path: string): ReactNode | undefined {
   // 网络工具箱列表 + 各子工具（刷新后 localStorage 无 ReactNode，靠此补回）
   if (path.startsWith('/tools/network')) {
     return resolveNetworkIconFromPath(path);
+  }
+
+  // 定时任务子页面统一用列表页图标
+  if (path.startsWith('/tools/task-scheduler')) {
+    return <ScheduleOutlined />;
   }
 
   if (path === '/admin/dashboard') return <DashboardOutlined />;

@@ -1,5 +1,6 @@
 // Cron 执行时间预览（Story 1.4 / FR-13 下 N 次 / FR-14 空结果 / FR-15 时区）
 // 仅在校验通过时展示；未来 1 年内无匹配显示提示。
+// 可嵌入：传入受控 timezone / count 时按外部时区预览并隐藏内置时区下拉（默认行为不变）。
 import React, { useMemo, useState } from 'react';
 import { CalendarOutlined, GlobalOutlined } from '@ant-design/icons';
 import { Select, Typography } from 'antd';
@@ -158,13 +159,21 @@ function filterTz(input: string, option?: { value: string; label?: unknown }): b
   return option.value.toLowerCase().includes(kw) || labelTxt.includes(kw) || cn.includes(kw);
 }
 
-const NextRunsPreview: React.FC = () => {
+interface NextRunsPreviewProps {
+  /** 受控时区：传入时以该时区预览并隐藏组件内置的时区下拉（调用方时区为唯一真源） */
+  timezone?: string;
+  /** 预览条数，默认 10（定时任务表单传 5，与后端 validate-cron 对齐） */
+  count?: number;
+}
+
+const NextRunsPreview: React.FC<NextRunsPreviewProps> = ({ timezone, count = 10 }) => {
   const { state, validation } = useCronContext();
   const { expression, dialect } = state;
 
-  const [tz, setTz] = useState<string>(
+  const [innerTz, setInnerTz] = useState<string>(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
   );
+  const tz = timezone ?? innerTz;
   const timeZones = useMemo(() => getTimeZones(), []);
   const tzOptions = useMemo(
     () => timeZones.map((z) => ({ value: z, label: tzCnLabel(z) })),
@@ -173,8 +182,8 @@ const NextRunsPreview: React.FC = () => {
 
   const runs = useMemo(() => {
     if (!validation.valid || expression.trim() === '') return null;
-    return nextRuns(expression, dialect, tz, 10);
-  }, [expression, dialect, tz, validation.valid]);
+    return nextRuns(expression, dialect, tz, count);
+  }, [expression, dialect, tz, validation.valid, count]);
 
   if (runs === null) return null;
 
@@ -186,21 +195,38 @@ const NextRunsPreview: React.FC = () => {
         <span className="ce-next-runs-title">
           <CalendarOutlined /> 未来执行时间
         </span>
-        <span className="ce-tz-select" title="时区">
-          <GlobalOutlined />
-          <Select
-            size="small"
-            value={tz}
-            onChange={setTz}
-            options={tzOptions}
-            showSearch
-            filterOption={filterTz}
-            virtual={false}
-            popupMatchSelectWidth={false}
-            listHeight={280}
-            popupClassName="ce-tz-popup"
-          />
-        </span>
+        {timezone ? (
+          // 受控时区：由调用方（如定时任务表单）提供，仅展示，不在预览里改时区
+          <span
+            title={`时区：${tz}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 12,
+              color: 'var(--miao-text-secondary)',
+            }}
+          >
+            <GlobalOutlined />
+            {tzCnLabel(tz)}
+          </span>
+        ) : (
+          <span className="ce-tz-select" title="时区">
+            <GlobalOutlined />
+            <Select
+              size="small"
+              value={innerTz}
+              onChange={setInnerTz}
+              options={tzOptions}
+              showSearch
+              filterOption={filterTz}
+              virtual={false}
+              popupMatchSelectWidth={false}
+              listHeight={280}
+              popupClassName="ce-tz-popup"
+            />
+          </span>
+        )}
       </div>
 
       {runs.length === 0 ? (

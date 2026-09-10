@@ -1,0 +1,273 @@
+/**
+ * 定时任务调度模块样式。
+ *
+ * 颜色一律取全局 token（src/index.css 的 `--miao-*` 与 src/theme/tokens.css），
+ * 暗色由 `data-theme='dark'` 统一切换，此处不写暗色分支。
+ */
+.ts-page {
+  --tool-accent: var(--miao-accent-tool-amber);
+
+  padding: 24px 28px 48px;
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.ts-loading {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+/* ── 列表页工具条 ─────────────────────────────────────────── */
+.ts-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ts-table-wrap {
+  background: var(--miao-bg-elevated);
+  border: 1px solid var(--miao-border);
+  border-radius: var(--miao-radius-lg);
+  padding: 4px 8px;
+  box-shadow: var(--miao-shadow-soft);
+}
+
+.ts-link {
+  padding: 0;
+  height: auto;
+  font-weight: 600;
+}
+
+.ts-code {
+  font-family: var(--miao-font-mono);
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: var(--miao-radius-sm);
+  background: var(--miao-bg-muted);
+  color: var(--miao-text-primary);
+}
+
+.ts-muted {
+  color: var(--miao-text-tertiary);
+}
+
+/* ── 状态标签（自建，避免跨模块引入 admin 样式） ──────────── */
+.ts-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 10px 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 20px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.ts-chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.ts-chip--success {
+  color: var(--miao-success-text);
+  background: var(--miao-success-bg);
+  border-color: var(--miao-success);
+}
+
+.ts-chip--error {
+  color: var(--miao-error-text);
+  background: var(--miao-error-bg);
+  border-color: var(--miao-error);
+}
+
+.ts-chip--warning {
+  color: var(--miao-warning-text);
+  background: var(--miao-warning-bg);
+  border-color: var(--miao-warning);
+}
+
+.ts-chip--muted {
+  color: var(--miao-text-secondary);
+  background: var(--miao-bg-muted);
+  border-color: var(--miao-border-strong);
+}
+
+/* ── 表单页 ───────────────────────────────────────────────── */
+.ts-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.ts-card {
+  border-radius: var(--miao-radius-lg);
+  box-shadow: var(--miao-shadow-soft);
+}
+
+.ts-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+
+/* Header 编辑器 */
+.ts-header-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ts-header-empty {
+  color: var(--miao-text-tertiary);
+  font-size: 13px;
+}
+
+.ts-header-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ts-header-name {
+  flex: 0 0 240px;
+  margin-bottom: 0;
+}
+
+.ts-header-value {
+  flex: 1 1 auto;
+  margin-bottom: 0;
+}
+
+.ts-header-sensitive {
+  margin-bottom: 0;
+  padding-top: 5px;
+}
+
+/* ── 详情页 ───────────────────────────────────────────────── */
+.ts-detail-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ts-url {
+  font-family: var(--miao-font-mono);
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.ts-header-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ts-header-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.ts-header-item-name {
+  font-weight: 600;
+  min-width: 140px;
+}
+
+.ts-header-item-value {
+  font-family: var(--miao-font-mono);
+  color: var(--miao-text-secondary);
+  word-break: break-all;
+}
+
+.ts-body-preview {
+  margin: 0;
+  padding: 8px 10px;
+  max-height: 200px;
+  overflow: auto;
+  background: var(--miao-bg-muted);
+  border-radius: var(--miao-radius-sm);
+  font-family: var(--miao-font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── 执行历史 ─────────────────────────────────────────────── */
+.ts-history {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ts-history-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ts-exec-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.ts-exec-error {
+  color: var(--miao-error-text);
+  word-break: break-all;
+}
+
+.ts-exec-json {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.ts-exec-json-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--miao-text-secondary);
+  margin-bottom: 4px;
+}
+
+.ts-exec-json pre {
+  margin: 0;
+  padding: 8px 10px;
+  max-height: 240px;
+  overflow: auto;
+  background: var(--miao-bg-muted);
+  border: 1px solid var(--miao-border);
+  border-radius: var(--miao-radius-sm);
+  font-family: var(--miao-font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+@media (max-width: 768px) {
+  .ts-page {
+    padding: 16px 12px 32px;
+  }
+
+  .ts-header-row {
+    flex-wrap: wrap;
+  }
+
+  .ts-header-name {
+    flex: 1 1 100%;
+  }
+}

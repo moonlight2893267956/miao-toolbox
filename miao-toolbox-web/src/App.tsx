@@ -36,6 +36,9 @@ const FileStoragePage = lazy(() => import('./modules/tools/file-storage'));
 // 外链分享访问页：免登页面，必须放在 RequireAuth 之外
 const ShareAccessPage = lazy(() => import('./modules/share/ShareAccessPage'));
 const TextBatchProcessorPage = lazy(() => import('./modules/tools/text-batch-processor/TextBatchProcessorPage'));
+const TaskSchedulerListPage = lazy(() => import('./modules/tools/task-scheduler/TaskListPage'));
+const TaskSchedulerFormPage = lazy(() => import('./modules/tools/task-scheduler/TaskFormPage'));
+const TaskSchedulerDetailPage = lazy(() => import('./modules/tools/task-scheduler/TaskDetailPage'));
 const DashboardPage = lazy(() => import('./modules/admin/DashboardPage'));
 const UserManagePage = lazy(() => import('./modules/admin/UserManagePage'));
 const InvocationsPage = lazy(() => import('./modules/admin/InvocationsPage'));
@@ -105,6 +108,10 @@ function AppRoutes() {
         <Route path="tools/ral-log-parser" element={<RequireRoute code="TOOL_RAL_LOG_PARSER"><RalLogParserPage /></RequireRoute>} />
         <Route path="tools/file-storage" element={<RequireRoute code="TOOL_FILE_STORAGE"><FileStoragePage /></RequireRoute>} />
         <Route path="tools/text-batch-processor" element={<RequireRoute code="TOOL_TEXT_BATCH_PROCESSOR"><TextBatchProcessorPage /></RequireRoute>} />
+        <Route path="tools/task-scheduler" element={<RequireRoute code="TOOL_TASK_SCHEDULER"><TaskSchedulerListPage /></RequireRoute>} />
+        <Route path="tools/task-scheduler/new" element={<RequireRoute code="TOOL_TASK_SCHEDULER"><TaskSchedulerFormPage /></RequireRoute>} />
+        <Route path="tools/task-scheduler/:id/edit" element={<RequireRoute code="TOOL_TASK_SCHEDULER"><TaskSchedulerFormPage /></RequireRoute>} />
+        <Route path="tools/task-scheduler/:id" element={<RequireRoute code="TOOL_TASK_SCHEDULER"><TaskSchedulerDetailPage /></RequireRoute>} />
         <Route
           path="tools/network"
           element={
