@@ -1,5 +1,6 @@
 package com.miao.toolbox.tool.scheduler.service;
 
+import com.miao.toolbox.tool.scheduler.dto.ValidateCronResponse;
 import com.miao.toolbox.tool.scheduler.entity.HttpTargetConfig;
 import com.miao.toolbox.tool.scheduler.entity.ScheduledTask;
 import com.miao.toolbox.tool.scheduler.entity.TargetType;
@@ -162,6 +163,43 @@ class SchedulerServiceTest {
         } finally {
             TransactionSynchronizationManager.clearSynchronization();
         }
+    }
+
+    @DisplayName("validateCron：5 位方言规范化 + 5 次预览")
+    @Test
+    void validateCronNormalizesAndPreviews() {
+        service = new SchedulerService(taskScheduler, executionEngine);
+
+        ValidateCronResponse response = service.validateCron("*/5 * * * *", "Asia/Shanghai");
+
+        assertThat(response.isValid()).isTrue();
+        assertThat(response.getNormalizedExpression()).isEqualTo("0 */5 * * * *");
+        assertThat(response.getNextRuns()).hasSize(5);
+        assertThat(response.getNextRuns()).isSorted();
+    }
+
+    @DisplayName("validateCron：无效表达式返回 valid=false")
+    @Test
+    void validateCronRejectsInvalidExpression() {
+        service = new SchedulerService(taskScheduler, executionEngine);
+
+        ValidateCronResponse response = service.validateCron("bad-cron", null);
+
+        assertThat(response.isValid()).isFalse();
+        assertThat(response.getError()).contains("cron");
+        assertThat(response.getNextRuns()).isNull();
+    }
+
+    @DisplayName("validateCron：无效时区返回 valid=false（不得静默空预览）")
+    @Test
+    void validateCronRejectsInvalidTimezone() {
+        service = new SchedulerService(taskScheduler, executionEngine);
+
+        ValidateCronResponse response = service.validateCron("0 0 3 * * *", "Mars/Olympus_Mons");
+
+        assertThat(response.isValid()).isFalse();
+        assertThat(response.getError()).contains("时区无效");
+        assertThat(response.getNextRuns()).isNull();
     }
 
     /** 测试用 ScheduledFuture 骨架。 */

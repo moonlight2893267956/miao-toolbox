@@ -1,7 +1,9 @@
 package com.miao.toolbox.tool.scheduler.service;
 
+import com.miao.toolbox.tool.scheduler.dto.ValidateCronResponse;
 import com.miao.toolbox.tool.scheduler.entity.ScheduledTask;
 import com.miao.toolbox.tool.scheduler.entity.TaskStatus;
+import com.miao.toolbox.tool.scheduler.util.CronSupport;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -33,6 +35,11 @@ import java.util.concurrent.ScheduledFuture;
 @Slf4j
 @Service
 public class SchedulerService {
+
+    /** 默认调度时区（与 TaskService 保持一致）。 */
+    private static final String DEFAULT_TIMEZONE = "Asia/Shanghai";
+    /** validate-cron 预览的执行次数。 */
+    private static final int NEXT_RUNS_PREVIEW = 5;
 
     private final ThreadPoolTaskScheduler taskScheduler;
     private final ExecutionEngine executionEngine;
@@ -119,25 +126,42 @@ public class SchedulerService {
 
     /**
      * cron 表达式校验（FR-2，validate-cron 端点）：5/6 位方言规范化 + 下次 5 次执行时间预览。
-     * 无副作用（不写库）。无效表达式返回 valid=false 与中文错误。
+     * 无副作用（不写库）。无效表达式 / 无效时区均返回 valid=false 与中文错误。
+     *
+     * <p>时区必须先校验：{@link CronSupport#nextRuns} 对非法时区静默返回空列表，
+     * 若在此放行会出现「valid=true 但 nextRuns 为空」的矛盾响应，也与保存路径
+     * （{@link TaskService} 抛 VALIDATION_FAILED「时区无效」）语义不一致。
      */
-    public com.miao.toolbox.tool.scheduler.dto.ValidateCronResponse validateCron(
-            String expression, String timezone) {
-        String normalized = com.miao.toolbox.tool.scheduler.util.CronSupport.normalize(expression);
+    public ValidateCronResponse validateCron(String expression, String timezone) {
+        String normalized = CronSupport.normalize(expression);
         if (normalized == null) {
-            return com.miao.toolbox.tool.scheduler.dto.ValidateCronResponse.builder()
+            return ValidateCronResponse.builder()
                     .valid(false)
                     .error("cron 表达式无效：" + expression)
                     .build();
         }
-        String tz = (timezone == null || timezone.isBlank()) ? "Asia/Shanghai" : timezone.trim();
-        List<LocalDateTime> nextRuns =
-                com.miao.toolbox.tool.scheduler.util.CronSupport.nextRuns(normalized, tz, 5);
-        return com.miao.toolbox.tool.scheduler.dto.ValidateCronResponse.builder()
+        String tz = (timezone == null || timezone.isBlank()) ? DEFAULT_TIMEZONE : timezone.trim();
+        if (!isValidTimezone(tz)) {
+            return ValidateCronResponse.builder()
+                    .valid(false)
+                    .error("时区无效：" + tz)
+                    .build();
+        }
+        List<LocalDateTime> nextRuns = CronSupport.nextRuns(normalized, tz, NEXT_RUNS_PREVIEW);
+        return ValidateCronResponse.builder()
                 .valid(true)
                 .normalizedExpression(normalized)
                 .nextRuns(nextRuns)
                 .build();
+    }
+
+    private boolean isValidTimezone(String timezone) {
+        try {
+            ZoneId.of(timezone);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /**

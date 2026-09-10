@@ -23,6 +23,7 @@ import com.miao.toolbox.tool.scheduler.entity.TaskExecution;
 import com.miao.toolbox.tool.scheduler.entity.TaskStatus;
 import com.miao.toolbox.tool.scheduler.repository.ScheduledTaskRepository;
 import com.miao.toolbox.tool.scheduler.repository.TaskExecutionRepository;
+import com.miao.toolbox.tool.scheduler.util.CronSupport;
 import com.miao.toolbox.tool.scheduler.util.SensitiveMasker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -286,11 +287,12 @@ public class TaskService {
     /**
      * 校验并规范化 cron 表达式（FR-2：支持 5/6 位方言）。
      *
-     * <p>规范化逻辑在 {@link com.miao.toolbox.tool.scheduler.util.CronSupport#normalize(String)}
-     * （与 validate-cron 端点共用）；返回规范化后的 6 位表达式统一存储与调度。
+     * <p>规范化逻辑在 {@link CronSupport#normalize(String)}（与 validate-cron 端点共用）；
+     * 返回规范化后的 6 位表达式统一存储与调度，长度超上限（{@link CronSupport#MAX_LENGTH}）
+     * 与非法表达式同等处理。
      */
     private String normalizeCron(String cronExpression) {
-        String normalized = com.miao.toolbox.tool.scheduler.util.CronSupport.normalize(cronExpression);
+        String normalized = CronSupport.normalize(cronExpression);
         if (normalized == null) {
             throw new BusinessException(ErrorCode.SCHEDULER_CRON_INVALID,
                     "cron 表达式无效：" + cronExpression, 400);

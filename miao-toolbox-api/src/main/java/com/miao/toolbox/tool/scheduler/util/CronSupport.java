@@ -16,25 +16,39 @@ import java.util.List;
  */
 public final class CronSupport {
 
+    /**
+     * 表达式长度上限，与 {@code scheduled_tasks.cron_expression VARCHAR(120)} 对齐。
+     *
+     * <p>约束作用于**规范化后的存储形态**：5 位方言补秒后长度 +2，故 119~120 字符的
+     * 5 位表达式会超列宽——必须在入库前拦掉，否则 MySQL 抛 Data too long（500）。
+     */
+    public static final int MAX_LENGTH = 120;
+
     private CronSupport() {
     }
 
     /**
      * 校验并规范化 cron 表达式：6 位原样返回；5 位前补 "0 " 转 6 位；
-     * 其他无效输入返回 null（调用方负责抛业务异常）。
+     * 其他无效输入（含超过 {@link #MAX_LENGTH}）返回 null（调用方负责抛业务异常）。
+     *
+     * <p>长度检查先于解析：超长输入直接短路，不做正则切分与表达式解析。
      */
     public static String normalize(String expression) {
         if (expression == null) {
             return null;
         }
         String trimmed = expression.trim();
+        if (trimmed.length() > MAX_LENGTH) {
+            return null;
+        }
         if (CronExpression.isValidExpression(trimmed)) {
             return trimmed;
         }
-        String sixField = "0 " + trimmed;
-        if (!trimmed.isEmpty() && trimmed.split("\\s+").length == 5
-                && CronExpression.isValidExpression(sixField)) {
-            return sixField;
+        if (!trimmed.isEmpty() && trimmed.split("\\s+").length == 5) {
+            String sixField = "0 " + trimmed;
+            if (sixField.length() <= MAX_LENGTH && CronExpression.isValidExpression(sixField)) {
+                return sixField;
+            }
         }
         return null;
     }
