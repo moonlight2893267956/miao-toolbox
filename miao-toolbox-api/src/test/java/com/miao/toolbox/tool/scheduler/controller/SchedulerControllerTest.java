@@ -43,6 +43,9 @@ class SchedulerControllerTest {
     @Mock
     private TaskService taskService;
 
+    @Mock
+    private com.miao.toolbox.tool.scheduler.service.SchedulerService schedulerService;
+
     @InjectMocks
     private SchedulerController controller;
 
@@ -184,5 +187,53 @@ class SchedulerControllerTest {
         mvc().perform(get("/api/scheduler/tasks/404"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SCHEDULER_TASK_NOT_FOUND"));
+    }
+
+    @DisplayName("POST /{id}/execute 手动触发返回 SUCCESS（ts-1-4）")
+    @Test
+    void executeEndpoint() throws Exception {
+        mvc().perform(post("/api/scheduler/tasks/1/execute"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"));
+        org.mockito.Mockito.verify(taskService).executeTask(1L);
+    }
+
+    @DisplayName("POST /validate-cron 有效表达式返回规范化 + 5 次预览（ts-1-4）")
+    @Test
+    void validateCronEndpoint() throws Exception {
+        when(schedulerService.validateCron("*/5 * * * *", "Asia/Shanghai"))
+                .thenReturn(com.miao.toolbox.tool.scheduler.dto.ValidateCronResponse.builder()
+                        .valid(true)
+                        .normalizedExpression("0 */5 * * * *")
+                        .nextRuns(java.util.List.of(
+                                java.time.LocalDateTime.now().plusMinutes(5),
+                                java.time.LocalDateTime.now().plusMinutes(10)))
+                        .build());
+
+        mvc().perform(post("/api/scheduler/tasks/validate-cron")
+                        .contentType("application/json")
+                        .content("{\"expression\":\"*/5 * * * *\",\"timezone\":\"Asia/Shanghai\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.valid").value(true))
+                .andExpect(jsonPath("$.data.normalizedExpression").value("0 */5 * * * *"))
+                .andExpect(jsonPath("$.data.nextRuns.length()").value(2));
+    }
+
+    @DisplayName("POST /validate-cron 无效表达式返回 valid=false（ts-1-4）")
+    @Test
+    void validateCronInvalidExpression() throws Exception {
+        when(schedulerService.validateCron("bad-cron", null))
+                .thenReturn(com.miao.toolbox.tool.scheduler.dto.ValidateCronResponse.builder()
+                        .valid(false)
+                        .error("cron 表达式无效：bad-cron")
+                        .build());
+
+        mvc().perform(post("/api/scheduler/tasks/validate-cron")
+                        .contentType("application/json")
+                        .content("{\"expression\":\"bad-cron\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.valid").value(false))
+                .andExpect(jsonPath("$.data.error").isNotEmpty());
     }
 }

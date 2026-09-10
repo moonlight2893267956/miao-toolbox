@@ -67,6 +67,7 @@ public class TaskService {
     private final SchedulerService schedulerService;
     private final SchedulerCryptoService cryptoService;
     private final SsrfProtector ssrfProtector;
+    private final ExecutionEngine executionEngine;
 
     // ------------------------------------------------------------
     // 创建
@@ -233,27 +234,39 @@ public class TaskService {
     }
 
     // ------------------------------------------------------------
+    // 手动触发（FR-6，ts-1-4）
+    // ------------------------------------------------------------
+
+    /**
+     * 手动触发任务执行：立即异步提交一次执行（trigger_type=MANUAL），
+     * 不影响 cron 调度的下次执行时间；受重试/超时/通知策略约束（与调度触发一致）。
+     * 响应立即返回，不等待执行完成。
+     */
+    public void executeTask(Long id) {
+        ScheduledTask task = taskRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULER_TASK_NOT_FOUND,
+                        "任务不存在：" + id, 404));
+        log.info("[task:{}] action=MANUAL_TRIGGER name={} operator={}", id, task.getName(), currentOperator());
+        executionEngine.triggerManual(id);
+    }
+
+    // ------------------------------------------------------------
     // 校验
     // ------------------------------------------------------------
 
     /**
      * 校验并规范化 cron 表达式（FR-2：支持 5/6 位方言）。
      *
-     * <p>Spring {@link CronExpression} 仅支持 6 位（秒 分 时 日 月 周）；
-     * 5 位 Unix 方言自动前补秒字段 0。返回规范化后的 6 位表达式统一存储与调度，
-     * 避免调度器与展示两处各自转换。
+     * <p>规范化逻辑在 {@link com.miao.toolbox.tool.scheduler.util.CronSupport#normalize(String)}
+     * （与 validate-cron 端点共用）；返回规范化后的 6 位表达式统一存储与调度。
      */
     private String normalizeCron(String cronExpression) {
-        String trimmed = cronExpression == null ? "" : cronExpression.trim();
-        if (CronExpression.isValidExpression(trimmed)) {
-            return trimmed;
+        String normalized = com.miao.toolbox.tool.scheduler.util.CronSupport.normalize(cronExpression);
+        if (normalized == null) {
+            throw new BusinessException(ErrorCode.SCHEDULER_CRON_INVALID,
+                    "cron 表达式无效：" + cronExpression, 400);
         }
-        String sixField = "0 " + trimmed;
-        if (trimmed.split("\\s+").length == 5 && CronExpression.isValidExpression(sixField)) {
-            return sixField;
-        }
-        throw new BusinessException(ErrorCode.SCHEDULER_CRON_INVALID,
-                "cron 表达式无效：" + cronExpression, 400);
+        return normalized;
     }
 
     private String normalizeTimezone(String timezone) {

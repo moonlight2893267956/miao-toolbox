@@ -13,6 +13,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
@@ -114,6 +115,29 @@ public class SchedulerService {
     void onCronTrigger(Long taskId) {
         log.info("[task:{}] cron triggered", taskId);
         executionEngine.triggerScheduled(taskId);
+    }
+
+    /**
+     * cron 表达式校验（FR-2，validate-cron 端点）：5/6 位方言规范化 + 下次 5 次执行时间预览。
+     * 无副作用（不写库）。无效表达式返回 valid=false 与中文错误。
+     */
+    public com.miao.toolbox.tool.scheduler.dto.ValidateCronResponse validateCron(
+            String expression, String timezone) {
+        String normalized = com.miao.toolbox.tool.scheduler.util.CronSupport.normalize(expression);
+        if (normalized == null) {
+            return com.miao.toolbox.tool.scheduler.dto.ValidateCronResponse.builder()
+                    .valid(false)
+                    .error("cron 表达式无效：" + expression)
+                    .build();
+        }
+        String tz = (timezone == null || timezone.isBlank()) ? "Asia/Shanghai" : timezone.trim();
+        List<LocalDateTime> nextRuns =
+                com.miao.toolbox.tool.scheduler.util.CronSupport.nextRuns(normalized, tz, 5);
+        return com.miao.toolbox.tool.scheduler.dto.ValidateCronResponse.builder()
+                .valid(true)
+                .normalizedExpression(normalized)
+                .nextRuns(nextRuns)
+                .build();
     }
 
     /**

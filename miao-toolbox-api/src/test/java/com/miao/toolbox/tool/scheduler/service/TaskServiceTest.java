@@ -65,6 +65,9 @@ class TaskServiceTest {
     @Mock
     private SsrfProtector ssrfProtector;
 
+    @Mock
+    private ExecutionEngine executionEngine;
+
     @InjectMocks
     private TaskService taskService;
 
@@ -546,5 +549,32 @@ class TaskServiceTest {
         ArgumentCaptor<ScheduledTask> captor2 = ArgumentCaptor.forClass(ScheduledTask.class);
         verify(taskRepository, times(2)).save(captor2.capture());
         assertThat(captor2.getAllValues().get(1).getNotifyConfig()).isNull();
+    }
+
+    // ------------------------------------------------------------
+    // 手动触发（FR-6，ts-1-4）
+    // ------------------------------------------------------------
+
+    @DisplayName("AC1: 手动触发提交 ExecutionEngine.triggerManual")
+    @Test
+    void executeTaskSubmitsManualTrigger() {
+        ScheduledTask existing = savedTask(30L, "健康检查",
+                httpConfig("https://example.com"), TaskStatus.PAUSED);
+        when(taskRepository.findById(30L)).thenReturn(java.util.Optional.of(existing));
+
+        taskService.executeTask(30L);
+
+        verify(executionEngine).triggerManual(30L);
+    }
+
+    @DisplayName("AC1: 手动触发不存在的任务返回 SCHEDULER_TASK_NOT_FOUND")
+    @Test
+    void executeTaskRejectsUnknownId() {
+        when(taskRepository.findById(99L)).thenReturn(java.util.Optional.empty());
+
+        assertThatThrownBy(() -> taskService.executeTask(99L))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", "SCHEDULER_TASK_NOT_FOUND");
+        verify(executionEngine, never()).triggerManual(any());
     }
 }

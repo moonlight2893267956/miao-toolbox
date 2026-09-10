@@ -10,7 +10,10 @@ import com.miao.toolbox.tool.scheduler.dto.TaskListItemResponse;
 import com.miao.toolbox.tool.scheduler.dto.TaskResponse;
 import com.miao.toolbox.tool.scheduler.dto.ToggleTaskRequest;
 import com.miao.toolbox.tool.scheduler.dto.UpdateTaskRequest;
+import com.miao.toolbox.tool.scheduler.dto.ValidateCronRequest;
+import com.miao.toolbox.tool.scheduler.dto.ValidateCronResponse;
 import com.miao.toolbox.tool.scheduler.entity.TaskStatus;
+import com.miao.toolbox.tool.scheduler.service.SchedulerService;
 import com.miao.toolbox.tool.scheduler.service.TaskService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +43,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class SchedulerController {
 
     private final TaskService taskService;
+    private final SchedulerService schedulerService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<TaskResponse>> create(@Valid @RequestBody CreateTaskRequest request) {
@@ -77,6 +81,21 @@ public class SchedulerController {
     public ResponseEntity<ApiResponse<TaskResponse>> toggle(@PathVariable Long id,
                                                             @Valid @RequestBody ToggleTaskRequest request) {
         return ResponseEntity.ok(ApiResponse.success(taskService.toggleTask(id, request.getAction())));
+    }
+
+    /** 手动触发（FR-6）：立即异步提交一次执行，响应不等执行完成。 */
+    @PostMapping("/{id}/execute")
+    public ResponseEntity<ApiResponse<Void>> execute(@PathVariable Long id) {
+        taskService.executeTask(id);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    /** cron 校验（FR-2）：5/6 位方言 + 下次 5 次执行时间预览（无副作用）。 */
+    @PostMapping("/validate-cron")
+    public ResponseEntity<ApiResponse<ValidateCronResponse>> validateCron(
+            @Valid @RequestBody ValidateCronRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                schedulerService.validateCron(request.getExpression(), request.getTimezone())));
     }
 
     private TaskStatus parseStatus(String status) {
