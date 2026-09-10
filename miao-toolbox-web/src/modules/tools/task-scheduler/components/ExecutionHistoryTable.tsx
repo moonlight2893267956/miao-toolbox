@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Descriptions, Select, Spin, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { ReloadOutlined } from '@ant-design/icons';
+import { HistoryOutlined, ReloadOutlined } from '@ant-design/icons';
 import { schedulerApi } from '../schedulerApi';
 import type { ExecutionListItem, ExecutionStatus, TaskExecutionDetail } from '../types';
 import { extractErrorMessage, formatDateTime, formatDuration, prettyJson } from '../format';
 import ExecutionStatusTag from './ExecutionStatusTag';
+import SchedulerEmpty from './SchedulerEmpty';
 
 const STATUS_OPTIONS = [
   { value: 'SUCCESS', label: '成功' },
@@ -156,13 +157,22 @@ const ExecutionHistoryTable: React.FC<ExecutionHistoryTableProps> = ({ taskId, r
         <Alert type="error" showIcon message={loadError} />
       ) : (
         <Table<ExecutionListItem>
+          className="ts-table"
           rowKey="id"
           size="small"
           loading={loading}
           columns={columns}
           dataSource={items}
           scroll={{ x: 720 }}
-          locale={{ emptyText: '暂无执行记录' }}
+          locale={{
+            emptyText: (
+              <SchedulerEmpty
+                icon={<HistoryOutlined />}
+                title="暂无执行记录"
+                hint="任务触发执行后，这里会按时间倒序列出每次执行的摘要"
+              />
+            ),
+          }}
           expandable={{
             expandedRowRender: (row) => (
               <ExecutionDetailPanel detail={details[row.id]} loading={detailLoadingId === row.id} />

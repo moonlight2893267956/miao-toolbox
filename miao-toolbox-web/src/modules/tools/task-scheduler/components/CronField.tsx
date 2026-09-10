@@ -3,6 +3,9 @@ import type { CronDialect } from '../../cron-editor/types';
 import { CronProvider } from '../../cron-editor/CronProvider';
 import ExpressionInput from '../../cron-editor/components/ExpressionInput';
 import NextRunsPreview from '../../cron-editor/components/NextRunsPreview';
+// cron-editor.css 只被 CronEditorPage 引用，直接复用其组件时需显式引入，
+// 否则 .ce-* 样式缺失（高亮层与输入框会错位重叠）。所有选择器均为 .ce-* / :has(.ce-page) 作用域，无全局污染。
+import '../../cron-editor/cron-editor.css';
 
 interface CronFieldProps {
   /** 受控值（由 antd Form.Item name="cronExpression" 注入） */

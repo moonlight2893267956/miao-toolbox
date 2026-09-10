@@ -93,7 +93,14 @@ export const CronProvider: React.FC<CronProviderProps> = ({
   useEffect(() => {
     onExpressionChangeRef.current = onExpressionChange;
   }, [onExpressionChange]);
+  // 跳过挂载首帧：初值本就来自外部受控值，回推会让父表单认为字段"已改动"
+  // （受控必填项会立刻显示校验错误）
+  const notifyReadyRef = useRef(false);
   useEffect(() => {
+    if (!notifyReadyRef.current) {
+      notifyReadyRef.current = true;
+      return;
+    }
     onExpressionChangeRef.current?.(state.expression);
   }, [state.expression]);
 

@@ -1,18 +1,103 @@
 /**
- * 定时任务调度模块样式。
+ * 定时任务调度 — Scheduling Console
  *
- * 颜色一律取全局 token（src/index.css 的 `--miao-*` 与 src/theme/tokens.css），
- * 暗色由 `data-theme='dark'` 统一切换，此处不写暗色分支。
+ * 设计语言（与 regex-tester / cron-editor 工作台对齐）：
+ * - 圆角描边容器 + 分层阴影，页面自身即一块「控制台」
+ * - 自定义页头：梯度图标 + 光晕 + 脉冲状态点 + 右侧动作区
+ * - 面板化分区：面板头（强调色圆点 + 标题 + 元信息）+ 内容区
+ * - 强调色：琥珀 (--miao-accent-tool-amber)，用于点缀/聚焦/悬浮，不做大面积铺色
+ * - 全部颜色取全局 token（src/index.css / src/theme/tokens.css），暗色由 data-theme 统一切换
  */
-.ts-page {
-  --tool-accent: var(--miao-accent-tool-amber);
+/* 外壳：全屏铺满（与 regex-tester / cron-editor 工作台一致，页面自行滚动） */
+.miao-shell:has(.ts-page) {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
 
-  padding: 24px 28px 48px;
-  max-width: 1280px;
-  margin: 0 auto;
+.miao-shell:has(.ts-page) > .ant-layout {
+  min-height: 0;
+}
+
+.miao-content:has(.ts-page) {
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  min-height: 0;
+  margin: 0;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  overflow: hidden;
+}
+
+.miao-content:has(.ts-page) > div {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+}
+
+/* 页面内容包裹层（PageFadeIn 的 div）也要参与拉伸，否则整页高度塌到内容高度 */
+.miao-content:has(.ts-page) > div > div:has(> .ts-page) {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ts-page {
+  --tool-accent: var(--miao-accent-tool-amber);
+  --ts-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ts-radius-sm: var(--miao-radius-sm, 8px);
+  --ts-radius-md: var(--miao-radius-md, 12px);
+  --ts-radius-lg: var(--miao-radius-lg, 16px);
+  /* cron-editor 组件的变量定义在其页面根 .ce-page 上，嵌入复用时需补一份 */
+  --ce-font-mono: var(--miao-font-mono);
+  --ce-ink: var(--miao-text-primary);
+  --ce-ink-soft: var(--miao-text-secondary);
+  --ce-border: var(--miao-border);
+  --ce-ease: var(--ts-ease);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 14px;
+  padding: 16px 20px 20px;
+  overflow: auto;
+  color: var(--miao-text-primary);
+  background: var(--miao-bg-elevated);
+  border: 1px solid var(--miao-border);
+  border-radius: var(--ts-radius-lg);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.03);
+}
+
+/* 顶部氛围：琥珀色柔光，暗示「计时/调度」，不抢内容 */
+.ts-page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 160px;
+  pointer-events: none;
+  background: radial-gradient(
+    520px 150px at 82% -30px,
+    color-mix(in srgb, var(--tool-accent) 12%, transparent),
+    transparent 72%
+  );
+}
+
+:root[data-theme='dark'] .ts-page {
+  background: linear-gradient(180deg, var(--miao-bg-elevated) 0%, rgba(20, 20, 28, 1) 100%);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .ts-loading {
@@ -21,51 +106,459 @@
   padding: 48px 0;
 }
 
-/* ── 列表页工具条 ─────────────────────────────────────────── */
-.ts-toolbar {
+/* ============================================================
+   页头
+   ============================================================ */
+.ts-header {
+  flex-shrink: 0;
+  animation: ts-rise 380ms var(--ts-ease) both;
+}
+
+.ts-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.ts-header-icon {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ts-radius-md);
+  color: #fff;
+  font-size: 22px;
+  background: linear-gradient(135deg, var(--tool-accent), color-mix(in srgb, var(--tool-accent) 72%, #000));
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--tool-accent) 40%, transparent);
+}
+
+.ts-header-icon::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+  border-radius: calc(var(--ts-radius-md) + 2px);
+  background: color-mix(in srgb, var(--tool-accent) 50%, transparent);
+  filter: blur(10px);
+  opacity: 0.5;
+}
+
+.ts-header-text {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.ts-header-text h2 {
+  margin: 0;
+  font-family: var(--miao-font-body);
+  font-size: 23px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--miao-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ts-header-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+  color: var(--miao-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.ts-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--miao-success);
+  box-shadow: 0 0 0 4px var(--miao-success-bg);
+}
+
+.ts-dot--live {
+  animation: ts-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ts-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px var(--miao-success-bg);
+  }
+  50% {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--miao-success) 20%, transparent);
+  }
+}
+
+.ts-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+/* ============================================================
+   命令条（列表页筛选 / 新建）
+   ============================================================ */
+.ts-command-bar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-}
-
-.ts-table-wrap {
-  background: var(--miao-bg-elevated);
+  padding: 14px 16px;
   border: 1px solid var(--miao-border);
-  border-radius: var(--miao-radius-lg);
-  padding: 4px 8px;
+  border-radius: var(--ts-radius-md);
+  background: var(--miao-bg-elevated);
   box-shadow: var(--miao-shadow-soft);
 }
 
-.ts-link {
+.ts-command-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ts-command-bar .ant-input-affix-wrapper {
+  border-radius: var(--ts-radius-sm);
+  background: var(--miao-bg-muted);
+  border-color: var(--miao-border-strong);
+  transition: border-color 200ms var(--ts-ease), box-shadow 200ms var(--ts-ease);
+}
+
+.ts-command-bar .ant-input-affix-wrapper:focus-within,
+.ts-command-bar .ant-select-focused .ant-select-selector {
+  border-color: var(--tool-accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tool-accent) 15%, transparent) !important;
+}
+
+.ts-command-bar .ant-select .ant-select-selector {
+  border-radius: var(--ts-radius-sm);
+  background: var(--miao-bg-muted);
+  border-color: var(--miao-border-strong);
+}
+
+/* ============================================================
+   面板（分区容器）
+   ============================================================ */
+.ts-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  /* 关键：面板不可被 flex 压缩，否则在固定高度的滚动容器里内容会被 overflow:hidden 裁掉 */
+  flex: 0 0 auto;
+  border: 1px solid var(--miao-border);
+  border-radius: var(--ts-radius-lg);
+  background: var(--miao-bg-elevated);
+  box-shadow: var(--miao-shadow);
+  overflow: hidden;
+  animation: ts-rise 420ms var(--ts-ease) both;
+  animation-delay: calc(var(--ts-i, 0) * 60ms);
+}
+
+.ts-panel-head {
+  min-height: 52px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--miao-border);
+  background: color-mix(in srgb, var(--miao-bg-muted) 55%, transparent);
+}
+
+.ts-panel-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--miao-text-primary);
+}
+
+.ts-panel-label::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--tool-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tool-accent) 15%, transparent);
+}
+
+.ts-panel--schedule .ts-panel-label::before {
+  background: var(--miao-info);
+  box-shadow: 0 0 0 4px var(--miao-info-bg);
+}
+
+.ts-panel--target .ts-panel-label::before {
+  background: var(--miao-success);
+  box-shadow: 0 0 0 4px var(--miao-success-bg);
+}
+
+.ts-panel--notify .ts-panel-label::before {
+  background: var(--miao-text-tertiary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--miao-text-tertiary) 15%, transparent);
+}
+
+.ts-panel-meta {
+  font-size: 12px;
+  color: var(--miao-text-tertiary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ts-panel-body {
+  min-width: 0;
+  padding: 18px;
+}
+
+.ts-panel-body--flush {
   padding: 0;
-  height: auto;
+}
+
+/* 撑满剩余高度（列表页：表格占满工作台，表体内部滚动、分页贴底、表头吸顶） */
+.ts-panel--fill {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.ts-panel--fill .ts-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ts-panel--fill .ts-table {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* antd v6 的加载包裹层是 .ant-spin（旧版为 .ant-spin-nested-loading），两个都覆盖 */
+.ts-panel--fill .ts-table > .ant-spin,
+.ts-panel--fill .ts-table .ant-spin-nested-loading,
+.ts-panel--fill .ts-table .ant-spin-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ts-panel--fill .ts-table .ant-table {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.ts-panel--fill .ts-table .ant-table-thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.ts-panel--fill .ts-table .ant-pagination {
+  flex: 0 0 auto;
+}
+
+@keyframes ts-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================
+   表格（AntD 覆写）
+   ============================================================ */
+.ts-table .ant-table {
+  background: transparent;
+}
+
+.ts-table .ant-table-thead > tr > th {
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--miao-text-secondary);
+  background: var(--miao-bg-muted);
+  border-bottom: 1px solid var(--miao-border);
+}
+
+/* 取消表头单元格之间的分隔线，保持表头整体感 */
+.ts-table .ant-table-thead > tr > th::before {
+  display: none !important;
+}
+
+.ts-table .ant-table-tbody > tr > td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--miao-border);
+}
+
+.ts-table .ant-table-tbody > tr:last-child > td {
+  border-bottom: none;
+}
+
+.ts-table .ant-table-tbody > tr.ant-table-row:hover > td {
+  background: color-mix(in srgb, var(--tool-accent) 6%, transparent);
+}
+
+/* 固定列需要显式背景（透明底色下悬停/滚动会露底） */
+.ts-table .ant-table-cell-fix-right,
+.ts-table .ant-table-cell-fix-right-first {
+  background: var(--miao-bg-elevated);
+}
+
+.ts-table .ant-table-thead .ant-table-cell-fix-right,
+.ts-table .ant-table-thead .ant-table-cell-fix-right-first {
+  background: var(--miao-bg-muted);
+}
+
+.ts-table .ant-table-tbody > tr.ant-table-row:hover > td.ant-table-cell-fix-right,
+.ts-table .ant-table-tbody > tr.ant-table-row:hover > td.ant-table-cell-fix-right-first {
+  background: color-mix(in srgb, var(--tool-accent) 6%, var(--miao-bg-elevated));
+}
+
+.ts-table .ant-pagination {
+  margin: 0;
+  padding: 12px 16px;
+  border-top: 1px solid var(--miao-border);
+}
+
+/* 面板内嵌表格：给表格自身加一层描边，形成「面板中的表格」层次 */
+.ts-panel-body:not(.ts-panel-body--flush) .ts-table {
+  border: 1px solid var(--miao-border);
+  border-radius: var(--ts-radius-sm);
+  overflow: hidden;
+}
+
+/* 面板内 Descriptions：表头走 muted 底，内容走主文本色 */
+.ts-panel-body .ant-descriptions-item-label {
+  font-size: 12.5px;
   font-weight: 600;
+  color: var(--miao-text-secondary) !important;
+  background: var(--miao-bg-muted) !important;
+}
+
+.ts-panel-body .ant-descriptions-item-content {
+  font-size: 13px;
+  color: var(--miao-text-primary);
+}
+
+/* 行内动作按钮 */
+.ts-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.ts-row-actions .ant-btn {
+  color: var(--miao-text-tertiary);
+  transition: color 160ms var(--ts-ease), background 160ms var(--ts-ease);
+}
+
+.ts-row-actions .ant-btn:hover:not(:disabled) {
+  color: var(--tool-accent);
+  background: color-mix(in srgb, var(--tool-accent) 10%, transparent);
+}
+
+.ts-name-link {
+  height: auto;
+  padding: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--miao-text-primary);
+}
+
+.ts-name-link:hover {
+  color: var(--tool-accent) !important;
+}
+
+/* ============================================================
+   排版辅助
+   ============================================================ */
+.ts-code,
+.ts-url {
+  font-family: var(--miao-font-mono);
+  font-size: 12px;
 }
 
 .ts-code {
-  font-family: var(--miao-font-mono);
-  font-size: 12px;
-  padding: 2px 6px;
-  border-radius: var(--miao-radius-sm);
-  background: var(--miao-bg-muted);
+  padding: 2px 7px;
+  border-radius: var(--ts-radius-sm);
+  background: color-mix(in srgb, var(--tool-accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tool-accent) 22%, transparent);
   color: var(--miao-text-primary);
+  white-space: nowrap;
+}
+
+.ts-url {
+  font-size: 13px;
+  word-break: break-all;
 }
 
 .ts-muted {
   color: var(--miao-text-tertiary);
 }
 
-/* ── 状态标签（自建，避免跨模块引入 admin 样式） ──────────── */
+.ts-next-run {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ts-next-run-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--tool-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tool-accent) 16%, transparent);
+  animation: ts-pulse-soft 2.4s ease-in-out infinite;
+}
+
+@keyframes ts-pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ============================================================
+   状态标签
+   ============================================================ */
 .ts-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 1px 10px 1px 8px;
+  padding: 2px 10px 2px 8px;
   border-radius: 999px;
   font-size: 12px;
-  line-height: 20px;
+  line-height: 19px;
   white-space: nowrap;
   border: 1px solid transparent;
 }
@@ -73,27 +566,32 @@
 .ts-chip-dot {
   width: 6px;
   height: 6px;
+  flex: none;
   border-radius: 50%;
   background: currentColor;
-  flex: none;
 }
 
 .ts-chip--success {
   color: var(--miao-success-text);
   background: var(--miao-success-bg);
-  border-color: var(--miao-success);
+  border-color: color-mix(in srgb, var(--miao-success) 45%, transparent);
+}
+
+/* 启用中的任务：状态点脉冲，暗示「正在计时」 */
+.ts-chip--success .ts-chip-dot {
+  animation: ts-pulse-soft 2s ease-in-out infinite;
 }
 
 .ts-chip--error {
   color: var(--miao-error-text);
   background: var(--miao-error-bg);
-  border-color: var(--miao-error);
+  border-color: color-mix(in srgb, var(--miao-error) 45%, transparent);
 }
 
 .ts-chip--warning {
   color: var(--miao-warning-text);
   background: var(--miao-warning-bg);
-  border-color: var(--miao-warning);
+  border-color: color-mix(in srgb, var(--miao-warning) 45%, transparent);
 }
 
 .ts-chip--muted {
@@ -102,23 +600,95 @@
   border-color: var(--miao-border-strong);
 }
 
-/* ── 表单页 ───────────────────────────────────────────────── */
+/* ============================================================
+   空状态
+   ============================================================ */
+.ts-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 24px;
+  color: var(--miao-text-tertiary);
+}
+
+.ts-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 14px;
+  font-size: 26px;
+  color: var(--tool-accent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--tool-accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tool-accent) 22%, transparent);
+  animation: ts-float 3s ease-in-out infinite;
+}
+
+@keyframes ts-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.ts-empty-title {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--miao-text-secondary);
+}
+
+.ts-empty-hint {
+  margin: 0;
+  max-width: 300px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   表单
+   ============================================================ */
 .ts-form {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
-.ts-card {
-  border-radius: var(--miao-radius-lg);
-  box-shadow: var(--miao-shadow-soft);
+.ts-form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ts-form .ant-form-item-label > label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--miao-text-secondary);
+}
+
+/* cron 输入区撑满表单宽度（cron-editor 组件为 flex 收缩布局，嵌入时需显式拉宽） */
+.ts-form .ce-input-inner,
+.ts-form .ce-input-row {
+  width: 100%;
+}
+
+.ts-form .ce-expression-wrap {
+  flex: 1 1 auto;
+  min-width: 240px;
 }
 
 .ts-form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding-bottom: 8px;
+  padding-top: 2px;
 }
 
 /* Header 编辑器 */
@@ -129,14 +699,28 @@
 }
 
 .ts-header-empty {
-  color: var(--miao-text-tertiary);
   font-size: 13px;
+  color: var(--miao-text-tertiary);
 }
 
 .ts-header-row {
   display: flex;
   align-items: flex-start;
   gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--miao-border);
+  border-radius: var(--ts-radius-sm);
+  background: var(--miao-bg-muted);
+  transition: border-color 180ms var(--ts-ease);
+}
+
+.ts-header-row:focus-within {
+  border-color: color-mix(in srgb, var(--tool-accent) 45%, transparent);
+}
+
+.ts-header-row .ant-input,
+.ts-header-row .ant-input-affix-wrapper {
+  background: var(--miao-bg-elevated);
 }
 
 .ts-header-name {
@@ -152,42 +736,36 @@
 .ts-header-sensitive {
   margin-bottom: 0;
   padding-top: 5px;
+  white-space: nowrap;
 }
 
-/* ── 详情页 ───────────────────────────────────────────────── */
-.ts-detail-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.ts-url {
-  font-family: var(--miao-font-mono);
-  font-size: 13px;
-  word-break: break-all;
-}
-
+/* ============================================================
+   详情页
+   ============================================================ */
 .ts-header-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .ts-header-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--miao-border);
+  border-radius: var(--ts-radius-sm);
+  background: var(--miao-bg-muted);
   font-size: 13px;
 }
 
 .ts-header-item-name {
+  min-width: 150px;
   font-weight: 600;
-  min-width: 140px;
 }
 
 .ts-header-item-value {
+  flex: 1 1 auto;
   font-family: var(--miao-font-mono);
   color: var(--miao-text-secondary);
   word-break: break-all;
@@ -195,18 +773,22 @@
 
 .ts-body-preview {
   margin: 0;
-  padding: 8px 10px;
-  max-height: 200px;
+  padding: 10px 12px;
+  max-height: 220px;
   overflow: auto;
+  border: 1px solid var(--miao-border);
+  border-radius: var(--ts-radius-sm);
   background: var(--miao-bg-muted);
-  border-radius: var(--miao-radius-sm);
   font-family: var(--miao-font-mono);
   font-size: 12px;
+  line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-all;
 }
 
-/* ── 执行历史 ─────────────────────────────────────────────── */
+/* ============================================================
+   执行历史
+   ============================================================ */
 .ts-history {
   display: flex;
   flex-direction: column;
@@ -217,6 +799,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .ts-exec-detail {
@@ -238,29 +821,81 @@
 }
 
 .ts-exec-json-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--miao-text-secondary);
   margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--miao-text-secondary);
 }
 
 .ts-exec-json pre {
   margin: 0;
-  padding: 8px 10px;
+  padding: 10px 12px;
   max-height: 240px;
   overflow: auto;
-  background: var(--miao-bg-muted);
   border: 1px solid var(--miao-border);
-  border-radius: var(--miao-radius-sm);
+  border-radius: var(--ts-radius-sm);
+  background: var(--miao-bg-muted);
   font-family: var(--miao-font-mono);
   font-size: 12px;
+  line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-all;
 }
 
+/* ============================================================
+   滚动条
+   ============================================================ */
+.ts-page ::-webkit-scrollbar,
+.ts-exec-json pre::-webkit-scrollbar,
+.ts-body-preview::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.ts-page ::-webkit-scrollbar-track,
+.ts-exec-json pre::-webkit-scrollbar-track,
+.ts-body-preview::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ts-page ::-webkit-scrollbar-thumb,
+.ts-exec-json pre::-webkit-scrollbar-thumb,
+.ts-body-preview::-webkit-scrollbar-thumb {
+  background: var(--miao-border);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.ts-page ::-webkit-scrollbar-thumb:hover,
+.ts-exec-json pre::-webkit-scrollbar-thumb:hover,
+.ts-body-preview::-webkit-scrollbar-thumb:hover {
+  background: var(--miao-text-tertiary);
+  background-clip: padding-box;
+}
+
+.ts-exec-json pre,
+.ts-body-preview {
+  scrollbar-width: thin;
+  scrollbar-color: var(--miao-border) transparent;
+}
+
+/* ============================================================
+   响应式 / 动效降级
+   ============================================================ */
 @media (max-width: 768px) {
   .ts-page {
-    padding: 16px 12px 32px;
+    padding: 14px 12px 20px;
+  }
+
+  .ts-header-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .ts-panel-body {
+    padding: 14px;
   }
 
   .ts-header-row {
@@ -269,5 +904,15 @@
 
   .ts-header-name {
     flex: 1 1 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ts-panel,
+  .ts-empty-icon,
+  .ts-dot--live,
+  .ts-chip--success .ts-chip-dot,
+  .ts-next-run-dot {
+    animation: none !important;
   }
 }
