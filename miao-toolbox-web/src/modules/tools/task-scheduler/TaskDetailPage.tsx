@@ -21,6 +21,12 @@ import ExecutionStatusTag from './components/ExecutionStatusTag';
 import ExecutionHistoryTable from './components/ExecutionHistoryTable';
 import './task-scheduler.css';
 
+const TRIGGER_LABEL: Record<string, string> = {
+  ALWAYS: '每次执行',
+  ON_FAILURE: '仅失败时',
+  ON_SUCCESS: '仅成功时',
+};
+
 /** 任务详情页（FR-9）：配置分区 + 执行历史 + 操作入口 */
 const TaskDetailPage: React.FC = () => {
   const navigate = useNavigate();
@@ -264,10 +270,39 @@ const TaskDetailPage: React.FC = () => {
               )}
             </SchedulerPanel>
 
+            <SchedulerPanel label="通知配置" meta="Webhook · 邮件" tone="notify" index={3}>
+              <Descriptions size="small" column={2} bordered>
+                <Descriptions.Item label="Webhook">
+                  {task.notifyConfig?.webhook?.url ? (
+                    <span className="ts-url">{task.notifyConfig.webhook.url}</span>
+                  ) : (
+                    <span className="ts-muted">未配置</span>
+                  )}
+                </Descriptions.Item>
+                <Descriptions.Item label="Webhook 触发条件">
+                  {task.notifyConfig?.webhook?.trigger
+                    ? TRIGGER_LABEL[task.notifyConfig.webhook.trigger] ?? '未配置'
+                    : '未配置'}
+                </Descriptions.Item>
+                <Descriptions.Item label="通知邮箱">
+                  {task.notifyConfig?.email?.recipients?.length ? (
+                    <span className="ts-url">{task.notifyConfig.email.recipients.join('、')}</span>
+                  ) : (
+                    <span className="ts-muted">未配置</span>
+                  )}
+                </Descriptions.Item>
+                <Descriptions.Item label="邮件触发条件">
+                  {task.notifyConfig?.email?.trigger
+                    ? TRIGGER_LABEL[task.notifyConfig.email.trigger] ?? '未配置'
+                    : '未配置'}
+                </Descriptions.Item>
+              </Descriptions>
+            </SchedulerPanel>
+
             <SchedulerPanel
               label="执行历史"
               meta={`任务 #${task.id} · 按触发时间倒序`}
-              index={3}
+              index={4}
             >
               <ExecutionHistoryTable taskId={task.id} refreshToken={historyToken} />
             </SchedulerPanel>

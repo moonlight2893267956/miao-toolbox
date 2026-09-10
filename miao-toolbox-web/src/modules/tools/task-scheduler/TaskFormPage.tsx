@@ -17,7 +17,7 @@ import type { Dayjs } from 'dayjs';
 import { ArrowLeftOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import PageFadeIn from '../../../components/shared/PageFadeIn';
 import { schedulerApi } from './schedulerApi';
-import type { NotifyConfig, ScheduledTask, TaskPayload, TargetHeader } from './types';
+import type { NotifyTrigger, ScheduledTask, TaskPayload, TargetHeader } from './types';
 import { extractErrorMessage, fromLocalDateTime, toLocalDateTimeIso } from './format';
 import SchedulerHeader from './components/SchedulerHeader';
 import SchedulerPanel from './components/SchedulerPanel';
@@ -56,6 +56,10 @@ interface TaskFormValues {
   validUntil?: Dayjs | null;
   retryCount?: number | null;
   retryInterval?: number | null;
+  notifyConfig?: {
+    webhook?: { url?: string | null; trigger?: NotifyTrigger | null } | null;
+    email?: { recipients?: string[] | null; trigger?: NotifyTrigger | null } | null;
+  } | null;
 }
 
 const DEFAULT_VALUES: TaskFormValues = {
@@ -76,6 +80,10 @@ const DEFAULT_VALUES: TaskFormValues = {
   validUntil: null,
   retryCount: 0,
   retryInterval: 60,
+  notifyConfig: {
+    webhook: { url: '', trigger: 'ON_FAILURE' },
+    email: { recipients: [], trigger: 'ON_FAILURE' },
+  },
 };
 
 /** 详情 → 表单初值（敏感 header 的 **** 占位原样带入，用户不改则后端保留原密文） */
@@ -99,6 +107,40 @@ function toFormValues(task: ScheduledTask): TaskFormValues {
     validUntil: fromLocalDateTime(task.validUntil),
     retryCount: task.retryCount ?? 0,
     retryInterval: task.retryInterval ?? 60,
+    notifyConfig: {
+      webhook: {
+        url: task.notifyConfig?.webhook?.url ?? '',
+        trigger: task.notifyConfig?.webhook?.trigger ?? 'ON_FAILURE',
+      },
+      email: {
+        recipients: task.notifyConfig?.email?.recipients ?? [],
+        trigger: task.notifyConfig?.email?.trigger ?? 'ON_FAILURE',
+      },
+    },
+  };
+}
+
+/**
+ * 通知配置 → 提交体：两通道任一有值才提交；trigger 缺省兜底 ON_FAILURE（与后端一致）。
+ * 后端对 notifyConfig 是整体覆盖语义，全部为空提交 null = 明确不通知。
+ */
+function buildNotifyPayload(
+  notify?: TaskFormValues['notifyConfig'],
+): TaskPayload['notifyConfig'] {
+  const webhookUrl = notify?.webhook?.url?.trim() ?? '';
+  const recipients = (notify?.email?.recipients ?? [])
+    .map((r) => (r ?? '').trim())
+    .filter((r) => r.length > 0);
+  if (!webhookUrl && recipients.length === 0) {
+    return null;
+  }
+  return {
+    webhook: webhookUrl
+      ? { url: webhookUrl, trigger: notify?.webhook?.trigger ?? 'ON_FAILURE' }
+      : null,
+    email: recipients.length > 0
+      ? { recipients, trigger: notify?.email?.trigger ?? 'ON_FAILURE' }
+      : null,
   };
 }
 
@@ -127,8 +169,6 @@ const TaskFormPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [initialValues, setInitialValues] = useState<TaskFormValues>(DEFAULT_VALUES);
-  /** 通知配置：Epic 2 交付前不做可视化编辑，保存时原样透传，避免被清空 */
-  const [existingNotify, setExistingNotify] = useState<NotifyConfig | null>(null);
 
   const timezoneValue = Form.useWatch('timezone', form) ?? 'Asia/Shanghai';
 
@@ -145,7 +185,6 @@ const TaskFormPage: React.FC = () => {
       .then((task) => {
         if (cancelled) return;
         setInitialValues(toFormValues(task));
-        setExistingNotify(task.notifyConfig ?? null);
       })
       .catch((err) => {
         if (!cancelled) setLoadError(extractErrorMessage(err, '任务详情加载失败'));
@@ -191,7 +230,7 @@ const TaskFormPage: React.FC = () => {
         validUntil: toLocalDateTimeIso(until),
         retryCount: values.retryCount ?? 0,
         retryInterval: values.retryInterval ?? 60,
-        notifyConfig: existingNotify,
+        notifyConfig: buildNotifyPayload(values.notifyConfig),
       };
 
       setSubmitting(true);
@@ -210,7 +249,7 @@ const TaskFormPage: React.FC = () => {
         setSubmitting(false);
       }
     },
-    [existingNotify, isEdit, navigate, taskId],
+    [isEdit, navigate, taskId],
   );
 
   const header = (
@@ -353,8 +392,8 @@ const TaskFormPage: React.FC = () => {
                 </Row>
               </SchedulerPanel>
 
-              <SchedulerPanel label="通知配置" meta="Epic 2 交付" tone="notify" index={4}>
-                <NotifyConfigForm existing={existingNotify} />
+              <SchedulerPanel label="通知配置" meta="Webhook · 邮件" tone="notify" index={4}>
+                <NotifyConfigForm />
               </SchedulerPanel>
             </div>
 

@@ -1,28 +1,12 @@
 import React from 'react';
 import { Col, Form, Input, InputNumber, Row, Select } from 'antd';
 import HeaderEditor from './HeaderEditor';
+import { validateUrl } from '../format';
 
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD'].map((method) => ({
   value: method,
   label: method,
 }));
-
-/** 协议白名单校验（与后端 FR-13 一致：仅 http/https；SSRF 由服务端判定） */
-function validateUrl(_rule: unknown, value?: string): Promise<void> {
-  if (!value) {
-    return Promise.resolve();
-  }
-  let parsed: URL;
-  try {
-    parsed = new URL(value);
-  } catch {
-    return Promise.reject(new Error('目标 URL 格式不正确'));
-  }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    return Promise.reject(new Error('目标 URL 仅支持 http/https 协议'));
-  }
-  return Promise.resolve();
-}
 
 /** HTTP 目标配置表单（FR-3/FR-4） */
 const HttpTargetForm: React.FC<{ isEdit?: boolean }> = ({ isEdit = false }) => (

@@ -44,3 +44,7 @@ scheduler:
     # 本地开发用占位符默认值即可跑通；生产必须通过环境变量 SCHEDULER_CRYPTO_SECRET
     # 注入强随机密钥（见 .env.example），防止任务配置中的 API Key 明文落库。
     secret: ${SCHEDULER_CRYPTO_SECRET:dev-scheduler-crypto-secret-placeholder-change-in-production}
+  notify:
+    # 前端站点根地址：用于拼接执行详情链接（Webhook payload / 邮件正文）。
+    # 空 = 不携带详情链接；生产通过环境变量注入（如 https://tool.example.com）。
+    frontend-base-url: ${SCHEDULER_FRONTEND_BASE_URL:}

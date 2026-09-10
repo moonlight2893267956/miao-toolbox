@@ -2,6 +2,7 @@ package com.miao.toolbox.tool.scheduler.service;
 
 import com.miao.toolbox.tool.scheduler.entity.ExecutionStatus;
 import com.miao.toolbox.tool.scheduler.entity.HttpTargetConfig;
+import com.miao.toolbox.tool.scheduler.entity.NotifyConfig;
 import com.miao.toolbox.tool.scheduler.entity.ScheduledTask;
 import com.miao.toolbox.tool.scheduler.entity.TargetType;
 import com.miao.toolbox.tool.scheduler.entity.TaskExecution;
@@ -58,6 +59,9 @@ class ExecutionEngineTest {
     @Mock
     private ThreadPoolTaskExecutor executorPool;
 
+    @Mock
+    private NotificationService notificationService;
+
     private ExecutionEngine engine;
 
     private final AtomicInteger submitted = new AtomicInteger();
@@ -65,7 +69,7 @@ class ExecutionEngineTest {
     @BeforeEach
     void setUp() {
         engine = new ExecutionEngine(taskRepository, executionRepository,
-                List.of(httpExecutor), executorPool);
+                List.of(httpExecutor), executorPool, notificationService);
         // 线程池同步化：submit 的 Runnable 立即执行
         doAnswer(inv -> {
             submitted.incrementAndGet();
@@ -109,6 +113,26 @@ class ExecutionEngineTest {
         assertThat(record.getDurationMs()).isNotNull();
     }
 
+    @DisplayName("FR-10: 执行完成后触发通知（传入任务与执行记录）")
+    @Test
+    void notifiesAfterExecutionFinished() {
+        ScheduledTask task = enabledTask(1L, 0, 0);
+        task.setNotifyConfig(NotifyConfig.builder()
+                .webhook(NotifyConfig.WebhookNotify.builder().url("https://hook.example.com/x").build())
+                .build());
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
+        when(httpExecutor.execute(any())).thenReturn(
+                ExecutionResult.of(ExecutionStatus.SUCCESS, null, null, null));
+
+        engine.triggerScheduled(1L);
+
+        ArgumentCaptor<ScheduledTask> taskCaptor = ArgumentCaptor.forClass(ScheduledTask.class);
+        ArgumentCaptor<TaskExecution> execCaptor = ArgumentCaptor.forClass(TaskExecution.class);
+        verify(notificationService).onExecutionFinished(taskCaptor.capture(), execCaptor.capture());
+        assertThat(taskCaptor.getValue()).isSameAs(task);
+        assertThat(execCaptor.getValue().getStatus()).isEqualTo(ExecutionStatus.SUCCESS);
+    }
+
     @DisplayName("AC2: 上一次执行中 → 本次记 SKIPPED（CAS skip）")
     @Test
     void overlapSkipped() {
@@ -136,6 +160,11 @@ class ExecutionEngineTest {
                     assertThat(r.getFinishedAt()).isNull();
                     assertThat(r.getTriggerType()).isEqualTo(TriggerType.SCHEDULED);
                 });
+
+        // SKIPPED 未真正执行：不触发通知（FR-10）
+        ArgumentCaptor<TaskExecution> notified = ArgumentCaptor.forClass(TaskExecution.class);
+        verify(notificationService, times(1)).onExecutionFinished(any(ScheduledTask.class), notified.capture());
+        assertThat(notified.getValue().getStatus()).isNotEqualTo(ExecutionStatus.SKIPPED);
     }
 
     @DisplayName("AC5: 失败重试至上限记 FAILED，retry_count=尝试次数")

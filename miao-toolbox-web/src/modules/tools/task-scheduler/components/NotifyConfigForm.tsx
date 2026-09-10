@@ -1,35 +1,52 @@
 import React from 'react';
-import { Alert } from 'antd';
-import type { NotifyConfig } from '../types';
+import { Form, Input, Select } from 'antd';
+import { validateUrl } from '../format';
 
-interface NotifyConfigFormProps {
-  /**
-   * 详情里读到的既有配置。
-   *
-   * Epic 2 未交付期间不做可视化编辑，但保存时会把该对象原样回传——
-   * 后端 updateTask 用请求里的 notifyConfig 整体覆盖，漏传即等于清空。
-   */
-  existing?: NotifyConfig | null;
-}
+const TRIGGER_OPTIONS = [
+  { value: 'ALWAYS', label: '每次执行' },
+  { value: 'ON_FAILURE', label: '仅失败时（含超时）' },
+  { value: 'ON_SUCCESS', label: '仅成功时' },
+];
 
-function describe(notify?: NotifyConfig | null): string {
-  if (!notify) return '当前任务未配置通知。';
-  const parts: string[] = [];
-  if (notify.webhook?.url) parts.push(`Webhook：${notify.webhook.url}`);
-  if (notify.email?.recipients?.length) parts.push(`邮件：${notify.email.recipients.join('、')}`);
-  return parts.length > 0
-    ? `已配置——${parts.join('；')}（本次保存将原样保留）`
-    : '当前任务未配置通知。';
-}
+/**
+ * 通知配置表单（FR-10/FR-11）。
+ *
+ * 两个通道均可留空 = 不启用；URL/邮箱在保存时由后端二次校验
+ * （Webhook URL 做 SSRF 拦截、邮箱做格式校验）。
+ */
+const NotifyConfigForm: React.FC = () => (
+  <>
+    <Form.Item
+      name={['notifyConfig', 'webhook', 'url']}
+      label="Webhook URL"
+      rules={[{ validator: validateUrl }]}
+      extra="留空表示不启用；执行完成后 POST JSON（超时 10s），支持企业微信/飞书等机器人"
+    >
+      <Input placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=…" allowClear />
+    </Form.Item>
 
-/** 通知配置占位（FR-10/FR-11 由 Epic 2 交付） */
-const NotifyConfigForm: React.FC<NotifyConfigFormProps> = ({ existing }) => (
-  <Alert
-    type="info"
-    showIcon
-    message="通知配置（Webhook / 邮件）将在 Epic 2 交付"
-    description={describe(existing)}
-  />
+    <Form.Item name={['notifyConfig', 'webhook', 'trigger']} label="Webhook 触发条件">
+      <Select options={TRIGGER_OPTIONS} style={{ maxWidth: 260 }} />
+    </Form.Item>
+
+    <Form.Item
+      name={['notifyConfig', 'email', 'recipients']}
+      label="通知邮箱"
+      extra="留空表示不启用；多个邮箱用逗号或回车分隔（发送在 ts-2-2 交付）"
+    >
+      <Select
+        mode="tags"
+        open={false}
+        tokenSeparators={[',', '，', ' ', ';']}
+        placeholder="ops@example.com, dev@example.com"
+        style={{ maxWidth: 480 }}
+      />
+    </Form.Item>
+
+    <Form.Item name={['notifyConfig', 'email', 'trigger']} label="邮件触发条件">
+      <Select options={TRIGGER_OPTIONS} style={{ maxWidth: 260 }} />
+    </Form.Item>
+  </>
 );
 
 export default NotifyConfigForm;

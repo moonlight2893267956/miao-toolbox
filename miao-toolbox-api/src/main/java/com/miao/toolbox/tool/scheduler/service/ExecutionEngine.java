@@ -41,6 +41,7 @@ public class ExecutionEngine {
     private final TaskExecutionRepository executionRepository;
     private final List<TaskExecutor> executors;
     private final ThreadPoolTaskExecutor executor;
+    private final NotificationService notificationService;
 
     /** taskId → 是否执行中（skip 重叠，单实例内存态，NFR-4） */
     private final Map<Long, AtomicBoolean> runningFlags = new ConcurrentHashMap<>();
@@ -48,11 +49,13 @@ public class ExecutionEngine {
     public ExecutionEngine(ScheduledTaskRepository taskRepository,
                            TaskExecutionRepository executionRepository,
                            List<TaskExecutor> executors,
-                           @Qualifier("schedulerTaskExecutor") ThreadPoolTaskExecutor executor) {
+                           @Qualifier("schedulerTaskExecutor") ThreadPoolTaskExecutor executor,
+                           NotificationService notificationService) {
         this.taskRepository = taskRepository;
         this.executionRepository = executionRepository;
         this.executors = executors;
         this.executor = executor;
+        this.notificationService = notificationService;
     }
 
     /** cron 调度触发入口（SchedulerService.onCronTrigger 调用，运行在调度线程） */
@@ -170,6 +173,13 @@ public class ExecutionEngine {
         }
         log.info("[task:{}] execution finished status={} attempts={} durationMs={}",
                 taskId, result.status(), attempts, execution.getDurationMs());
+
+        // 通知（FR-10）：异步发送，失败仅记日志，不影响执行结果
+        try {
+            notificationService.onExecutionFinished(task, execution);
+        } catch (Exception e) {
+            log.warn("[task:{}] notification dispatch failed: {}", taskId, e.getMessage());
+        }
     }
 
     private ExecutionResult dispatch(ScheduledTask task) {

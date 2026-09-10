@@ -51,3 +51,20 @@ export function prettyJson(value?: Record<string, unknown> | null): string {
     return String(value);
   }
 }
+
+/** http/https 协议校验（与后端 FR-13 白名单一致；SSRF 由服务端判定）。空值放行，由 required 规则接管。 */
+export function validateUrl(_rule: unknown, value?: string): Promise<void> {
+  if (!value) {
+    return Promise.resolve();
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return Promise.reject(new Error('URL 格式不正确'));
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return Promise.reject(new Error('仅支持 http/https 协议'));
+  }
+  return Promise.resolve();
+}
