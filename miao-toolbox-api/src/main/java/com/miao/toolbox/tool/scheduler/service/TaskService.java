@@ -1,13 +1,18 @@
 package com.miao.toolbox.tool.scheduler.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.common.response.PagedResponse;
 import com.miao.toolbox.network.infrastructure.SsrfProtector;
 import com.miao.toolbox.tool.scheduler.dto.CreateTaskRequest;
+import com.miao.toolbox.tool.scheduler.dto.ExecutionListItemResponse;
+import com.miao.toolbox.tool.scheduler.dto.TaskExecutionResponse;
 import com.miao.toolbox.tool.scheduler.dto.TaskListItemResponse;
 import com.miao.toolbox.tool.scheduler.dto.TaskResponse;
 import com.miao.toolbox.tool.scheduler.dto.UpdateTaskRequest;
+import com.miao.toolbox.tool.scheduler.entity.ExecutionStatus;
 import com.miao.toolbox.tool.scheduler.entity.HttpTargetConfig;
 import com.miao.toolbox.tool.scheduler.entity.NotifyConfig;
 import com.miao.toolbox.tool.scheduler.entity.NotifyTrigger;
@@ -16,7 +21,6 @@ import com.miao.toolbox.tool.scheduler.entity.TargetHeader;
 import com.miao.toolbox.tool.scheduler.entity.TargetType;
 import com.miao.toolbox.tool.scheduler.entity.TaskExecution;
 import com.miao.toolbox.tool.scheduler.entity.TaskStatus;
-import com.miao.toolbox.tool.scheduler.entity.NotifyConfig;
 import com.miao.toolbox.tool.scheduler.repository.ScheduledTaskRepository;
 import com.miao.toolbox.tool.scheduler.repository.TaskExecutionRepository;
 import com.miao.toolbox.tool.scheduler.util.SensitiveMasker;
@@ -68,6 +72,7 @@ public class TaskService {
     private final SchedulerCryptoService cryptoService;
     private final SsrfProtector ssrfProtector;
     private final ExecutionEngine executionEngine;
+    private final ObjectMapper objectMapper;
 
     // ------------------------------------------------------------
     // 创建
@@ -111,9 +116,7 @@ public class TaskService {
 
     @Transactional
     public TaskResponse updateTask(Long id, UpdateTaskRequest req) {
-        ScheduledTask task = taskRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULER_TASK_NOT_FOUND,
-                        "任务不存在：" + id, 404));
+        ScheduledTask task = requireTask(id);
 
         String newName = req.getName().trim();
         if (!task.getName().equals(newName) && taskRepository.existsByName(newName)) {
@@ -160,9 +163,7 @@ public class TaskService {
 
     @Transactional
     public void deleteTask(Long id) {
-        ScheduledTask task = taskRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULER_TASK_NOT_FOUND,
-                        "任务不存在：" + id, 404));
+        ScheduledTask task = requireTask(id);
         executionRepository.deleteByTaskId(id);
         taskRepository.delete(task);
         schedulerService.runAfterCommit(() -> schedulerService.unregister(id));
@@ -175,9 +176,7 @@ public class TaskService {
 
     @Transactional
     public TaskResponse toggleTask(Long id, String action) {
-        ScheduledTask task = taskRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULER_TASK_NOT_FOUND,
-                        "任务不存在：" + id, 404));
+        ScheduledTask task = requireTask(id);
         switch (action == null ? "" : action.toLowerCase()) {
             case "pause" -> {
                 task.setStatus(TaskStatus.PAUSED);
@@ -203,15 +202,14 @@ public class TaskService {
     // ------------------------------------------------------------
 
     public TaskResponse getTask(Long id) {
-        ScheduledTask task = taskRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULER_TASK_NOT_FOUND,
-                        "任务不存在：" + id, 404));
+        ScheduledTask task = requireTask(id);
         return toResponse(task, resolveLastStatus(List.of(id)));
     }
 
     public PagedResponse<TaskListItemResponse> listTasks(int page, int pageSize,
                                                          String search, TaskStatus status) {
-        PageRequest pageRequest = PageRequest.of(Math.max(page - 1, 0), Math.min(Math.max(pageSize, 1), 100),
+        int normalizedPageSize = normalizePageSize(pageSize);
+        PageRequest pageRequest = PageRequest.of(Math.max(page - 1, 0), normalizedPageSize,
                 Sort.by(Sort.Direction.DESC, "id"));
         String keyword = (search == null || search.isBlank()) ? null : search.trim();
         Page<ScheduledTask> result;
@@ -230,7 +228,39 @@ public class TaskService {
         List<TaskListItemResponse> items = result.getContent().stream()
                 .map(t -> toListItem(t, lastStatus.get(t.getId())))
                 .toList();
-        return new PagedResponse<>(items, result.getTotalElements(), page, Math.min(Math.max(pageSize, 1), 100));
+        return new PagedResponse<>(items, result.getTotalElements(), page, normalizedPageSize);
+    }
+
+    // ------------------------------------------------------------
+    // 执行历史与详情（FR-9，ts-1-5）
+    // ------------------------------------------------------------
+
+    /**
+     * 执行历史分页（FR-9）：按 triggered_at 倒序，支持 status 筛选；任务不存在返回 404。
+     */
+    public PagedResponse<ExecutionListItemResponse> listExecutions(Long taskId, int page, int pageSize,
+                                                                   ExecutionStatus status) {
+        requireTask(taskId);
+        int normalizedPageSize = normalizePageSize(pageSize);
+        PageRequest pageRequest = PageRequest.of(Math.max(page - 1, 0), normalizedPageSize);
+        Page<TaskExecution> result = status == null
+                ? executionRepository.findByTaskIdOrderByTriggeredAtDesc(taskId, pageRequest)
+                : executionRepository.findByTaskIdAndStatusOrderByTriggeredAtDesc(taskId, status, pageRequest);
+        List<ExecutionListItemResponse> items = result.getContent().stream()
+                .map(this::toExecutionListItem)
+                .toList();
+        return new PagedResponse<>(items, result.getTotalElements(), page, normalizedPageSize);
+    }
+
+    /**
+     * 单次执行详情（FR-9）：request_summary / response_summary 解析为 JSON 对象返回
+     * （敏感 header 值已在执行引擎写入时脱敏，此处不再处理）。
+     */
+    public TaskExecutionResponse getExecution(Long executionId) {
+        TaskExecution execution = executionRepository.findById(executionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULER_EXECUTION_NOT_FOUND,
+                        "执行记录不存在：" + executionId, 404));
+        return toExecutionResponse(execution);
     }
 
     // ------------------------------------------------------------
@@ -243,9 +273,7 @@ public class TaskService {
      * 响应立即返回，不等待执行完成。
      */
     public void executeTask(Long id) {
-        ScheduledTask task = taskRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULER_TASK_NOT_FOUND,
-                        "任务不存在：" + id, 404));
+        ScheduledTask task = requireTask(id);
         log.info("[task:{}] action=MANUAL_TRIGGER name={} operator={}", id, task.getName(), currentOperator());
         executionEngine.triggerManual(id);
     }
@@ -477,6 +505,75 @@ public class TaskService {
                 .lastExecutionStatus(lastStatus)
                 .createdAt(task.getCreatedAt())
                 .build();
+    }
+
+    // ------------------------------------------------------------
+    // 执行记录映射（FR-9，ts-1-5）
+    // ------------------------------------------------------------
+
+    private ExecutionListItemResponse toExecutionListItem(TaskExecution execution) {
+        return ExecutionListItemResponse.builder()
+                .id(execution.getId())
+                .triggerType(execution.getTriggerType())
+                .triggeredAt(execution.getTriggeredAt())
+                .startedAt(execution.getStartedAt())
+                .finishedAt(execution.getFinishedAt())
+                .durationMs(execution.getDurationMs())
+                .status(execution.getStatus())
+                .retryCount(execution.getRetryCount())
+                .build();
+    }
+
+    private TaskExecutionResponse toExecutionResponse(TaskExecution execution) {
+        return TaskExecutionResponse.builder()
+                .id(execution.getId())
+                .taskId(execution.getTaskId())
+                .triggerType(execution.getTriggerType())
+                .triggeredAt(execution.getTriggeredAt())
+                .startedAt(execution.getStartedAt())
+                .finishedAt(execution.getFinishedAt())
+                .durationMs(execution.getDurationMs())
+                .status(execution.getStatus())
+                .retryCount(execution.getRetryCount())
+                .requestSummary(parseSummary(execution.getRequestSummary()))
+                .responseSummary(parseSummary(execution.getResponseSummary()))
+                .errorMessage(execution.getErrorMessage())
+                .build();
+    }
+
+    /**
+     * 解析执行摘要 JSON 文本为 Map（JSON 对象）：null/空白返回 null；解析失败返回 null 并告警
+     * （不抛异常——历史脏数据不应让详情接口 500）。
+     *
+     * <p>返回 Map/List/String/Number 等普通类型：HTTP 响应序列化由 Spring MVC 转换器完成，
+     * 与业务侧 ObjectMapper 分属不同 Jackson 主版本，JsonNode 会被当普通 bean 序列化。
+     */
+    private Map<String, Object> parseSummary(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {
+            });
+        } catch (Exception e) {
+            log.warn("execution summary JSON parse failed: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    // ------------------------------------------------------------
+    // 私有辅助
+    // ------------------------------------------------------------
+
+    private ScheduledTask requireTask(Long id) {
+        return taskRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULER_TASK_NOT_FOUND,
+                        "任务不存在：" + id, 404));
+    }
+
+    /** 分页大小归一化（1~100），任务列表与执行历史共用。 */
+    private int normalizePageSize(int pageSize) {
+        return Math.min(Math.max(pageSize, 1), 100);
     }
 
     private String currentOperator() {

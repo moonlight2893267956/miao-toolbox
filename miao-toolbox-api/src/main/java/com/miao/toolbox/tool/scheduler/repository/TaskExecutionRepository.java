@@ -1,5 +1,6 @@
 package com.miao.toolbox.tool.scheduler.repository;
 
+import com.miao.toolbox.tool.scheduler.entity.ExecutionStatus;
 import com.miao.toolbox.tool.scheduler.entity.TaskExecution;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,6 +18,10 @@ public interface TaskExecutionRepository extends JpaRepository<TaskExecution, Lo
 
     /** 执行历史分页（FR-9：按触发时间倒序，走 (task_id, triggered_at DESC) 复合索引） */
     Page<TaskExecution> findByTaskIdOrderByTriggeredAtDesc(Long taskId, Pageable pageable);
+
+    /** 执行历史分页 + 状态筛选（FR-9：status ∈ SUCCESS/FAILED/TIMEOUT/SKIPPED） */
+    Page<TaskExecution> findByTaskIdAndStatusOrderByTriggeredAtDesc(Long taskId, ExecutionStatus status,
+                                                                   Pageable pageable);
 
     /**
      * JPA 层按任务删除执行记录（删除任务时调用，与 DB 外键 CASCADE 双保险——

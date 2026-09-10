@@ -1,12 +1,17 @@
 package com.miao.toolbox.tool.scheduler.controller;
 
+import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.common.exception.GlobalExceptionHandler;
 import com.miao.toolbox.common.response.PagedResponse;
+import com.miao.toolbox.tool.scheduler.dto.ExecutionListItemResponse;
+import com.miao.toolbox.tool.scheduler.dto.TaskExecutionResponse;
 import com.miao.toolbox.tool.scheduler.dto.TaskListItemResponse;
 import com.miao.toolbox.tool.scheduler.dto.TaskResponse;
+import com.miao.toolbox.tool.scheduler.entity.ExecutionStatus;
 import com.miao.toolbox.tool.scheduler.entity.HttpTargetConfig;
 import com.miao.toolbox.tool.scheduler.entity.TargetType;
 import com.miao.toolbox.tool.scheduler.entity.TaskStatus;
+import com.miao.toolbox.tool.scheduler.entity.TriggerType;
 import com.miao.toolbox.tool.scheduler.service.TaskService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -181,7 +187,7 @@ class SchedulerControllerTest {
     @Test
     void notFoundMapped() throws Exception {
         when(taskService.getTask(404L))
-                .thenThrow(new com.miao.toolbox.common.exception.BusinessException(
+                .thenThrow(new BusinessException(
                         "SCHEDULER_TASK_NOT_FOUND", "任务不存在：404", 404));
 
         mvc().perform(get("/api/scheduler/tasks/404"))
@@ -235,5 +241,70 @@ class SchedulerControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.valid").value(false))
                 .andExpect(jsonPath("$.data.error").isNotEmpty());
+    }
+
+    // ------------------------------------------------------------
+    // 执行历史与详情（FR-9，ts-1-5）
+    // ------------------------------------------------------------
+
+    @DisplayName("GET /tasks/{id}/executions 分页返回执行历史（ts-1-5）")
+    @Test
+    void executionsEndpoint() throws Exception {
+        when(taskService.listExecutions(1L, 1, 20, ExecutionStatus.FAILED))
+                .thenReturn(new PagedResponse<>(List.of(
+                        ExecutionListItemResponse.builder()
+                                .id(9L).triggerType(TriggerType.SCHEDULED)
+                                .durationMs(88).status(ExecutionStatus.FAILED).retryCount(1)
+                                .build()), 1, 1, 20));
+
+        mvc().perform(get("/api/scheduler/tasks/1/executions")
+                        .param("page", "1").param("pageSize", "20").param("status", "FAILED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.items[0].id").value(9))
+                .andExpect(jsonPath("$.data.items[0].triggerType").value("SCHEDULED"))
+                .andExpect(jsonPath("$.data.items[0].status").value("FAILED"));
+    }
+
+    @DisplayName("GET /tasks/{id}/executions 非法 status 返回 400 VALIDATION_FAILED（ts-1-5）")
+    @Test
+    void executionsRejectsInvalidStatus() throws Exception {
+        mvc().perform(get("/api/scheduler/tasks/1/executions").param("status", "BOGUS"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+    }
+
+    @DisplayName("GET /executions/{id} 返回执行详情（摘要为 JSON 对象）（ts-1-5）")
+    @Test
+    void executionDetailEndpoint() throws Exception {
+        when(taskService.getExecution(9L)).thenReturn(TaskExecutionResponse.builder()
+                .id(9L).taskId(1L).triggerType(TriggerType.MANUAL)
+                .status(ExecutionStatus.SUCCESS).retryCount(0)
+                .requestSummary(Map.<String, Object>of(
+                        "method", "GET",
+                        "headers", List.of(Map.<String, Object>of(
+                                "name", "Authorization", "value", "Bear****2345"))))
+                .responseSummary(Map.<String, Object>of("statusCode", 200, "truncated", false))
+                .build());
+
+        mvc().perform(get("/api/scheduler/executions/9"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.taskId").value(1))
+                .andExpect(jsonPath("$.data.requestSummary.method").value("GET"))
+                .andExpect(jsonPath("$.data.requestSummary.headers[0].value").value("Bear****2345"))
+                .andExpect(jsonPath("$.data.responseSummary.statusCode").value(200));
+    }
+
+    @DisplayName("GET /executions/{id} 不存在返回 404 SCHEDULER_EXECUTION_NOT_FOUND（ts-1-5）")
+    @Test
+    void executionDetailNotFound() throws Exception {
+        when(taskService.getExecution(404L)).thenThrow(new BusinessException(
+                "SCHEDULER_EXECUTION_NOT_FOUND", "执行记录不存在：404", 404));
+
+        mvc().perform(get("/api/scheduler/executions/404"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("SCHEDULER_EXECUTION_NOT_FOUND"));
     }
 }

@@ -1,10 +1,15 @@
 package com.miao.toolbox.tool.scheduler.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miao.toolbox.common.exception.BusinessException;
+import com.miao.toolbox.common.response.PagedResponse;
 import com.miao.toolbox.network.infrastructure.SsrfProtector;
 import com.miao.toolbox.tool.scheduler.dto.CreateTaskRequest;
+import com.miao.toolbox.tool.scheduler.dto.ExecutionListItemResponse;
+import com.miao.toolbox.tool.scheduler.dto.TaskExecutionResponse;
 import com.miao.toolbox.tool.scheduler.dto.TaskResponse;
 import com.miao.toolbox.tool.scheduler.dto.UpdateTaskRequest;
+import com.miao.toolbox.tool.scheduler.entity.ExecutionStatus;
 import com.miao.toolbox.tool.scheduler.entity.HttpTargetConfig;
 import com.miao.toolbox.tool.scheduler.entity.PresetTargetConfig;
 import com.miao.toolbox.tool.scheduler.entity.ScheduledTask;
@@ -22,7 +27,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.net.InetAddress;
 import java.time.LocalDateTime;
@@ -67,6 +77,10 @@ class TaskServiceTest {
 
     @Mock
     private ExecutionEngine executionEngine;
+
+    /** 真实 ObjectMapper（Spy）：执行摘要 JSON 解析走真实实现 */
+    @Spy
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
     private TaskService taskService;
@@ -576,5 +590,115 @@ class TaskServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", "SCHEDULER_TASK_NOT_FOUND");
         verify(executionEngine, never()).triggerManual(any());
+    }
+
+    // ------------------------------------------------------------
+    // 执行历史与详情（FR-9，ts-1-5）
+    // ------------------------------------------------------------
+
+    @DisplayName("AC1: 执行历史分页——status 筛选透传 + 列表项字段映射")
+    @Test
+    void listExecutionsPassesStatusFilter() {
+        when(taskRepository.findById(40L)).thenReturn(java.util.Optional.of(
+                savedTask(40L, "任务", httpConfig("https://example.com"), TaskStatus.ENABLED)));
+        TaskExecution exec = TaskExecution.builder()
+                .id(500L).taskId(40L).triggerType(TriggerType.SCHEDULED)
+                .triggeredAt(LocalDateTime.now()).durationMs(120)
+                .status(ExecutionStatus.FAILED).retryCount(2)
+                .build();
+        when(executionRepository.findByTaskIdAndStatusOrderByTriggeredAtDesc(
+                eq(40L), eq(ExecutionStatus.FAILED), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(exec), PageRequest.of(0, 20), 1));
+
+        PagedResponse<ExecutionListItemResponse> resp =
+                taskService.listExecutions(40L, 1, 20, ExecutionStatus.FAILED);
+
+        assertThat(resp.getTotal()).isEqualTo(1);
+        assertThat(resp.getPage()).isEqualTo(1);
+        assertThat(resp.getPageSize()).isEqualTo(20);
+        ExecutionListItemResponse item = resp.getItems().get(0);
+        assertThat(item.getId()).isEqualTo(500L);
+        assertThat(item.getStatus()).isEqualTo(ExecutionStatus.FAILED);
+        assertThat(item.getTriggerType()).isEqualTo(TriggerType.SCHEDULED);
+        assertThat(item.getDurationMs()).isEqualTo(120);
+        assertThat(item.getRetryCount()).isEqualTo(2);
+    }
+
+    @DisplayName("AC1: 执行历史分页——status 为空走全量查询（按 triggered_at 倒序方法）")
+    @Test
+    void listExecutionsWithoutStatusUsesUnfilteredQuery() {
+        when(taskRepository.findById(41L)).thenReturn(java.util.Optional.of(
+                savedTask(41L, "任务", httpConfig("https://example.com"), TaskStatus.ENABLED)));
+        when(executionRepository.findByTaskIdOrderByTriggeredAtDesc(eq(41L), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        PagedResponse<ExecutionListItemResponse> resp = taskService.listExecutions(41L, 1, 20, null);
+
+        assertThat(resp.getItems()).isEmpty();
+        verify(executionRepository).findByTaskIdOrderByTriggeredAtDesc(eq(41L), any(Pageable.class));
+        verify(executionRepository, never())
+                .findByTaskIdAndStatusOrderByTriggeredAtDesc(any(), any(), any());
+    }
+
+    @DisplayName("AC1: 执行历史分页——任务不存在返回 SCHEDULER_TASK_NOT_FOUND")
+    @Test
+    void listExecutionsRejectsUnknownTask() {
+        when(taskRepository.findById(999L)).thenReturn(java.util.Optional.empty());
+
+        assertThatThrownBy(() -> taskService.listExecutions(999L, 1, 20, null))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", "SCHEDULER_TASK_NOT_FOUND");
+        verify(executionRepository, never()).findByTaskIdOrderByTriggeredAtDesc(any(), any());
+    }
+
+    @DisplayName("AC2: 执行详情——request/response 摘要解析为 JSON 对象")
+    @Test
+    void getExecutionParsesSummaries() {
+        TaskExecution exec = TaskExecution.builder()
+                .id(600L).taskId(42L).triggerType(TriggerType.MANUAL)
+                .triggeredAt(LocalDateTime.now())
+                .status(ExecutionStatus.SUCCESS).retryCount(0)
+                .requestSummary("{\"method\":\"GET\",\"url\":\"https://example.com\","
+                        + "\"headers\":[{\"name\":\"Authorization\",\"value\":\"Bear****2345\"}]}")
+                .responseSummary("{\"statusCode\":200,\"truncated\":false}")
+                .build();
+        when(executionRepository.findById(600L)).thenReturn(java.util.Optional.of(exec));
+
+        TaskExecutionResponse resp = taskService.getExecution(600L);
+
+        assertThat(resp.getId()).isEqualTo(600L);
+        assertThat(resp.getTaskId()).isEqualTo(42L);
+        assertThat(resp.getTriggerType()).isEqualTo(TriggerType.MANUAL);
+        assertThat(resp.getRequestSummary()).containsEntry("method", "GET");
+        // 敏感 header 值保持写入时的脱敏形态（本 Story 不二次脱敏）
+        assertThat(resp.getRequestSummary().get("headers").toString()).contains("Bear****2345");
+        assertThat(resp.getResponseSummary()).containsEntry("statusCode", 200);
+    }
+
+    @DisplayName("AC2: 执行详情——摘要为空返回 null（SKIPPED 记录）")
+    @Test
+    void getExecutionHandlesNullSummaries() {
+        TaskExecution exec = TaskExecution.builder()
+                .id(601L).taskId(42L).triggerType(TriggerType.SCHEDULED)
+                .triggeredAt(LocalDateTime.now())
+                .status(ExecutionStatus.SKIPPED).retryCount(0)
+                .build();
+        when(executionRepository.findById(601L)).thenReturn(java.util.Optional.of(exec));
+
+        TaskExecutionResponse resp = taskService.getExecution(601L);
+
+        assertThat(resp.getRequestSummary()).isNull();
+        assertThat(resp.getResponseSummary()).isNull();
+        assertThat(resp.getStatus()).isEqualTo(ExecutionStatus.SKIPPED);
+    }
+
+    @DisplayName("AC2: 执行详情——不存在返回 SCHEDULER_EXECUTION_NOT_FOUND")
+    @Test
+    void getExecutionRejectsUnknownId() {
+        when(executionRepository.findById(999999L)).thenReturn(java.util.Optional.empty());
+
+        assertThatThrownBy(() -> taskService.getExecution(999999L))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", "SCHEDULER_EXECUTION_NOT_FOUND");
     }
 }

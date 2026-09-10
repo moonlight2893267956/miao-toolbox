@@ -96,4 +96,5 @@ public final class ErrorCode {
     public static final String SCHEDULER_CRON_INVALID = "SCHEDULER_CRON_INVALID";
     public static final String SCHEDULER_TARGET_INVALID = "SCHEDULER_TARGET_INVALID";
     public static final String SCHEDULER_TASK_RUNNING = "SCHEDULER_TASK_RUNNING";
+    public static final String SCHEDULER_EXECUTION_NOT_FOUND = "SCHEDULER_EXECUTION_NOT_FOUND";
 }
