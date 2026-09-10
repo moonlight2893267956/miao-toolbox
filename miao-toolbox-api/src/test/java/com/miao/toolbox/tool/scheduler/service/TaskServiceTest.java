@@ -599,8 +599,7 @@ class TaskServiceTest {
     @DisplayName("AC1: 执行历史分页——status 筛选透传 + 列表项字段映射")
     @Test
     void listExecutionsPassesStatusFilter() {
-        when(taskRepository.findById(40L)).thenReturn(java.util.Optional.of(
-                savedTask(40L, "任务", httpConfig("https://example.com"), TaskStatus.ENABLED)));
+        when(taskRepository.existsById(40L)).thenReturn(true);
         TaskExecution exec = TaskExecution.builder()
                 .id(500L).taskId(40L).triggerType(TriggerType.SCHEDULED)
                 .triggeredAt(LocalDateTime.now()).durationMs(120)
@@ -627,8 +626,7 @@ class TaskServiceTest {
     @DisplayName("AC1: 执行历史分页——status 为空走全量查询（按 triggered_at 倒序方法）")
     @Test
     void listExecutionsWithoutStatusUsesUnfilteredQuery() {
-        when(taskRepository.findById(41L)).thenReturn(java.util.Optional.of(
-                savedTask(41L, "任务", httpConfig("https://example.com"), TaskStatus.ENABLED)));
+        when(taskRepository.existsById(41L)).thenReturn(true);
         when(executionRepository.findByTaskIdOrderByTriggeredAtDesc(eq(41L), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of()));
 
@@ -643,7 +641,7 @@ class TaskServiceTest {
     @DisplayName("AC1: 执行历史分页——任务不存在返回 SCHEDULER_TASK_NOT_FOUND")
     @Test
     void listExecutionsRejectsUnknownTask() {
-        when(taskRepository.findById(999L)).thenReturn(java.util.Optional.empty());
+        when(taskRepository.existsById(999L)).thenReturn(false);
 
         assertThatThrownBy(() -> taskService.listExecutions(999L, 1, 20, null))
                 .isInstanceOf(BusinessException.class)

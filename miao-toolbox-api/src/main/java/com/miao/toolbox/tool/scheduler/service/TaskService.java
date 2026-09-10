@@ -43,10 +43,11 @@ import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 
 /**
- * 定时任务 CRUD 编排（FR-1/FR-2/FR-13/FR-14）。
+ * 定时任务 CRUD、执行历史查询与手动触发编排（FR-1/FR-2/FR-6/FR-9/FR-13/FR-14）。
  *
  * <p>职责：请求校验（name/cron/时区/SSRF）→ 敏感 header 加密 → 持久化 →
- * 调度生命周期操作（经 {@link SchedulerService#runAfterCommit(Runnable)} 在事务提交后执行）。
+ * 调度生命周期操作（经 {@link SchedulerService#runAfterCommit(Runnable)} 在事务提交后执行）；
+ * 另承载执行历史分页（FR-9）、单次执行详情（FR-9）与手动触发入口（FR-6）。
  * 调度注册/取消本身不写库，失败时由重启恢复兜底（NFR-2）。
  *
  * <p>审计：audit_logs 表在项目中从未启用（无实体与写入管道），本模块以结构化日志
@@ -240,7 +241,7 @@ public class TaskService {
      */
     public PagedResponse<ExecutionListItemResponse> listExecutions(Long taskId, int page, int pageSize,
                                                                    ExecutionStatus status) {
-        requireTask(taskId);
+        requireTaskExists(taskId);
         int normalizedPageSize = normalizePageSize(pageSize);
         PageRequest pageRequest = PageRequest.of(Math.max(page - 1, 0), normalizedPageSize);
         Page<TaskExecution> result = status == null
@@ -569,6 +570,14 @@ public class TaskService {
         return taskRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULER_TASK_NOT_FOUND,
                         "任务不存在：" + id, 404));
+    }
+
+    /** 仅需存在性校验的读路径（执行历史）：existsById 免于物化含 JSON 列的整实体。 */
+    private void requireTaskExists(Long id) {
+        if (!taskRepository.existsById(id)) {
+            throw new BusinessException(ErrorCode.SCHEDULER_TASK_NOT_FOUND,
+                    "任务不存在：" + id, 404);
+        }
     }
 
     /** 分页大小归一化（1~100），任务列表与执行历史共用。 */

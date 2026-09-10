@@ -172,4 +172,42 @@ class TaskExecutionRepositoryTest {
         assertThat(loaded.getFinishedAt()).isNull();
         assertThat(loaded.getDurationMs()).isNull();
     }
+
+    @DisplayName("FR-9: 执行历史按 status 筛选（只返回匹配状态，仍按触发时间倒序）")
+    @Test
+    void pagedHistoryFilteredByStatus() {
+        ScheduledTask task = newTask("状态筛选测试任务");
+        LocalDateTime base = LocalDateTime.now().withNano(0);
+        executionRepository.saveAndFlush(newExecution(task.getId(), base, ExecutionStatus.SUCCESS));
+        executionRepository.saveAndFlush(newExecution(task.getId(), base.plusMinutes(1), ExecutionStatus.FAILED));
+        executionRepository.saveAndFlush(newExecution(task.getId(), base.plusMinutes(5), ExecutionStatus.FAILED));
+        entityManager.clear();
+
+        Page<TaskExecution> failed = executionRepository.findByTaskIdAndStatusOrderByTriggeredAtDesc(
+                task.getId(), ExecutionStatus.FAILED, PageRequest.of(0, 10));
+
+        assertThat(failed.getTotalElements()).isEqualTo(2);
+        assertThat(failed.getContent()).extracting(TaskExecution::getStatus)
+                .containsOnly(ExecutionStatus.FAILED);
+        List<LocalDateTime> triggeredAts = failed.getContent().stream()
+                .map(TaskExecution::getTriggeredAt).toList();
+        assertThat(triggeredAts).isSortedAccordingTo(java.util.Comparator.reverseOrder());
+    }
+
+    @DisplayName("FR-9: 状态筛选按 taskId 隔离（不串其他任务的记录）")
+    @Test
+    void pagedHistoryFilteredByStatusIsolatedByTask() {
+        ScheduledTask taskA = newTask("状态筛选任务A");
+        ScheduledTask taskB = newTask("状态筛选任务B");
+        LocalDateTime base = LocalDateTime.now().withNano(0);
+        executionRepository.saveAndFlush(newExecution(taskA.getId(), base, ExecutionStatus.FAILED));
+        executionRepository.saveAndFlush(newExecution(taskB.getId(), base.plusMinutes(1), ExecutionStatus.FAILED));
+        entityManager.clear();
+
+        Page<TaskExecution> failed = executionRepository.findByTaskIdAndStatusOrderByTriggeredAtDesc(
+                taskA.getId(), ExecutionStatus.FAILED, PageRequest.of(0, 10));
+
+        assertThat(failed.getTotalElements()).isEqualTo(1);
+        assertThat(failed.getContent().get(0).getTaskId()).isEqualTo(taskA.getId());
+    }
 }
