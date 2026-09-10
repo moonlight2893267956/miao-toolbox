@@ -269,7 +269,8 @@ const TaskFormPage: React.FC = () => {
                       label="任务名称"
                       rules={[
                         { required: true, message: '请输入任务名称' },
-                        { min: 2, max: 50, message: '任务名称长度须为 2-50 字' },
+                        // 先 trim 再校验长度：避免「 带空格 」原样通过、trim 后不足 2 字落库
+                        { min: 2, max: 50, message: '任务名称长度须为 2-50 字', transform: (v?: string) => v?.trim() },
                       ]}
                     >
                       <Input placeholder="如：健康检查探针" maxLength={50} showCount />

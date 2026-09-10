@@ -33,6 +33,15 @@ const TaskDetailPage: React.FC = () => {
   const [busy, setBusy] = useState(false);
   /** 自增后触发执行历史表格重新拉取 */
   const [historyToken, setHistoryToken] = useState(0);
+  /** 「立即执行」延时刷新的定时器：卸载时清理 */
+  const refreshTimerRef = React.useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (refreshTimerRef.current) window.clearTimeout(refreshTimerRef.current);
+    },
+    [],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,7 +82,7 @@ const TaskDetailPage: React.FC = () => {
       await schedulerApi.executeTask(task.id);
       message.success('已提交执行，稍后刷新查看结果');
       setHistoryToken((token) => token + 1);
-      window.setTimeout(() => setHistoryToken((token) => token + 1), 1500);
+      refreshTimerRef.current = window.setTimeout(() => setHistoryToken((token) => token + 1), 1500);
     } catch (err) {
       message.error(extractErrorMessage(err, '触发失败'));
     } finally {

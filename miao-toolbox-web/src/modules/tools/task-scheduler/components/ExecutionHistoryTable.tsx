@@ -77,20 +77,25 @@ const ExecutionHistoryTable: React.FC<ExecutionHistoryTableProps> = ({ taskId, r
   const [loadError, setLoadError] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<number, TaskExecutionDetail>>({});
   const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null);
+  /** 请求序号：快速翻页/切筛选时丢弃过期响应，避免旧结果覆盖新状态 */
+  const loadSeqRef = React.useRef(0);
 
   const load = useCallback(async () => {
+    const seq = ++loadSeqRef.current;
     setLoading(true);
     setLoadError(null);
     try {
       const data = await schedulerApi.listExecutions(taskId, { page, pageSize, status });
+      if (seq !== loadSeqRef.current) return;
       setItems(data.items ?? []);
       setTotal(data.total ?? 0);
     } catch (err) {
+      if (seq !== loadSeqRef.current) return;
       setLoadError(extractErrorMessage(err, '执行历史加载失败'));
       setItems([]);
       setTotal(0);
     } finally {
-      setLoading(false);
+      if (seq === loadSeqRef.current) setLoading(false);
     }
   }, [taskId, page, pageSize, status]);
 

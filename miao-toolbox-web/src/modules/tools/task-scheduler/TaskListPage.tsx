@@ -45,20 +45,34 @@ const TaskListPage: React.FC = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   /** 正在执行「立即执行 / 启停」的任务 ID */
   const [busyId, setBusyId] = useState<number | null>(null);
+  /** 请求序号：快速翻页/切筛选时丢弃过期响应 */
+  const loadSeqRef = React.useRef(0);
+  /** 「立即执行」延时刷新的定时器：卸载时清理，避免对已卸载组件 setState */
+  const refreshTimerRef = React.useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (refreshTimerRef.current) window.clearTimeout(refreshTimerRef.current);
+    },
+    [],
+  );
 
   const load = useCallback(async () => {
+    const seq = ++loadSeqRef.current;
     setLoading(true);
     setLoadError(null);
     try {
       const data = await schedulerApi.listTasks({ page, pageSize, search: keyword || undefined, status });
+      if (seq !== loadSeqRef.current) return;
       setItems(data.items ?? []);
       setTotal(data.total ?? 0);
     } catch (err) {
+      if (seq !== loadSeqRef.current) return;
       setLoadError(extractErrorMessage(err, '任务列表加载失败'));
       setItems([]);
       setTotal(0);
     } finally {
-      setLoading(false);
+      if (seq === loadSeqRef.current) setLoading(false);
     }
   }, [page, pageSize, keyword, status]);
 
@@ -91,7 +105,7 @@ const TaskListPage: React.FC = () => {
         message.success('已提交执行，稍后刷新查看结果');
         await load();
         // 执行是异步的：稍后再刷一次，尽量把最新执行状态带出来
-        window.setTimeout(() => void load(), EXECUTE_REFRESH_DELAY);
+        refreshTimerRef.current = window.setTimeout(() => void load(), EXECUTE_REFRESH_DELAY);
       } catch (err) {
         message.error(extractErrorMessage(err, '触发失败'));
       } finally {
