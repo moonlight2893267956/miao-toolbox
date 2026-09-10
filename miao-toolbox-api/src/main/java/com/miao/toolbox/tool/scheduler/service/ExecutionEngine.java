@@ -103,6 +103,26 @@ public class ExecutionEngine {
             log.info("[task:{}] scheduled trigger dropped, task status={}", taskId, task.getStatus());
             return;
         }
+        // 生效窗口检查（FR-2）：SCHEDULED 触发时校验 validFrom/validUntil
+        if (triggerType == TriggerType.SCHEDULED) {
+            LocalDateTime now = LocalDateTime.now();
+            if (task.getValidFrom() != null && now.isBefore(task.getValidFrom())) {
+                log.info("[task:{}] scheduled trigger dropped, before validFrom={}", taskId, task.getValidFrom());
+                return;
+            }
+            if (task.getValidUntil() != null && now.isAfter(task.getValidUntil())) {
+                // PRD FR-2：超出结束时间后任务自动暂停。调度句柄保留无害（下次触发被
+                // status 防御快速放弃），重启后 recovery 只恢复 ENABLED → 调度彻底消失。
+                log.info("[task:{}] auto-pausing expired task (validUntil={})", taskId, task.getValidUntil());
+                task.setStatus(TaskStatus.PAUSED);
+                try {
+                    taskRepository.save(task);
+                } catch (Exception e) {
+                    log.error("[task:{}] auto-pause persist FAILED: {}", taskId, e.getMessage());
+                }
+                return;
+            }
+        }
 
         LocalDateTime triggeredAt = LocalDateTime.now();
         LocalDateTime startedAt = LocalDateTime.now();

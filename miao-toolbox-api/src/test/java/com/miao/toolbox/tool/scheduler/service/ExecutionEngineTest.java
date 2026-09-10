@@ -22,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -219,5 +220,53 @@ class ExecutionEngineTest {
         engine.triggerScheduled(8L); // 不抛异常即通过
 
         verify(executionRepository).save(any(TaskExecution.class));
+    }
+
+    // ------------------------------------------------------------
+    // Code review patch 覆盖（P2）
+    // ------------------------------------------------------------
+
+    @DisplayName("[P2] SCHEDULED 触发早于 validFrom → 放弃执行不记录")
+    @Test
+    void scheduledTriggerDroppedBeforeValidFrom() {
+        ScheduledTask future = enabledTask(9L, 0, 0);
+        future.setValidFrom(LocalDateTime.now().plusHours(1));
+        when(taskRepository.findById(9L)).thenReturn(Optional.of(future));
+
+        engine.triggerScheduled(9L);
+
+        verify(httpExecutor, never()).execute(any());
+        verify(executionRepository, never()).save(any());
+        verify(taskRepository, never()).save(any());
+    }
+
+    @DisplayName("[P2] SCHEDULED 触发晚于 validUntil → 自动 PAUSED 并放弃执行")
+    @Test
+    void expiredTaskAutoPaused() {
+        ScheduledTask expired = enabledTask(10L, 0, 0);
+        expired.setValidUntil(LocalDateTime.now().minusMinutes(1));
+        when(taskRepository.findById(10L)).thenReturn(Optional.of(expired));
+
+        engine.triggerScheduled(10L);
+
+        verify(httpExecutor, never()).execute(any());
+        verify(taskRepository).save(org.mockito.ArgumentMatchers.argThat(
+                t -> t.getStatus() == TaskStatus.PAUSED));
+        verify(executionRepository, never()).save(any());
+    }
+
+    @DisplayName("[P2] MANUAL 触发不受生效窗口限制（管理员显式意图）")
+    @Test
+    void manualTriggerIgnoresValidityWindow() {
+        ScheduledTask expired = enabledTask(11L, 0, 0);
+        expired.setValidUntil(LocalDateTime.now().minusMinutes(1));
+        when(taskRepository.findById(11L)).thenReturn(Optional.of(expired));
+        when(httpExecutor.execute(any())).thenReturn(
+                ExecutionResult.of(ExecutionStatus.SUCCESS, null, null, null));
+
+        engine.triggerManual(11L);
+
+        verify(httpExecutor).execute(any());
+        verify(taskRepository, never()).save(any());
     }
 }

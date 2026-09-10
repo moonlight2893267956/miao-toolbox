@@ -170,6 +170,36 @@ class HttpTaskExecutorTest {
         assertThat(result.requestSummary()).contains("hello");
     }
 
+    @DisplayName("[P1] JSON 形态 body 自动用 application/json（bodyType=json）")
+    @Test
+    void jsonBodyDetected() throws Exception {
+        when(httpRequestExecutor.send(any())).thenReturn(execution(200, "ok"));
+
+        executor.execute(task(HttpTargetConfig.builder()
+                .method("POST").url("https://example.com/api")
+                .body("{\"key\":\"value\"}").build()));
+
+        ArgumentCaptor<HttpRequestExecutor.Spec> captor =
+                ArgumentCaptor.forClass(HttpRequestExecutor.Spec.class);
+        org.mockito.Mockito.verify(httpRequestExecutor).send(captor.capture());
+        assertThat(captor.getValue().bodyType()).isEqualTo("json");
+    }
+
+    @DisplayName("[P1] 非 JSON body 保持 text/plain（bodyType=raw）")
+    @Test
+    void plainBodyStaysRaw() throws Exception {
+        when(httpRequestExecutor.send(any())).thenReturn(execution(200, "ok"));
+
+        executor.execute(task(HttpTargetConfig.builder()
+                .method("POST").url("https://example.com/api")
+                .body("plain text").build()));
+
+        ArgumentCaptor<HttpRequestExecutor.Spec> captor =
+                ArgumentCaptor.forClass(HttpRequestExecutor.Spec.class);
+        org.mockito.Mockito.verify(httpRequestExecutor).send(captor.capture());
+        assertThat(captor.getValue().bodyType()).isEqualTo("raw");
+    }
+
     @DisplayName("契约: 执行器不抛异常——send 抛 RuntimeException 也返回 FAILED")
     @Test
     void neverThrows() {

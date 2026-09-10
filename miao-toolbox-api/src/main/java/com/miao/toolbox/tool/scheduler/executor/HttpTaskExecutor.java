@@ -57,11 +57,11 @@ public class HttpTaskExecutor implements TaskExecutor {
                 "taskName", task.getName() == null ? "" : task.getName(),
                 "taskId", task.getId() == null ? "" : String.valueOf(task.getId()));
 
-        // 1. 构建请求摘要（先于网络：任何失败路径都尽量带上请求摘要）
-        String requestSummary = buildRequestSummary(config, variables);
+        String requestSummary = null;
         try {
-            // 2. 解密敏感值 + 变量替换 → OkHttp headers
+            // 1. 敏感 header 解密一次（摘要复用同一明文），变量替换 → OkHttp headers
             List<HttpRequestExecutor.Header> headers = new ArrayList<>();
+            List<Map<String, String>> summaryHeaders = new ArrayList<>();
             if (config.getHeaders() != null) {
                 for (TargetHeader h : config.getHeaders()) {
                     if (h.getName() == null || h.getName().isBlank()) {
@@ -70,16 +70,23 @@ public class HttpTaskExecutor implements TaskExecutor {
                     String value = h.isSensitive() ? cryptoService.decrypt(h.getValue()) : h.getValue();
                     value = VariableReplacer.replace(value, variables);
                     headers.add(new HttpRequestExecutor.Header(h.getName(), value == null ? "" : value));
+                    summaryHeaders.add(Map.of("name", h.getName(),
+                            "value", h.isSensitive() ? SensitiveMasker.maskPartial(value) : value));
                 }
             }
 
+            // 2. body 变量替换 + Content-Type 自动检测（P1：JSON 探针是最常见场景）
             String body = VariableReplacer.replace(config.getBody(), variables);
+            String bodyType = detectBodyType(body);
+
+            requestSummary = buildRequestSummary(task.getId(), config.getMethod(), config.getUrl(),
+                    summaryHeaders, body);
 
             // 3. 发起请求（SSRF 安全，复用 network 模块）
             long timeoutMs = config.getTimeoutSeconds() != null
                     ? config.getTimeoutSeconds() * 1000L : 30_000L;
             HttpRequestExecutor.Spec spec = new HttpRequestExecutor.Spec(
-                    config.getUrl(), config.getMethod(), headers, "raw", body,
+                    config.getUrl(), config.getMethod(), headers, bodyType, body,
                     (int) Math.min(timeoutMs, Integer.MAX_VALUE));
             HttpRequestExecutor.Execution execution = httpRequestExecutor.send(spec);
 
@@ -110,39 +117,33 @@ public class HttpTaskExecutor implements TaskExecutor {
         }
     }
 
-    /** 请求摘要 JSON：method/url/headers（敏感前4后4）/bodyPreview（200 字符）。 */
-    private String buildRequestSummary(HttpTargetConfig config, Map<String, String> variables) {
+    /**
+     * body Content-Type 自动检测：JSON 形态（{ 或 [ 开头）→ application/json，
+     * 其余 → text/plain。JSON 探针是最常见场景，避免严格 API 因 Content-Type 拒绝。
+     */
+    private String detectBodyType(String body) {
+        if (body == null) {
+            return "raw";
+        }
+        String trimmed = body.trim();
+        return (trimmed.startsWith("{") || trimmed.startsWith("[")) ? "json" : "raw";
+    }
+
+    /** 请求摘要 JSON：method/url/headers（敏感前4后4，由主流程解密后传入）/bodyPreview（200 字符）。 */
+    private String buildRequestSummary(Long taskId, String method, String url,
+                                       List<Map<String, String>> summaryHeaders, String body) {
         try {
-            List<Map<String, String>> headers = new ArrayList<>();
-            if (config.getHeaders() != null) {
-                for (TargetHeader h : config.getHeaders()) {
-                    if (h.getName() == null) {
-                        continue;
-                    }
-                    String value = h.getValue() == null ? "" : h.getValue();
-                    if (h.isSensitive()) {
-                        // 存储的是密文：先解密得到明文再脱敏，保证摘要是可辨识的前4后4形态
-                        try {
-                            value = SensitiveMasker.maskPartial(cryptoService.decrypt(value));
-                        } catch (Exception e) {
-                            value = SensitiveMasker.maskFull(value);
-                        }
-                    }
-                    headers.add(Map.of("name", h.getName(), "value", value));
-                }
-            }
-            String rawBody = VariableReplacer.replace(config.getBody(), variables);
-            String bodyPreview = preview(rawBody, REQUEST_BODY_PREVIEW);
+            String bodyPreview = preview(body, REQUEST_BODY_PREVIEW);
             Map<String, Object> summary = new java.util.LinkedHashMap<>();
-            summary.put("method", config.getMethod());
-            summary.put("url", config.getUrl());
-            summary.put("headers", headers);
+            summary.put("method", method);
+            summary.put("url", url);
+            summary.put("headers", summaryHeaders);
             if (bodyPreview != null) {
                 summary.put("bodyPreview", bodyPreview);
             }
             return MAPPER.writeValueAsString(summary);
         } catch (Exception e) {
-            log.warn("[task:{}] request summary build failed: {}", config.getUrl(), e.getMessage());
+            log.warn("[task:{}] request summary build failed: {}", taskId, e.getMessage());
             return null;
         }
     }
