@@ -262,6 +262,44 @@ class NotificationServiceTest {
         assertThat(raw).contains("https://tool.example.com/tools/task-scheduler/7");
     }
 
+    @DisplayName("HTML 注入防护：任务名/错误信息含 <script> → 邮件正文转义后不包含原始标签")
+    @Test
+    void emailEscapesHtml() throws Exception {
+        stubFetchOk();
+        ScheduledTask xssTask = ScheduledTask.builder()
+                .id(8L)
+                .name("<script>alert(1)</script>")
+                .targetType(TargetType.HTTP)
+                .targetConfig(HttpTargetConfig.builder().method("GET").url("https://example.com").build())
+                .cronExpression("0 */5 * * * *")
+                .timezone("Asia/Shanghai")
+                .notifyConfig(NotifyConfig.builder()
+                        .email(NotifyConfig.EmailNotify.builder()
+                                .recipients(List.of("ops@example.com"))
+                                .trigger(NotifyTrigger.ALWAYS).build())
+                        .build())
+                .build();
+        TaskExecution xssExec = TaskExecution.builder()
+                .id(901L)
+                .taskId(8L)
+                .triggerType(TriggerType.SCHEDULED)
+                .triggeredAt(LocalDateTime.of(2026, 9, 11, 9, 0))
+                .durationMs(100)
+                .status(ExecutionStatus.FAILED)
+                .retryCount(0)
+                .errorMessage("<img src=x onerror=alert(1)>")
+                .build();
+
+        service.onExecutionFinished(xssTask, xssExec);
+
+        ArgumentCaptor<MimeMessage> captor = ArgumentCaptor.forClass(MimeMessage.class);
+        verify(mailSender).send(captor.capture());
+        String raw = dumpMessage(captor.getValue()).replaceAll("=\r?\n", "");
+        // 原始 HTML 标签不应出现，转义后的实体应存在
+        assertThat(raw).doesNotContain("<script>").doesNotContain("<img src=x");
+        assertThat(raw).contains("&lt;script&gt;").contains("&lt;img");
+    }
+
     @DisplayName("邮件触发矩阵：ALWAYS 全发 / ON_FAILURE 仅失败侧 / ON_SUCCESS 仅成功 / SKIPPED 不发")
     @Test
     void emailTriggerMatrix() {
@@ -333,6 +371,21 @@ class NotificationServiceTest {
         // webhook 尝试了（抛异常被吞）
         verify(httpFetcher).fetchWithBody(anyString(), anyString(), any(), anyString(), anyLong());
         // 邮件仍然发出
+        verify(mailSender).send(any(MimeMessage.class));
+    }
+
+    @DisplayName("邮件发送失败不影响 webhook 发送（反向独立验证）")
+    @Test
+    void emailFailureDoesNotBlockWebhook() {
+        stubFetchOk();
+        doThrowOnSend();
+
+        assertThatCode(() -> service.onExecutionFinished(
+                task(both(NotifyTrigger.ALWAYS, NotifyTrigger.ALWAYS)), execution(ExecutionStatus.FAILED)))
+                .doesNotThrowAnyException();
+        // webhook 正常发出
+        verify(httpFetcher).fetchWithBody(anyString(), anyString(), any(), anyString(), anyLong());
+        // 邮件尝试了（抛异常被吞）
         verify(mailSender).send(any(MimeMessage.class));
     }
 

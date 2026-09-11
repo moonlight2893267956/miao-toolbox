@@ -214,10 +214,10 @@ public class NotificationService {
 
     private String buildEmailSubject(ScheduledTask task, TaskExecution execution) {
         String status = execution.getStatus() == null ? "UNKNOWN" : execution.getStatus().name();
-        return "【阿渺工具箱】定时任务「%s」执行 %s".formatted(task.getName(), status);
+        return "【阿渺工具箱】定时任务「%s」执行 %s".formatted(escapeHtml(task.getName()), status);
     }
 
-    /** 邮件正文 HTML：任务/执行摘要 + 详情链接。 */
+    /** 邮件正文 HTML：任务/执行摘要 + 详情链接。用户可控字段经 escapeHtml 转义防注入。 */
     private String buildEmailHtml(ScheduledTask task, TaskExecution execution) {
         String status = execution.getStatus() == null ? "-" : execution.getStatus().name();
         String statusColor = execution.getStatus() == ExecutionStatus.SUCCESS ? "#52c41a" : "#ff4d4f";
@@ -225,7 +225,7 @@ public class NotificationService {
         String duration = execution.getDurationMs() == null ? "-" : execution.getDurationMs() + " ms";
         String retry = String.valueOf(execution.getRetryCount() == null ? 0 : execution.getRetryCount());
         String error = execution.getErrorMessage() == null || execution.getErrorMessage().isBlank()
-                ? "（无）" : execution.getErrorMessage();
+                ? "（无）" : escapeHtml(execution.getErrorMessage());
         String detailUrl = buildDetailUrl(task.getId());
         String detailLink = detailUrl == null
                 ? "（未配置站点地址）"
@@ -246,7 +246,7 @@ public class NotificationService {
                   <p style="color:#999;font-size:12px;margin-top:24px;">此邮件由阿渺工具箱定时任务模块自动发送，请勿回复。</p>
                 </div>
                 """.formatted(
-                task.getName(), task.getId(),
+                escapeHtml(task.getName()), task.getId(),
                 statusColor, status,
                 triggeredAt == null ? "-" : triggeredAt,
                 duration,
@@ -254,6 +254,26 @@ public class NotificationService {
                 error,
                 detailLink
         );
+    }
+
+    /** HTML 实体转义：防邮件正文 / Subject 中的用户可控字段注入 HTML（task.name / errorMessage）。 */
+    private static String escapeHtml(String input) {
+        if (input == null || input.isEmpty()) {
+            return input == null ? "" : input;
+        }
+        StringBuilder sb = new StringBuilder(input.length() + 16);
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+            switch (c) {
+                case '<' -> sb.append("&lt;");
+                case '>' -> sb.append("&gt;");
+                case '&' -> sb.append("&amp;");
+                case '"' -> sb.append("&quot;");
+                case '\'' -> sb.append("&#39;");
+                default -> sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     // ------------------------------------------------------------
