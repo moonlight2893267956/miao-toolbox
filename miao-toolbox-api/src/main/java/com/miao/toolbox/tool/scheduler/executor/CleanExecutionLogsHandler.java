@@ -41,6 +41,16 @@ public class CleanExecutionLogsHandler implements PresetTemplateHandler {
     }
 
     @Override
+    public String displayName() {
+        return "清理过期执行日志";
+    }
+
+    @Override
+    public String description() {
+        return "删除指定天数之前的任务执行记录，控制 task_executions 表体量";
+    }
+
+    @Override
     public Map<String, String> paramSchema() {
         Map<String, String> schema = new LinkedHashMap<>();
         schema.put(PARAM_RETENTION_DAYS, "int: 留存天数（1-365，默认 30）");

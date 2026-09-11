@@ -30,11 +30,19 @@ export interface HttpTargetConfig {
   timeoutSeconds?: number | null;
 }
 
-/** 预置运维模板目标（Epic 3 交付，本模块仅类型占位） */
+/** 预置运维模板目标（Epic 3 交付） */
 export interface PresetTargetConfig {
   targetType: 'PRESET';
   template: string;
   params?: Record<string, unknown> | null;
+}
+
+/** 预置模板元信息（GET /api/scheduler/preset-templates，前端动态渲染模板选择器） */
+export interface PresetTemplateInfo {
+  code: string;
+  name: string;
+  description: string;
+  params: Record<string, string>;
 }
 
 export type TaskTargetConfig = HttpTargetConfig | PresetTargetConfig;

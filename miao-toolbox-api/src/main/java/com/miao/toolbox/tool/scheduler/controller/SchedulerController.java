@@ -7,6 +7,7 @@ import com.miao.toolbox.common.response.ApiResponse;
 import com.miao.toolbox.common.response.PagedResponse;
 import com.miao.toolbox.tool.scheduler.dto.CreateTaskRequest;
 import com.miao.toolbox.tool.scheduler.dto.ExecutionListItemResponse;
+import com.miao.toolbox.tool.scheduler.dto.PresetTemplateResponse;
 import com.miao.toolbox.tool.scheduler.dto.TaskExecutionResponse;
 import com.miao.toolbox.tool.scheduler.dto.TaskListItemResponse;
 import com.miao.toolbox.tool.scheduler.dto.TaskResponse;
@@ -16,6 +17,7 @@ import com.miao.toolbox.tool.scheduler.dto.ValidateCronRequest;
 import com.miao.toolbox.tool.scheduler.dto.ValidateCronResponse;
 import com.miao.toolbox.tool.scheduler.entity.ExecutionStatus;
 import com.miao.toolbox.tool.scheduler.entity.TaskStatus;
+import com.miao.toolbox.tool.scheduler.executor.PresetTaskExecutor;
 import com.miao.toolbox.tool.scheduler.service.SchedulerService;
 import com.miao.toolbox.tool.scheduler.service.TaskService;
 import jakarta.validation.Valid;
@@ -31,6 +33,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 定时任务管理 API（FR-1/FR-2/FR-6/FR-9/FR-12）。
@@ -51,6 +55,13 @@ public class SchedulerController {
 
     private final TaskService taskService;
     private final SchedulerService schedulerService;
+    private final PresetTaskExecutor presetTaskExecutor;
+
+    /** 预置模板列表（FR-5）：注册模板的元信息（代码/名称/描述/参数 schema），前端动态渲染。 */
+    @GetMapping("/preset-templates")
+    public ResponseEntity<ApiResponse<List<PresetTemplateResponse>>> presetTemplates() {
+        return ResponseEntity.ok(ApiResponse.success(presetTaskExecutor.listTemplates()));
+    }
 
     @PostMapping("/tasks")
     public ResponseEntity<ApiResponse<TaskResponse>> create(@Valid @RequestBody CreateTaskRequest request) {

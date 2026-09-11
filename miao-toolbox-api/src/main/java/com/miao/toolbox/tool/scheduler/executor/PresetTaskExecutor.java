@@ -1,6 +1,7 @@
 package com.miao.toolbox.tool.scheduler.executor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.miao.toolbox.tool.scheduler.dto.PresetTemplateResponse;
 import com.miao.toolbox.tool.scheduler.entity.ExecutionStatus;
 import com.miao.toolbox.tool.scheduler.entity.PresetTargetConfig;
 import com.miao.toolbox.tool.scheduler.entity.ScheduledTask;
@@ -38,6 +39,18 @@ public class PresetTaskExecutor implements TaskExecutor {
             this.handlers.put(code, handler);
         }
         log.info("preset template handlers registered: {}", this.handlers.keySet());
+    }
+
+    /** 模板列表（GET /preset-templates）：注册的模板元信息，供前端动态渲染。 */
+    public List<PresetTemplateResponse> listTemplates() {
+        return handlers.values().stream()
+                .map(h -> PresetTemplateResponse.builder()
+                        .code(h.templateCode())
+                        .name(h.displayName())
+                        .description(h.description())
+                        .params(h.paramSchema())
+                        .build())
+                .toList();
     }
 
     @Override

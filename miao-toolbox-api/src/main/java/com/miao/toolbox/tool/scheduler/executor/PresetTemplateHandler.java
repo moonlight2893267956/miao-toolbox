@@ -19,6 +19,12 @@ public interface PresetTemplateHandler {
     /** 本处理器支持的模板代码（如 "CLEAN_EXECUTION_LOGS"） */
     String templateCode();
 
+    /** 模板显示名（中文，前端模板选择器展示） */
+    String displayName();
+
+    /** 模板用途描述（前端 extra 提示） */
+    String description();
+
     /** 模板参数 schema：参数名 → 描述（供前端渲染与后端校验参考） */
     Map<String, String> paramSchema();
 

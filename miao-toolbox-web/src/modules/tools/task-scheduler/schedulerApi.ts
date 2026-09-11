@@ -8,6 +8,7 @@ import type {
   ExecutionListItem,
   ExecutionStatus,
   PagedResponse,
+  PresetTemplateInfo,
   ScheduledTask,
   TaskExecutionDetail,
   TaskListItem,
@@ -81,6 +82,12 @@ export const schedulerApi = {
   /** 单次执行详情（request/response 摘要为 JSON 对象） */
   getExecution: async (executionId: number): Promise<TaskExecutionDetail> => {
     const resp = await axiosInstance.get(`${BASE}/executions/${executionId}`);
+    return resp.data.data;
+  },
+
+  /** 预置模板列表（注册模板元信息，前端动态渲染模板选择器） */
+  listPresetTemplates: async (): Promise<PresetTemplateInfo[]> => {
+    const resp = await axiosInstance.get(`${BASE}/preset-templates`);
     return resp.data.data;
   },
 };

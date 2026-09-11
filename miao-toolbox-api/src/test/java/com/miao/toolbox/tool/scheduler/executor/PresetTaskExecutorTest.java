@@ -183,4 +183,43 @@ class PresetTaskExecutorTest {
         assertThat(schema).containsKey("retentionDays");
         assertThat(schema.get("retentionDays")).contains("1-365");
     }
+
+    // ------------------------------------------------------------
+    // 模板列表（GET /preset-templates）
+    // ------------------------------------------------------------
+
+    @DisplayName("listTemplates: 返回注册模板的元信息（code/name/description/params）")
+    @Test
+    void listTemplatesReturnsRegisteredMetadata() {
+        List<com.miao.toolbox.tool.scheduler.dto.PresetTemplateResponse> templates = executor.listTemplates();
+
+        assertThat(templates).hasSize(1);
+        com.miao.toolbox.tool.scheduler.dto.PresetTemplateResponse t = templates.get(0);
+        assertThat(t.getCode()).isEqualTo("CLEAN_EXECUTION_LOGS");
+        assertThat(t.getName()).isEqualTo("清理过期执行日志");
+        assertThat(t.getDescription()).isNotBlank();
+        assertThat(t.getParams()).containsKey("retentionDays");
+    }
+
+    @DisplayName("listTemplates: 多 handler 按注册顺序返回全部")
+    @Test
+    void listTemplatesReturnsAllHandlers() {
+        PresetTemplateHandler second = new PresetTemplateHandler() {
+            @Override public String templateCode() { return "SECOND_TEMPLATE"; }
+            @Override public String displayName() { return "第二个模板"; }
+            @Override public String description() { return "测试用"; }
+            @Override public Map<String, String> paramSchema() { return Map.of(); }
+            @Override public PresetExecutionResult execute(PresetTargetConfig config) {
+                return PresetExecutionResult.success("{}");
+            }
+        };
+        PresetTaskExecutor twoHandlerExecutor = new PresetTaskExecutor(List.of(cleanHandler, second));
+
+        List<com.miao.toolbox.tool.scheduler.dto.PresetTemplateResponse> templates = twoHandlerExecutor.listTemplates();
+
+        assertThat(templates).hasSize(2);
+        assertThat(templates).extracting(
+                com.miao.toolbox.tool.scheduler.dto.PresetTemplateResponse::getCode)
+                .containsExactly("CLEAN_EXECUTION_LOGS", "SECOND_TEMPLATE");
+    }
 }
