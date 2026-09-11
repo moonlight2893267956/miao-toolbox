@@ -25,6 +25,7 @@ import org.mockito.quality.Strictness;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -122,6 +123,10 @@ class NotificationServiceTest {
         assertThat(json.get("error").asText()).isEqualTo("HTTP 503");
         assertThat(json.get("detailUrl").asText())
                 .isEqualTo("https://tool.example.com/tools/task-scheduler/7");
+        // triggeredAt 输出 UTC ISO-8601（带 Z）；期望值与时区无关地计算
+        String expectedTriggeredAt = LocalDateTime.of(2026, 9, 11, 9, 0)
+                .atZone(ZoneId.systemDefault()).toInstant().toString();
+        assertThat(json.get("triggeredAt").asText()).isEqualTo(expectedTriggeredAt);
     }
 
     @DisplayName("触发矩阵：ALWAYS 全发 / ON_FAILURE 仅失败侧 / ON_SUCCESS 仅成功 / SKIPPED 不发")
@@ -156,7 +161,7 @@ class NotificationServiceTest {
     // 安全与失败语义
     // ------------------------------------------------------------
 
-    @DisplayName("SSRF 拦截 / URL 无主机 → 跳过发送，不抛出")
+    @DisplayName("SSRF 拦截 / URL 无主机 / 非 http(s) 协议 → 跳过发送，不抛出")
     @Test
     void skipsWhenUrlRejected() throws Exception {
         when(ssrfProtector.resolveAndValidate("127.0.0.1"))
@@ -168,10 +173,15 @@ class NotificationServiceTest {
         NotifyConfig noHost = NotifyConfig.builder()
                 .webhook(NotifyConfig.WebhookNotify.builder().url("not-a-url").trigger(NotifyTrigger.ALWAYS).build())
                 .build();
+        NotifyConfig badScheme = NotifyConfig.builder()
+                .webhook(NotifyConfig.WebhookNotify.builder().url("ftp://example.com/hook").trigger(NotifyTrigger.ALWAYS).build())
+                .build();
 
         assertThatCode(() -> service.onExecutionFinished(task(internal), execution(ExecutionStatus.FAILED)))
                 .doesNotThrowAnyException();
         assertThatCode(() -> service.onExecutionFinished(task(noHost), execution(ExecutionStatus.FAILED)))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> service.onExecutionFinished(task(badScheme), execution(ExecutionStatus.FAILED)))
                 .doesNotThrowAnyException();
         verify(httpFetcher, never()).fetchWithBody(anyString(), anyString(), any(), anyString(), anyLong());
     }

@@ -68,3 +68,17 @@ export function validateUrl(_rule: unknown, value?: string): Promise<void> {
   }
   return Promise.resolve();
 }
+
+/** 邮箱格式预检（正则与后端 TaskService.EMAIL_PATTERN 一致；后端仍做最终校验）。空值放行。 */
+const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+
+export function validateEmails(_rule: unknown, value?: string[]): Promise<void> {
+  if (!value || value.length === 0) {
+    return Promise.resolve();
+  }
+  const invalid = value.find((item) => !EMAIL_PATTERN.test((item ?? '').trim()));
+  if (invalid) {
+    return Promise.reject(new Error(`邮箱格式不正确：${invalid}`));
+  }
+  return Promise.resolve();
+}

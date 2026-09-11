@@ -15,6 +15,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -90,6 +92,12 @@ public class NotificationService {
     private void sendWebhook(ScheduledTask task, TaskExecution execution, String url) {
         try {
             URI uri = URI.create(url);
+            // 协议白名单（FR-13）：保存时已校验，此处兜底——防其它写入路径（导入/刷库）带入非 http(s) URL
+            String scheme = uri.getScheme();
+            if (scheme == null || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
+                log.warn("[task:{}] webhook skipped, unsupported scheme: {}", task.getId(), scheme);
+                return;
+            }
             String host = uri.getHost();
             if (host == null || host.isBlank()) {
                 log.warn("[task:{}] webhook skipped, url has no host", task.getId());
@@ -126,7 +134,7 @@ public class NotificationService {
         payload.put("executionId", execution.getId());
         payload.put("status", execution.getStatus() == null ? null : execution.getStatus().name());
         payload.put("triggerType", execution.getTriggerType() == null ? null : execution.getTriggerType().name());
-        payload.put("triggeredAt", execution.getTriggeredAt() == null ? null : execution.getTriggeredAt().toString());
+        payload.put("triggeredAt", toUtcIso(execution.getTriggeredAt()));
         payload.put("durationMs", execution.getDurationMs());
         payload.put("retryCount", execution.getRetryCount());
         payload.put("error", execution.getErrorMessage());
@@ -140,5 +148,13 @@ public class NotificationService {
             return null;
         }
         return base.replaceAll("/+$", "") + "/tools/task-scheduler/" + taskId;
+    }
+
+    /** LocalDateTime（服务器本地时区）→ UTC ISO-8601（带 Z）：webhook 消费方无时区歧义 */
+    private String toUtcIso(LocalDateTime localDateTime) {
+        if (localDateTime == null) {
+            return null;
+        }
+        return localDateTime.atZone(ZoneId.systemDefault()).toInstant().toString();
     }
 }

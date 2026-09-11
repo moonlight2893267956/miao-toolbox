@@ -1,6 +1,6 @@
 import React from 'react';
 import { Form, Input, Select } from 'antd';
-import { validateUrl } from '../format';
+import { validateEmails, validateUrl } from '../format';
 
 const TRIGGER_OPTIONS = [
   { value: 'ALWAYS', label: '每次执行' },
@@ -32,6 +32,7 @@ const NotifyConfigForm: React.FC = () => (
     <Form.Item
       name={['notifyConfig', 'email', 'recipients']}
       label="通知邮箱"
+      rules={[{ validator: validateEmails }]}
       extra="留空表示不启用；多个邮箱用逗号或回车分隔（发送在 ts-2-2 交付）"
     >
       <Select
