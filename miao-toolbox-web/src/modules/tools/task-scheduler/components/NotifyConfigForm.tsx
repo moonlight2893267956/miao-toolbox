@@ -33,7 +33,7 @@ const NotifyConfigForm: React.FC = () => (
       name={['notifyConfig', 'email', 'recipients']}
       label="通知邮箱"
       rules={[{ validator: validateEmails }]}
-      extra="留空表示不启用；多个邮箱用逗号或回车分隔（发送在 ts-2-2 交付）"
+      extra="留空表示不启用；多个邮箱用逗号或回车分隔"
     >
       <Select
         mode="tags"
