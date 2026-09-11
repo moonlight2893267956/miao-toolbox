@@ -266,7 +266,18 @@ const TaskDetailPage: React.FC = () => {
                   </Descriptions.Item>
                 </Descriptions>
               ) : (
-                <Alert type="info" showIcon message="预置模板目标由 Epic 3 交付" />
+                <Descriptions size="small" column={2} bordered>
+                  <Descriptions.Item label="模板">
+                    {task.targetConfig?.targetType === 'PRESET'
+                      ? (task.targetConfig.template ?? '-')
+                      : '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="留存天数">
+                    {task.targetConfig?.targetType === 'PRESET'
+                      ? (task.targetConfig.params?.retentionDays ?? 30)
+                      : '-'}
+                  </Descriptions.Item>
+                </Descriptions>
               )}
             </SchedulerPanel>
 

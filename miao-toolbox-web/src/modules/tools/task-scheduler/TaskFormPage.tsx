@@ -38,18 +38,26 @@ const COMMON_TIMEZONES = [
   'UTC',
 ].map((value) => ({ value }));
 
+interface HttpFormConfig {
+  targetType: 'HTTP';
+  method: string;
+  url: string;
+  headers?: TargetHeader[];
+  body?: string | null;
+  timeoutSeconds?: number | null;
+}
+
+interface PresetFormConfig {
+  targetType: 'PRESET';
+  template: string;
+  params?: { retentionDays?: number | null } | null;
+}
+
 interface TaskFormValues {
   name: string;
   description?: string;
   targetType: 'HTTP' | 'PRESET';
-  targetConfig: {
-    targetType?: string;
-    method: string;
-    url: string;
-    headers?: TargetHeader[];
-    body?: string | null;
-    timeoutSeconds?: number | null;
-  };
+  targetConfig: HttpFormConfig | PresetFormConfig;
   cronExpression: string;
   timezone: string;
   validFrom?: Dayjs | null;
@@ -88,19 +96,11 @@ const DEFAULT_VALUES: TaskFormValues = {
 
 /** 详情 → 表单初值（敏感 header 的 **** 占位原样带入，用户不改则后端保留原密文） */
 function toFormValues(task: ScheduledTask): TaskFormValues {
-  const http = task.targetConfig?.targetType === 'HTTP' ? task.targetConfig : null;
-  return {
+  const targetType = task.targetType === 'PRESET' ? 'PRESET' : 'HTTP';
+  const base = {
     name: task.name,
     description: task.description ?? '',
-    targetType: task.targetType === 'PRESET' ? 'PRESET' : 'HTTP',
-    targetConfig: {
-      targetType: 'HTTP',
-      method: http?.method ?? 'GET',
-      url: http?.url ?? '',
-      headers: (http?.headers ?? []).map((header) => ({ ...header })),
-      body: http?.body ?? '',
-      timeoutSeconds: http?.timeoutSeconds ?? 30,
-    },
+    targetType,
     cronExpression: task.cronExpression,
     timezone: task.timezone,
     validFrom: fromLocalDateTime(task.validFrom),
@@ -116,6 +116,30 @@ function toFormValues(task: ScheduledTask): TaskFormValues {
         recipients: task.notifyConfig?.email?.recipients ?? [],
         trigger: task.notifyConfig?.email?.trigger ?? 'ON_FAILURE',
       },
+    },
+  };
+
+  if (targetType === 'PRESET' && task.targetConfig?.targetType === 'PRESET') {
+    return {
+      ...base,
+      targetConfig: {
+        targetType: 'PRESET' as const,
+        template: task.targetConfig.template ?? 'CLEAN_EXECUTION_LOGS',
+        params: { retentionDays: task.targetConfig.params?.retentionDays ?? 30 },
+      },
+    };
+  }
+
+  const http = task.targetConfig?.targetType === 'HTTP' ? task.targetConfig : null;
+  return {
+    ...base,
+    targetConfig: {
+      targetType: 'HTTP' as const,
+      method: http?.method ?? 'GET',
+      url: http?.url ?? '',
+      headers: (http?.headers ?? []).map((header) => ({ ...header })),
+      body: http?.body ?? '',
+      timeoutSeconds: http?.timeoutSeconds ?? 30,
     },
   };
 }
@@ -206,12 +230,18 @@ const TaskFormPage: React.FC = () => {
         return;
       }
 
-      const http = values.targetConfig ?? DEFAULT_VALUES.targetConfig;
-      const payload: TaskPayload = {
-        name: values.name.trim(),
-        description: values.description?.trim() ? values.description.trim() : null,
-        targetType: 'HTTP',
-        targetConfig: {
+      const targetType = values.targetType;
+      let targetConfig: TaskPayload['targetConfig'];
+      if (targetType === 'PRESET') {
+        const preset = values.targetConfig as PresetFormConfig;
+        targetConfig = {
+          targetType: 'PRESET',
+          template: preset.template ?? 'CLEAN_EXECUTION_LOGS',
+          params: { retentionDays: preset.params?.retentionDays ?? 30 },
+        };
+      } else {
+        const http = values.targetConfig as HttpFormConfig;
+        targetConfig = {
           targetType: 'HTTP',
           method: http.method,
           url: http.url.trim(),
@@ -223,7 +253,13 @@ const TaskFormPage: React.FC = () => {
           })),
           body: http.body ? http.body : null,
           timeoutSeconds: http.timeoutSeconds ?? 30,
-        },
+        };
+      }
+      const payload: TaskPayload = {
+        name: values.name.trim(),
+        description: values.description?.trim() ? values.description.trim() : null,
+        targetType,
+        targetConfig,
         cronExpression: (values.cronExpression ?? '').trim(),
         timezone: values.timezone,
         validFrom: toLocalDateTimeIso(from),
