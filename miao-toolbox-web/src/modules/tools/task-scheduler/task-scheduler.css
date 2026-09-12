@@ -739,6 +739,10 @@
   margin-left: auto;
 }
 
+.ts-param-missing-alert {
+  margin-bottom: 14px;
+}
+
 .ts-param-field-label {
   display: inline-flex;
   align-items: center;

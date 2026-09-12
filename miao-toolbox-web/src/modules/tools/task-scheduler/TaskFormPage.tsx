@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
@@ -126,6 +126,32 @@ function buildParamsJson(
     }
   }
   return Object.keys(payload).length > 0 ? JSON.stringify(payload) : null;
+}
+
+/** 参数声明解析（后端为 JSON 字符串；也兼容已是数组的情况） */
+function parseParamSchema(raw?: string | ScriptParam[] | null): ScriptParam[] | null {
+  if (!raw) {
+    return null;
+  }
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as ScriptParam[]) : null;
+    } catch {
+      return null;
+    }
+  }
+  return Array.isArray(raw) ? raw : null;
+}
+
+/** 用声明默认值补齐取值（已有值优先，不覆盖任务里已保存的值） */
+function mergeParamValues(
+  existing: Record<string, unknown> | null | undefined,
+  schema: ScriptParam[] | null,
+): Record<string, unknown> | null {
+  const defaults = schema && schema.length > 0 ? buildDefaultParamValues(schema) : {};
+  const merged = { ...defaults, ...(existing ?? {}) };
+  return Object.keys(merged).length > 0 ? merged : null;
 }
 
 interface TaskFormValues {
@@ -256,6 +282,20 @@ const TaskFormPage: React.FC = () => {
 
   const timezoneValue = Form.useWatch('timezone', form) ?? 'Asia/Shanghai';
   const selectedScriptId = Form.useWatch('scriptId', form) ?? null;
+  const watchedParamValues = Form.useWatch('paramValues', form);
+
+  /** 声明了但任务里没有取值的参数：脚本内会读到空值，需显式提示 */
+  const missingParams = useMemo(
+    () =>
+      (scriptParamSchema ?? [])
+        .filter((param) => param.name?.trim())
+        .filter((param) => {
+          const value = (watchedParamValues as Record<string, unknown> | undefined)?.[param.name.trim()];
+          return value === undefined || value === null || value === '';
+        })
+        .map((param) => param.name.trim()),
+    [scriptParamSchema, watchedParamValues],
+  );
 
   /**
    * 拉取脚本下拉选项（上限 SCRIPT_OPTION_LIMIT，输入过滤由 Select 客户端完成）。
@@ -315,25 +355,13 @@ const TaskFormPage: React.FC = () => {
       let schema: ScriptParam[] | null = null;
       try {
         const detail = await schedulerApi.getScript(scriptId);
-        const raw = detail.paramSchema;
-        if (typeof raw === 'string') {
-          try {
-            schema = JSON.parse(raw);
-          } catch {
-            schema = null;
-          }
-        } else {
-          schema = raw ?? null;
-        }
+        schema = parseParamSchema(detail.paramSchema);
       } catch {
         schema = null;
       }
       setScriptParamSchema(schema);
       if (prefillDefaults) {
-        form.setFieldValue(
-          'paramValues',
-          schema && schema.length > 0 ? buildDefaultParamValues(schema) : null,
-        );
+        form.setFieldValue('paramValues', mergeParamValues(null, schema));
       }
     },
     [form],
@@ -404,9 +432,25 @@ const TaskFormPage: React.FC = () => {
     setLoading(true);
     schedulerApi
       .getTask(taskId)
-      .then((task) => {
+      .then(async (task) => {
         if (cancelled) return;
-        setInitialValues(toFormValues(task));
+        const formValues = toFormValues(task);
+        // 参数声明：编辑态一并拉取，并用声明默认值补齐取值（任务已有值优先）。
+        // PRD FR-2 明确「参数 schema 变更不影响已绑定任务」——执行用的是任务保存的
+        // 参数值，因此这里只做预填，需保存任务后生效。
+        let schema: ScriptParam[] | null = null;
+        try {
+          const detail = await schedulerApi.getScript(task.scriptId);
+          schema = parseParamSchema(detail.paramSchema);
+        } catch {
+          schema = null;
+        }
+        if (cancelled) return;
+        setScriptParamSchema(schema);
+        setInitialValues({
+          ...formValues,
+          paramValues: mergeParamValues(formValues.paramValues, schema),
+        });
         // 版本值由 initialValues 带入，此处仅预加载选项，不覆盖已绑定版本
         void loadScriptOptions({
           id: task.scriptId,
@@ -414,7 +458,6 @@ const TaskFormPage: React.FC = () => {
           type: task.scriptType,
         });
         void loadVersionOptions(task.scriptId);
-        void loadScriptParamSchema(task.scriptId);
       })
       .catch((err) => {
         if (!cancelled) setLoadError(extractErrorMessage(err, '任务详情加载失败'));
@@ -425,7 +468,7 @@ const TaskFormPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [isEdit, taskId, loadScriptOptions, loadVersionOptions, loadScriptParamSchema]);
+  }, [isEdit, taskId, loadScriptOptions, loadVersionOptions]);
 
   const handleSubmit = useCallback(
     async (values: TaskFormValues) => {
@@ -711,6 +754,16 @@ const TaskFormPage: React.FC = () => {
                       </Button>
                     )}
                   </div>
+
+                  {hasParamSchema && missingParams.length > 0 && (
+                    <Alert
+                      className="ts-param-missing-alert"
+                      type="warning"
+                      showIcon
+                      message={`${missingParams.length} 个参数在任务里没有取值：${missingParams.join('、')}`}
+                      description="脚本内将读到空值。参数值随任务保存生效——填写下方取值（或点「填充默认值」）后保存任务即可；脚本参数声明的后续变更不会影响已创建的任务。"
+                    />
+                  )}
 
                   {hasParamSchema ? (
                     <Row gutter={12}>
