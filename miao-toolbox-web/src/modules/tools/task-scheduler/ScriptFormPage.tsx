@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Alert, Button, Col, Form, Input, Radio, Row, Spin, message } from 'antd';
-import { ArrowLeftOutlined, ScriptOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, CodeOutlined } from '@ant-design/icons';
 import PageFadeIn from '../../../components/shared/PageFadeIn';
 import { schedulerApi } from '../schedulerApi';
 import type { ScriptDetail, ScriptType } from '../types';
@@ -112,7 +112,7 @@ const ScriptFormPage: React.FC = () => {
 
   const header = (
     <SchedulerHeader
-      icon={<ScriptOutlined />}
+      icon={<CodeOutlined />}
       title={isEdit ? '编辑脚本' : '新建脚本'}
       subtitle="Shell / Python · 版本管理 · 上限 64KB"
       actions={

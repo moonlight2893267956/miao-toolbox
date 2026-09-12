@@ -8,7 +8,7 @@ import {
   EditOutlined,
   PlusOutlined,
   ReloadOutlined,
-  ScriptOutlined,
+  CodeOutlined,
 } from '@ant-design/icons';
 import PageFadeIn from '../../../components/shared/PageFadeIn';
 import { schedulerApi } from '../schedulerApi';
@@ -164,7 +164,7 @@ const ScriptListPage: React.FC = () => {
     <PageFadeIn>
       <div className="ts-page">
         <SchedulerHeader
-          icon={<ScriptOutlined />}
+          icon={<CodeOutlined />}
           title="脚本管理"
           subtitle="自定义运维脚本 · Shell/Python · 版本管理"
           actions={
@@ -220,7 +220,7 @@ const ScriptListPage: React.FC = () => {
               locale={{
                 emptyText: (
                   <SchedulerEmpty
-                    icon={<ScriptOutlined />}
+                    icon={<CodeOutlined />}
                     title="暂无脚本"
                     hint="点击右上角「新建脚本」，录入第一个运维脚本"
                   />
