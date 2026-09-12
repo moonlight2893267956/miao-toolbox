@@ -203,13 +203,8 @@ const ScriptFormPage: React.FC = () => {
                   value={content}
                   onChange={setContent}
                   scriptType={scriptType}
-                  height="420px"
+                  height="460px"
                 />
-                <div className="ts-content-meta">
-                  <span className="ts-muted">
-                    当前大小：{new Blob([content]).size.toLocaleString()} bytes / 上限 65,536 bytes (64KB)
-                  </span>
-                </div>
               </SchedulerPanel>
             </div>
 

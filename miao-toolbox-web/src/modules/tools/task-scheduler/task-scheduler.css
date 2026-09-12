@@ -916,3 +916,259 @@
     animation: none !important;
   }
 }
+
+/* ============================================================
+   脚本编辑器（CodeMirror 6）—— 运维控制台代码面
+   ------------------------------------------------------------
+   三段式外壳：语言条 / 代码面 / 状态条（含 64KB 用量计量）
+   代码面的全部颜色由 --ts-code-* 供给，暗色经 data-theme 覆盖
+   ============================================================ */
+.ts-script-editor {
+  /* 亮色代码面：略偏冷的纸面，与暖色 UI 形成克制对比 */
+  --ts-code-surface: #fbfbfa;
+  --ts-code-gutter: #f4f4f1;
+  --ts-code-active: rgba(15, 23, 42, 0.035);
+  --ts-code-comment: #9aa0ab;
+  --ts-code-keyword: #7c3aed;
+  --ts-code-string: #15803d;
+  --ts-code-number: #b45309;
+  --ts-code-func: #1d4ed8;
+  --ts-code-type: #0e7490;
+  --ts-code-var: #1f2937;
+  --ts-code-op: #64748b;
+
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--miao-border);
+  border-radius: var(--ts-radius-md);
+  background: var(--ts-code-surface);
+  overflow: hidden;
+  transition: border-color 200ms var(--ts-ease), box-shadow 200ms var(--ts-ease);
+}
+
+/* 聚焦态：琥珀光晕，与命令条/输入框的聚焦语言一致 */
+.ts-script-editor:focus-within {
+  border-color: color-mix(in srgb, var(--tool-accent) 55%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tool-accent) 14%, transparent);
+}
+
+:root[data-theme='dark'] .ts-script-editor {
+  --ts-code-surface: #121220;
+  --ts-code-gutter: #171725;
+  --ts-code-active: rgba(255, 255, 255, 0.045);
+  --ts-code-comment: #5c5c72;
+  --ts-code-keyword: #c4b5fd;
+  --ts-code-string: #7ee787;
+  --ts-code-number: #fbbf24;
+  --ts-code-func: #79c0ff;
+  --ts-code-type: #56d4dd;
+  --ts-code-var: #e8e8f0;
+  --ts-code-op: #8a8a9a;
+}
+
+/* ── 语言条 ── */
+.ts-script-editor-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--miao-border);
+  background: color-mix(in srgb, var(--miao-bg-muted) 62%, transparent);
+}
+
+.ts-script-lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--miao-text-secondary);
+}
+
+.ts-script-lang-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--tool-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tool-accent) 18%, transparent);
+}
+
+.ts-script-lang--python .ts-script-lang-dot {
+  background: var(--miao-info);
+  box-shadow: 0 0 0 3px var(--miao-info-bg);
+}
+
+.ts-script-editor-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--miao-text-tertiary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ts-script-editor-stats-sep {
+  width: 1px;
+  height: 11px;
+  background: var(--miao-border-strong);
+}
+
+/* ── 代码面 ── */
+.ts-script-editor-body {
+  position: relative;
+  min-height: 0;
+  flex: 0 0 auto;
+}
+
+.ts-script-editor-surface {
+  height: 100%;
+}
+
+.ts-script-editor-surface .cm-editor {
+  height: 100%;
+}
+
+/* 空态：置于代码面之上，不拦截点击（pointer-events 关闭后可正常聚焦编辑器） */
+.ts-script-editor-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 24px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.ts-script-editor-empty-icon {
+  font-size: 30px;
+  color: var(--tool-accent);
+  opacity: 0.45;
+}
+
+.ts-script-editor-empty-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--miao-text-secondary);
+}
+
+.ts-script-editor-empty-hint {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--miao-text-tertiary);
+  letter-spacing: 0.01em;
+}
+
+/* ── 状态条 ── */
+.ts-script-editor-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 5px 10px 5px 6px;
+  border-top: 1px solid var(--miao-border);
+  background: color-mix(in srgb, var(--miao-bg-muted) 62%, transparent);
+}
+
+.ts-script-editor-foot .ant-btn {
+  color: var(--miao-text-secondary);
+  font-size: 12px;
+}
+
+.ts-script-editor-foot .ant-btn:hover:not(:disabled) {
+  color: var(--tool-accent) !important;
+  background: color-mix(in srgb, var(--tool-accent) 12%, transparent) !important;
+}
+
+/* 用量计量：细条 + tabular 数字，接近/超过上限时转为警示色 */
+.ts-script-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--miao-text-tertiary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ts-script-size b {
+  font-weight: 700;
+  color: var(--miao-text-secondary);
+  transition: color 200ms var(--ts-ease);
+}
+
+.ts-script-size b.is-warn {
+  color: var(--miao-warning-text);
+}
+
+.ts-script-size b.is-over {
+  color: var(--miao-error-text);
+}
+
+.ts-script-size-cap {
+  color: var(--miao-text-tertiary);
+}
+
+.ts-script-size-meter {
+  position: relative;
+  width: 84px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--miao-border-strong);
+  overflow: hidden;
+}
+
+.ts-script-size-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 999px;
+  background: var(--tool-accent);
+  transition: width 240ms var(--ts-ease), background 240ms var(--ts-ease);
+}
+
+.ts-script-size-fill.is-warn {
+  background: var(--miao-warning);
+}
+
+.ts-script-size-fill.is-over {
+  background: var(--miao-error);
+}
+
+/* ── 编辑器内滚动条（与模块滚动条语言一致） ── */
+.ts-script-editor .cm-scroller::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+.ts-script-editor .cm-scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ts-script-editor .cm-scroller::-webkit-scrollbar-thumb {
+  background: var(--miao-border);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.ts-script-editor .cm-scroller::-webkit-scrollbar-thumb:hover {
+  background: var(--miao-text-tertiary);
+  background-clip: padding-box;
+}
+
+.ts-script-editor .cm-scroller {
+  scrollbar-width: thin;
+  scrollbar-color: var(--miao-border) transparent;
+}
