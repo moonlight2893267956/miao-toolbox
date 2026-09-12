@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Alert, Button, Descriptions, Modal, Tag, message } from 'antd';
+import { Alert, Button, Descriptions, Modal, Tag, Typography, message } from 'antd';
 import {
   ArrowLeftOutlined,
   DeleteOutlined,
@@ -12,8 +12,16 @@ import {
 } from '@ant-design/icons';
 import PageFadeIn from '../../../components/shared/PageFadeIn';
 import { schedulerApi } from './schedulerApi';
-import type { ScheduledTask } from './types';
-import { extractErrorMessage, formatDateTime, prettyJson } from './format';
+import type { ScheduledTask, ScriptParam } from './types';
+import {
+  extractErrorMessage,
+  formatDateTime,
+  missingParamNames,
+  paramEnvName,
+  parseParamSchema,
+  parseParamsObject,
+  prettyJson,
+} from './format';
 import SchedulerHeader from './components/SchedulerHeader';
 import SchedulerPanel from './components/SchedulerPanel';
 import TaskStatusTag from './components/TaskStatusTag';
@@ -37,6 +45,8 @@ const TaskDetailPage: React.FC = () => {
   const isActive = location.pathname === `/tools/task-scheduler/${taskId}`;
 
   const [task, setTask] = useState<ScheduledTask | null>(null);
+  /** 脚本参数声明：用于校验任务参数快照是否缺值（拉取失败不影响详情展示） */
+  const [declaredSchema, setDeclaredSchema] = useState<ScriptParam[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -54,7 +64,14 @@ const TaskDetailPage: React.FC = () => {
     setLoading(true);
     setLoadError(null);
     try {
-      setTask(await schedulerApi.getTask(taskId));
+      const detail = await schedulerApi.getTask(taskId);
+      setTask(detail);
+      try {
+        const script = await schedulerApi.getScript(detail.scriptId);
+        setDeclaredSchema(parseParamSchema(script.paramSchema));
+      } catch {
+        setDeclaredSchema(null);
+      }
     } catch (err) {
       setLoadError(extractErrorMessage(err, '任务详情加载失败'));
       setTask(null);
@@ -68,6 +85,15 @@ const TaskDetailPage: React.FC = () => {
     if (!isActive) return;
     void load();
   }, [isActive, load]);
+
+  /** 任务参数快照（解析失败按无参数处理，仅用于展示与校验） */
+  const taskParams = React.useMemo(() => parseParamsObject(task?.params), [task?.params]);
+
+  /** 脚本声明了、但任务参数快照里没有取值的参数：执行时对应环境变量不会注入，脚本内为空串 */
+  const missingParams = React.useMemo(
+    () => missingParamNames(declaredSchema, taskParams),
+    [declaredSchema, taskParams],
+  );
 
   const handleToggle = useCallback(async () => {
     if (!task) return;
@@ -180,6 +206,23 @@ const TaskDetailPage: React.FC = () => {
           />
         ) : task ? (
           <>
+            {missingParams.length > 0 && (
+              <Alert
+                className="ts-param-missing-alert"
+                type="warning"
+                showIcon
+                message={`任务参数缺少脚本声明的 ${missingParams.length} 个参数：${missingParams.join('、')}`}
+                description={`执行时这些参数不会注入环境变量，脚本内 ${missingParams
+                  .map((name) => `$${paramEnvName(name)}`)
+                  .join('、')} 会展开为空串。参数是任务级快照——脚本参数声明的后续变更不影响已创建的任务，请编辑任务并保存一次参数值。`}
+                action={
+                  <Button size="small" onClick={() => navigate(`/tools/task-scheduler/${task.id}/edit`)}>
+                    去编辑
+                  </Button>
+                }
+              />
+            )}
+
             <SchedulerPanel label="基本信息" meta={`#${task.id}`} index={0}>
               <Descriptions size="small" column={2} bordered>
                 <Descriptions.Item label="任务名称">{task.name}</Descriptions.Item>
@@ -232,8 +275,17 @@ const TaskDetailPage: React.FC = () => {
                 <Descriptions.Item label="版本">v{task.scriptVersion}</Descriptions.Item>
                 <Descriptions.Item label="超时">{task.timeoutSeconds} 秒</Descriptions.Item>
                 <Descriptions.Item label="参数" span={2}>
-                  {task.params ? (
-                    <pre className="ts-body-preview">{prettyJson(JSON.parse(task.params))}</pre>
+                  {taskParams ? (
+                    <>
+                      <pre className="ts-body-preview">{prettyJson(taskParams)}</pre>
+                      <div className="ts-muted">
+                        脚本内取值：{Object.keys(taskParams).map((name) => `$${paramEnvName(name)}`).join('、')}
+                      </div>
+                    </>
+                  ) : missingParams.length > 0 ? (
+                    <Typography.Text type="warning">
+                      未配置（脚本声明了 {missingParams.length} 个参数，执行时脚本内为空值）
+                    </Typography.Text>
                   ) : (
                     <span className="ts-muted">无参数</span>
                   )}

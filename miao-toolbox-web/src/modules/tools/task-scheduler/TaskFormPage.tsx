@@ -29,7 +29,15 @@ import {
 import PageFadeIn from '../../../components/shared/PageFadeIn';
 import { schedulerApi } from './schedulerApi';
 import type { NotifyTrigger, ScheduledTask, ScriptParam, ScriptType, TaskPayload } from './types';
-import { extractErrorMessage, fromLocalDateTime, paramEnvName, toLocalDateTimeIso } from './format';
+import {
+  extractErrorMessage,
+  fromLocalDateTime,
+  missingParamNames,
+  paramEnvName,
+  parseParamSchema,
+  parseParamsObject,
+  toLocalDateTimeIso,
+} from './format';
 import SchedulerHeader from './components/SchedulerHeader';
 import SchedulerPanel from './components/SchedulerPanel';
 import CronField from './components/CronField';
@@ -66,21 +74,6 @@ function scriptTypeLabel(type?: ScriptType | null): string {
   if (type === 'PYTHON') return 'Python';
   if (type === 'SHELL') return 'Shell';
   return '脚本';
-}
-
-/** 参数 JSON 文本 → 取值对象（非对象/解析失败返回 null） */
-function parseParamsJson(raw?: string | null): Record<string, unknown> | null {
-  if (!raw || !raw.trim()) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : null;
-  } catch {
-    return null;
-  }
 }
 
 /** 按类型把声明里的默认值转成取值 */
@@ -126,22 +119,6 @@ function buildParamsJson(
     }
   }
   return Object.keys(payload).length > 0 ? JSON.stringify(payload) : null;
-}
-
-/** 参数声明解析（后端为 JSON 字符串；也兼容已是数组的情况） */
-function parseParamSchema(raw?: string | ScriptParam[] | null): ScriptParam[] | null {
-  if (!raw) {
-    return null;
-  }
-  if (typeof raw === 'string') {
-    try {
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? (parsed as ScriptParam[]) : null;
-    } catch {
-      return null;
-    }
-  }
-  return Array.isArray(raw) ? raw : null;
 }
 
 /** 用声明默认值补齐取值（已有值优先，不覆盖任务里已保存的值） */
@@ -203,7 +180,7 @@ function toFormValues(task: ScheduledTask): TaskFormValues {
     scriptId: task.scriptId,
     scriptVersion: task.scriptVersion,
     params: task.params ?? null,
-    paramValues: parseParamsJson(task.params),
+    paramValues: parseParamsObject(task.params),
     cronExpression: task.cronExpression,
     timezone: task.timezone,
     validFrom: fromLocalDateTime(task.validFrom),
@@ -287,13 +264,10 @@ const TaskFormPage: React.FC = () => {
   /** 声明了但任务里没有取值的参数：脚本内会读到空值，需显式提示 */
   const missingParams = useMemo(
     () =>
-      (scriptParamSchema ?? [])
-        .filter((param) => param.name?.trim())
-        .filter((param) => {
-          const value = (watchedParamValues as Record<string, unknown> | undefined)?.[param.name.trim()];
-          return value === undefined || value === null || value === '';
-        })
-        .map((param) => param.name.trim()),
+      missingParamNames(
+        scriptParamSchema,
+        watchedParamValues as Record<string, unknown> | undefined,
+      ),
     [scriptParamSchema, watchedParamValues],
   );
 

@@ -6,6 +6,7 @@
  */
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
+import type { ScriptParam } from './types';
 
 /** LocalDateTime → 'YYYY-MM-DD HH:mm:ss'；空值显示 '-' */
 export function formatDateTime(value?: string | null): string {
@@ -104,4 +105,56 @@ export function paramEnvName(name: string): string {
   }
   while (sb.length > 0 && sb[sb.length - 1] === '_') sb.pop();
   return sb.join('');
+}
+
+/**
+ * 脚本参数声明解析。
+ *
+ * 后端 `Script.paramSchema` 是 JSON 文本（可能是字符串，也可能因序列化差异已是数组），
+ * 统一在此收敛，避免各处重复解析出不一致结果。无声明/解析失败返回 null。
+ */
+export function parseParamSchema(raw?: string | ScriptParam[] | null): ScriptParam[] | null {
+  if (!raw) return null;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as ScriptParam[]) : null;
+    } catch {
+      return null;
+    }
+  }
+  return Array.isArray(raw) ? raw : null;
+}
+
+/** 任务参数快照解析：JSON 文本 → 取值对象（非对象/解析失败返回 null） */
+export function parseParamsObject(raw?: string | null): Record<string, unknown> | null {
+  if (!raw || !raw.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 声明了参数、但任务参数快照里没有取值的参数名列表。
+ *
+ * 非空即意味着任务已创建在当时尚无默认值的脚本声明上——脚本内对应
+ * `SCRIPT_PARAM_*` 会展开为空串。参数是任务级别的快照（PRD FR-2）：
+ * 脚本声明/默认值的后续变更不会回溯已有任务，需进任务编辑页保存一次。
+ */
+export function missingParamNames(
+  schema: ScriptParam[] | null | undefined,
+  params: Record<string, unknown> | null | undefined,
+): string[] {
+  return (schema ?? [])
+    .map((param) => param.name?.trim())
+    .filter((name): name is string => Boolean(name))
+    .filter((name) => {
+      const value = params?.[name];
+      return value === undefined || value === null || value === '';
+    });
 }
