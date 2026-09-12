@@ -57,8 +57,17 @@ services:
         -Dhttps.proxyHost=host.docker.internal
         -Dhttps.proxyPort=7890
         -Dhttp.nonProxyHosts=miao-mysql|miao-redis|miao-backend|api|web|localhost|127.*|*.yunmiao.site|10.*|172.16.*|172.17.*|172.18.*|192.168.*|172.19.*|host.docker.internal
+      # ===== 定时任务调度模块（epic-task-scheduler / FR-14）=====
+      # 脚本物化与执行的白名单目录（容器内固定路径，见下方 volumes 挂载）。
+      # 必须挂宿主机持久卷：容器重建后脚本文件不丢失。
+      SCHEDULER_SCRIPT_UPLOAD_DIR: ${SCHEDULER_SCRIPT_UPLOAD_DIR:-/app/data/scheduler-scripts}
+      # 执行详情链接的站点根地址（Webhook payload / 邮件正文）；留空 = 不带链接
+      SCHEDULER_FRONTEND_BASE_URL: ${SCHEDULER_FRONTEND_BASE_URL:-}
     ports:
       - "127.0.0.1:8088:8080"
+    # 脚本目录持久化：宿主机 ./data/scheduler-scripts ←→ 容器 /app/data/scheduler-scripts
+    volumes:
+      - ./data/scheduler-scripts:/app/data/scheduler-scripts
     networks:
       - miao-net
       - miao-infra-net

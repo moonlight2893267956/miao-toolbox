@@ -52,6 +52,7 @@ ADMIN_PASSWORD=你的密码 bash scripts/check-deploy.sh
    - 4.5 [修复反代被冲掉](#45-修复反代被冲掉部署后必做)
    - 4.6 [SSL 配好后的收尾](#46-ssl-配好后的收尾)
    - 4.7 [验收](#47-验收)
+5. [定时任务调度模块](#5-定时任务调度模块epic-task-scheduler)
 
 ---
 
@@ -340,3 +341,70 @@ ADMIN_PASSWORD=你的密码 bash scripts/check-deploy.sh
 ```
 
 预期：9/9 通过（AC8 改密为交互式，默认跳过）。
+---
+
+## 5. 定时任务调度模块（epic-task-scheduler）
+
+> 本节只覆盖该模块特有的部署约束，常规部署流程见 §4。
+
+### 5.1 脚本目录必须挂持久卷
+
+脚本内容存数据库，但**执行前会物化到文件系统**（`{upload-dir}/{scriptId}/v{version}.{sh|py}`），
+并以 `{upload-dir}/{scriptId}/` 作为进程工作目录。因此该目录必须持久化——容器重建后
+物化文件若丢失，脚本内相对路径产生的产物也会随之丢失。
+
+- 容器内路径：`/app/data/scheduler-scripts`（`SCHEDULER_SCRIPT_UPLOAD_DIR`）
+- 挂载：`docker-compose.prod.yml` 已配置 `./data/scheduler-scripts:/app/data/scheduler-scripts`
+- 生产 profile **无默认值**：未注入 `SCHEDULER_SCRIPT_UPLOAD_DIR` 时应用启动失败，
+  避免静默回落到容器内的临时目录（重建即丢）
+
+```bash
+# 服务器上确认挂载生效
+cd /opt/miao-toolbox
+docker compose -f docker-compose.prod.yml --env-file .env exec api ls -l /app/data/scheduler-scripts
+```
+
+### 5.2 ⚠️ 安全边界（务必阅读）
+
+**本模块在容器内以子进程方式执行用户脚本**（`bash` / `python3`），
+即：获得本模块权限 = 获得容器内任意代码执行能力（D-011 显式接受）。
+
+已落实的约束：
+
+- 模块受路由码 `TOOL_TASK_SCHEDULER` 保护，**仅超级管理员**可见可用
+  （前端侧边栏入口 + 后端 `/api/scheduler/**` 双层校验）
+- 脚本进程的工作目录被限定在 `{upload-dir}/{scriptId}/`，相对路径操作限制在此
+- 物化路径由服务端按自增 BIGINT 拼接，不接受任何用户输入片段，天然免疫 `../` 穿越
+- 单次执行默认 60s 超时（最大 600s），超时先终止进程树再强杀，防失控脚本长期占用资源
+- **不做 syscall 级沙箱**：因此不要给普通用户开通本模块路由
+
+### 5.3 单实例运行，不支持水平扩展（NFR-4）
+
+调度器是**单实例内存态**设计：`ThreadPoolTaskScheduler` + 内存 `runningFlags` 做重叠保护，
+没有分布式锁。**多副本部署会导致同一任务被重复执行。**
+
+- `api` 服务副本数必须保持 1（当前 compose 未设 `replicas`，默认 1，不要改）
+- 需要高可用时，先引入分布式调度锁，切勿直接加副本
+
+### 5.4 备份建议
+
+| 数据 | 位置 | 说明 |
+|---|---|---|
+| 脚本内容与版本 | MySQL `scheduler_scripts` / `scheduler_script_versions` | 主数据，随库备份 |
+| 任务与参数快照 | MySQL `scheduled_tasks` | 含 `params` 快照（任务执行时用创建时的值） |
+| 执行记录 | MySQL `task_executions` | 系统每晚自动清理（30 天 / 每任务 100 条，先到先触发），无需手工维护 |
+| 物化脚本文件 | `./data/scheduler-scripts` | 可从 DB 重建，备份只为省去重建开销 |
+
+### 5.5 关键日志
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env logs -f api | grep -E "scheduler|\[task:"
+```
+
+| 日志 | 含义 |
+|---|---|
+| `scheduler recovery: N enabled tasks loaded, N registered, N failed` | 重启恢复：重新注册 ENABLED 任务 |
+| `[scheduler-retention] 清理完成 ... deletedByAge=... deletedByCount=...` | 执行记录清理（含删除条数） |
+| `[task:{id}] script exited code=... stdoutBytes=... durationMs=...` | 单次执行结果 |
+| `[task:{id}] injected script params: [...]` | 注入的环境变量名（**只记名不记值**，防敏感信息泄露） |
+| `[task:{id}] execution skipped (previous run still in progress)` | 重叠跳过 |
