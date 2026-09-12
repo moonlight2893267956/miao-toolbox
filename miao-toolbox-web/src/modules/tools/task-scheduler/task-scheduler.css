@@ -715,6 +715,51 @@
   border: 1px solid color-mix(in srgb, var(--tool-accent) 25%, transparent);
 }
 
+/* 参数区（按脚本参数声明渲染的结构化输入） */
+.ts-param-section {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--miao-border);
+}
+
+.ts-param-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ts-param-section-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--miao-text-secondary);
+}
+
+.ts-param-fill-btn {
+  margin-left: auto;
+}
+
+.ts-param-field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ts-param-field-name {
+  font-family: var(--miao-font-mono);
+  font-size: 12.5px;
+}
+
+.ts-param-field-extra code {
+  padding: 1px 5px;
+  border-radius: var(--ts-radius-sm);
+  font-family: var(--miao-font-mono);
+  font-size: 11px;
+  color: var(--tool-accent);
+  background: color-mix(in srgb, var(--tool-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tool-accent) 25%, transparent);
+}
+
 /* 版本标签行：标签文字 + 手动刷新按钮（脚本发布新版本后无需离开编辑页即可拉到） */
 .ts-version-label-row {
   display: inline-flex;

@@ -68,12 +68,75 @@ function scriptTypeLabel(type?: ScriptType | null): string {
   return '脚本';
 }
 
+/** 参数 JSON 文本 → 取值对象（非对象/解析失败返回 null） */
+function parseParamsJson(raw?: string | null): Record<string, unknown> | null {
+  if (!raw || !raw.trim()) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 按类型把声明里的默认值转成取值 */
+function coerceParamValue(type: ScriptParam['type'], raw: unknown): unknown {
+  if (raw === undefined || raw === null || raw === '') {
+    return undefined;
+  }
+  if (type === 'int') {
+    return typeof raw === 'number' ? raw : Number(raw);
+  }
+  if (type === 'bool') {
+    return typeof raw === 'boolean' ? raw : String(raw) === 'true';
+  }
+  return String(raw);
+}
+
+/** 依据参数声明构造默认取值（仅含声明了非空默认值的参数） */
+function buildDefaultParamValues(schema: ScriptParam[]): Record<string, unknown> {
+  const values: Record<string, unknown> = {};
+  for (const param of schema) {
+    const name = param.name?.trim();
+    if (!name) continue;
+    const coerced = coerceParamValue(param.type, param.default);
+    if (coerced !== undefined) {
+      values[name] = coerced;
+    }
+  }
+  return values;
+}
+
+/** 取值模型 → 提交用 params JSON（无有效取值返回 null） */
+function buildParamsJson(
+  schema: ScriptParam[],
+  values?: Record<string, unknown> | null,
+): string | null {
+  const payload: Record<string, unknown> = {};
+  for (const param of schema) {
+    const name = param.name?.trim();
+    if (!name) continue;
+    const coerced = coerceParamValue(param.type, values?.[name]);
+    if (coerced !== undefined) {
+      payload[name] = coerced;
+    }
+  }
+  return Object.keys(payload).length > 0 ? JSON.stringify(payload) : null;
+}
+
 interface TaskFormValues {
   name: string;
   description?: string;
   scriptId: number | null;
   scriptVersion: number | null;
+  /** 无参数声明时使用：原始参数 JSON 文本 */
   params?: string | null;
+  /** 有参数声明时使用：按声明渲染的取值模型（提交时序列化为 params JSON） */
+  paramValues?: Record<string, unknown> | null;
   cronExpression: string;
   timezone: string;
   validFrom?: Dayjs | null;
@@ -93,6 +156,7 @@ const DEFAULT_VALUES: TaskFormValues = {
   scriptId: null,
   scriptVersion: null,
   params: null,
+  paramValues: null,
   cronExpression: '',
   timezone: 'Asia/Shanghai',
   validFrom: null,
@@ -113,6 +177,7 @@ function toFormValues(task: ScheduledTask): TaskFormValues {
     scriptId: task.scriptId,
     scriptVersion: task.scriptVersion,
     params: task.params ?? null,
+    paramValues: parseParamsJson(task.params),
     cronExpression: task.cronExpression,
     timezone: task.timezone,
     validFrom: fromLocalDateTime(task.validFrom),
@@ -186,6 +251,8 @@ const TaskFormPage: React.FC = () => {
   const [versionRefreshing, setVersionRefreshing] = useState(false);
   /** 当前选中脚本的参数声明（从脚本详情拉取，用于引导用户填写参数） */
   const [scriptParamSchema, setScriptParamSchema] = useState<ScriptParam[] | null>(null);
+  /** 脚本是否声明了参数：决定参数区渲染结构化表单还是原始 JSON 文本框 */
+  const hasParamSchema = Boolean(scriptParamSchema && scriptParamSchema.length > 0);
 
   const timezoneValue = Form.useWatch('timezone', form) ?? 'Asia/Shanghai';
   const selectedScriptId = Form.useWatch('scriptId', form) ?? null;
@@ -239,32 +306,48 @@ const TaskFormPage: React.FC = () => {
     }
   }, []);
 
-  /** 拉取脚本详情中的 paramSchema，用于引导用户填写参数 */
-  const loadScriptParamSchema = useCallback(async (scriptId: number) => {
-    try {
-      const detail = await schedulerApi.getScript(scriptId);
-      // 后端 paramSchema 是 JSON 字符串（String 类型），需解析为数组
-      const raw = detail.paramSchema;
-      if (typeof raw === 'string') {
-        try {
-          setScriptParamSchema(JSON.parse(raw));
-        } catch {
-          setScriptParamSchema(null);
+  /**
+   * 拉取脚本详情中的 paramSchema（后端为 JSON 字符串，需解析为数组）。
+   * {@code prefillDefaults}：按声明默认值预填取值（PRD FR-5「带默认值预填」）。
+   */
+  const loadScriptParamSchema = useCallback(
+    async (scriptId: number, prefillDefaults = false) => {
+      let schema: ScriptParam[] | null = null;
+      try {
+        const detail = await schedulerApi.getScript(scriptId);
+        const raw = detail.paramSchema;
+        if (typeof raw === 'string') {
+          try {
+            schema = JSON.parse(raw);
+          } catch {
+            schema = null;
+          }
+        } else {
+          schema = raw ?? null;
         }
-      } else {
-        setScriptParamSchema(raw ?? null);
+      } catch {
+        schema = null;
       }
-    } catch {
-      setScriptParamSchema(null);
-    }
-  }, []);
+      setScriptParamSchema(schema);
+      if (prefillDefaults) {
+        form.setFieldValue(
+          'paramValues',
+          schema && schema.length > 0 ? buildDefaultParamValues(schema) : null,
+        );
+      }
+    },
+    [form],
+  );
 
-  /** 切换脚本：清空版本并默认选中最新版本（FR-5） */
+  /** 切换脚本：清空版本/参数并默认选中最新版本 + 按新脚本声明预填默认参数（FR-5） */
   const handleScriptChange = useCallback(
     (scriptId?: number) => {
       form.setFieldValue('scriptVersion', undefined);
       setVersionOptions([]);
       setScriptParamSchema(null);
+      // 换脚本后旧参数值不再适用，清空后按新脚本的声明重新预填
+      form.setFieldValue('paramValues', null);
+      form.setFieldValue('params', null);
       if (scriptId === undefined || scriptId === null) {
         return;
       }
@@ -273,7 +356,7 @@ const TaskFormPage: React.FC = () => {
           form.setFieldValue('scriptVersion', options[0].value);
         }
       });
-      void loadScriptParamSchema(scriptId);
+      void loadScriptParamSchema(scriptId, true);
     },
     [form, loadVersionOptions, loadScriptParamSchema],
   );
@@ -298,16 +381,15 @@ const TaskFormPage: React.FC = () => {
     }
   }, [selectedScriptId, form, loadVersionOptions]);
 
-  /** 一键填充参数默认值：根据 paramSchema 生成 JSON 并填入 params 字段 */
+  /** 一键填充参数默认值：按参数声明的默认值填充取值表单 */
   const handleFillDefaults = useCallback(() => {
     if (!scriptParamSchema || scriptParamSchema.length === 0) return;
-    const obj: Record<string, unknown> = {};
-    for (const p of scriptParamSchema) {
-      if (p.default != null && p.default !== '') {
-        obj[p.name] = p.type === 'int' ? Number(p.default) : p.type === 'bool' ? p.default === 'true' : p.default;
-      }
+    const defaults = buildDefaultParamValues(scriptParamSchema);
+    form.setFieldValue('paramValues', defaults);
+    if (Object.keys(defaults).length === 0) {
+      message.warning('该脚本的参数均未设置默认值，请手动填写');
+      return;
     }
-    form.setFieldValue('params', JSON.stringify(obj, null, 2));
     message.success('已填充默认参数');
   }, [scriptParamSchema, form]);
 
@@ -359,7 +441,10 @@ const TaskFormPage: React.FC = () => {
         description: values.description?.trim() ? values.description.trim() : null,
         scriptId: values.scriptId!,
         scriptVersion: values.scriptVersion!,
-        params: values.params ?? null,
+        // 有参数声明 → 用结构化取值序列化；无声明 → 用原始 JSON 文本
+        params: hasParamSchema
+          ? buildParamsJson(scriptParamSchema ?? [], values.paramValues)
+          : (values.params ?? null),
         cronExpression: (values.cronExpression ?? '').trim(),
         timezone: values.timezone,
         validFrom: toLocalDateTimeIso(from),
@@ -389,7 +474,7 @@ const TaskFormPage: React.FC = () => {
         setSubmitting(false);
       }
     },
-    [form, isEdit, navigate, taskId],
+    [form, hasParamSchema, isEdit, navigate, scriptParamSchema, taskId],
   );
 
   const header = (
@@ -565,71 +650,114 @@ const TaskFormPage: React.FC = () => {
                     </Form.Item>
                   </Col>
                 </Row>
-                <Form.Item
-                  name="params"
-                  label={
-                    <div className="ts-param-label-row">
-                      <span>参数（JSON）</span>
-                      <Popover
-                        trigger="hover"
-                        placement="rightTop"
-                        overlayClassName="ts-param-popover"
-                        content={
-                          <div className="ts-param-help">
-                            <div className="ts-param-help-title">
-                              <ThunderboltOutlined />
-                              <span>脚本参数说明</span>
-                            </div>
-                            {scriptParamSchema && scriptParamSchema.length > 0 ? (
-                              <>
-                                <p className="ts-param-help-desc">
-                                  在下方按 JSON 对象填写取值（键名与参数名一致），脚本里通过
-                                  环境变量读取。<strong>未填写或留空的参数会注入空串</strong>。
-                                </p>
-                                <div className="ts-param-table">
-                                  {scriptParamSchema.map((p) => (
-                                    <div key={p.name} className="ts-param-row">
-                                      <div className="ts-param-row-head">
-                                        <code className="ts-param-name">{p.name}</code>
-                                        <Tag className="ts-param-type-tag">{p.type}</Tag>
-                                        {p.default != null && p.default !== '' && (
-                                          <span className="ts-param-default">默认: {p.default}</span>
-                                        )}
-                                      </div>
-                                      <div className="ts-param-env">
-                                        脚本内取值：<code>${paramEnvName(p.name.trim())}</code>
-                                      </div>
-                                      {p.desc && <p className="ts-param-desc">{p.desc}</p>}
-                                    </div>
-                                  ))}
-                                </div>
-                                <Button
-                                  size="small"
-                                  type="primary"
-                                  ghost
-                                  icon={<ThunderboltOutlined />}
-                                  onClick={handleFillDefaults}
-                                >
-                                  填充默认值
-                                </Button>
-                              </>
-                            ) : (
-                              <p className="ts-param-help-empty">
-                                当前脚本未声明参数。如脚本需要入参，可在脚本管理中编辑 paramSchema。
-                                无参数脚本此处留空即可。
-                              </p>
-                            )}
+                <div className="ts-param-section">
+                  <div className="ts-param-section-head">
+                    <span className="ts-param-section-title">参数</span>
+                    <Popover
+                      trigger="hover"
+                      placement="rightTop"
+                      overlayClassName="ts-param-popover"
+                      content={
+                        <div className="ts-param-help">
+                          <div className="ts-param-help-title">
+                            <ThunderboltOutlined />
+                            <span>脚本参数说明</span>
                           </div>
-                        }
+                          {hasParamSchema ? (
+                            <>
+                              <p className="ts-param-help-desc">
+                                参数取值来自本页填写的内容，脚本内通过对应环境变量读取。
+                                <strong>未填写的参数在脚本内为空值</strong>；若参数声明里配置了默认值，
+                                可用「填充默认值」一键带入。
+                              </p>
+                              <div className="ts-param-table">
+                                {(scriptParamSchema ?? []).map((p) => (
+                                  <div key={p.name} className="ts-param-row">
+                                    <div className="ts-param-row-head">
+                                      <code className="ts-param-name">{p.name}</code>
+                                      <Tag className="ts-param-type-tag">{p.type}</Tag>
+                                      {p.default != null && p.default !== '' && (
+                                        <span className="ts-param-default">默认: {p.default}</span>
+                                      )}
+                                    </div>
+                                    <div className="ts-param-env">
+                                      脚本内取值：<code>${paramEnvName(p.name.trim())}</code>
+                                    </div>
+                                    {p.desc && <p className="ts-param-desc">{p.desc}</p>}
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          ) : (
+                            <p className="ts-param-help-empty">
+                              当前脚本未声明参数。如脚本需要入参，可在「脚本管理」中编辑参数声明。
+                            </p>
+                          )}
+                        </div>
+                      }
+                    >
+                      <QuestionCircleOutlined className="ts-param-help-icon" />
+                    </Popover>
+                    {hasParamSchema && (
+                      <Button
+                        size="small"
+                        type="primary"
+                        ghost
+                        icon={<ThunderboltOutlined />}
+                        className="ts-param-fill-btn"
+                        onClick={handleFillDefaults}
                       >
-                        <QuestionCircleOutlined className="ts-param-help-icon" />
-                      </Popover>
-                    </div>
-                  }
-                  extra='脚本参数值，如 {"retentionDays": 30}；无参数脚本留空。悬浮 ? 查看参数声明'
-                >
-                  <Input.TextArea rows={3} placeholder='{"retentionDays": 30}' />
-                </Form.Item>
+                        填充默认值
+                      </Button>
+                    )}
+                  </div>
+
+                  {hasParamSchema ? (
+                    <Row gutter={12}>
+                      {(scriptParamSchema ?? []).map((param) => (
+                        <Col xs={24} md={12} key={param.name}>
+                          <Form.Item
+                            name={['paramValues', param.name.trim()]}
+                            label={
+                              <div className="ts-param-field-label">
+                                <span className="ts-param-field-name">{param.name}</span>
+                                <Tag className="ts-param-type-tag">{param.type}</Tag>
+                              </div>
+                            }
+                            extra={
+                              <span className="ts-param-field-extra">
+                                脚本内取值 <code>${paramEnvName(param.name.trim())}</code>
+                                {param.desc ? ` · ${param.desc}` : ''}
+                              </span>
+                            }
+                          >
+                            {param.type === 'int' ? (
+                              <InputNumber style={{ width: '100%' }} placeholder="整数" />
+                            ) : param.type === 'bool' ? (
+                              <Select
+                                allowClear
+                                placeholder="true / false"
+                                options={[
+                                  { value: true, label: 'true' },
+                                  { value: false, label: 'false' },
+                                ]}
+                              />
+                            ) : (
+                              <Input placeholder="字符串值" allowClear />
+                            )}
+                          </Form.Item>
+                        </Col>
+                      ))}
+                    </Row>
+                  ) : (
+                    <Form.Item
+                      name="params"
+                      extra='脚本未声明参数，如需传参可在此填写 JSON，如 {"key": "value"}'
+                    >
+                      <Input.TextArea rows={3} placeholder='{"retentionDays": 30}' />
+                    </Form.Item>
+                  )}
+                </div>
               </SchedulerPanel>
 
               <SchedulerPanel label="重试与超时" meta="执行失败后的重试策略" index={3}>
