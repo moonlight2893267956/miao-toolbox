@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   AutoComplete,
@@ -22,6 +22,8 @@ import type { Dayjs } from 'dayjs';
 import {
   ArrowLeftOutlined,
   ClockCircleOutlined,
+  EditOutlined,
+  PlusOutlined,
   QuestionCircleOutlined,
   ReloadOutlined,
   ThunderboltOutlined,
@@ -239,6 +241,11 @@ const TaskFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const isEdit = Boolean(id);
   const taskId = Number(id);
+  const location = useLocation();
+  /** KeepAlive 下本页被缓存而非卸载，用 pathname 判断是否处于激活状态 */
+  const isActive =
+    location.pathname ===
+    (isEdit ? `/tools/task-scheduler/${taskId}/edit` : '/tools/task-scheduler/new');
 
   const [form] = Form.useForm<TaskFormValues>();
   const [loading, setLoading] = useState(isEdit);
@@ -394,6 +401,53 @@ const TaskFormPage: React.FC = () => {
     }
     message.success('已填充默认参数');
   }, [scriptParamSchema, form]);
+
+  /**
+   * 跳到脚本编辑 / 新建页。
+   *
+   * KeepAlive 会缓存本页（隐藏而非卸载），因此跳转不会丢失未保存的任务配置，
+   * 用户在脚本页保存后切回本页即可继续编辑——无需「放弃修改」确认。
+   */
+  const handleOpenScript = useCallback(
+    (mode: 'edit' | 'new') => {
+      navigate(
+        mode === 'new'
+          ? '/tools/task-scheduler/scripts/new'
+          : `/tools/task-scheduler/scripts/${selectedScriptId}/edit`,
+      );
+    },
+    [navigate, selectedScriptId],
+  );
+
+  /**
+   * 从脚本页返回时同步脚本侧的最新状态：可能刚发布了新版本或改了参数声明。
+   * 参数取值按「已有值优先」合并，新声明的参数自动带入默认值（已清空的不回补）。
+   */
+  const refreshFromScript = useCallback(async () => {
+    const scriptId = form.getFieldValue('scriptId') as number | undefined;
+    if (!scriptId) return;
+    await loadVersionOptions(scriptId);
+    let schema: ScriptParam[] | null = null;
+    try {
+      schema = parseParamSchema((await schedulerApi.getScript(scriptId)).paramSchema);
+    } catch {
+      return;
+    }
+    setScriptParamSchema(schema);
+    const current = form.getFieldValue('paramValues') as Record<string, unknown> | undefined;
+    form.setFieldValue('paramValues', mergeParamValues(current, schema));
+  }, [form, loadVersionOptions]);
+
+  /** 首次激活由加载逻辑负责；此后每次回到本页都重新同步一次脚本侧状态 */
+  const skipFirstActivateRef = useRef(true);
+  useEffect(() => {
+    if (skipFirstActivateRef.current) {
+      skipFirstActivateRef.current = false;
+      return;
+    }
+    if (!isActive) return;
+    void refreshFromScript();
+  }, [isActive, refreshFromScript]);
 
   useEffect(() => {
     if (!isEdit) {
@@ -611,7 +665,42 @@ const TaskFormPage: React.FC = () => {
                   <Col xs={24} md={14}>
                     <Form.Item
                       name="scriptId"
-                      label="脚本"
+                      label={
+                        <div className="ts-version-label-row">
+                          <span>脚本</span>
+                          <span className="ts-script-jump">
+                            <Tooltip
+                              title={
+                                selectedScriptId
+                                  ? '打开该脚本的编辑页；本页已填写的内容会保留'
+                                  : '请先选择脚本'
+                              }
+                            >
+                              <Button
+                                type="text"
+                                size="small"
+                                className="ts-script-jump-btn"
+                                icon={<EditOutlined />}
+                                disabled={!selectedScriptId}
+                                onClick={() => handleOpenScript('edit')}
+                              >
+                                编辑脚本
+                              </Button>
+                            </Tooltip>
+                            <Tooltip title="新建脚本；本页已填写的内容会保留">
+                              <Button
+                                type="text"
+                                size="small"
+                                className="ts-script-jump-btn"
+                                icon={<PlusOutlined />}
+                                onClick={() => handleOpenScript('new')}
+                              >
+                                新建
+                              </Button>
+                            </Tooltip>
+                          </span>
+                        </div>
+                      }
                       rules={[{ required: true, message: '请选择脚本' }]}
                     >
                       <Select

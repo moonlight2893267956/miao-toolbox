@@ -779,6 +779,46 @@
   color: var(--tool-accent);
 }
 
+/* 脚本字段标签内的跳转动作：与版本刷新按钮同一语言——平时弱化，hover 转琥珀 */
+.ts-script-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 2px;
+}
+
+.ts-script-jump-btn {
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--miao-text-secondary);
+  transition: color 160ms var(--ts-ease), background 160ms var(--ts-ease);
+}
+
+/* 图标着琥珀：一眼看出是「动作」而非标签文字 */
+.ts-script-jump-btn .anticon {
+  color: var(--tool-accent);
+  opacity: 0.8;
+  transition: opacity 160ms var(--ts-ease);
+}
+
+.ts-script-jump-btn:hover:not(:disabled) {
+  color: var(--tool-accent);
+  background: color-mix(in srgb, var(--tool-accent) 12%, transparent);
+}
+
+.ts-script-jump-btn:hover:not(:disabled) .anticon {
+  opacity: 1;
+}
+
+.ts-script-jump-btn:disabled,
+.ts-script-jump-btn:disabled .anticon {
+  color: var(--miao-text-tertiary);
+  opacity: 0.45;
+}
+
 /* ── 参数帮助气泡 ────────────────────────────────────── */
 .ts-param-label-row {
   display: inline-flex;
