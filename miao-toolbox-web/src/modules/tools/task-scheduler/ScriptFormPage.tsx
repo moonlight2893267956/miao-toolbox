@@ -79,7 +79,13 @@ const ScriptFormPage: React.FC = () => {
         setInitialValues(values);
         setScriptType(script.scriptType);
         setContent(script.content ?? '');
-        setParamSchema(script.paramSchema ?? []);
+        // 后端 paramSchema 是 JSON 字符串，需解析为数组
+        const raw = script.paramSchema;
+        if (typeof raw === 'string') {
+          try { setParamSchema(JSON.parse(raw)); } catch { setParamSchema([]); }
+        } else {
+          setParamSchema(raw ?? []);
+        }
       })
       .catch((err) => {
         if (!cancelled) setLoadError(extractErrorMessage(err, '脚本详情加载失败'));

@@ -33,7 +33,8 @@ export interface ScriptListItem {
 /** 脚本详情 */
 export interface ScriptDetail extends ScriptListItem {
   content: string;
-  paramSchema?: ScriptParam[] | null;
+  /** 后端返回 JSON 字符串（ScriptResponse.paramSchema 为 String 类型） */
+  paramSchema?: string | ScriptParam[] | null;
 }
 
 /** 脚本版本 */

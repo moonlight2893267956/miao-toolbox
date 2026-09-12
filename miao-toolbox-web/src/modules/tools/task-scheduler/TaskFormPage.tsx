@@ -243,7 +243,17 @@ const TaskFormPage: React.FC = () => {
   const loadScriptParamSchema = useCallback(async (scriptId: number) => {
     try {
       const detail = await schedulerApi.getScript(scriptId);
-      setScriptParamSchema(detail.paramSchema ?? null);
+      // 后端 paramSchema 是 JSON 字符串（String 类型），需解析为数组
+      const raw = detail.paramSchema;
+      if (typeof raw === 'string') {
+        try {
+          setScriptParamSchema(JSON.parse(raw));
+        } catch {
+          setScriptParamSchema(null);
+        }
+      } else {
+        setScriptParamSchema(raw ?? null);
+      }
     } catch {
       setScriptParamSchema(null);
     }
