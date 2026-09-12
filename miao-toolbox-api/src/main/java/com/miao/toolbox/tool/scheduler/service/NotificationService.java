@@ -1,5 +1,6 @@
 package com.miao.toolbox.tool.scheduler.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miao.toolbox.network.infrastructure.HttpFetcher;
 import com.miao.toolbox.network.infrastructure.SsrfProtector;
@@ -46,6 +47,8 @@ import java.util.Map;
 public class NotificationService {
 
     private static final long WEBHOOK_TIMEOUT_MS = 10_000L;
+    /** 邮件正文中 stderr 预览的字符上限 */
+    private static final int STDERR_PREVIEW_CHARS = 500;
 
     private final HttpFetcher httpFetcher;
     private final SsrfProtector ssrfProtector;
@@ -192,6 +195,20 @@ public class NotificationService {
         }
     }
 
+    /** 从 response_summary JSON 提取字符串字段（stderr 等；无/解析失败返回 null）。 */
+    private String extractSummaryText(String responseSummary, String field) {
+        if (responseSummary == null || responseSummary.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode node = objectMapper.readTree(responseSummary).get(field);
+            return node == null || node.isNull() ? null : node.asText();
+        } catch (Exception e) {
+            log.warn("execution response_summary parse failed: {}", e.getMessage());
+            return null;
+        }
+    }
+
     // ------------------------------------------------------------
     // 邮件通道
     // ------------------------------------------------------------
@@ -232,15 +249,21 @@ public class NotificationService {
         return "【阿渺工具箱】定时任务「%s」执行 %s".formatted(escapeHtml(task.getName()), status);
     }
 
-    /** 邮件正文 HTML：任务/执行摘要 + 详情链接。用户可控字段经 escapeHtml 转义防注入。 */
-    private String buildEmailHtml(ScheduledTask task, TaskExecution execution) {
+    /**
+     * 邮件正文 HTML（FR-11）：任务/执行摘要 + 退出码 + stderr 预览 + 详情链接。
+     * 用户可控字段经 escapeHtml 转义防注入。包内可见，便于单测断言。
+     */
+    String buildEmailHtml(ScheduledTask task, TaskExecution execution) {
         String status = execution.getStatus() == null ? "-" : execution.getStatus().name();
         String statusColor = execution.getStatus() == ExecutionStatus.SUCCESS ? "#52c41a" : "#ff4d4f";
         String triggeredAt = toUtcIso(execution.getTriggeredAt());
         String duration = execution.getDurationMs() == null ? "-" : execution.getDurationMs() + " ms";
         String retry = String.valueOf(execution.getRetryCount() == null ? 0 : execution.getRetryCount());
+        Integer exitCode = extractExitCode(execution.getResponseSummary());
+        String exitCodeText = exitCode == null ? "-" : String.valueOf(exitCode);
         String error = execution.getErrorMessage() == null || execution.getErrorMessage().isBlank()
                 ? "（无）" : escapeHtml(execution.getErrorMessage());
+        String stderrPreview = stderrPreview(execution.getResponseSummary());
         String detailUrl = buildDetailUrl(task.getId());
         String detailLink = detailUrl == null
                 ? "（未配置站点地址）"
@@ -255,7 +278,10 @@ public class NotificationService {
                     <tr><td style="padding:6px 0;color:#999;">触发时间</td><td style="padding:6px 0;">%s</td></tr>
                     <tr><td style="padding:6px 0;color:#999;">耗时</td><td style="padding:6px 0;">%s</td></tr>
                     <tr><td style="padding:6px 0;color:#999;">重试次数</td><td style="padding:6px 0;">%s</td></tr>
+                    <tr><td style="padding:6px 0;color:#999;">退出码</td><td style="padding:6px 0;">%s</td></tr>
                     <tr><td style="padding:6px 0;color:#999;vertical-align:top;">错误信息</td><td style="padding:6px 0;color:#ff4d4f;">%s</td></tr>
+                    <tr><td style="padding:6px 0;color:#999;vertical-align:top;">stderr 预览</td>
+                        <td style="padding:6px 0;"><pre style="margin:0;white-space:pre-wrap;font-family:monospace;font-size:12px;color:#cf1322;">%s</pre></td></tr>
                   </table>
                   <p style="margin-top:16px;">%s</p>
                   <p style="color:#999;font-size:12px;margin-top:24px;">此邮件由阿渺工具箱定时任务模块自动发送，请勿回复。</p>
@@ -266,9 +292,25 @@ public class NotificationService {
                 triggeredAt == null ? "-" : triggeredAt,
                 duration,
                 retry,
+                exitCodeText,
                 error,
+                stderrPreview,
                 detailLink
         );
+    }
+
+    /**
+     * stderr 预览：从 response_summary 取 stderr，截断至 {@link #STDERR_PREVIEW_CHARS} 并转义。
+     * 脚本失败原因大多落在 stderr，邮件里给一段预览可免于回系统翻详情。
+     */
+    private String stderrPreview(String responseSummary) {
+        String stderr = extractSummaryText(responseSummary, "stderr");
+        if (stderr == null || stderr.isBlank()) {
+            return "（无）";
+        }
+        boolean truncated = stderr.length() > STDERR_PREVIEW_CHARS;
+        String shown = truncated ? stderr.substring(0, STDERR_PREVIEW_CHARS) : stderr;
+        return escapeHtml(shown) + (truncated ? "\n…（已截断，完整输出见执行详情）" : "");
     }
 
     /** HTML 实体转义：防邮件正文 / Subject 中的用户可控字段注入 HTML（task.name / errorMessage）。 */
