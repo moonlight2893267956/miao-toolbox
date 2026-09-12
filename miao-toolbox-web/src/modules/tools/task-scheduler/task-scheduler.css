@@ -1316,20 +1316,32 @@
   box-shadow: 0 0 0 3px var(--miao-info-bg);
 }
 
-.ts-script-editor-stats {
+/* 参数补全提示：把「输入 $ 触发补全」这一隐藏能力显式化（仅声明了参数时出现） */
+.ts-script-editor-hint {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   font-size: 11.5px;
   color: var(--miao-text-tertiary);
-  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.ts-script-editor-stats-sep {
-  width: 1px;
-  height: 11px;
-  background: var(--miao-border-strong);
+.ts-script-editor-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 1px solid var(--miao-border-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--miao-bg-elevated);
+  color: var(--miao-text-secondary);
+  font-family: var(--miao-font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 /* ── 代码面 ── */
@@ -1381,20 +1393,57 @@
   letter-spacing: 0.01em;
 }
 
-/* ── 状态条 ── */
+/* ── 状态条：左「操作 + 光标读数」右「计量」—— IDE 式仪器栏 ──
+   两段各自成组，组内以细分割线分节；读数统一 tabular-nums，数字跳动不引起位移 */
 .ts-script-editor-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-shrink: 0;
-  padding: 5px 10px 5px 6px;
+  padding: 5px 12px 5px 8px;
   border-top: 1px solid var(--miao-border);
   background: color-mix(in srgb, var(--miao-bg-muted) 62%, transparent);
+  font-size: 11.5px;
+  color: var(--miao-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ts-script-editor-foot-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+/* 组内分节线：比 border 更轻 */
+.ts-editor-foot-sep {
+  width: 1px;
+  height: 12px;
+  flex: 0 0 auto;
+  background: var(--miao-border-strong);
+  opacity: 0.7;
+}
+
+/* 光标读数：标签弱化、数值加重，读作仪器刻度 */
+.ts-editor-cursor {
+  font-family: var(--miao-font-mono);
+  font-size: 11px;
+  color: var(--miao-text-tertiary);
+  white-space: nowrap;
+}
+
+.ts-editor-cursor b {
+  font-weight: 600;
+  color: var(--miao-text-secondary);
+}
+
+.ts-editor-stat {
+  white-space: nowrap;
 }
 
 .ts-script-editor-foot .ant-btn {
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 /* 原生 file 输入一律不可见（不依赖 hidden 属性，防全局样式解除隐藏）；
@@ -1408,34 +1457,38 @@
   pointer-events: none;
 }
 
-/* 上传按钮：状态条内的主操作，琥珀描边胶囊（避免退化为纯文字链接） */
+/* 上传按钮：状态条内的主操作，琥珀描边胶囊（避免退化为纯文字链接）
+   压到 22px 与状态条同高，避免在细条里显得臃肿 */
 .ts-editor-upload-btn {
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
   font-weight: 600;
-  border-color: color-mix(in srgb, var(--tool-accent) 38%, transparent) !important;
-  background: color-mix(in srgb, var(--tool-accent) 12%, transparent) !important;
+  border-color: color-mix(in srgb, var(--tool-accent) 34%, transparent) !important;
+  background: color-mix(in srgb, var(--tool-accent) 10%, transparent) !important;
   color: var(--tool-accent) !important;
-  transition: border-color 180ms var(--ts-ease), background 180ms var(--ts-ease);
+  transition: border-color 180ms var(--ts-ease), background 180ms var(--ts-ease),
+    box-shadow 180ms var(--ts-ease);
 }
 
 .ts-editor-upload-btn:hover:not(:disabled),
 .ts-editor-upload-btn:focus-visible:not(:disabled) {
-  border-color: var(--tool-accent) !important;
-  background: color-mix(in srgb, var(--tool-accent) 20%, transparent) !important;
+  border-color: color-mix(in srgb, var(--tool-accent) 70%, transparent) !important;
+  background: color-mix(in srgb, var(--tool-accent) 18%, transparent) !important;
   color: var(--tool-accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tool-accent) 12%, transparent);
 }
 
 .ts-editor-upload-btn:active:not(:disabled) {
-  background: color-mix(in srgb, var(--tool-accent) 27%, transparent) !important;
+  background: color-mix(in srgb, var(--tool-accent) 25%, transparent) !important;
 }
 
 /* 用量计量：细条 + tabular 数字，接近/超过上限时转为警示色 */
 .ts-script-size {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  font-size: 11.5px;
+  gap: 9px;
   color: var(--miao-text-tertiary);
-  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -1459,11 +1512,23 @@
 
 .ts-script-size-meter {
   position: relative;
-  width: 84px;
-  height: 5px;
+  width: 78px;
+  height: 6px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--miao-text-tertiary) 26%, transparent);
+  background: color-mix(in srgb, var(--miao-text-tertiary) 20%, transparent);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.09);
   overflow: hidden;
+}
+
+/* 阈值刻度：位于 80%（转警示色起点），让「何时变色」可预期 */
+.ts-script-size-meter::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 80%;
+  width: 1px;
+  background: color-mix(in srgb, var(--miao-text-primary) 32%, transparent);
 }
 
 .ts-script-size-fill {
@@ -1474,16 +1539,28 @@
   /* 下限 5px：小体积时也可见，避免进度条读作「空轨道」 */
   min-width: 5px;
   border-radius: 999px;
-  background: var(--tool-accent);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--tool-accent) 62%, transparent),
+    var(--tool-accent)
+  );
   transition: width 240ms var(--ts-ease), background 240ms var(--ts-ease);
 }
 
 .ts-script-size-fill.is-warn {
-  background: var(--miao-warning);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--miao-warning) 62%, transparent),
+    var(--miao-warning)
+  );
 }
 
 .ts-script-size-fill.is-over {
-  background: var(--miao-error);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--miao-error) 62%, transparent),
+    var(--miao-error)
+  );
 }
 
 /* ── 编辑器内滚动条（与模块滚动条语言一致） ── */

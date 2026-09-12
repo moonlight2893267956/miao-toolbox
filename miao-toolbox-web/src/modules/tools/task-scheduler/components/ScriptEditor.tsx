@@ -217,9 +217,12 @@ const ScriptEditor: React.FC<ScriptEditorProps> = ({
   paramSchemaRef.current = paramSchema;
 
   const [isEmpty, setIsEmpty] = useState(!value);
+  /** 光标读数（Ln/Col）：状态条兼作仪器栏，编辑位置随手可见 */
+  const [cursor, setCursor] = useState({ line: 1, col: 1 });
 
   const langLabel = scriptType === 'PYTHON' ? 'Python' : 'Shell';
   const fileExt = scriptType === 'PYTHON' ? '.py' : '.sh';
+  const hasParams = (paramSchema?.length ?? 0) > 0;
 
   // ─── 挂载：创建视图（仅一次） ─────────────────────────────
   useEffect(() => {
@@ -256,6 +259,11 @@ const ScriptEditor: React.FC<ScriptEditorProps> = ({
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             onChangeRef.current(update.state.doc.toString());
+          }
+          if (update.docChanged || update.selectionSet) {
+            const head = update.state.selection.main.head;
+            const line = update.state.doc.lineAt(head);
+            setCursor({ line: line.number, col: head - line.from + 1 });
           }
         }),
       ],
@@ -319,11 +327,12 @@ const ScriptEditor: React.FC<ScriptEditorProps> = ({
           <span className="ts-script-lang-dot" aria-hidden="true" />
           {langLabel}
         </span>
-        <span className="ts-script-editor-stats">
-          <span>{lines} 行</span>
-          <span className="ts-script-editor-stats-sep" aria-hidden="true" />
-          <span>{value.length} 字符</span>
-        </span>
+        {hasParams && (
+          <span className="ts-script-editor-hint">
+            <kbd className="ts-script-editor-kbd">$</kbd>
+            触发参数补全
+          </span>
+        )}
       </div>
 
       <div className="ts-script-editor-body" style={{ height }}>
@@ -340,27 +349,40 @@ const ScriptEditor: React.FC<ScriptEditorProps> = ({
       </div>
 
       <div className="ts-script-editor-foot">
-        <Button
-          size="small"
-          className="ts-editor-upload-btn"
-          icon={<UploadOutlined />}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          上传 {fileExt}
-        </Button>
-        <div className="ts-script-size" title="脚本内容体积（上限 64 KB）">
-          <span className="ts-script-size-text">
-            <b className={level === 'ok' ? '' : `is-${level}`}>{formatBytes(bytes)}</b>
-            <span className="ts-script-size-cap"> / 64 KB</span>
+        <div className="ts-script-editor-foot-group">
+          <Button
+            size="small"
+            className="ts-editor-upload-btn"
+            icon={<UploadOutlined />}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            上传 {fileExt}
+          </Button>
+          <span className="ts-editor-foot-sep" aria-hidden="true" />
+          <span className="ts-editor-cursor" title="光标位置">
+            Ln <b>{cursor.line}</b>, Col <b>{cursor.col}</b>
           </span>
-          <span className="ts-script-size-meter" aria-hidden="true">
-            {bytes > 0 && (
-              <span
-                className={`ts-script-size-fill is-${level}`}
-                style={{ width: `${Math.min(ratio * 100, 100)}%` }}
-              />
-            )}
+        </div>
+
+        <div className="ts-script-editor-foot-group">
+          <span className="ts-editor-stat">
+            {lines} 行 · {value.length} 字符
           </span>
+          <span className="ts-editor-foot-sep" aria-hidden="true" />
+          <div className="ts-script-size" title="脚本内容体积（上限 64 KB，越过 80% 转警示色）">
+            <span className="ts-script-size-text">
+              <b className={level === 'ok' ? '' : `is-${level}`}>{formatBytes(bytes)}</b>
+              <span className="ts-script-size-cap"> / 64 KB</span>
+            </span>
+            <span className="ts-script-size-meter" aria-hidden="true">
+              {bytes > 0 && (
+                <span
+                  className={`ts-script-size-fill is-${level}`}
+                  style={{ width: `${Math.min(ratio * 100, 100)}%` }}
+                />
+              )}
+            </span>
+          </div>
         </div>
         <input
           ref={fileInputRef}
