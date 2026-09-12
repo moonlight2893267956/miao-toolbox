@@ -1124,7 +1124,7 @@
   width: 84px;
   height: 5px;
   border-radius: 999px;
-  background: var(--miao-border-strong);
+  background: color-mix(in srgb, var(--miao-text-tertiary) 26%, transparent);
   overflow: hidden;
 }
 
@@ -1133,6 +1133,8 @@
   top: 0;
   bottom: 0;
   left: 0;
+  /* 下限 5px：小体积时也可见，避免进度条读作「空轨道」 */
+  min-width: 5px;
   border-radius: 999px;
   background: var(--tool-accent);
   transition: width 240ms var(--ts-ease), background 240ms var(--ts-ease);

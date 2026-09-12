@@ -291,10 +291,12 @@ const ScriptEditor: React.FC<ScriptEditorProps> = ({ value, onChange, scriptType
             <span className="ts-script-size-cap"> / 64 KB</span>
           </span>
           <span className="ts-script-size-meter" aria-hidden="true">
-            <span
-              className={`ts-script-size-fill is-${level}`}
-              style={{ width: `${Math.min(ratio * 100, 100)}%` }}
-            />
+            {bytes > 0 && (
+              <span
+                className={`ts-script-size-fill is-${level}`}
+                style={{ width: `${Math.min(ratio * 100, 100)}%` }}
+              />
+            )}
           </span>
         </div>
         <input
