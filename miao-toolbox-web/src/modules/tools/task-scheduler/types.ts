@@ -32,6 +32,7 @@ export interface ScriptListItem {
 
 /** 脚本详情 */
 export interface ScriptDetail extends ScriptListItem {
+  content: string;
   paramSchema?: ScriptParam[] | null;
 }
 

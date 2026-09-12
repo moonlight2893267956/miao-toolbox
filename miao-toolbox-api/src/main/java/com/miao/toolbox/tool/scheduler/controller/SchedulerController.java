@@ -5,18 +5,24 @@ import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.common.response.ApiResponse;
 import com.miao.toolbox.common.response.PagedResponse;
+import com.miao.toolbox.tool.scheduler.dto.CreateScriptRequest;
 import com.miao.toolbox.tool.scheduler.dto.CreateTaskRequest;
 import com.miao.toolbox.tool.scheduler.dto.ExecutionListItemResponse;
+import com.miao.toolbox.tool.scheduler.dto.ScriptListItemResponse;
+import com.miao.toolbox.tool.scheduler.dto.ScriptResponse;
+import com.miao.toolbox.tool.scheduler.dto.ScriptVersionResponse;
 import com.miao.toolbox.tool.scheduler.dto.TaskExecutionResponse;
 import com.miao.toolbox.tool.scheduler.dto.TaskListItemResponse;
 import com.miao.toolbox.tool.scheduler.dto.TaskResponse;
 import com.miao.toolbox.tool.scheduler.dto.ToggleTaskRequest;
+import com.miao.toolbox.tool.scheduler.dto.UpdateScriptRequest;
 import com.miao.toolbox.tool.scheduler.dto.UpdateTaskRequest;
 import com.miao.toolbox.tool.scheduler.dto.ValidateCronRequest;
 import com.miao.toolbox.tool.scheduler.dto.ValidateCronResponse;
 import com.miao.toolbox.tool.scheduler.entity.ExecutionStatus;
 import com.miao.toolbox.tool.scheduler.entity.TaskStatus;
 import com.miao.toolbox.tool.scheduler.service.SchedulerService;
+import com.miao.toolbox.tool.scheduler.service.ScriptService;
 import com.miao.toolbox.tool.scheduler.service.TaskService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +38,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 /**
  * 定时任务管理 API（FR-3/FR-4/FR-7/FR-9/FR-13）。
  *
@@ -46,6 +54,56 @@ public class SchedulerController {
 
     private final TaskService taskService;
     private final SchedulerService schedulerService;
+    private final ScriptService scriptService;
+
+    // ------------------------------------------------------------
+    // 脚本管理（FR-1/FR-2）
+    // ------------------------------------------------------------
+
+    @PostMapping("/scripts")
+    public ResponseEntity<ApiResponse<ScriptResponse>> createScript(@Valid @RequestBody CreateScriptRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(scriptService.createScript(request)));
+    }
+
+    @GetMapping("/scripts")
+    public ResponseEntity<ApiResponse<PagedResponse<ScriptListItemResponse>>> listScripts(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) String search) {
+        return ResponseEntity.ok(ApiResponse.success(scriptService.listScripts(page, pageSize, search)));
+    }
+
+    @GetMapping("/scripts/{id}")
+    public ResponseEntity<ApiResponse<ScriptResponse>> scriptDetail(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(scriptService.getScript(id)));
+    }
+
+    @PutMapping("/scripts/{id}")
+    public ResponseEntity<ApiResponse<ScriptResponse>> updateScript(@PathVariable Long id,
+                                                                     @Valid @RequestBody UpdateScriptRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(scriptService.updateScript(id, request)));
+    }
+
+    @DeleteMapping("/scripts/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteScript(@PathVariable Long id) {
+        scriptService.deleteScript(id);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @GetMapping("/scripts/{id}/versions")
+    public ResponseEntity<ApiResponse<List<ScriptVersionResponse>>> scriptVersions(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(scriptService.listVersions(id)));
+    }
+
+    @GetMapping("/scripts/{id}/versions/{version}")
+    public ResponseEntity<ApiResponse<ScriptVersionResponse>> scriptVersionDetail(
+            @PathVariable Long id, @PathVariable Integer version) {
+        return ResponseEntity.ok(ApiResponse.success(scriptService.getVersion(id, version)));
+    }
+
+    // ------------------------------------------------------------
+    // 任务管理（FR-3/FR-4/FR-7/FR-9/FR-13）
+    // ------------------------------------------------------------
 
     @PostMapping("/tasks")
     public ResponseEntity<ApiResponse<TaskResponse>> create(@Valid @RequestBody CreateTaskRequest request) {

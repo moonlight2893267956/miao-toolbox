@@ -509,6 +509,14 @@ export function resolveTabLabel(path: string): string {
     if (NETWORK_TAB_LABELS[id]) return NETWORK_TAB_LABELS[id];
   }
   // 定时任务子页面（新建 / 编辑 / 详情）：避免标签退化成路径末段的 id
+  if (path.startsWith('/tools/task-scheduler/scripts/')) {
+    if (path.endsWith('/new')) return '新建脚本';
+    if (path.endsWith('/edit')) return '编辑脚本';
+    return '脚本详情';
+  }
+  if (path.startsWith('/tools/task-scheduler/scripts')) {
+    return '脚本管理';
+  }
   if (path.startsWith('/tools/task-scheduler/')) {
     if (path.endsWith('/new')) return '新建定时任务';
     if (path.endsWith('/edit')) return '编辑定时任务';

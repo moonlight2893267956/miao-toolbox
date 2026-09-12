@@ -245,7 +245,7 @@ export const toolsRegistry: ToolMeta[] = [
   {
     key: 'task-scheduler',
     title: '定时任务',
-    description: '配置 cron 调度的 HTTP 任务，到点自动执行并留存请求/响应记录，支持手动触发、暂停恢复与失败重试。',
+    description: '自定义运维脚本（Shell/Python）定时执行，版本管理，执行记录可追溯，失败自动重试与告警。',
     icon: ScheduleOutlined,
     status: '可用',
     tags: ['Cron', '定时', '运维'],

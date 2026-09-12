@@ -10,6 +10,7 @@ import {
   PlayCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
+  ScriptOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import PageFadeIn from '../../../components/shared/PageFadeIn';
@@ -255,6 +256,9 @@ const TaskListPage: React.FC = () => {
           live
           actions={
             <>
+              <Button icon={<ScriptOutlined />} onClick={() => navigate('/tools/task-scheduler/scripts')}>
+                脚本管理
+              </Button>
               <Button icon={<ReloadOutlined />} loading={loading} onClick={() => void load()}>
                 刷新
               </Button>
