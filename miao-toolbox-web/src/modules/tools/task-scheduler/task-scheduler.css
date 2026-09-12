@@ -1081,13 +1081,38 @@
 }
 
 .ts-script-editor-foot .ant-btn {
-  color: var(--miao-text-secondary);
   font-size: 12px;
 }
 
-.ts-script-editor-foot .ant-btn:hover:not(:disabled) {
-  color: var(--tool-accent) !important;
+/* 原生 file 输入一律不可见（不依赖 hidden 属性，防全局样式解除隐藏）；
+   交互一律经上方按钮触发 .click() */
+.ts-editor-file-input {
+  display: none !important;
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 上传按钮：状态条内的主操作，琥珀描边胶囊（避免退化为纯文字链接） */
+.ts-editor-upload-btn {
+  font-weight: 600;
+  border-color: color-mix(in srgb, var(--tool-accent) 38%, transparent) !important;
   background: color-mix(in srgb, var(--tool-accent) 12%, transparent) !important;
+  color: var(--tool-accent) !important;
+  transition: border-color 180ms var(--ts-ease), background 180ms var(--ts-ease);
+}
+
+.ts-editor-upload-btn:hover:not(:disabled),
+.ts-editor-upload-btn:focus-visible:not(:disabled) {
+  border-color: var(--tool-accent) !important;
+  background: color-mix(in srgb, var(--tool-accent) 20%, transparent) !important;
+  color: var(--tool-accent) !important;
+}
+
+.ts-editor-upload-btn:active:not(:disabled) {
+  background: color-mix(in srgb, var(--tool-accent) 27%, transparent) !important;
 }
 
 /* 用量计量：细条 + tabular 数字，接近/超过上限时转为警示色 */

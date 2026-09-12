@@ -279,7 +279,7 @@ const ScriptEditor: React.FC<ScriptEditorProps> = ({ value, onChange, scriptType
       <div className="ts-script-editor-foot">
         <Button
           size="small"
-          type="text"
+          className="ts-editor-upload-btn"
           icon={<UploadOutlined />}
           onClick={() => fileInputRef.current?.click()}
         >
@@ -301,6 +301,7 @@ const ScriptEditor: React.FC<ScriptEditorProps> = ({ value, onChange, scriptType
         </div>
         <input
           ref={fileInputRef}
+          className="ts-editor-file-input"
           type="file"
           accept={fileExt}
           hidden
