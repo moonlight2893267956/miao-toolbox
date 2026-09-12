@@ -713,6 +713,124 @@
   color: var(--tool-accent);
 }
 
+/* ── 参数帮助气泡 ────────────────────────────────────── */
+.ts-param-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ts-param-help-icon {
+  color: var(--miao-text-tertiary);
+  font-size: 13px;
+  transition: color 0.2s var(--ts-ease);
+  cursor: help;
+}
+
+.ts-param-help-icon:hover {
+  color: var(--tool-accent);
+}
+
+/* Popover 内容区 */
+.ts-param-help {
+  width: 340px;
+  max-width: 100%;
+}
+
+.ts-param-help-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--miao-text-primary);
+  margin-bottom: 8px;
+}
+
+.ts-param-help-title .anticon {
+  color: var(--tool-accent);
+  font-size: 14px;
+}
+
+.ts-param-help-desc {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--miao-text-secondary);
+  margin-bottom: 10px;
+}
+
+.ts-param-help-desc code {
+  font-family: var(--miao-font-mono);
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--tool-accent) 12%, transparent);
+  color: var(--tool-accent);
+}
+
+/* 参数声明列表 */
+.ts-param-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ts-param-row {
+  padding: 8px 10px;
+  border-radius: var(--ts-radius-sm);
+  background: color-mix(in srgb, var(--miao-text-primary) 4%, transparent);
+  border: 1px solid var(--miao-border);
+}
+
+.ts-param-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ts-param-name {
+  font-family: var(--miao-font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--miao-text-primary);
+}
+
+.ts-param-type-tag {
+  margin: 0 !important;
+  font-size: 10px !important;
+  line-height: 16px !important;
+  padding: 0 6px !important;
+  border-radius: 4px !important;
+  font-family: var(--miao-font-mono) !important;
+  background: color-mix(in srgb, var(--tool-accent) 14%, transparent) !important;
+  border-color: color-mix(in srgb, var(--tool-accent) 30%, transparent) !important;
+  color: var(--tool-accent) !important;
+}
+
+.ts-param-default {
+  font-size: 11px;
+  color: var(--miao-text-tertiary);
+  font-family: var(--miao-font-mono);
+}
+
+.ts-param-desc {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--miao-text-secondary);
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+
+.ts-param-help-empty {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--miao-text-secondary);
+  margin-bottom: 0;
+}
+
+
 /* Header 编辑器 */
 .ts-header-editor {
   display: flex;

@@ -10,17 +10,25 @@ import {
   Form,
   Input,
   InputNumber,
+  Popover,
   Row,
   Select,
   Spin,
+  Tag,
   Tooltip,
   message,
 } from 'antd';
 import type { Dayjs } from 'dayjs';
-import { ArrowLeftOutlined, ClockCircleOutlined, ReloadOutlined } from '@ant-design/icons';
+import {
+  ArrowLeftOutlined,
+  ClockCircleOutlined,
+  QuestionCircleOutlined,
+  ReloadOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons';
 import PageFadeIn from '../../../components/shared/PageFadeIn';
 import { schedulerApi } from './schedulerApi';
-import type { NotifyTrigger, ScheduledTask, ScriptType, TaskPayload } from './types';
+import type { NotifyTrigger, ScheduledTask, ScriptParam, ScriptType, TaskPayload } from './types';
 import { extractErrorMessage, fromLocalDateTime, toLocalDateTimeIso } from './format';
 import SchedulerHeader from './components/SchedulerHeader';
 import SchedulerPanel from './components/SchedulerPanel';
@@ -176,6 +184,8 @@ const TaskFormPage: React.FC = () => {
   const [versionOptions, setVersionOptions] = useState<VersionOption[]>([]);
   const [versionOptionsLoading, setVersionOptionsLoading] = useState(false);
   const [versionRefreshing, setVersionRefreshing] = useState(false);
+  /** 当前选中脚本的参数声明（从脚本详情拉取，用于引导用户填写参数） */
+  const [scriptParamSchema, setScriptParamSchema] = useState<ScriptParam[] | null>(null);
 
   const timezoneValue = Form.useWatch('timezone', form) ?? 'Asia/Shanghai';
   const selectedScriptId = Form.useWatch('scriptId', form) ?? null;
@@ -229,11 +239,22 @@ const TaskFormPage: React.FC = () => {
     }
   }, []);
 
+  /** 拉取脚本详情中的 paramSchema，用于引导用户填写参数 */
+  const loadScriptParamSchema = useCallback(async (scriptId: number) => {
+    try {
+      const detail = await schedulerApi.getScript(scriptId);
+      setScriptParamSchema(detail.paramSchema ?? null);
+    } catch {
+      setScriptParamSchema(null);
+    }
+  }, []);
+
   /** 切换脚本：清空版本并默认选中最新版本（FR-5） */
   const handleScriptChange = useCallback(
     (scriptId?: number) => {
       form.setFieldValue('scriptVersion', undefined);
       setVersionOptions([]);
+      setScriptParamSchema(null);
       if (scriptId === undefined || scriptId === null) {
         return;
       }
@@ -242,8 +263,9 @@ const TaskFormPage: React.FC = () => {
           form.setFieldValue('scriptVersion', options[0].value);
         }
       });
+      void loadScriptParamSchema(scriptId);
     },
-    [form, loadVersionOptions],
+    [form, loadVersionOptions, loadScriptParamSchema],
   );
 
   /** 手动刷新版本列表：重新拉取当前脚本的版本，若发现更新版本则提示 */
@@ -266,6 +288,19 @@ const TaskFormPage: React.FC = () => {
     }
   }, [selectedScriptId, form, loadVersionOptions]);
 
+  /** 一键填充参数默认值：根据 paramSchema 生成 JSON 并填入 params 字段 */
+  const handleFillDefaults = useCallback(() => {
+    if (!scriptParamSchema || scriptParamSchema.length === 0) return;
+    const obj: Record<string, unknown> = {};
+    for (const p of scriptParamSchema) {
+      if (p.default != null && p.default !== '') {
+        obj[p.name] = p.type === 'int' ? Number(p.default) : p.type === 'bool' ? p.default === 'true' : p.default;
+      }
+    }
+    form.setFieldValue('params', JSON.stringify(obj, null, 2));
+    message.success('已填充默认参数');
+  }, [scriptParamSchema, form]);
+
   useEffect(() => {
     if (!isEdit) {
       setInitialValues(DEFAULT_VALUES);
@@ -287,6 +322,7 @@ const TaskFormPage: React.FC = () => {
           type: task.scriptType,
         });
         void loadVersionOptions(task.scriptId);
+        void loadScriptParamSchema(task.scriptId);
       })
       .catch((err) => {
         if (!cancelled) setLoadError(extractErrorMessage(err, '任务详情加载失败'));
@@ -297,7 +333,7 @@ const TaskFormPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [isEdit, taskId, loadScriptOptions, loadVersionOptions]);
+  }, [isEdit, taskId, loadScriptOptions, loadVersionOptions, loadScriptParamSchema]);
 
   const handleSubmit = useCallback(
     async (values: TaskFormValues) => {
@@ -521,8 +557,63 @@ const TaskFormPage: React.FC = () => {
                 </Row>
                 <Form.Item
                   name="params"
-                  label="参数（JSON）"
-                  extra='脚本参数值，如 {"retentionDays": 30}；无参数脚本留空'
+                  label={
+                    <div className="ts-param-label-row">
+                      <span>参数（JSON）</span>
+                      <Popover
+                        trigger="hover"
+                        placement="rightTop"
+                        overlayClassName="ts-param-popover"
+                        content={
+                          <div className="ts-param-help">
+                            <div className="ts-param-help-title">
+                              <ThunderboltOutlined />
+                              <span>脚本参数说明</span>
+                            </div>
+                            {scriptParamSchema && scriptParamSchema.length > 0 ? (
+                              <>
+                                <p className="ts-param-help-desc">
+                                  以下参数将通过环境变量 <code>SCRIPT_PARAM_{'{NAME}'}</code> 注入脚本。
+                                  按 JSON 对象格式填写，键名与参数名一致。
+                                </p>
+                                <div className="ts-param-table">
+                                  {scriptParamSchema.map((p) => (
+                                    <div key={p.name} className="ts-param-row">
+                                      <div className="ts-param-row-head">
+                                        <code className="ts-param-name">{p.name}</code>
+                                        <Tag className="ts-param-type-tag">{p.type}</Tag>
+                                        {p.default != null && p.default !== '' && (
+                                          <span className="ts-param-default">默认: {p.default}</span>
+                                        )}
+                                      </div>
+                                      {p.desc && <p className="ts-param-desc">{p.desc}</p>}
+                                    </div>
+                                  ))}
+                                </div>
+                                <Button
+                                  size="small"
+                                  type="primary"
+                                  ghost
+                                  icon={<ThunderboltOutlined />}
+                                  onClick={handleFillDefaults}
+                                >
+                                  填充默认值
+                                </Button>
+                              </>
+                            ) : (
+                              <p className="ts-param-help-empty">
+                                当前脚本未声明参数。如脚本需要入参，可在脚本管理中编辑 paramSchema。
+                                无参数脚本此处留空即可。
+                              </p>
+                            )}
+                          </div>
+                        }
+                      >
+                        <QuestionCircleOutlined className="ts-param-help-icon" />
+                      </Popover>
+                    </div>
+                  }
+                  extra='脚本参数值，如 {"retentionDays": 30}；无参数脚本留空。悬浮 ? 查看参数声明'
                 >
                   <Input.TextArea rows={3} placeholder='{"retentionDays": 30}' />
                 </Form.Item>
