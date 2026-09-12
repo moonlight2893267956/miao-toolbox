@@ -32,10 +32,28 @@ public interface TaskExecutionRepository extends JpaRepository<TaskExecution, Lo
     @Query("DELETE FROM TaskExecution e WHERE e.taskId = :taskId")
     long deleteByTaskId(@Param("taskId") Long taskId);
 
-    /** 留存清理：删除指定时间之前的执行记录（FR-8，CleanExecutionLogsHandler 使用）。bulk DELETE。 */
+    /** 留存清理：删除指定时间之前的执行记录（FR-9，ExecutionRetentionJob 使用）。bulk DELETE。 */
     @Modifying
     @Query("DELETE FROM TaskExecution e WHERE e.triggeredAt < :before")
     long deleteByTriggeredAtBefore(@Param("before") LocalDateTime before);
+
+    /** 留存清理：有执行记录的任务 ID 列表（用于逐任务裁剪保留条数） */
+    @Query("SELECT DISTINCT e.taskId FROM TaskExecution e")
+    List<Long> findDistinctTaskIds();
+
+    /**
+     * 留存清理：任务的执行记录 ID（按 id 倒序分页）。
+     *
+     * <p>调用方取第 {@code keep-1} 页（0 基）首项 = 「第 keep 新的记录」的 id，
+     * 即保留边界；删除严格早于它的记录后正好留下 keep 条。
+     * id 自增即时间序，无需再按 triggered_at 排序。
+     */
+    @Query("SELECT e.id FROM TaskExecution e WHERE e.taskId = :taskId ORDER BY e.id DESC")
+    Page<Long> findIdsByTaskIdDesc(@Param("taskId") Long taskId, Pageable pageable);
+
+    /** 留存清理：删除某任务中早于指定 id 的记录（即超出保留条数的部分）。bulk DELETE。 */
+    @Modifying
+    long deleteByTaskIdAndIdBefore(Long taskId, Long id);
 
     /** 批量取每任务最新一条执行记录（FR-1 列表的"上次执行状态"，id 自增即时间序，避免 N+1） */
     @Query("""
