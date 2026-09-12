@@ -83,9 +83,15 @@ export function validateEmails(_rule: unknown, value?: string[]): Promise<void> 
   return Promise.resolve();
 }
 
-/** 参数名 → 环境变量名（camelCase → 大写下划线，与后端 ScriptTaskExecutor.paramEnvName 一致） */
+/**
+ * 参数名 → 环境变量名：前缀 `SCRIPT_PARAM_` + 大写下划线。
+ *
+ * 必须与后端 `ScriptTaskExecutor.paramEnvName` **逐字符一致**——UI 提示与编辑器补全
+ * 都以此为准，一旦不一致，用户按提示写的 `$SCRIPT_PARAM_XXX` 在运行时拿不到值。
+ * 例：`retentionDays` → `SCRIPT_PARAM_RETENTION_DAYS`，`data` → `SCRIPT_PARAM_DATA`。
+ */
 export function paramEnvName(name: string): string {
-  const sb: string[] = ['SCRIPT_PARAM'];
+  const sb: string[] = ['SCRIPT_PARAM', '_'];
   for (let i = 0; i < name.length; i++) {
     const c = name[i];
     const boundary = /[A-Z]/.test(c) && i > 0 && /[a-z0-9]/.test(name[i - 1]);
@@ -96,5 +102,6 @@ export function paramEnvName(name: string): string {
       sb.push('_');
     }
   }
-  return sb.join('').replace(/_+$/, '');
+  while (sb.length > 0 && sb[sb.length - 1] === '_') sb.pop();
+  return sb.join('');
 }

@@ -698,6 +698,23 @@
   padding: 8px 0;
 }
 
+/* 参数帮助气泡：每个参数的实际环境变量名（脚本里要用的名字） */
+.ts-param-env {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--miao-text-tertiary);
+}
+
+.ts-param-env code {
+  padding: 1px 5px;
+  border-radius: var(--ts-radius-sm);
+  font-family: var(--miao-font-mono);
+  font-size: 11px;
+  color: var(--tool-accent);
+  background: color-mix(in srgb, var(--tool-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tool-accent) 25%, transparent);
+}
+
 /* 版本标签行：标签文字 + 手动刷新按钮（脚本发布新版本后无需离开编辑页即可拉到） */
 .ts-version-label-row {
   display: inline-flex;

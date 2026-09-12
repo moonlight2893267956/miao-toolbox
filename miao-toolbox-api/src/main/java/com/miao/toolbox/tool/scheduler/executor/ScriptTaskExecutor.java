@@ -115,11 +115,9 @@ public class ScriptTaskExecutor implements TaskExecutor {
         builder.directory(workDir.toFile());
 
         Map<String, String> paramEnv = toParamEnv(params);
-        if (!paramEnv.isEmpty()) {
-            builder.environment().putAll(paramEnv);
-            // 仅记录变量名，不记录值（可能含敏感信息）
-            log.debug("[task:{}] injected script params: {}", task.getId(), paramEnv.keySet());
-        }
+        builder.environment().putAll(paramEnv);
+        // 记录注入的变量名（不记录值，可能含敏感信息）：脚本里取不到值时可直接对照此处
+        log.info("[task:{}] injected script params: {}", task.getId(), paramEnv.keySet());
 
         int timeoutSeconds = normalizeTimeout(task.getTimeoutSeconds());
         Process process = builder.start();

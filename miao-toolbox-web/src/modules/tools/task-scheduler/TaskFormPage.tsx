@@ -29,7 +29,7 @@ import {
 import PageFadeIn from '../../../components/shared/PageFadeIn';
 import { schedulerApi } from './schedulerApi';
 import type { NotifyTrigger, ScheduledTask, ScriptParam, ScriptType, TaskPayload } from './types';
-import { extractErrorMessage, fromLocalDateTime, toLocalDateTimeIso } from './format';
+import { extractErrorMessage, fromLocalDateTime, paramEnvName, toLocalDateTimeIso } from './format';
 import SchedulerHeader from './components/SchedulerHeader';
 import SchedulerPanel from './components/SchedulerPanel';
 import CronField from './components/CronField';
@@ -583,8 +583,8 @@ const TaskFormPage: React.FC = () => {
                             {scriptParamSchema && scriptParamSchema.length > 0 ? (
                               <>
                                 <p className="ts-param-help-desc">
-                                  以下参数将通过环境变量 <code>SCRIPT_PARAM_{'{NAME}'}</code> 注入脚本。
-                                  按 JSON 对象格式填写，键名与参数名一致。
+                                  在下方按 JSON 对象填写取值（键名与参数名一致），脚本里通过
+                                  环境变量读取。<strong>未填写或留空的参数会注入空串</strong>。
                                 </p>
                                 <div className="ts-param-table">
                                   {scriptParamSchema.map((p) => (
@@ -595,6 +595,9 @@ const TaskFormPage: React.FC = () => {
                                         {p.default != null && p.default !== '' && (
                                           <span className="ts-param-default">默认: {p.default}</span>
                                         )}
+                                      </div>
+                                      <div className="ts-param-env">
+                                        脚本内取值：<code>${paramEnvName(p.name.trim())}</code>
                                       </div>
                                       {p.desc && <p className="ts-param-desc">{p.desc}</p>}
                                     </div>

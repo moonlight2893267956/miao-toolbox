@@ -228,12 +228,16 @@ class ScriptTaskExecutorTest {
     // 参数名转换（纯函数）
     // ------------------------------------------------------------
 
-    @DisplayName("paramEnvName 转换规则")
+    @DisplayName("paramEnvName 转换规则（前端 format.ts paramEnvName 必须逐字符一致）")
     @Test
     void paramEnvNameCases() {
+        assertThat(ScriptTaskExecutor.paramEnvName("data")).isEqualTo("SCRIPT_PARAM_DATA");
         assertThat(ScriptTaskExecutor.paramEnvName("retentionDays")).isEqualTo("SCRIPT_PARAM_RETENTION_DAYS");
         assertThat(ScriptTaskExecutor.paramEnvName("db_host")).isEqualTo("SCRIPT_PARAM_DB_HOST");
+        assertThat(ScriptTaskExecutor.paramEnvName("maxRetry")).isEqualTo("SCRIPT_PARAM_MAX_RETRY");
         assertThat(ScriptTaskExecutor.paramEnvName("MAX")).isEqualTo("SCRIPT_PARAM_MAX");
         assertThat(ScriptTaskExecutor.paramEnvName("a-b c")).isEqualTo("SCRIPT_PARAM_A_B_C");
+        assertThat(ScriptTaskExecutor.paramEnvName("_x_")).isEqualTo("SCRIPT_PARAM_X");
+        assertThat(ScriptTaskExecutor.paramEnvName("")).isEqualTo("SCRIPT_PARAM");
     }
 }
