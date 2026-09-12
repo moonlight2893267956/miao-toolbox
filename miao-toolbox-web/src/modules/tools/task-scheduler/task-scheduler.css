@@ -771,52 +771,65 @@
   gap: 4px;
 }
 
-.ts-version-refresh-btn {
-  color: var(--miao-text-tertiary);
-}
-
-.ts-version-refresh-btn:hover:not(:disabled) {
-  color: var(--tool-accent);
-}
-
-/* 脚本字段标签内的跳转动作：与版本刷新按钮同一语言——平时弱化，hover 转琥珀 */
-.ts-script-jump {
+/* ── 字段辅助动作：脚本配置区统一的控件语言 ───────────────
+   编辑脚本 / 新建 / 刷新版本 / 填充默认值 共用同一套几何与配色——
+   22px 等高、图标着琥珀、文字次级色、hover 转琥珀底。
+   此前这几个按钮在尺寸、重量、色相上各不相同（「填充默认值」还是
+   主题蓝的 ghost 按钮），同一面板里读作三套控件，故收敛为单一 class。
+   antd 的文字按钮样式由 cssinjs 运行时注入，晚于本文件，故关键属性加
+   !important 以保证这套语言不被覆盖。 */
+.ts-field-actions {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  margin-left: 2px;
+  margin-left: 4px;
 }
 
-.ts-script-jump-btn {
-  height: 20px;
-  padding: 0 6px;
+.ts-field-action {
+  height: 22px;
+  padding: 0 7px;
   border-radius: 6px;
   font-size: 11.5px;
   font-weight: 600;
-  color: var(--miao-text-secondary);
+  color: var(--miao-text-secondary) !important;
   transition: color 160ms var(--ts-ease), background 160ms var(--ts-ease);
 }
 
-/* 图标着琥珀：一眼看出是「动作」而非标签文字 */
-.ts-script-jump-btn .anticon {
+/* 图标着琥珀：一眼可辨「动作」而非标签文字 */
+.ts-field-action .anticon {
+  font-size: 12px;
   color: var(--tool-accent);
-  opacity: 0.8;
+  opacity: 0.85;
   transition: opacity 160ms var(--ts-ease);
 }
 
-.ts-script-jump-btn:hover:not(:disabled) {
-  color: var(--tool-accent);
-  background: color-mix(in srgb, var(--tool-accent) 12%, transparent);
+.ts-field-action:hover:not(:disabled),
+.ts-field-action:focus-visible:not(:disabled) {
+  color: var(--tool-accent) !important;
+  background: color-mix(in srgb, var(--tool-accent) 13%, transparent) !important;
 }
 
-.ts-script-jump-btn:hover:not(:disabled) .anticon {
+.ts-field-action:hover:not(:disabled) .anticon {
   opacity: 1;
 }
 
-.ts-script-jump-btn:disabled,
-.ts-script-jump-btn:disabled .anticon {
+.ts-field-action:disabled {
+  color: var(--miao-text-tertiary) !important;
+  opacity: 0.45;
+}
+
+.ts-field-action:disabled .anticon {
   color: var(--miao-text-tertiary);
   opacity: 0.45;
+}
+
+/* 图标型动作（刷新版本）：22×22 方形，与文字动作同高同底 */
+.ts-field-action--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  padding: 0;
 }
 
 /* ── 参数帮助气泡 ────────────────────────────────────── */

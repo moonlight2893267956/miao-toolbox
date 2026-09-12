@@ -668,7 +668,7 @@ const TaskFormPage: React.FC = () => {
                       label={
                         <div className="ts-version-label-row">
                           <span>脚本</span>
-                          <span className="ts-script-jump">
+                          <span className="ts-field-actions">
                             <Tooltip
                               title={
                                 selectedScriptId
@@ -679,7 +679,7 @@ const TaskFormPage: React.FC = () => {
                               <Button
                                 type="text"
                                 size="small"
-                                className="ts-script-jump-btn"
+                                className="ts-field-action"
                                 icon={<EditOutlined />}
                                 disabled={!selectedScriptId}
                                 onClick={() => handleOpenScript('edit')}
@@ -691,7 +691,7 @@ const TaskFormPage: React.FC = () => {
                               <Button
                                 type="text"
                                 size="small"
-                                className="ts-script-jump-btn"
+                                className="ts-field-action"
                                 icon={<PlusOutlined />}
                                 onClick={() => handleOpenScript('new')}
                               >
@@ -732,16 +732,18 @@ const TaskFormPage: React.FC = () => {
                       label={
                         <div className="ts-version-label-row">
                           <span>版本</span>
-                          <Tooltip title="刷新脚本版本列表">
-                            <Button
-                              type="text"
-                              size="small"
-                              className="ts-version-refresh-btn"
-                              icon={<ReloadOutlined spin={versionRefreshing || versionOptionsLoading} />}
-                              disabled={!selectedScriptId || versionRefreshing}
-                              onClick={() => void handleRefreshVersions()}
-                            />
-                          </Tooltip>
+                          <span className="ts-field-actions">
+                            <Tooltip title="刷新脚本版本列表">
+                              <Button
+                                type="text"
+                                size="small"
+                                className="ts-field-action ts-field-action--icon"
+                                icon={<ReloadOutlined spin={versionRefreshing || versionOptionsLoading} />}
+                                disabled={!selectedScriptId || versionRefreshing}
+                                onClick={() => void handleRefreshVersions()}
+                              />
+                            </Tooltip>
+                          </span>
                         </div>
                       }
                       rules={[{ required: true, message: '请选择脚本版本' }]}
@@ -806,11 +808,10 @@ const TaskFormPage: React.FC = () => {
                     </Popover>
                     {hasParamSchema && (
                       <Button
+                        type="text"
                         size="small"
-                        type="primary"
-                        ghost
                         icon={<ThunderboltOutlined />}
-                        className="ts-param-fill-btn"
+                        className="ts-field-action ts-param-fill-btn"
                         onClick={handleFillDefaults}
                       >
                         填充默认值
