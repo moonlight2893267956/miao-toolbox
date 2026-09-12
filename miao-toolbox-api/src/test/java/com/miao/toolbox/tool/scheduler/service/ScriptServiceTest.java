@@ -96,6 +96,30 @@ class ScriptServiceTest {
         verify(scriptVersionRepository).save(argThat(v -> v.getVersion() == 1 && v.getContent().equals("echo hello")));
     }
 
+    @DisplayName("创建脚本带参数声明 → paramSchema 一并保存")
+    @Test
+    void createScriptWithParamSchema() {
+        when(scriptRepository.existsByName("清理日志")).thenReturn(false);
+        when(scriptRepository.save(any())).thenAnswer(inv -> {
+            Script s = inv.getArgument(0);
+            ReflectionTestUtils.setField(s, "id", 1L);
+            return s;
+        });
+
+        String schema = "[{\"name\":\"retentionDays\",\"type\":\"int\",\"default\":\"30\",\"desc\":\"保留天数\"}]";
+        CreateScriptRequest req = CreateScriptRequest.builder()
+                .name("清理日志")
+                .scriptType(ScriptType.SHELL)
+                .content("echo hello")
+                .paramSchema(schema)
+                .build();
+
+        ScriptResponse resp = service.createScript(req);
+
+        assertThat(resp.getParamSchema()).isEqualTo(schema);
+        verify(scriptRepository).save(argThat(s -> schema.equals(s.getParamSchema())));
+    }
+
     @DisplayName("名称重复 → SCHEDULER_SCRIPT_NAME_DUPLICATED")
     @Test
     void createScriptNameDuplicated() {
@@ -185,6 +209,28 @@ class ScriptServiceTest {
         ScriptResponse resp = service.updateScript(1L, req);
 
         assertThat(resp.getLatestVersion()).isEqualTo(1);
+        verify(scriptVersionRepository, never()).save(any());
+    }
+
+    @DisplayName("仅更新参数声明（内容未变）→ 不生成新版本，paramSchema 生效")
+    @Test
+    void updateScriptParamSchemaOnly() {
+        when(scriptRepository.findById(1L)).thenReturn(Optional.of(script));
+        when(scriptVersionRepository.findByScriptIdAndVersion(1L, 1)).thenReturn(Optional.of(version));
+        when(scriptRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        String schema = "[{\"name\":\"retentionDays\",\"type\":\"int\",\"default\":\"30\"}]";
+        UpdateScriptRequest req = UpdateScriptRequest.builder()
+                .name("清理日志")
+                .description("描述")
+                .content("echo hello")
+                .paramSchema(schema)
+                .build();
+
+        ScriptResponse resp = service.updateScript(1L, req);
+
+        assertThat(resp.getLatestVersion()).isEqualTo(1);
+        assertThat(resp.getParamSchema()).isEqualTo(schema);
         verify(scriptVersionRepository, never()).save(any());
     }
 

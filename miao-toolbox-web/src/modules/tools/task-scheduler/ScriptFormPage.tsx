@@ -1,14 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Alert, Button, Col, Form, Input, Radio, Row, Spin, message } from 'antd';
-import { ArrowLeftOutlined, CodeOutlined } from '@ant-design/icons';
+import { Alert, Button, Col, Form, Input, Popover, Radio, Row, Spin, message } from 'antd';
+import { ArrowLeftOutlined, CodeOutlined, QuestionCircleOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import PageFadeIn from '../../../components/shared/PageFadeIn';
 import { schedulerApi } from './schedulerApi';
-import type { ScriptDetail, ScriptType } from './types';
+import type { ScriptDetail, ScriptParam, ScriptType } from './types';
 import { extractErrorMessage } from './format';
 import SchedulerHeader from './components/SchedulerHeader';
 import SchedulerPanel from './components/SchedulerPanel';
 import ScriptEditor from './components/ScriptEditor';
+import ParamSchemaEditor from './components/ParamSchemaEditor';
 import './task-scheduler.css';
 
 interface ScriptFormValues {
@@ -25,6 +26,18 @@ const DEFAULT_VALUES: ScriptFormValues = {
   content: '',
 };
 
+/** 过滤无效行（名称为空）并序列化为 paramSchema JSON 文本；无有效参数返回 null */
+function serializeParamSchema(params: ScriptParam[]): string | null {
+  const valid = params.filter((p) => p.name && p.name.trim());
+  if (valid.length === 0) return null;
+  return JSON.stringify(valid.map((p) => ({
+    name: p.name.trim(),
+    type: p.type,
+    default: p.default?.trim() || null,
+    desc: p.desc?.trim() || null,
+  })));
+}
+
 /** 脚本创建/编辑页（FR-1） */
 const ScriptFormPage: React.FC = () => {
   const navigate = useNavigate();
@@ -39,12 +52,15 @@ const ScriptFormPage: React.FC = () => {
   const [initialValues, setInitialValues] = useState<ScriptFormValues>(DEFAULT_VALUES);
   const [scriptType, setScriptType] = useState<ScriptType>('SHELL');
   const [content, setContent] = useState('');
+  /** 参数声明（结构化，提交时序列化为 JSON 文本） */
+  const [paramSchema, setParamSchema] = useState<ScriptParam[]>([]);
 
   useEffect(() => {
     if (!isEdit) {
       setInitialValues(DEFAULT_VALUES);
       setScriptType('SHELL');
       setContent('');
+      setParamSchema([]);
       setLoading(false);
       return;
     }
@@ -63,6 +79,7 @@ const ScriptFormPage: React.FC = () => {
         setInitialValues(values);
         setScriptType(script.scriptType);
         setContent(script.content ?? '');
+        setParamSchema(script.paramSchema ?? []);
       })
       .catch((err) => {
         if (!cancelled) setLoadError(extractErrorMessage(err, '脚本详情加载失败'));
@@ -83,17 +100,20 @@ const ScriptFormPage: React.FC = () => {
       }
       setSubmitting(true);
       try {
+        const paramSchemaJson = serializeParamSchema(paramSchema);
         const payload = {
           name: values.name.trim(),
           description: values.description?.trim() || null,
           scriptType: values.scriptType,
           content,
+          paramSchema: paramSchemaJson,
         };
         if (isEdit) {
           await schedulerApi.updateScript(scriptId, {
             name: payload.name,
             description: payload.description ?? '',
             content,
+            paramSchema: paramSchemaJson,
           });
           message.success('脚本已更新');
         } else {
@@ -103,6 +123,7 @@ const ScriptFormPage: React.FC = () => {
           form.resetFields();
           setContent('');
           setScriptType('SHELL');
+          setParamSchema([]);
         }
         navigate('/tools/task-scheduler/scripts');
       } catch (err) {
@@ -111,7 +132,7 @@ const ScriptFormPage: React.FC = () => {
         setSubmitting(false);
       }
     },
-    [content, isEdit, navigate, scriptId],
+    [content, paramSchema, isEdit, navigate, scriptId],
   );
 
   const header = (
@@ -209,6 +230,44 @@ const ScriptFormPage: React.FC = () => {
                   scriptType={scriptType}
                   height="460px"
                 />
+              </SchedulerPanel>
+
+              <SchedulerPanel
+                label="参数声明"
+                meta={paramSchema.length > 0 ? `${paramSchema.length} 个参数` : '可选 · 无参数脚本留空'}
+                tone="notify"
+                index={2}
+              >
+                <div className="ts-pse-panel-head">
+                  <Popover
+                    trigger="hover"
+                    placement="right"
+                    overlayClassName="ts-param-popover"
+                    content={
+                      <div className="ts-param-help">
+                        <div className="ts-param-help-title">
+                          <ThunderboltOutlined />
+                          <span>参数如何注入脚本</span>
+                        </div>
+                        <p className="ts-param-help-desc">
+                          执行时每个参数以环境变量形式注入子进程：
+                          camelCase 参数名自动转为大写下划线，
+                          如 <code>retentionDays</code> → <code>SCRIPT_PARAM_RETENTION_DAYS</code>。
+                          Shell 用 <code>$SCRIPT_PARAM_RETENTION_DAYS</code>，Python 用
+                          <code>os.environ['SCRIPT_PARAM_RETENTION_DAYS']</code> 读取。
+                        </p>
+                        <p className="ts-param-help-desc">
+                          声明保存在脚本级别（所有版本共享），任务配置页会据此展示填写引导与默认值填充。
+                        </p>
+                      </div>
+                    }
+                  >
+                    <span className="ts-pse-hint">
+                      <QuestionCircleOutlined /> 参数如何注入脚本
+                    </span>
+                  </Popover>
+                </div>
+                <ParamSchemaEditor value={paramSchema} onChange={setParamSchema} />
               </SchedulerPanel>
             </div>
 

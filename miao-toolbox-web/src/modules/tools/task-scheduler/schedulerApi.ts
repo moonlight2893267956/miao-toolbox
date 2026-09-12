@@ -45,12 +45,16 @@ export interface CreateScriptPayload {
   description?: string | null;
   scriptType: 'SHELL' | 'PYTHON';
   content: string;
+  /** 参数声明 JSON 文本 [{name,type,default,desc}]，可空表示无参数脚本 */
+  paramSchema?: string | null;
 }
 
 export interface UpdateScriptPayload {
   name: string;
   description?: string | null;
   content: string;
+  /** 参数声明 JSON 文本；null/空字符串表示清除 */
+  paramSchema?: string | null;
 }
 
 export const schedulerApi = {

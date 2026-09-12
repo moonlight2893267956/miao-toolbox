@@ -28,4 +28,11 @@ public class UpdateScriptRequest {
 
     /** 脚本内容（若与最新版本不同则生成新版本；为空表示仅更新元信息） */
     private String content;
+
+    /**
+     * 参数声明 JSON 文本：{@code [{name,type,default,desc}]}。
+     * <p>type 取值 {@code string}/{@code int}/{@code bool}；传 null 或空字符串表示清除参数声明。
+     */
+    @Size(max = 4096, message = "参数声明过长（上限 4KB）")
+    private String paramSchema;
 }

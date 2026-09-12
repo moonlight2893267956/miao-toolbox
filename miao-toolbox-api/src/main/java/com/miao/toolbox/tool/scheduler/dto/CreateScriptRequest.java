@@ -32,4 +32,11 @@ public class CreateScriptRequest {
 
     @NotBlank(message = "脚本内容不能为空")
     private String content;
+
+    /**
+     * 参数声明 JSON 文本：{@code [{name,type,default,desc}]}。
+     * <p>type 取值 {@code string}/{@code int}/{@code bool}；可空表示无参数脚本。
+     */
+    @Size(max = 4096, message = "参数声明过长（上限 4KB）")
+    private String paramSchema;
 }

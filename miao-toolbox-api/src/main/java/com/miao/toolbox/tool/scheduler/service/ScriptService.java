@@ -67,6 +67,7 @@ public class ScriptService {
                 .description(req.getDescription())
                 .scriptType(req.getScriptType())
                 .latestVersion(1)
+                .paramSchema(req.getParamSchema())
                 .build();
         Script saved = scriptRepository.save(script);
 
@@ -97,6 +98,7 @@ public class ScriptService {
 
         script.setName(name);
         script.setDescription(req.getDescription());
+        script.setParamSchema(req.getParamSchema());
 
         // 内容变更 → 生成新版本（归一化后比较，避免行尾差异导致误判）
         String newContent = normalizeContent(req.getContent());

@@ -830,6 +830,113 @@
   margin-bottom: 0;
 }
 
+/* ── 参数声明编辑器（脚本表单页） ─────────────────────── */
+.ts-pse-panel-head {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.ts-pse-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--miao-text-tertiary);
+  cursor: help;
+  transition: color 0.2s var(--ts-ease);
+}
+
+.ts-pse-hint:hover {
+  color: var(--tool-accent);
+}
+
+.ts-pse {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ts-pse-empty {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--miao-text-secondary);
+  margin-bottom: 0;
+  padding: 10px 12px;
+  border-radius: var(--ts-radius-sm);
+  background: color-mix(in srgb, var(--miao-text-primary) 3%, transparent);
+  border: 1px dashed var(--miao-border);
+}
+
+.ts-pse-empty code,
+.ts-pse-env {
+  font-family: var(--miao-font-mono);
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--tool-accent) 12%, transparent);
+  color: var(--tool-accent);
+}
+
+.ts-pse-row {
+  padding: 10px 12px;
+  border-radius: var(--ts-radius-sm);
+  background: color-mix(in srgb, var(--miao-text-primary) 3%, transparent);
+  border: 1px solid var(--miao-border);
+  transition: border-color 0.2s var(--ts-ease);
+}
+
+.ts-pse-row:hover {
+  border-color: color-mix(in srgb, var(--tool-accent) 35%, var(--miao-border));
+}
+
+.ts-pse-fields {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.1fr) 92px minmax(110px, 0.8fr) minmax(140px, 1.3fr);
+  gap: 8px;
+}
+
+.ts-pse-fields .ant-input,
+.ts-pse-fields .ant-select .ant-select-selector {
+  font-size: 12px;
+}
+
+.ts-pse-name .ant-input,
+.ts-pse-default .ant-input {
+  font-family: var(--miao-font-mono);
+}
+
+.ts-pse-type .ant-select-selection-item {
+  font-family: var(--miao-font-mono);
+  font-size: 12px;
+}
+
+.ts-pse-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  gap: 8px;
+}
+
+.ts-pse-env--placeholder {
+  background: none;
+  color: var(--miao-text-tertiary);
+  padding: 0;
+}
+
+.ts-pse-add {
+  width: 100%;
+  margin-top: 2px;
+}
+
+/* 窄屏：字段网格降为两列 */
+@media (max-width: 720px) {
+  .ts-pse-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 
 /* Header 编辑器 */
 .ts-header-editor {
