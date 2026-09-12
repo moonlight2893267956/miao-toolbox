@@ -29,4 +29,12 @@ public interface ScheduledTaskRepository extends JpaRepository<ScheduledTask, Lo
 
     /** 删除保护：统计引用指定脚本的启用状态任务数（FR-1，Story 1.5） */
     long countByScriptIdAndStatus(Long scriptId, TaskStatus status);
+
+    /**
+     * 删除版本保护：统计引用「指定脚本 + 指定版本」的任务数（FR-1）。
+     *
+     * <p>与脚本级删除不同——脚本级只拦 ENABLED，版本级拦<b>任意状态</b>：
+     * 任务绑定的是具体版本，即使当前 PAUSED，恢复后仍需该版本内容存在。
+     */
+    long countByScriptIdAndScriptVersion(Long scriptId, Integer scriptVersion);
 }

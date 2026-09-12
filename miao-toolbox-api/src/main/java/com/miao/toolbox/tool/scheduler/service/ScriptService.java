@@ -189,6 +189,47 @@ public class ScriptService {
         return toVersionResponse(sv);
     }
 
+    /**
+     * 删除单个历史版本（FR-1）。
+     *
+     * <p>约束（PRD FR-1）：
+     * <ul>
+     *   <li>脚本至少保留一个版本——否则脚本将无内容可执行</li>
+     *   <li>版本被任意任务引用时不可删除（含 PAUSED：任务恢复后仍需该版本内容）</li>
+     * </ul>
+     *
+     * <p>删除的是最新版本时，把 {@code latest_version} 回退到剩余最大版本号，
+     * 保持与版本表一致（此时已确认无任务引用，回退不会让绑定任务悬空）。
+     */
+    @Transactional
+    public void deleteVersion(Long scriptId, Integer version) {
+        Script script = requireScript(scriptId);
+        ScriptVersion target = scriptVersionRepository.findByScriptIdAndVersion(scriptId, version)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULER_SCRIPT_VERSION_NOT_FOUND,
+                        "脚本版本不存在：" + scriptId + " v" + version, 404));
+
+        if (scriptVersionRepository.countByScriptId(scriptId) <= 1) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "脚本至少保留一个版本", 400);
+        }
+
+        long refs = taskRepository.countByScriptIdAndScriptVersion(scriptId, version);
+        if (refs > 0) {
+            throw new BusinessException(ErrorCode.SCHEDULER_SCRIPT_IN_USE,
+                    "版本 v" + version + " 被 " + refs + " 个任务引用，不可删除", 400);
+        }
+
+        scriptVersionRepository.delete(target);
+        if (script.getLatestVersion().equals(version)) {
+            int remainingLatest = scriptVersionRepository.findByScriptIdOrderByVersionDesc(scriptId).stream()
+                    .mapToInt(ScriptVersion::getVersion)
+                    .max()
+                    .orElse(1);
+            script.setLatestVersion(remainingLatest);
+            scriptRepository.save(script);
+        }
+        log.info("[script:{}] action=DELETE_VERSION version={}", scriptId, version);
+    }
+
     // ------------------------------------------------------------
     // 校验与归一化
     // ------------------------------------------------------------

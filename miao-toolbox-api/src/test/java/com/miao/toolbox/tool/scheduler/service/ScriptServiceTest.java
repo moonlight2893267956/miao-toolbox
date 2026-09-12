@@ -365,4 +365,69 @@ class ScriptServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("版本不存在");
     }
+
+    // ------------------------------------------------------------
+    // 删除版本（FR-1）
+    // ------------------------------------------------------------
+
+    @DisplayName("删除非最新版本 → 删除成功且 latest_version 不变")
+    @Test
+    void deleteVersionSuccess() {
+        script.setLatestVersion(2);
+        when(scriptRepository.findById(1L)).thenReturn(Optional.of(script));
+        when(scriptVersionRepository.findByScriptIdAndVersion(1L, 1)).thenReturn(Optional.of(version));
+        when(scriptVersionRepository.countByScriptId(1L)).thenReturn(2L);
+        when(taskRepository.countByScriptIdAndScriptVersion(1L, 1)).thenReturn(0L);
+
+        service.deleteVersion(1L, 1);
+
+        verify(scriptVersionRepository).delete(version);
+        // 删的不是最新版本，无需回退 latest_version
+        verify(scriptRepository, never()).save(any());
+    }
+
+    @DisplayName("删除最新版本 → latest_version 回退到剩余最大版本")
+    @Test
+    void deleteLatestVersionRollsBackLatestVersion() {
+        script.setLatestVersion(2);
+        ScriptVersion v2 = ScriptVersion.builder().id(11L).scriptId(1L).version(2).content("v2").build();
+        when(scriptRepository.findById(1L)).thenReturn(Optional.of(script));
+        when(scriptVersionRepository.findByScriptIdAndVersion(1L, 2)).thenReturn(Optional.of(v2));
+        when(scriptVersionRepository.countByScriptId(1L)).thenReturn(2L);
+        when(taskRepository.countByScriptIdAndScriptVersion(1L, 2)).thenReturn(0L);
+        when(scriptVersionRepository.findByScriptIdOrderByVersionDesc(1L)).thenReturn(List.of(version));
+
+        service.deleteVersion(1L, 2);
+
+        assertThat(script.getLatestVersion()).isEqualTo(1);
+        verify(scriptRepository).save(script);
+    }
+
+    @DisplayName("仅剩一个版本时删除 → 拒绝（脚本至少保留一个版本）")
+    @Test
+    void deleteVersionRejectedWhenLastOne() {
+        when(scriptRepository.findById(1L)).thenReturn(Optional.of(script));
+        when(scriptVersionRepository.findByScriptIdAndVersion(1L, 1)).thenReturn(Optional.of(version));
+        when(scriptVersionRepository.countByScriptId(1L)).thenReturn(1L);
+
+        assertThatThrownBy(() -> service.deleteVersion(1L, 1))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("至少保留一个版本");
+        verify(scriptVersionRepository, never()).delete(any());
+    }
+
+    @DisplayName("版本被任务引用时删除 → 拒绝（含 PAUSED，恢复后仍需该版本）")
+    @Test
+    void deleteVersionRejectedWhenReferenced() {
+        script.setLatestVersion(2);
+        when(scriptRepository.findById(1L)).thenReturn(Optional.of(script));
+        when(scriptVersionRepository.findByScriptIdAndVersion(1L, 1)).thenReturn(Optional.of(version));
+        when(scriptVersionRepository.countByScriptId(1L)).thenReturn(2L);
+        when(taskRepository.countByScriptIdAndScriptVersion(1L, 1)).thenReturn(2L);
+
+        assertThatThrownBy(() -> service.deleteVersion(1L, 1))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("被 2 个任务引用");
+        verify(scriptVersionRepository, never()).delete(any());
+    }
 }

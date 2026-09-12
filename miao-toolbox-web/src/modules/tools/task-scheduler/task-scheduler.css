@@ -832,6 +832,79 @@
   padding: 0;
 }
 
+/* ── 版本历史（Story 1.3）────────────────────────────────── */
+.ts-version-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ts-version-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px 7px 10px;
+  border: 1px solid var(--miao-border);
+  border-radius: var(--ts-radius-sm);
+  background: color-mix(in srgb, var(--miao-bg-muted) 45%, transparent);
+  transition: border-color 160ms var(--ts-ease), background 160ms var(--ts-ease);
+}
+
+.ts-version-item:hover {
+  border-color: color-mix(in srgb, var(--tool-accent) 32%, transparent);
+  background: color-mix(in srgb, var(--miao-bg-muted) 85%, transparent);
+}
+
+.ts-version-item.is-latest {
+  border-color: color-mix(in srgb, var(--tool-accent) 38%, transparent);
+}
+
+/* 版本号：等宽加重，读作代码资产的标识而非普通文本 */
+.ts-version-badge {
+  flex: 0 0 auto;
+  font-family: var(--miao-font-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--miao-text-primary);
+}
+
+.ts-version-latest-tag {
+  margin: 0;
+  padding: 0 6px;
+  border: 1px solid color-mix(in srgb, var(--tool-accent) 40%, transparent) !important;
+  background: color-mix(in srgb, var(--tool-accent) 12%, transparent) !important;
+  color: var(--tool-accent) !important;
+  font-size: 10.5px;
+  line-height: 17px;
+}
+
+.ts-version-time {
+  color: var(--miao-text-tertiary);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ts-version-actions {
+  margin-left: auto;
+}
+
+/* 历史版本内容：等宽代码块，长内容内部滚动 */
+.ts-version-preview {
+  margin: 0;
+  max-height: 52vh;
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--miao-border);
+  border-radius: 8px;
+  background: var(--miao-bg-muted);
+  color: var(--miao-text-primary);
+  font-family: var(--miao-font-mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  white-space: pre;
+  tab-size: 4;
+}
+
 /* ── 参数帮助气泡 ────────────────────────────────────── */
 .ts-param-label-row {
   display: inline-flex;

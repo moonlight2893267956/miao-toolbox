@@ -10,6 +10,7 @@ import SchedulerHeader from './components/SchedulerHeader';
 import SchedulerPanel from './components/SchedulerPanel';
 import ScriptEditor from './components/ScriptEditor';
 import ParamSchemaEditor from './components/ParamSchemaEditor';
+import VersionHistoryPanel from './components/VersionHistoryPanel';
 import './task-scheduler.css';
 
 interface ScriptFormValues {
@@ -54,6 +55,8 @@ const ScriptFormPage: React.FC = () => {
   const [content, setContent] = useState('');
   /** 参数声明（结构化，提交时序列化为 JSON 文本） */
   const [paramSchema, setParamSchema] = useState<ScriptParam[]>([]);
+  /** 保存成功后自增：内容变更会生成新版本，用于刷新版本历史 */
+  const [versionRefreshToken, setVersionRefreshToken] = useState(0);
 
   useEffect(() => {
     if (!isEdit) {
@@ -122,6 +125,7 @@ const ScriptFormPage: React.FC = () => {
             paramSchema: paramSchemaJson,
           });
           message.success('脚本已更新');
+          setVersionRefreshToken((token) => token + 1);
         } else {
           await schedulerApi.createScript(payload);
           message.success('脚本已创建');
@@ -239,11 +243,22 @@ const ScriptFormPage: React.FC = () => {
                 />
               </SchedulerPanel>
 
+              {isEdit && (
+                <SchedulerPanel
+                  label="版本历史"
+                  meta="只增不覆盖 · 可查看与删除历史版本"
+                  tone="schedule"
+                  index={2}
+                >
+                  <VersionHistoryPanel scriptId={scriptId} refreshToken={versionRefreshToken} />
+                </SchedulerPanel>
+              )}
+
               <SchedulerPanel
                 label="参数声明"
                 meta={paramSchema.length > 0 ? `${paramSchema.length} 个参数` : '可选 · 无参数脚本留空'}
                 tone="notify"
-                index={2}
+                index={3}
               >
                 <div className="ts-pse-panel-head">
                   <Popover

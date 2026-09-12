@@ -13,4 +13,7 @@ public interface ScriptVersionRepository extends JpaRepository<ScriptVersion, Lo
     List<ScriptVersion> findByScriptIdOrderByVersionDesc(Long scriptId);
 
     Optional<ScriptVersion> findByScriptIdAndVersion(Long scriptId, Integer version);
+
+    /** 版本数量（删除版本时判断「至少保留一个版本」） */
+    long countByScriptId(Long scriptId);
 }

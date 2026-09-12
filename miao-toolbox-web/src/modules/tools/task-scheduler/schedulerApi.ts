@@ -151,4 +151,9 @@ export const schedulerApi = {
     const resp = await axiosInstance.get(`${BASE}/scripts/${scriptId}/versions/${version}`);
     return resp.data.data;
   },
+
+  /** 删除历史版本（被任务引用或仅剩一个版本时后端拒绝） */
+  deleteScriptVersion: async (scriptId: number, version: number): Promise<void> => {
+    await axiosInstance.delete(`${BASE}/scripts/${scriptId}/versions/${version}`);
+  },
 };

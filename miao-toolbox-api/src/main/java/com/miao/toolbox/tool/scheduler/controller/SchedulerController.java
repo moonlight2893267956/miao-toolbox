@@ -101,6 +101,13 @@ public class SchedulerController {
         return ResponseEntity.ok(ApiResponse.success(scriptService.getVersion(id, version)));
     }
 
+    @DeleteMapping("/scripts/{id}/versions/{version}")
+    public ResponseEntity<ApiResponse<Void>> deleteScriptVersion(
+            @PathVariable Long id, @PathVariable Integer version) {
+        scriptService.deleteVersion(id, version);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
     // ------------------------------------------------------------
     // 任务管理（FR-3/FR-4/FR-7/FR-9/FR-13）
     // ------------------------------------------------------------
