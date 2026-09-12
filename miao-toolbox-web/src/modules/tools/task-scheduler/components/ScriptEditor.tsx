@@ -31,13 +31,22 @@ import {
   bracketMatching,
 } from '@codemirror/language';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { closeBrackets, closeBracketsKeymap, autocompletion, completionKeymap } from '@codemirror/autocomplete';
+import {
+  closeBrackets,
+  closeBracketsKeymap,
+  autocompletion,
+  completionKeymap,
+  type Completion,
+  type CompletionContext,
+  type CompletionResult,
+} from '@codemirror/autocomplete';
 import { python } from '@codemirror/lang-python';
 import { shell } from '@codemirror/legacy-modes/mode/shell';
 import { tags } from '@lezer/highlight';
 import { Button } from 'antd';
 import { CodeOutlined, UploadOutlined } from '@ant-design/icons';
-import type { ScriptType } from '../types';
+import type { ScriptParam, ScriptType } from '../types';
+import { paramEnvName } from '../format';
 
 /** 脚本内容上限（与后端 ScriptService.MAX_CONTENT_BYTES 一致） */
 const MAX_CONTENT_BYTES = 64 * 1024;
@@ -48,6 +57,8 @@ interface ScriptEditorProps {
   scriptType: ScriptType;
   /** 代码面高度（默认 420px） */
   height?: string;
+  /** 参数声明：据此生成 SCRIPT_PARAM_* 环境变量补全项 */
+  paramSchema?: ScriptParam[] | null;
 }
 
 // Compartment：运行时切换主题 / 语言，无需重建视图（保留撤销栈）
@@ -72,6 +83,48 @@ const scriptHighlightStyle = HighlightStyle.define([
 /** 语言扩展：Shell 走 legacy StreamLanguage，Python 走官方 Lezer 语法 */
 function languageExtension(scriptType: ScriptType): Extension {
   return scriptType === 'PYTHON' ? python() : StreamLanguage.define(shell);
+}
+
+/** 环境变量补全：$ / ${ / 引号后，或已输入 SCRIPT_PARAM_ 前缀时激活 */
+const ENV_PREFIX = 'SCRIPT_PARAM_';
+
+function makeParamCompletionSource(
+  paramSchemaRef: React.MutableRefObject<ScriptParam[] | null | undefined>,
+) {
+  return (context: CompletionContext): CompletionResult | null => {
+    const word = context.matchBefore(/\w*/);
+    if (!word) return null;
+
+    const text = word.text;
+    const before = context.state.sliceDoc(Math.max(0, word.from - 2), word.from);
+    // shell 的 $VAR / ${VAR}，或 python 引号内的字符串
+    const triggered = /\$\{?$/.test(before) || /['"]$/.test(before);
+    const lower = text.toLowerCase();
+    const typingPrefix =
+      text.length >= 2 &&
+      (ENV_PREFIX.toLowerCase().startsWith(lower) || lower.startsWith(ENV_PREFIX.toLowerCase()));
+
+    if (!triggered && !typingPrefix) return null;
+
+    const schema = paramSchemaRef.current ?? [];
+    const options: Completion[] = [
+      {
+        label: ENV_PREFIX,
+        type: 'namespace',
+        detail: '环境变量前缀',
+        boost: 99,
+      },
+      ...schema
+        .filter((p) => p.name && p.name.trim())
+        .map((p) => ({
+          label: paramEnvName(p.name.trim()),
+          type: 'variable',
+          detail: `${p.type}${p.default ? ` · 默认 ${p.default}` : ''}`,
+          info: p.desc || undefined,
+        })),
+    ];
+    return { from: word.from, options, validFor: /^\w*$/ };
+  };
 }
 
 /** 编辑器主题（跟随 data-theme，暗色下标记 dark 让 CodeMirror 内部默认值同步） */
@@ -147,12 +200,21 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024).toFixed(1)} KB`;
 }
 
-const ScriptEditor: React.FC<ScriptEditorProps> = ({ value, onChange, scriptType, height = '420px' }) => {
+const ScriptEditor: React.FC<ScriptEditorProps> = ({
+  value,
+  onChange,
+  scriptType,
+  height = '420px',
+  paramSchema,
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  /** 补全 source 挂载后不重建，经 ref 读取最新参数声明 */
+  const paramSchemaRef = useRef<ScriptParam[] | null | undefined>(paramSchema);
+  paramSchemaRef.current = paramSchema;
 
   const [isEmpty, setIsEmpty] = useState(!value);
 
@@ -176,7 +238,8 @@ const ScriptEditor: React.FC<ScriptEditorProps> = ({ value, onChange, scriptType
         foldGutter(),
         bracketMatching(),
         closeBrackets(),
-        autocompletion(),
+        // override：替换默认补全源（Shell/Python 语法均无自带补全），挂载后经 ref 读最新声明
+        autocompletion({ override: [makeParamCompletionSource(paramSchemaRef)] }),
         history(),
         keymap.of([
           ...closeBracketsKeymap,

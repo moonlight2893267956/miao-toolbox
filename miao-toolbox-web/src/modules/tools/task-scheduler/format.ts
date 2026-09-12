@@ -82,3 +82,19 @@ export function validateEmails(_rule: unknown, value?: string[]): Promise<void> 
   }
   return Promise.resolve();
 }
+
+/** 参数名 → 环境变量名（camelCase → 大写下划线，与后端 ScriptTaskExecutor.paramEnvName 一致） */
+export function paramEnvName(name: string): string {
+  const sb: string[] = ['SCRIPT_PARAM'];
+  for (let i = 0; i < name.length; i++) {
+    const c = name[i];
+    const boundary = /[A-Z]/.test(c) && i > 0 && /[a-z0-9]/.test(name[i - 1]);
+    if (boundary && sb[sb.length - 1] !== '_') sb.push('_');
+    if (/[A-Za-z0-9]/.test(c)) {
+      sb.push(c.toUpperCase());
+    } else if (sb[sb.length - 1] !== '_') {
+      sb.push('_');
+    }
+  }
+  return sb.join('').replace(/_+$/, '');
+}

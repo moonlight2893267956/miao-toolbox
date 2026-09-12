@@ -229,6 +229,7 @@ const ScriptFormPage: React.FC = () => {
                   onChange={setContent}
                   scriptType={scriptType}
                   height="460px"
+                  paramSchema={paramSchema}
                 />
               </SchedulerPanel>
 
