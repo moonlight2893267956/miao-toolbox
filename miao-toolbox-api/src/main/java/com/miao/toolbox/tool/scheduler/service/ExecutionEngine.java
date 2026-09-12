@@ -156,8 +156,11 @@ public class ExecutionEngine {
         } catch (Exception e) {
             log.error("[task:{}] execution record persist FAILED: {}", taskId, e.getMessage());
         }
-        log.info("[task:{}] execution finished status={} attempts={} durationMs={}",
-                taskId, result.status(), attempts, execution.getDurationMs());
+        // 失败原因必须落日志：否则排查时只能看到 status=FAILED 而无从下手
+        log.info("[task:{}] execution finished status={} attempts={} durationMs={}{}",
+                taskId, result.status(), attempts, execution.getDurationMs(),
+                result.errorMessage() == null || result.errorMessage().isBlank()
+                        ? "" : " error=" + result.errorMessage());
 
         try {
             notificationService.onExecutionFinished(task, execution);

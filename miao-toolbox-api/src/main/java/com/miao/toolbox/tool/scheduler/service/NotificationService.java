@@ -172,9 +172,24 @@ public class NotificationService {
         payload.put("triggeredAt", toUtcIso(execution.getTriggeredAt()));
         payload.put("durationMs", execution.getDurationMs());
         payload.put("retryCount", execution.getRetryCount());
+        payload.put("exitCode", extractExitCode(execution.getResponseSummary()));
         payload.put("error", execution.getErrorMessage());
         payload.put("detailUrl", buildDetailUrl(task.getId()));
         return payload;
+    }
+
+    /** 从 response_summary JSON 提取 exitCode（脚本执行的核心结果信号；无/解析失败返回 null）。 */
+    private Integer extractExitCode(String responseSummary) {
+        if (responseSummary == null || responseSummary.isBlank()) {
+            return null;
+        }
+        try {
+            com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(responseSummary).get("exitCode");
+            return node == null || !node.isNumber() ? null : node.asInt();
+        } catch (Exception e) {
+            log.warn("execution response_summary parse failed: {}", e.getMessage());
+            return null;
+        }
     }
 
     // ------------------------------------------------------------

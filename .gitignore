@@ -72,3 +72,7 @@ snap.yaml
 # === 设计概念稿 / 临时页面（非交付产物） ===
 miao-toolbox-web/login-concepts/
 auth-bg-v1.html
+
+# === 定时任务脚本物化目录（运行时产物，本地/CI 均不入库） ===
+data/scheduler-scripts/
+miao-toolbox-api/data/scheduler-scripts/
