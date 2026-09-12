@@ -17,11 +17,10 @@ import type { Dayjs } from 'dayjs';
 import { ArrowLeftOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import PageFadeIn from '../../../components/shared/PageFadeIn';
 import { schedulerApi } from './schedulerApi';
-import type { NotifyTrigger, ScheduledTask, TaskPayload, TargetHeader } from './types';
+import type { NotifyTrigger, ScheduledTask, TaskPayload } from './types';
 import { extractErrorMessage, fromLocalDateTime, toLocalDateTimeIso } from './format';
 import SchedulerHeader from './components/SchedulerHeader';
 import SchedulerPanel from './components/SchedulerPanel';
-import TargetConfigForm from './components/TargetConfigForm';
 import CronField from './components/CronField';
 import NotifyConfigForm from './components/NotifyConfigForm';
 import './task-scheduler.css';
@@ -38,32 +37,19 @@ const COMMON_TIMEZONES = [
   'UTC',
 ].map((value) => ({ value }));
 
-interface HttpFormConfig {
-  targetType: 'HTTP';
-  method: string;
-  url: string;
-  headers?: TargetHeader[];
-  body?: string | null;
-  timeoutSeconds?: number | null;
-}
-
-interface PresetFormConfig {
-  targetType: 'PRESET';
-  template: string;
-  params?: { retentionDays?: number | null } | null;
-}
-
 interface TaskFormValues {
   name: string;
   description?: string;
-  targetType: 'HTTP' | 'PRESET';
-  targetConfig: HttpFormConfig | PresetFormConfig;
+  scriptId: number | null;
+  scriptVersion: number | null;
+  params?: string | null;
   cronExpression: string;
   timezone: string;
   validFrom?: Dayjs | null;
   validUntil?: Dayjs | null;
   retryCount?: number | null;
   retryInterval?: number | null;
+  timeoutSeconds?: number | null;
   notifyConfig?: {
     webhook?: { url?: string | null; trigger?: NotifyTrigger | null } | null;
     email?: { recipients?: string[] | null; trigger?: NotifyTrigger | null } | null;
@@ -73,40 +59,36 @@ interface TaskFormValues {
 const DEFAULT_VALUES: TaskFormValues = {
   name: '',
   description: '',
-  targetType: 'HTTP',
-  targetConfig: {
-    targetType: 'HTTP',
-    method: 'GET',
-    url: '',
-    headers: [],
-    body: '',
-    timeoutSeconds: 30,
-  },
+  scriptId: null,
+  scriptVersion: null,
+  params: null,
   cronExpression: '',
   timezone: 'Asia/Shanghai',
   validFrom: null,
   validUntil: null,
   retryCount: 0,
   retryInterval: 60,
+  timeoutSeconds: 60,
   notifyConfig: {
     webhook: { url: '', trigger: 'ON_FAILURE' },
     email: { recipients: [], trigger: 'ON_FAILURE' },
   },
 };
 
-/** 详情 → 表单初值（敏感 header 的 **** 占位原样带入，用户不改则后端保留原密文） */
 function toFormValues(task: ScheduledTask): TaskFormValues {
-  const targetType = task.targetType === 'PRESET' ? 'PRESET' : 'HTTP';
-  const base = {
+  return {
     name: task.name,
     description: task.description ?? '',
-    targetType,
+    scriptId: task.scriptId,
+    scriptVersion: task.scriptVersion,
+    params: task.params ?? null,
     cronExpression: task.cronExpression,
     timezone: task.timezone,
     validFrom: fromLocalDateTime(task.validFrom),
     validUntil: fromLocalDateTime(task.validUntil),
     retryCount: task.retryCount ?? 0,
     retryInterval: task.retryInterval ?? 60,
+    timeoutSeconds: task.timeoutSeconds ?? 60,
     notifyConfig: {
       webhook: {
         url: task.notifyConfig?.webhook?.url ?? '',
@@ -118,36 +100,8 @@ function toFormValues(task: ScheduledTask): TaskFormValues {
       },
     },
   };
-
-  if (targetType === 'PRESET' && task.targetConfig?.targetType === 'PRESET') {
-    return {
-      ...base,
-      targetConfig: {
-        targetType: 'PRESET' as const,
-        template: task.targetConfig.template ?? 'CLEAN_EXECUTION_LOGS',
-        params: { retentionDays: task.targetConfig.params?.retentionDays ?? 30 },
-      },
-    };
-  }
-
-  const http = task.targetConfig?.targetType === 'HTTP' ? task.targetConfig : null;
-  return {
-    ...base,
-    targetConfig: {
-      targetType: 'HTTP' as const,
-      method: http?.method ?? 'GET',
-      url: http?.url ?? '',
-      headers: (http?.headers ?? []).map((header) => ({ ...header })),
-      body: http?.body ?? '',
-      timeoutSeconds: http?.timeoutSeconds ?? 30,
-    },
-  };
 }
 
-/**
- * 通知配置 → 提交体：两通道任一有值才提交；trigger 缺省兜底 ON_FAILURE（与后端一致）。
- * 后端对 notifyConfig 是整体覆盖语义，全部为空提交 null = 明确不通知。
- */
 function buildNotifyPayload(
   notify?: TaskFormValues['notifyConfig'],
 ): TaskPayload['notifyConfig'] {
@@ -168,7 +122,6 @@ function buildNotifyPayload(
   };
 }
 
-/** 时区校验：用 Intl 构造一次即知是否合法（IANA 名） */
 function validateTimezone(_rule: unknown, value?: string): Promise<void> {
   if (!value) {
     return Promise.resolve();
@@ -181,7 +134,7 @@ function validateTimezone(_rule: unknown, value?: string): Promise<void> {
   }
 }
 
-/** 任务表单页（FR-1/FR-2/FR-3）：新建 `/new` 与编辑 `/:id/edit` 共用 */
+/** 任务表单页（FR-3）：新建 `/new` 与编辑 `/:id/edit` 共用 */
 const TaskFormPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -230,42 +183,19 @@ const TaskFormPage: React.FC = () => {
         return;
       }
 
-      const targetType = values.targetType;
-      let targetConfig: TaskPayload['targetConfig'];
-      if (targetType === 'PRESET') {
-        const preset = values.targetConfig as PresetFormConfig;
-        targetConfig = {
-          targetType: 'PRESET',
-          template: preset.template ?? 'CLEAN_EXECUTION_LOGS',
-          params: { retentionDays: preset.params?.retentionDays ?? 30 },
-        };
-      } else {
-        const http = values.targetConfig as HttpFormConfig;
-        targetConfig = {
-          targetType: 'HTTP',
-          method: http.method,
-          url: http.url.trim(),
-          // 敏感值留空提交空串 = 后端按同名保留原密文
-          headers: (http.headers ?? []).map((header) => ({
-            name: header.name?.trim() ?? '',
-            value: header.value ?? '',
-            sensitive: Boolean(header.sensitive),
-          })),
-          body: http.body ? http.body : null,
-          timeoutSeconds: http.timeoutSeconds ?? 30,
-        };
-      }
       const payload: TaskPayload = {
         name: values.name.trim(),
         description: values.description?.trim() ? values.description.trim() : null,
-        targetType,
-        targetConfig,
+        scriptId: values.scriptId!,
+        scriptVersion: values.scriptVersion!,
+        params: values.params ?? null,
         cronExpression: (values.cronExpression ?? '').trim(),
         timezone: values.timezone,
         validFrom: toLocalDateTimeIso(from),
         validUntil: toLocalDateTimeIso(until),
         retryCount: values.retryCount ?? 0,
         retryInterval: values.retryInterval ?? 60,
+        timeoutSeconds: values.timeoutSeconds ?? 60,
         notifyConfig: buildNotifyPayload(values.notifyConfig),
       };
 
@@ -292,7 +222,7 @@ const TaskFormPage: React.FC = () => {
     <SchedulerHeader
       icon={<ClockCircleOutlined />}
       title={isEdit ? '编辑定时任务' : '新建定时任务'}
-      subtitle="HTTP 目标 · cron 调度 · 生效窗口与失败重试"
+      subtitle="脚本执行 · cron 调度 · 生效窗口与失败重试"
       actions={
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/tools/task-scheduler')}>
           返回列表
@@ -344,11 +274,10 @@ const TaskFormPage: React.FC = () => {
                       label="任务名称"
                       rules={[
                         { required: true, message: '请输入任务名称' },
-                        // 先 trim 再校验长度：避免「 带空格 」原样通过、trim 后不足 2 字落库
                         { min: 2, max: 50, message: '任务名称长度须为 2-50 字', transform: (v?: string) => v?.trim() },
                       ]}
                     >
-                      <Input placeholder="如：健康检查探针" maxLength={50} showCount />
+                      <Input placeholder="如：清理过期日志" maxLength={50} showCount />
                     </Form.Item>
                   </Col>
                   <Col xs={24} md={14}>
@@ -401,11 +330,34 @@ const TaskFormPage: React.FC = () => {
                 </Row>
               </SchedulerPanel>
 
-              <SchedulerPanel label="目标配置" meta="HTTP 请求目标" tone="target" index={2}>
-                <TargetConfigForm isEdit={isEdit} />
+              <SchedulerPanel label="脚本配置" meta="关联脚本版本与参数" tone="target" index={2}>
+                <Row gutter={12}>
+                  <Col xs={24} md={12}>
+                    <Form.Item
+                      name="scriptId"
+                      label="脚本 ID"
+                      rules={[{ required: true, message: '请输入脚本 ID' }]}
+                      extra="脚本管理页创建后获取 ID（脚本管理 UI 在后续 Story 交付）"
+                    >
+                      <InputNumber min={1} style={{ width: '100%' }} placeholder="输入脚本 ID" />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={12}>
+                    <Form.Item
+                      name="scriptVersion"
+                      label="脚本版本"
+                      rules={[{ required: true, message: '请输入脚本版本' }]}
+                    >
+                      <InputNumber min={1} style={{ width: '100%' }} placeholder="如：1" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Form.Item name="params" label="参数（JSON）" extra='参数值 JSON，如 {"retentionDays": 30}；无参数脚本留空'>
+                  <Input.TextArea rows={3} placeholder='{"retentionDays": 30}' />
+                </Form.Item>
               </SchedulerPanel>
 
-              <SchedulerPanel label="重试配置" meta="执行失败后的重试策略" index={3}>
+              <SchedulerPanel label="重试与超时" meta="执行失败后的重试策略" index={3}>
                 <Row gutter={12}>
                   <Col xs={24} md={8}>
                     <Form.Item
@@ -423,6 +375,15 @@ const TaskFormPage: React.FC = () => {
                       rules={[{ type: 'number', min: 1, max: 3600, message: '重试间隔范围 1-3600 秒' }]}
                     >
                       <InputNumber min={1} max={3600} style={{ width: 160 }} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={8}>
+                    <Form.Item
+                      name="timeoutSeconds"
+                      label="执行超时（秒）"
+                      rules={[{ type: 'number', min: 1, max: 600, message: '超时范围 1-600 秒' }]}
+                    >
+                      <InputNumber min={1} max={600} style={{ width: 160 }} />
                     </Form.Item>
                   </Col>
                 </Row>

@@ -1,7 +1,6 @@
 package com.miao.toolbox.tool.scheduler.entity;
 
 import com.miao.toolbox.tool.scheduler.converter.NotifyConfigConverter;
-import com.miao.toolbox.tool.scheduler.converter.TargetConfigConverter;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -24,12 +23,13 @@ import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 
 /**
- * 定时任务配置实体（scheduled_tasks 表，V33）。
+ * 定时任务配置实体（scheduled_tasks 表，V33 创建 / V35 改造）。
  *
- * <p>{@code targetConfig} / {@code notifyConfig} 通过 AttributeConverter 与 JSON 列互转；
- * {@code @JdbcTypeCode(SqlTypes.JSON)} 使 Hibernate 期望 JSON 列类型
- * （dev/prod 的 ddl-auto=validate 校验通过），converter 在 Java 层完成对象↔字符串转换。
- * 敏感 header 值由 Service 层在持久化前加密（实体层不感知加解密）。
+ * <p>V35 改造：移除 {@code targetType}/{@code targetConfig}（HTTP/PRESET 目标），
+ * 改为 {@code scriptId}/{@code scriptVersion}/{@code params}（脚本引用 + 参数快照）。
+ *
+ * <p>{@code notifyConfig} 通过 AttributeConverter 与 JSON 列互转；
+ * {@code params} 为 JSON 文本（参数值快照，不受后续 schema 变更影响）。
  */
 @Data
 @NoArgsConstructor
@@ -49,16 +49,18 @@ public class ScheduledTask {
     @Column(length = 200)
     private String description;
 
-    /** 目标类型：HTTP / PRESET */
-    @Enumerated(EnumType.STRING)
-    @Column(name = "target_type", nullable = false, length = 16)
-    private TargetType targetType;
+    /** 关联脚本 ID（外键 ON DELETE RESTRICT，V35） */
+    @Column(name = "script_id")
+    private Long scriptId;
 
-    /** 目标配置（JSON 列，敏感 header 值已加密） */
+    /** 绑定的脚本版本号（任务绑定特定版本，非 latest） */
+    @Column(name = "script_version")
+    private Integer scriptVersion;
+
+    /** 参数值快照 JSON（{name: value}，创建时绑定，不受后续 schema 变更影响） */
     @JdbcTypeCode(SqlTypes.JSON)
-    @Convert(converter = TargetConfigConverter.class)
-    @Column(name = "target_config", nullable = false)
-    private TaskTargetConfig targetConfig;
+    @Column(name = "params")
+    private String params;
 
     /** cron 表达式（5/6 位） */
     @Column(name = "cron_expression", nullable = false, length = 120)
@@ -92,10 +94,10 @@ public class ScheduledTask {
     @Default
     private Integer retryInterval = 60;
 
-    /** 单次执行超时（秒） */
+    /** 单次执行超时（秒，默认 60，最大 600） */
     @Column(name = "timeout_seconds", nullable = false)
     @Default
-    private Integer timeoutSeconds = 30;
+    private Integer timeoutSeconds = 60;
 
     /** 通知配置（JSON 列，可空 = 不通知） */
     @JdbcTypeCode(SqlTypes.JSON)

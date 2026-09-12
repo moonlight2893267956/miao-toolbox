@@ -8,8 +8,7 @@ import jakarta.persistence.Converter;
 /**
  * {@link NotifyConfig} JSON 持久化转换器。
  *
- * <p>与 {@link TargetConfigConverter} 同样的列策略：生产 JSON 列由 Flyway 管理，
- * 测试库由 Hibernate 按默认 varchar 建列，String 输出两者兼容。
+ * <p>生产 JSON 列由 Flyway 管理，测试库由 Hibernate 按默认 varchar 建列，String 输出两者兼容。
  */
 @Converter
 public class NotifyConfigConverter implements AttributeConverter<NotifyConfig, String> {

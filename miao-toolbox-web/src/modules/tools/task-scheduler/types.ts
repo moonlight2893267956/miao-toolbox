@@ -1,51 +1,48 @@
 /**
  * 定时任务调度模块类型定义（与后端 DTO / 枚举对齐）。
  *
- * 契约来源：`com.miao.toolbox.tool.scheduler.controller.SchedulerController` + `dto/*`。
- * 枚举统一用字符串字面量联合（取值与 Java enum name 一致，不使用 TS enum）。
+ * V35 改造：移除 HTTP/Preset 目标类型，改为脚本引用（scriptId/scriptVersion/params）。
  */
 
-export type TargetType = 'HTTP' | 'PRESET';
 export type TaskStatus = 'ENABLED' | 'PAUSED';
 export type ExecutionStatus = 'SUCCESS' | 'FAILED' | 'TIMEOUT' | 'SKIPPED';
 export type TriggerType = 'SCHEDULED' | 'MANUAL';
 export type NotifyTrigger = 'ALWAYS' | 'ON_FAILURE' | 'ON_SUCCESS';
 export type ToggleAction = 'pause' | 'resume';
+export type ScriptType = 'SHELL' | 'PYTHON';
 
-/** HTTP 请求头（sensitive=true 时后端加密存储，接口回显 ****） */
-export interface TargetHeader {
+/** 脚本参数 schema 项 */
+export interface ScriptParam {
   name: string;
-  value: string;
-  sensitive: boolean;
+  type: 'string' | 'int' | 'bool';
+  default?: string | null;
+  desc?: string | null;
 }
 
-/** HTTP 目标配置（多态判别字段 targetType） */
-export interface HttpTargetConfig {
-  targetType: 'HTTP';
-  method: string;
-  url: string;
-  headers: TargetHeader[];
-  body?: string | null;
-  /** 单次执行超时（秒，1-120）——HTTP 执行器实际使用的超时 */
-  timeoutSeconds?: number | null;
-}
-
-/** 预置运维模板目标（Epic 3 交付） */
-export interface PresetTargetConfig {
-  targetType: 'PRESET';
-  template: string;
-  params?: Record<string, unknown> | null;
-}
-
-/** 预置模板元信息（GET /api/scheduler/preset-templates，前端动态渲染模板选择器） */
-export interface PresetTemplateInfo {
-  code: string;
+/** 脚本列表项 */
+export interface ScriptListItem {
+  id: number;
   name: string;
-  description: string;
-  params: Record<string, string>;
+  description?: string | null;
+  scriptType: ScriptType;
+  latestVersion: number;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
-export type TaskTargetConfig = HttpTargetConfig | PresetTargetConfig;
+/** 脚本详情 */
+export interface ScriptDetail extends ScriptListItem {
+  paramSchema?: ScriptParam[] | null;
+}
+
+/** 脚本版本 */
+export interface ScriptVersion {
+  id: number;
+  scriptId: number;
+  version: number;
+  content: string;
+  createdAt?: string | null;
+}
 
 export interface WebhookNotify {
   url?: string | null;
@@ -66,7 +63,8 @@ export interface NotifyConfig {
 export interface TaskListItem {
   id: number;
   name: string;
-  targetType: TargetType;
+  scriptName?: string | null;
+  scriptVersion?: number | null;
   cronExpression: string;
   status: TaskStatus;
   nextRunAt?: string | null;
@@ -74,13 +72,16 @@ export interface TaskListItem {
   createdAt?: string | null;
 }
 
-/** 任务详情（GET /api/scheduler/tasks/{id}）：敏感 header 值为 **** */
+/** 任务详情（GET /api/scheduler/tasks/{id}） */
 export interface ScheduledTask {
   id: number;
   name: string;
   description?: string | null;
-  targetType: TargetType;
-  targetConfig: TaskTargetConfig;
+  scriptId: number;
+  scriptVersion: number;
+  scriptName?: string | null;
+  scriptType?: ScriptType | null;
+  params?: string | null;
   cronExpression: string;
   timezone: string;
   validFrom?: string | null;
@@ -123,17 +124,19 @@ export interface PagedResponse<T> {
   pageSize: number;
 }
 
-/** 新建 / 编辑任务提交体（CreateTaskRequest / UpdateTaskRequest 的公共字段） */
+/** 新建 / 编辑任务提交体 */
 export interface TaskPayload {
   name: string;
   description?: string | null;
-  targetType: TargetType;
-  targetConfig: TaskTargetConfig;
+  scriptId: number;
+  scriptVersion: number;
+  params?: string | null;
   cronExpression: string;
   timezone: string;
   validFrom?: string | null;
   validUntil?: string | null;
   retryCount?: number | null;
   retryInterval?: number | null;
+  timeoutSeconds?: number | null;
   notifyConfig?: NotifyConfig | null;
 }

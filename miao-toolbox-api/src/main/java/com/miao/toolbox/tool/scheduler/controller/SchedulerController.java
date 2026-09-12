@@ -7,7 +7,6 @@ import com.miao.toolbox.common.response.ApiResponse;
 import com.miao.toolbox.common.response.PagedResponse;
 import com.miao.toolbox.tool.scheduler.dto.CreateTaskRequest;
 import com.miao.toolbox.tool.scheduler.dto.ExecutionListItemResponse;
-import com.miao.toolbox.tool.scheduler.dto.PresetTemplateResponse;
 import com.miao.toolbox.tool.scheduler.dto.TaskExecutionResponse;
 import com.miao.toolbox.tool.scheduler.dto.TaskListItemResponse;
 import com.miao.toolbox.tool.scheduler.dto.TaskResponse;
@@ -17,7 +16,6 @@ import com.miao.toolbox.tool.scheduler.dto.ValidateCronRequest;
 import com.miao.toolbox.tool.scheduler.dto.ValidateCronResponse;
 import com.miao.toolbox.tool.scheduler.entity.ExecutionStatus;
 import com.miao.toolbox.tool.scheduler.entity.TaskStatus;
-import com.miao.toolbox.tool.scheduler.executor.PresetTaskExecutor;
 import com.miao.toolbox.tool.scheduler.service.SchedulerService;
 import com.miao.toolbox.tool.scheduler.service.TaskService;
 import jakarta.validation.Valid;
@@ -34,17 +32,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 /**
- * 定时任务管理 API（FR-1/FR-2/FR-6/FR-9/FR-12）。
+ * 定时任务管理 API（FR-3/FR-4/FR-7/FR-9/FR-13）。
  *
- * <p>仅超级管理员可访问：路由码 {@code TOOL_TASK_SCHEDULER} 未分配给任何角色，
- * 依赖角色路由体系的默认关闭策略（超级管理员隐式通行，其余 403）。
- *
- * <p>类映射为 {@code /api/scheduler}，任务端点统一带 {@code /tasks} 前缀——
- * 执行详情端点 {@code /executions/{id}} 与任务端点前缀不同，需在同一 Controller 内共存
- * （架构规定 SchedulerController 承载全部调度端点）。
+ * <p>V35 改造：移除预置模板列表端点（preset-templates）。
  */
 @Slf4j
 @RestController
@@ -55,13 +46,6 @@ public class SchedulerController {
 
     private final TaskService taskService;
     private final SchedulerService schedulerService;
-    private final PresetTaskExecutor presetTaskExecutor;
-
-    /** 预置模板列表（FR-5）：注册模板的元信息（代码/名称/描述/参数 schema），前端动态渲染。 */
-    @GetMapping("/preset-templates")
-    public ResponseEntity<ApiResponse<List<PresetTemplateResponse>>> presetTemplates() {
-        return ResponseEntity.ok(ApiResponse.success(presetTaskExecutor.listTemplates()));
-    }
 
     @PostMapping("/tasks")
     public ResponseEntity<ApiResponse<TaskResponse>> create(@Valid @RequestBody CreateTaskRequest request) {
@@ -101,14 +85,14 @@ public class SchedulerController {
         return ResponseEntity.ok(ApiResponse.success(taskService.toggleTask(id, request.getAction())));
     }
 
-    /** 手动触发（FR-6）：立即异步提交一次执行，响应不等执行完成。 */
+    /** 手动触发（FR-7）：立即异步提交一次执行，响应不等执行完成。 */
     @PostMapping("/tasks/{id}/execute")
     public ResponseEntity<ApiResponse<Void>> execute(@PathVariable Long id) {
         taskService.executeTask(id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
-    /** cron 校验（FR-2）：5/6 位方言 + 下次 5 次执行时间预览（无副作用）。 */
+    /** cron 校验（FR-4）：5/6 位方言 + 下次 5 次执行时间预览（无副作用）。 */
     @PostMapping("/tasks/validate-cron")
     public ResponseEntity<ApiResponse<ValidateCronResponse>> validateCron(
             @Valid @RequestBody ValidateCronRequest request) {
@@ -127,7 +111,7 @@ public class SchedulerController {
                 taskService.listExecutions(id, page, pageSize, parseExecutionStatus(status))));
     }
 
-    /** 单次执行详情（FR-9）：含请求/响应摘要与错误信息（敏感值写入时已脱敏）。 */
+    /** 单次执行详情（FR-10）。 */
     @GetMapping("/executions/{id}")
     public ResponseEntity<ApiResponse<TaskExecutionResponse>> executionDetail(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(taskService.getExecution(id)));

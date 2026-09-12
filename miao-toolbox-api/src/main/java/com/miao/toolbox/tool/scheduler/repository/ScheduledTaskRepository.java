@@ -26,4 +26,7 @@ public interface ScheduledTaskRepository extends JpaRepository<ScheduledTask, Lo
 
     /** 列表：名称搜索 + 状态筛选组合（FR-1） */
     Page<ScheduledTask> findByNameContainingIgnoreCaseAndStatus(String name, TaskStatus status, Pageable pageable);
+
+    /** 删除保护：统计引用指定脚本的启用状态任务数（FR-1，Story 1.5） */
+    long countByScriptIdAndStatus(Long scriptId, TaskStatus status);
 }

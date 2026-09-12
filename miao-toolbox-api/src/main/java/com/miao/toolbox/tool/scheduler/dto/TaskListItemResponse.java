@@ -1,6 +1,5 @@
 package com.miao.toolbox.tool.scheduler.dto;
 
-import com.miao.toolbox.tool.scheduler.entity.TargetType;
 import com.miao.toolbox.tool.scheduler.entity.TaskStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,7 +9,9 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * 任务列表项响应（FR-1）——精简字段，不含目标配置详情。
+ * 任务列表项响应（FR-3）——精简字段，不含脚本内容。
+ *
+ * <p>V35 改造：移除 {@code targetType}，改为 {@code scriptName}/{@code scriptVersion}（展示用）。
  */
 @Data
 @Builder
@@ -22,7 +23,11 @@ public class TaskListItemResponse {
 
     private String name;
 
-    private TargetType targetType;
+    /** 脚本名称（展示用） */
+    private String scriptName;
+
+    /** 脚本版本号 */
+    private Integer scriptVersion;
 
     private String cronExpression;
 

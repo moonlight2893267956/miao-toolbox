@@ -149,10 +149,15 @@ const TaskListPage: React.FC = () => {
       ),
     },
     {
-      title: '目标',
-      dataIndex: 'targetType',
-      width: 90,
-      render: (value: string) => <span className="ts-muted">{value === 'HTTP' ? 'HTTP' : 'PRESET'}</span>,
+      title: '脚本',
+      dataIndex: 'scriptName',
+      width: 160,
+      render: (name: string | null, task) =>
+        name ? (
+          <span className="ts-muted">{name} v{task.scriptVersion ?? '-'}</span>
+        ) : (
+          <span className="ts-muted">-</span>
+        ),
     },
     {
       title: 'Cron',
@@ -246,7 +251,7 @@ const TaskListPage: React.FC = () => {
         <SchedulerHeader
           icon={<ClockCircleOutlined />}
           title="定时任务"
-          subtitle="cron 调度 HTTP 目标 · 执行记录可追溯 · 失败自动重试"
+          subtitle="cron 调度自定义脚本 · 执行记录可追溯 · 失败自动重试"
           live
           actions={
             <>

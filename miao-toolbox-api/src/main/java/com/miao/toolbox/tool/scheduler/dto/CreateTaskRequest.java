@@ -1,8 +1,6 @@
 package com.miao.toolbox.tool.scheduler.dto;
 
 import com.miao.toolbox.tool.scheduler.entity.NotifyConfig;
-import com.miao.toolbox.tool.scheduler.entity.TaskTargetConfig;
-import com.miao.toolbox.tool.scheduler.entity.TargetType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -14,10 +12,9 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * 创建定时任务请求（FR-1/FR-2/FR-3）。
+ * 创建定时任务请求（FR-3）。
  *
- * <p>{@code targetConfig} 为多态 JSON（targetType 判别），由 Jackson 反序列化为
- * {@link TaskTargetConfig}；敏感 header 值由 Service 层加密后持久化。
+ * <p>V35 改造：{@code targetType}/{@code targetConfig} 替换为 {@code scriptId}/{@code scriptVersion}/{@code params}。
  */
 @Data
 @Builder
@@ -32,11 +29,14 @@ public class CreateTaskRequest {
     @Size(max = 200, message = "描述最长 200 字")
     private String description;
 
-    @NotNull(message = "目标类型不能为空")
-    private TargetType targetType;
+    @NotNull(message = "脚本不能为空")
+    private Long scriptId;
 
-    @NotNull(message = "目标配置不能为空")
-    private TaskTargetConfig targetConfig;
+    @NotNull(message = "脚本版本不能为空")
+    private Integer scriptVersion;
+
+    /** 参数值（JSON 对象，按脚本 param schema 渲染；可空 = 无参数脚本） */
+    private String params;
 
     @NotBlank(message = "cron 表达式不能为空")
     @Size(max = 120, message = "cron 表达式最长 120 字符")

@@ -22,16 +22,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * 执行引擎（FR-4/FR-7/NFR-3/NFR-5）——任务触发 → skip 重叠 → 异步执行 → 重试 → 记录落库。
+ * 执行引擎（FR-6/FR-7/FR-8/NFR-3/NFR-5）——任务触发 → skip 重叠 → 异步执行 → 重试 → 记录落库。
  *
- * <p>线程模型（NFR-3）：调度线程（poolSize=2）仅做 CAS 检查与任务提交，实际执行
- * 在独立执行线程池（max=10，NFR-6）——单任务执行不阻塞调度。
- *
- * <p>skip 重叠（FR-7）：runningFlags 按任务 CAS；到点触发时上一次尚未完成 →
- * 记一条 SKIPPED 执行记录。手动触发同样受重叠约束（同任务不并发）。
- *
- * <p>执行记录（FR-8）：执行完成后同步写入（不在异步通知中）；一次执行（含全部重试）
- * 对应一条记录，retry_count 记实际尝试次数。
+ * <p>V35 改造：移除 TargetType 分发，改为单一脚本执行器（ScriptTaskExecutor，后续 Story 2.3 交付）。
+ * 在执行器注册前，dispatch 返回 FAILED（无可用执行器）。
  */
 @Slf4j
 @Service
@@ -63,20 +57,15 @@ public class ExecutionEngine {
         submit(taskId, TriggerType.SCHEDULED);
     }
 
-    /** 手动触发入口（ts-1-4 Controller 调用） */
+    /** 手动触发入口（Controller 调用） */
     public void triggerManual(Long taskId) {
         submit(taskId, TriggerType.MANUAL);
     }
 
-    /**
-     * 提交执行：CAS 重叠检查（快）后异步提交到执行线程池。
-     * 调度线程在此方法返回后立即空闲，不被执行拖住（NFR-3）。
-     */
     private void submit(Long taskId, TriggerType triggerType) {
         try {
             executor.execute(() -> runWithOverlapGuard(taskId, triggerType));
         } catch (Exception e) {
-            // 线程池已 shutdown 等极端场景：不影响调用方（调度线程）
             log.error("[task:{}] submit execution failed: {}", taskId, e.getMessage());
         }
     }
@@ -101,12 +90,10 @@ public class ExecutionEngine {
             log.warn("[task:{}] task not found at execution time (deleted?)", taskId);
             return;
         }
-        // 竞态防御：调度触发的瞬间任务被暂停/到期——SCHEDULED 且非 ENABLED 直接放弃
         if (triggerType == TriggerType.SCHEDULED && task.getStatus() != TaskStatus.ENABLED) {
             log.info("[task:{}] scheduled trigger dropped, task status={}", taskId, task.getStatus());
             return;
         }
-        // 生效窗口检查（FR-2）：SCHEDULED 触发时校验 validFrom/validUntil
         if (triggerType == TriggerType.SCHEDULED) {
             LocalDateTime now = LocalDateTime.now();
             if (task.getValidFrom() != null && now.isBefore(task.getValidFrom())) {
@@ -114,8 +101,6 @@ public class ExecutionEngine {
                 return;
             }
             if (task.getValidUntil() != null && now.isAfter(task.getValidUntil())) {
-                // PRD FR-2：超出结束时间后任务自动暂停。调度句柄保留无害（下次触发被
-                // status 防御快速放弃），重启后 recovery 只恢复 ENABLED → 调度彻底消失。
                 log.info("[task:{}] auto-pausing expired task (validUntil={})", taskId, task.getValidUntil());
                 task.setStatus(TaskStatus.PAUSED);
                 try {
@@ -174,7 +159,6 @@ public class ExecutionEngine {
         log.info("[task:{}] execution finished status={} attempts={} durationMs={}",
                 taskId, result.status(), attempts, execution.getDurationMs());
 
-        // 通知（FR-10）：异步发送，失败仅记日志，不影响执行结果
         try {
             notificationService.onExecutionFinished(task, execution);
         } catch (Exception e) {
@@ -183,14 +167,11 @@ public class ExecutionEngine {
     }
 
     private ExecutionResult dispatch(ScheduledTask task) {
-        TaskExecutor executorImpl = executors.stream()
-                .filter(e -> e.supports() == task.getTargetType())
-                .findFirst()
-                .orElse(null);
-        if (executorImpl == null) {
+        if (executors.isEmpty()) {
             return ExecutionResult.of(ExecutionStatus.FAILED, null, null,
-                    "不支持的目标类型: " + task.getTargetType());
+                    "无可用执行器（脚本执行器尚未注册）");
         }
+        TaskExecutor executorImpl = executors.get(0);
         return executorImpl.execute(task);
     }
 

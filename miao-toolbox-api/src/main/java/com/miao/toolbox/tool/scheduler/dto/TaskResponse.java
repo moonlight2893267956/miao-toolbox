@@ -1,8 +1,7 @@
 package com.miao.toolbox.tool.scheduler.dto;
 
 import com.miao.toolbox.tool.scheduler.entity.NotifyConfig;
-import com.miao.toolbox.tool.scheduler.entity.TaskTargetConfig;
-import com.miao.toolbox.tool.scheduler.entity.TargetType;
+import com.miao.toolbox.tool.scheduler.entity.ScriptType;
 import com.miao.toolbox.tool.scheduler.entity.TaskStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,10 +11,10 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * 任务详情响应（FR-1/FR-9）。
+ * 任务详情响应（FR-3/FR-10）。
  *
- * <p>{@code targetConfig} 中敏感 header 值已被 Service 层替换为 {@code ****} 占位
- * （不回显明文，也不返回密文）；{@code nextRunAt} 为 ENABLED 状态下按 cron + 时区计算的下次执行时间。
+ * <p>V35 改造：移除 {@code targetType}/{@code targetConfig}，
+ * 改为 {@code scriptId}/{@code scriptVersion}/{@code params} + {@code scriptName}/{@code scriptType}（展示用）。
  */
 @Data
 @Builder
@@ -29,10 +28,18 @@ public class TaskResponse {
 
     private String description;
 
-    private TargetType targetType;
+    private Long scriptId;
 
-    /** 目标配置（敏感 header 值 = ****） */
-    private TaskTargetConfig targetConfig;
+    private Integer scriptVersion;
+
+    /** 脚本名称（展示用，Service 层关联查询填充） */
+    private String scriptName;
+
+    /** 脚本类型（展示用） */
+    private ScriptType scriptType;
+
+    /** 参数值快照 JSON 文本 */
+    private String params;
 
     private String cronExpression;
 

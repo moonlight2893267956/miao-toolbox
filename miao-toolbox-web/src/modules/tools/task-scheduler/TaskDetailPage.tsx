@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Alert, Button, Descriptions, Modal, Tag, Tooltip, message } from 'antd';
+import { Alert, Button, Descriptions, Modal, Tag, message } from 'antd';
 import {
   ArrowLeftOutlined,
   DeleteOutlined,
@@ -12,8 +12,8 @@ import {
 } from '@ant-design/icons';
 import PageFadeIn from '../../../components/shared/PageFadeIn';
 import { schedulerApi } from './schedulerApi';
-import type { HttpTargetConfig, ScheduledTask } from './types';
-import { extractErrorMessage, formatDateTime } from './format';
+import type { ScheduledTask } from './types';
+import { extractErrorMessage, formatDateTime, prettyJson } from './format';
 import SchedulerHeader from './components/SchedulerHeader';
 import SchedulerPanel from './components/SchedulerPanel';
 import TaskStatusTag from './components/TaskStatusTag';
@@ -27,7 +27,7 @@ const TRIGGER_LABEL: Record<string, string> = {
   ON_SUCCESS: '仅成功时',
 };
 
-/** 任务详情页（FR-9）：配置分区 + 执行历史 + 操作入口 */
+/** 任务详情页（FR-10）：配置分区 + 执行历史 + 操作入口 */
 const TaskDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -37,9 +37,7 @@ const TaskDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  /** 自增后触发执行历史表格重新拉取 */
   const [historyToken, setHistoryToken] = useState(0);
-  /** 「立即执行」延时刷新的定时器：卸载时清理 */
   const refreshTimerRef = React.useRef<number | null>(null);
 
   useEffect(
@@ -116,9 +114,6 @@ const TaskDetailPage: React.FC = () => {
     });
   }, [navigate, task]);
 
-  const http: HttpTargetConfig | null =
-    task?.targetConfig?.targetType === 'HTTP' ? (task.targetConfig as HttpTargetConfig) : null;
-
   const header = (
     <SchedulerHeader
       icon={<ThunderboltOutlined />}
@@ -126,7 +121,7 @@ const TaskDetailPage: React.FC = () => {
       subtitle={
         task
           ? `任务 #${task.id} · 调度${task.status === 'ENABLED' ? '运行中' : '已暂停'} · ${task.timezone}`
-          : '调度配置 · 目标配置 · 执行历史'
+          : '调度配置 · 脚本配置 · 执行历史'
       }
       live={task?.status === 'ENABLED'}
       actions={
@@ -189,14 +184,11 @@ const TaskDetailPage: React.FC = () => {
                 <Descriptions.Item label="描述" span={2}>
                   {task.description || <span className="ts-muted">-</span>}
                 </Descriptions.Item>
-                <Descriptions.Item label="目标类型">
-                  <Tag>{task.targetType === 'HTTP' ? 'HTTP 请求' : '预置模板'}</Tag>
-                </Descriptions.Item>
                 <Descriptions.Item label="上次执行状态">
                   <ExecutionStatusTag status={task.lastExecutionStatus} />
                 </Descriptions.Item>
                 <Descriptions.Item label="创建时间">{formatDateTime(task.createdAt)}</Descriptions.Item>
-                <Descriptions.Item label="更新时间">{formatDateTime(task.updatedAt)}</Descriptions.Item>
+                <Descriptions.Item label="更新时间" span={2}>{formatDateTime(task.updatedAt)}</Descriptions.Item>
               </Descriptions>
             </SchedulerPanel>
 
@@ -224,61 +216,24 @@ const TaskDetailPage: React.FC = () => {
               </Descriptions>
             </SchedulerPanel>
 
-            <SchedulerPanel label="目标配置" meta={http ? http.method : 'PRESET'} tone="target" index={2}>
-              {http ? (
-                <Descriptions size="small" column={2} bordered>
-                  <Descriptions.Item label="请求方法">
-                    <Tag>{http.method}</Tag>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="超时">{http.timeoutSeconds ?? 30} 秒</Descriptions.Item>
-                  <Descriptions.Item label="目标 URL" span={2}>
-                    <span className="ts-url">{http.url}</span>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="请求头" span={2}>
-                    {(http.headers ?? []).length === 0 ? (
-                      <span className="ts-muted">未配置</span>
-                    ) : (
-                      <div className="ts-header-list">
-                        {(http.headers ?? []).map((header, index) => (
-                          <div className="ts-header-item" key={`${index}-${header.name}`}>
-                            <span className="ts-header-item-name">{header.name}</span>
-                            <span className="ts-header-item-value">
-                              {header.sensitive ? (
-                                <Tooltip title="敏感值已由服务端加密存储，此处仅显示占位">
-                                  <i>{header.value || '****'}</i>
-                                </Tooltip>
-                              ) : (
-                                header.value
-                              )}
-                            </span>
-                            {header.sensitive ? <Tag color="gold">敏感</Tag> : null}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="请求体" span={2}>
-                    {http.body ? (
-                      <pre className="ts-body-preview">{http.body}</pre>
-                    ) : (
-                      <span className="ts-muted">无</span>
-                    )}
-                  </Descriptions.Item>
-                </Descriptions>
-              ) : (
-                <Descriptions size="small" column={2} bordered>
-                  <Descriptions.Item label="模板">
-                    {task.targetConfig?.targetType === 'PRESET'
-                      ? (task.targetConfig.template ?? '-')
-                      : '-'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="留存天数">
-                    {task.targetConfig?.targetType === 'PRESET'
-                      ? (task.targetConfig.params?.retentionDays ?? 30)
-                      : '-'}
-                  </Descriptions.Item>
-                </Descriptions>
-              )}
+            <SchedulerPanel label="脚本配置" meta={task.scriptName ?? `脚本 #${task.scriptId}`} tone="target" index={2}>
+              <Descriptions size="small" column={2} bordered>
+                <Descriptions.Item label="脚本名称">
+                  {task.scriptName ?? <span className="ts-muted">-</span>}
+                </Descriptions.Item>
+                <Descriptions.Item label="脚本类型">
+                  {task.scriptType ? <Tag>{task.scriptType}</Tag> : <span className="ts-muted">-</span>}
+                </Descriptions.Item>
+                <Descriptions.Item label="版本">v{task.scriptVersion}</Descriptions.Item>
+                <Descriptions.Item label="超时">{task.timeoutSeconds} 秒</Descriptions.Item>
+                <Descriptions.Item label="参数" span={2}>
+                  {task.params ? (
+                    <pre className="ts-body-preview">{prettyJson(JSON.parse(task.params))}</pre>
+                  ) : (
+                    <span className="ts-muted">无参数</span>
+                  )}
+                </Descriptions.Item>
+              </Descriptions>
             </SchedulerPanel>
 
             <SchedulerPanel label="通知配置" meta="Webhook · 邮件" tone="notify" index={3}>

@@ -52,7 +52,7 @@ export function prettyJson(value?: Record<string, unknown> | null): string {
   }
 }
 
-/** http/https 协议校验（与后端 FR-13 白名单一致；SSRF 由服务端判定）。空值放行，由 required 规则接管。 */
+/** http/https 协议校验（Webhook URL 用，与后端 FR-15 白名单一致；SSRF 由服务端判定）。空值放行。 */
 export function validateUrl(_rule: unknown, value?: string): Promise<void> {
   if (!value) {
     return Promise.resolve();
