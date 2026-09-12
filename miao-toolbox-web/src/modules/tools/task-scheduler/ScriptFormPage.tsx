@@ -99,6 +99,10 @@ const ScriptFormPage: React.FC = () => {
         } else {
           await schedulerApi.createScript(payload);
           message.success('脚本已创建');
+          // KeepAlive 下本页不会卸载：创建后重置，避免下次「新建脚本」残留上次内容
+          form.resetFields();
+          setContent('');
+          setScriptType('SHELL');
         }
         navigate('/tools/task-scheduler/scripts');
       } catch (err) {

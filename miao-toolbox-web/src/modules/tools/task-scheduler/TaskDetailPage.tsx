@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Alert, Button, Descriptions, Modal, Tag, message } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -32,6 +32,9 @@ const TaskDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const taskId = Number(id);
+  const location = useLocation();
+  /** KeepAlive 下本页被缓存而非卸载，用 pathname 判断是否处于激活状态 */
+  const isActive = location.pathname === `/tools/task-scheduler/${taskId}`;
 
   const [task, setTask] = useState<ScheduledTask | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,8 +64,10 @@ const TaskDetailPage: React.FC = () => {
   }, [taskId]);
 
   useEffect(() => {
+    // 仅在激活时拉取：从编辑页返回时刷新，避免 KeepAlive 复用旧详情
+    if (!isActive) return;
     void load();
-  }, [load]);
+  }, [isActive, load]);
 
   const handleToggle = useCallback(async () => {
     if (!task) return;

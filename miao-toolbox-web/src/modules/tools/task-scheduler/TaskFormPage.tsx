@@ -6,10 +6,12 @@ import {
   Button,
   Col,
   DatePicker,
+  Empty,
   Form,
   Input,
   InputNumber,
   Row,
+  Select,
   Spin,
   message,
 } from 'antd';
@@ -17,7 +19,7 @@ import type { Dayjs } from 'dayjs';
 import { ArrowLeftOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import PageFadeIn from '../../../components/shared/PageFadeIn';
 import { schedulerApi } from './schedulerApi';
-import type { NotifyTrigger, ScheduledTask, TaskPayload } from './types';
+import type { NotifyTrigger, ScheduledTask, ScriptType, TaskPayload } from './types';
 import { extractErrorMessage, fromLocalDateTime, toLocalDateTimeIso } from './format';
 import SchedulerHeader from './components/SchedulerHeader';
 import SchedulerPanel from './components/SchedulerPanel';
@@ -36,6 +38,26 @@ const COMMON_TIMEZONES = [
   'America/Los_Angeles',
   'UTC',
 ].map((value) => ({ value }));
+
+/** 脚本下拉一次拉取的上限（后端 pageSize 上限 100），搜索走客户端过滤 */
+const SCRIPT_OPTION_LIMIT = 100;
+
+interface ScriptOption {
+  value: number;
+  /** 纯文本 label：便于 Select 内置过滤 */
+  label: string;
+}
+
+interface VersionOption {
+  value: number;
+  label: string;
+}
+
+function scriptTypeLabel(type?: ScriptType | null): string {
+  if (type === 'PYTHON') return 'Python';
+  if (type === 'SHELL') return 'Shell';
+  return '脚本';
+}
 
 interface TaskFormValues {
   name: string;
@@ -147,12 +169,86 @@ const TaskFormPage: React.FC = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [initialValues, setInitialValues] = useState<TaskFormValues>(DEFAULT_VALUES);
 
+  /** 脚本 / 版本下拉选项 */
+  const [scriptOptions, setScriptOptions] = useState<ScriptOption[]>([]);
+  const [scriptOptionsLoading, setScriptOptionsLoading] = useState(true);
+  const [versionOptions, setVersionOptions] = useState<VersionOption[]>([]);
+  const [versionOptionsLoading, setVersionOptionsLoading] = useState(false);
+
   const timezoneValue = Form.useWatch('timezone', form) ?? 'Asia/Shanghai';
+  const selectedScriptId = Form.useWatch('scriptId', form) ?? null;
+
+  /**
+   * 拉取脚本下拉选项（上限 SCRIPT_OPTION_LIMIT，输入过滤由 Select 客户端完成）。
+   * {@code ensure}：编辑场景下若目标脚本不在前 N 条内，补一条选项避免下拉显示裸 ID。
+   */
+  const loadScriptOptions = useCallback(
+    async (ensure?: { id: number; name: string; type?: ScriptType | null }) => {
+      setScriptOptionsLoading(true);
+      try {
+        const data = await schedulerApi.listScripts({ page: 1, pageSize: SCRIPT_OPTION_LIMIT });
+        const options: ScriptOption[] = (data.items ?? []).map((s) => ({
+          value: s.id,
+          label: `${s.name} · ${scriptTypeLabel(s.scriptType)}`,
+        }));
+        if (ensure && !options.some((option) => option.value === ensure.id)) {
+          options.unshift({
+            value: ensure.id,
+            label: `${ensure.name} · ${scriptTypeLabel(ensure.type)}`,
+          });
+        }
+        setScriptOptions(options);
+      } catch (err) {
+        message.error(extractErrorMessage(err, '脚本列表加载失败'));
+      } finally {
+        setScriptOptionsLoading(false);
+      }
+    },
+    [],
+  );
+
+  /** 拉取指定脚本的版本选项（后端按版本倒序返回，首项即最新） */
+  const loadVersionOptions = useCallback(async (scriptId: number) => {
+    setVersionOptionsLoading(true);
+    try {
+      const versions = await schedulerApi.listScriptVersions(scriptId);
+      const options: VersionOption[] = versions.map((v, index) => ({
+        value: v.version,
+        label: index === 0 ? `v${v.version}（最新）` : `v${v.version}`,
+      }));
+      setVersionOptions(options);
+      return options;
+    } catch (err) {
+      setVersionOptions([]);
+      message.error(extractErrorMessage(err, '脚本版本加载失败'));
+      return [];
+    } finally {
+      setVersionOptionsLoading(false);
+    }
+  }, []);
+
+  /** 切换脚本：清空版本并默认选中最新版本（FR-5） */
+  const handleScriptChange = useCallback(
+    (scriptId?: number) => {
+      form.setFieldValue('scriptVersion', undefined);
+      setVersionOptions([]);
+      if (scriptId === undefined || scriptId === null) {
+        return;
+      }
+      void loadVersionOptions(scriptId).then((options) => {
+        if (options.length > 0) {
+          form.setFieldValue('scriptVersion', options[0].value);
+        }
+      });
+    },
+    [form, loadVersionOptions],
+  );
 
   useEffect(() => {
     if (!isEdit) {
       setInitialValues(DEFAULT_VALUES);
-      setLoading(false);
+      setScriptOptionsLoading(false);
+      void loadScriptOptions();
       return;
     }
     let cancelled = false;
@@ -162,6 +258,13 @@ const TaskFormPage: React.FC = () => {
       .then((task) => {
         if (cancelled) return;
         setInitialValues(toFormValues(task));
+        // 版本值由 initialValues 带入，此处仅预加载选项，不覆盖已绑定版本
+        void loadScriptOptions({
+          id: task.scriptId,
+          name: task.scriptName ?? `#${task.scriptId}`,
+          type: task.scriptType,
+        });
+        void loadVersionOptions(task.scriptId);
       })
       .catch((err) => {
         if (!cancelled) setLoadError(extractErrorMessage(err, '任务详情加载失败'));
@@ -172,7 +275,7 @@ const TaskFormPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [isEdit, taskId]);
+  }, [isEdit, taskId, loadScriptOptions, loadVersionOptions]);
 
   const handleSubmit = useCallback(
     async (values: TaskFormValues) => {
@@ -207,6 +310,9 @@ const TaskFormPage: React.FC = () => {
         } else {
           await schedulerApi.createTask(payload);
           message.success('任务已创建');
+          // KeepAlive 下本页不会卸载：创建后重置，避免下次「新建任务」残留上次内容
+          form.resetFields();
+          setVersionOptions([]);
         }
         navigate('/tools/task-scheduler');
       } catch (err) {
@@ -215,7 +321,7 @@ const TaskFormPage: React.FC = () => {
         setSubmitting(false);
       }
     },
-    [isEdit, navigate, taskId],
+    [form, isEdit, navigate, taskId],
   );
 
   const header = (
@@ -332,27 +438,56 @@ const TaskFormPage: React.FC = () => {
 
               <SchedulerPanel label="脚本配置" meta="关联脚本版本与参数" tone="target" index={2}>
                 <Row gutter={12}>
-                  <Col xs={24} md={12}>
+                  <Col xs={24} md={14}>
                     <Form.Item
                       name="scriptId"
-                      label="脚本 ID"
-                      rules={[{ required: true, message: '请输入脚本 ID' }]}
-                      extra="脚本管理页创建后获取 ID（脚本管理 UI 在后续 Story 交付）"
+                      label="脚本"
+                      rules={[{ required: true, message: '请选择脚本' }]}
                     >
-                      <InputNumber min={1} style={{ width: '100%' }} placeholder="输入脚本 ID" />
+                      <Select
+                        showSearch
+                        allowClear
+                        loading={scriptOptionsLoading}
+                        placeholder="选择要执行的脚本"
+                        options={scriptOptions}
+                        optionFilterProp="label"
+                        onChange={(value?: number) => handleScriptChange(value)}
+                        notFoundContent={
+                          scriptOptionsLoading ? (
+                            <div className="ts-select-loading">
+                              <Spin size="small" />
+                            </div>
+                          ) : (
+                            <Empty
+                              image={Empty.PRESENTED_IMAGE_SIMPLE}
+                              description="暂无脚本，请先到「脚本管理」创建"
+                            />
+                          )
+                        }
+                      />
                     </Form.Item>
                   </Col>
-                  <Col xs={24} md={12}>
+                  <Col xs={24} md={10}>
                     <Form.Item
                       name="scriptVersion"
-                      label="脚本版本"
-                      rules={[{ required: true, message: '请输入脚本版本' }]}
+                      label="版本"
+                      rules={[{ required: true, message: '请选择脚本版本' }]}
+                      extra="任务绑定固定版本；脚本后续发布新版本不影响本任务"
                     >
-                      <InputNumber min={1} style={{ width: '100%' }} placeholder="如：1" />
+                      <Select
+                        loading={versionOptionsLoading}
+                        disabled={selectedScriptId === null || selectedScriptId === undefined}
+                        placeholder={selectedScriptId ? '选择版本' : '请先选择脚本'}
+                        options={versionOptions}
+                      />
                     </Form.Item>
                   </Col>
                 </Row>
-                <Form.Item name="params" label="参数（JSON）" extra='参数值 JSON，如 {"retentionDays": 30}；无参数脚本留空'>
+                <Form.Item
+                  name="params"
+                  label="参数（JSON）"
+                  extra='脚本参数值，如 {"retentionDays": 30}；无参数脚本留空'
+                >
                   <Input.TextArea rows={3} placeholder='{"retentionDays": 30}' />
                 </Form.Item>
               </SchedulerPanel>

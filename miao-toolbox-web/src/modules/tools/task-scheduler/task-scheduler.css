@@ -691,6 +691,13 @@
   padding-top: 2px;
 }
 
+/* 下拉加载态（Select notFoundContent） */
+.ts-select-loading {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
+
 /* Header 编辑器 */
 .ts-header-editor {
   display: flex;

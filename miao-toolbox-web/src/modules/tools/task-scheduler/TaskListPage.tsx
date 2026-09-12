@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Alert, Button, Input, Modal, Select, Table, Tooltip, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -35,6 +35,9 @@ const EXECUTE_REFRESH_DELAY = 1500;
 /** 任务列表页（FR-1/FR-6） */
 const TaskListPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  /** KeepAlive 下本页被缓存而非卸载，用 pathname 判断是否处于激活状态 */
+  const isActive = location.pathname === '/tools/task-scheduler';
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -78,8 +81,11 @@ const TaskListPage: React.FC = () => {
   }, [page, pageSize, keyword, status]);
 
   useEffect(() => {
+    // 仅在激活时拉取：首次进入 + 从表单页返回（pathname 重新指向本页）都会刷新，
+    // 避免 KeepAlive 复用旧列表导致「保存后返回看不到新数据」
+    if (!isActive) return;
     void load();
-  }, [load]);
+  }, [isActive, load]);
 
   const handleToggle = useCallback(
     async (task: TaskListItem) => {

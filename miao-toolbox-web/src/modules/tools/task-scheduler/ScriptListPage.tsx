@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Alert, Button, Input, Modal, Table, Tag, Tooltip, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -26,6 +26,9 @@ const TYPE_LABEL: Record<string, { text: string; color: string }> = {
 /** 脚本列表页（FR-1） */
 const ScriptListPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  /** KeepAlive 下本页被缓存而非卸载，用 pathname 判断是否处于激活状态 */
+  const isActive = location.pathname === '/tools/task-scheduler/scripts';
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -57,8 +60,11 @@ const ScriptListPage: React.FC = () => {
   }, [page, pageSize, keyword]);
 
   useEffect(() => {
+    // 仅在激活时拉取：首次进入 + 从表单页返回（pathname 重新指向本页）都会刷新，
+    // 避免 KeepAlive 复用旧列表导致「保存后返回看不到新数据」
+    if (!isActive) return;
     void load();
-  }, [load]);
+  }, [isActive, load]);
 
   const handleDelete = useCallback(
     (script: ScriptListItem) => {
