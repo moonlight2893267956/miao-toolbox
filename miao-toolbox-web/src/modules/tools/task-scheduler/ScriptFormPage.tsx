@@ -3,13 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Alert, Button, Col, Form, Input, Radio, Row, Spin, message } from 'antd';
 import { ArrowLeftOutlined, CodeOutlined } from '@ant-design/icons';
 import PageFadeIn from '../../../components/shared/PageFadeIn';
-import { schedulerApi } from '../schedulerApi';
-import type { ScriptDetail, ScriptType } from '../types';
-import { extractErrorMessage } from '../format';
-import SchedulerHeader from '../components/SchedulerHeader';
-import SchedulerPanel from '../components/SchedulerPanel';
-import ScriptEditor from '../components/ScriptEditor';
-import '../task-scheduler.css';
+import { schedulerApi } from './schedulerApi';
+import type { ScriptDetail, ScriptType } from './types';
+import { extractErrorMessage } from './format';
+import SchedulerHeader from './components/SchedulerHeader';
+import SchedulerPanel from './components/SchedulerPanel';
+import ScriptEditor from './components/ScriptEditor';
+import './task-scheduler.css';
 
 interface ScriptFormValues {
   name: string;

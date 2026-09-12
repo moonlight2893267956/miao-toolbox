@@ -3,21 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import { Alert, Button, Input, Modal, Table, Tag, Tooltip, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
-  ClockCircleOutlined,
+  CodeOutlined,
   DeleteOutlined,
   EditOutlined,
   PlusOutlined,
   ReloadOutlined,
-  CodeOutlined,
 } from '@ant-design/icons';
 import PageFadeIn from '../../../components/shared/PageFadeIn';
-import { schedulerApi } from '../schedulerApi';
-import type { ScriptListItem } from '../types';
-import { extractErrorMessage, formatDateTime } from '../format';
-import SchedulerHeader from '../components/SchedulerHeader';
-import SchedulerPanel from '../components/SchedulerPanel';
-import SchedulerEmpty from '../components/SchedulerEmpty';
-import '../task-scheduler.css';
+import { schedulerApi } from './schedulerApi';
+import type { ScriptListItem } from './types';
+import { extractErrorMessage, formatDateTime } from './format';
+import SchedulerHeader from './components/SchedulerHeader';
+import SchedulerPanel from './components/SchedulerPanel';
+import SchedulerEmpty from './components/SchedulerEmpty';
+import './task-scheduler.css';
 
 const TYPE_LABEL: Record<string, { text: string; color: string }> = {
   SHELL: { text: 'Shell', color: 'green' },
