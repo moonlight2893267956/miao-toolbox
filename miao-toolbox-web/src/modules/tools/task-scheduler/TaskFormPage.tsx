@@ -13,10 +13,11 @@ import {
   Row,
   Select,
   Spin,
+  Tooltip,
   message,
 } from 'antd';
 import type { Dayjs } from 'dayjs';
-import { ArrowLeftOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, ClockCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import PageFadeIn from '../../../components/shared/PageFadeIn';
 import { schedulerApi } from './schedulerApi';
 import type { NotifyTrigger, ScheduledTask, ScriptType, TaskPayload } from './types';
@@ -174,6 +175,7 @@ const TaskFormPage: React.FC = () => {
   const [scriptOptionsLoading, setScriptOptionsLoading] = useState(true);
   const [versionOptions, setVersionOptions] = useState<VersionOption[]>([]);
   const [versionOptionsLoading, setVersionOptionsLoading] = useState(false);
+  const [versionRefreshing, setVersionRefreshing] = useState(false);
 
   const timezoneValue = Form.useWatch('timezone', form) ?? 'Asia/Shanghai';
   const selectedScriptId = Form.useWatch('scriptId', form) ?? null;
@@ -243,6 +245,26 @@ const TaskFormPage: React.FC = () => {
     },
     [form, loadVersionOptions],
   );
+
+  /** 手动刷新版本列表：重新拉取当前脚本的版本，若发现更新版本则提示 */
+  const handleRefreshVersions = useCallback(async () => {
+    if (selectedScriptId === null || selectedScriptId === undefined) return;
+    setVersionRefreshing(true);
+    try {
+      const options = await loadVersionOptions(selectedScriptId);
+      const currentVersion = form.getFieldValue('scriptVersion');
+      if (options.length > 0 && currentVersion != null) {
+        const latest = options[0].value;
+        if (latest !== currentVersion) {
+          message.info(`发现新版本 v${latest}，当前绑定 v${currentVersion}`);
+        } else {
+          message.success('已是最新版本');
+        }
+      }
+    } finally {
+      setVersionRefreshing(false);
+    }
+  }, [selectedScriptId, form, loadVersionOptions]);
 
   useEffect(() => {
     if (!isEdit) {
@@ -470,7 +492,21 @@ const TaskFormPage: React.FC = () => {
                   <Col xs={24} md={10}>
                     <Form.Item
                       name="scriptVersion"
-                      label="版本"
+                      label={
+                        <div className="ts-version-label-row">
+                          <span>版本</span>
+                          <Tooltip title="刷新脚本版本列表">
+                            <Button
+                              type="text"
+                              size="small"
+                              className="ts-version-refresh-btn"
+                              icon={<ReloadOutlined spin={versionRefreshing || versionOptionsLoading} />}
+                              disabled={!selectedScriptId || versionRefreshing}
+                              onClick={() => void handleRefreshVersions()}
+                            />
+                          </Tooltip>
+                        </div>
+                      }
                       rules={[{ required: true, message: '请选择脚本版本' }]}
                       extra="任务绑定固定版本；脚本后续发布新版本不影响本任务"
                     >

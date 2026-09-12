@@ -698,6 +698,21 @@
   padding: 8px 0;
 }
 
+/* 版本标签行：标签文字 + 手动刷新按钮（脚本发布新版本后无需离开编辑页即可拉到） */
+.ts-version-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ts-version-refresh-btn {
+  color: var(--miao-text-tertiary);
+}
+
+.ts-version-refresh-btn:hover:not(:disabled) {
+  color: var(--tool-accent);
+}
+
 /* Header 编辑器 */
 .ts-header-editor {
   display: flex;

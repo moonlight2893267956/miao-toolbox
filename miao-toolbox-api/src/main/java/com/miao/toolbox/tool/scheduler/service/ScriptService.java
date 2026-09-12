@@ -58,7 +58,8 @@ public class ScriptService {
             throw new BusinessException(ErrorCode.SCHEDULER_SCRIPT_NAME_DUPLICATED,
                     "脚本名称已存在：" + name, 400);
         }
-        validateContent(req.getContent());
+        String content = normalizeContent(req.getContent());
+        validateContent(content);
         validateScriptType(req.getScriptType());
 
         Script script = Script.builder()
@@ -72,7 +73,7 @@ public class ScriptService {
         ScriptVersion version = ScriptVersion.builder()
                 .scriptId(saved.getId())
                 .version(1)
-                .content(req.getContent())
+                .content(content)
                 .build();
         scriptVersionRepository.save(version);
 
@@ -97,14 +98,15 @@ public class ScriptService {
         script.setName(name);
         script.setDescription(req.getDescription());
 
-        // 内容变更 → 生成新版本
-        String newContent = req.getContent();
+        // 内容变更 → 生成新版本（归一化后比较，避免行尾差异导致误判）
+        String newContent = normalizeContent(req.getContent());
         if (newContent != null && !newContent.isBlank()) {
             validateContent(newContent);
             ScriptVersion latestVersion = scriptVersionRepository
                     .findByScriptIdAndVersion(id, script.getLatestVersion())
                     .orElse(null);
-            if (latestVersion == null || !newContent.equals(latestVersion.getContent())) {
+            String storedContent = latestVersion != null ? normalizeContent(latestVersion.getContent()) : null;
+            if (storedContent == null || !newContent.equals(storedContent)) {
                 int nextVersion = script.getLatestVersion() + 1;
                 ScriptVersion version = ScriptVersion.builder()
                         .scriptId(id)
@@ -114,6 +116,8 @@ public class ScriptService {
                 scriptVersionRepository.save(version);
                 script.setLatestVersion(nextVersion);
                 log.info("[script:{}] action=UPDATE new_version={}", id, nextVersion);
+            } else {
+                log.debug("[script:{}] action=UPDATE content_unchanged skip_version", id);
             }
         }
 
@@ -184,8 +188,28 @@ public class ScriptService {
     }
 
     // ------------------------------------------------------------
-    // 校验
+    // 校验与归一化
     // ------------------------------------------------------------
+
+    /**
+     * 归一化脚本内容：统一行尾为 \n、去除尾部空白。
+     *
+     * <p>前端 CodeMirror 编辑器与数据库 LONGTEXT 之间可能存在行尾差异
+     *（{\r\n} vs {\n}）或尾部多余换行，导致 {@code equals} 比较始终不等、
+     * 版本每次误增。归一化后比较可消除此类假阳性。
+     *
+     * @param content 原始内容（可为 null）
+     * @return 归一化后的内容，null 原样返回
+     */
+    static String normalizeContent(String content) {
+        if (content == null) {
+            return null;
+        }
+        return content
+                .replace("\r\n", "\n")
+                .replace("\r", "\n")
+                .stripTrailing();
+    }
 
     private void validateContent(String content) {
         if (content == null || content.isBlank()) {

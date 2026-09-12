@@ -188,6 +188,59 @@ class ScriptServiceTest {
         verify(scriptVersionRepository, never()).save(any());
     }
 
+    @DisplayName("编辑脚本内容仅行尾不同(\\r\\n vs \\n) → 不生成新版本")
+    @Test
+    void updateScriptCrlfNormalizedNoNewVersion() {
+        // 数据库存的是 \n，前端 CodeMirror 回传 \r\n
+        ScriptVersion stored = ScriptVersion.builder()
+                .id(10L)
+                .scriptId(1L)
+                .version(1)
+                .content("echo hello\nworld\n")
+                .createdAt(LocalDateTime.now())
+                .build();
+        when(scriptRepository.findById(1L)).thenReturn(Optional.of(script));
+        when(scriptVersionRepository.findByScriptIdAndVersion(1L, 1)).thenReturn(Optional.of(stored));
+        when(scriptRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateScriptRequest req = UpdateScriptRequest.builder()
+                .name("清理日志")
+                .description("描述")
+                .content("echo hello\r\nworld\r\n")
+                .build();
+
+        ScriptResponse resp = service.updateScript(1L, req);
+
+        assertThat(resp.getLatestVersion()).isEqualTo(1);
+        verify(scriptVersionRepository, never()).save(any());
+    }
+
+    @DisplayName("编辑脚本内容仅尾部多空行 → 不生成新版本")
+    @Test
+    void updateScriptTrailingNewlinesNoNewVersion() {
+        ScriptVersion stored = ScriptVersion.builder()
+                .id(10L)
+                .scriptId(1L)
+                .version(1)
+                .content("echo hello")
+                .createdAt(LocalDateTime.now())
+                .build();
+        when(scriptRepository.findById(1L)).thenReturn(Optional.of(script));
+        when(scriptVersionRepository.findByScriptIdAndVersion(1L, 1)).thenReturn(Optional.of(stored));
+        when(scriptRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateScriptRequest req = UpdateScriptRequest.builder()
+                .name("清理日志")
+                .description("描述")
+                .content("echo hello\n\n\n")
+                .build();
+
+        ScriptResponse resp = service.updateScript(1L, req);
+
+        assertThat(resp.getLatestVersion()).isEqualTo(1);
+        verify(scriptVersionRepository, never()).save(any());
+    }
+
     // ------------------------------------------------------------
     // 删除保护
     // ------------------------------------------------------------
