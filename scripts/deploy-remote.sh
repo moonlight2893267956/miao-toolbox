@@ -147,6 +147,23 @@ step_pull_and_up() {
   grn "  ✓ 镜像已更新,服务已重启"
 }
 
+# 脚本物化目录(./data/scheduler-scripts)首次由 Docker 以 root 创建,
+# 而 api 容器以非 root 用户(miao)运行,无权在其下建 {scriptId}/ 子目录 → "脚本物化失败"。
+# 此处按容器运行用户的 uid:gid 修正属主,保证幂等可写(FR-14)。
+step_fix_script_dir_perms() {
+  hdr "3.5 确保脚本物化目录对容器用户可写"
+  local cid uid_gid
+  cid=$($COMPOSE_CMD ps -q api 2>/dev/null || echo "")
+  if [ -z "$cid" ]; then
+    ylw "  ⚠ 未找到 api 容器,跳过"
+    return 0
+  fi
+  uid_gid=$(docker exec "$cid" sh -c 'echo "$(id -u):$(id -g)"' 2>/dev/null || echo "100:101")
+  docker exec -u root "$cid" mkdir -p /app/data/scheduler-scripts 2>/dev/null || true
+  docker exec -u root "$cid" chown -R "$uid_gid" /app/data/scheduler-scripts 2>/dev/null || true
+  grn "  ✓ /app/data/scheduler-scripts 属主已设为 ${uid_gid}"
+}
+
 step_health_check() {
   hdr "4. 健康检查"
 
@@ -231,5 +248,6 @@ step_ensure_net
 step_login_ghcr
 step_verify_image
 step_pull_and_up
+step_fix_script_dir_perms
 step_health_check
 step_summary
