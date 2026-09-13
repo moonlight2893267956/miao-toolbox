@@ -343,7 +343,7 @@ const TaskFormPage: React.FC = () => {
    */
   const loadScriptParamSchema = useCallback(
     async (scriptId: number, prefillDefaults = false) => {
-      let schema: ScriptParam[] | null = null;
+      let schema: ScriptParam[] | null;
       try {
         const detail = await schedulerApi.getScript(scriptId);
         schema = parseParamSchema(detail.paramSchema);
@@ -447,7 +447,7 @@ const TaskFormPage: React.FC = () => {
     const scriptId = form.getFieldValue('scriptId') as number | undefined;
     if (!scriptId) return;
     await loadVersionOptions(scriptId);
-    let schema: ScriptParam[] | null = null;
+    let schema: ScriptParam[] | null;
     try {
       schema = parseParamSchema((await schedulerApi.getScript(scriptId)).paramSchema);
     } catch {
@@ -500,7 +500,7 @@ const TaskFormPage: React.FC = () => {
         // 参数声明：编辑态一并拉取，并用声明默认值补齐展示（任务已有值优先）。
         // 任务 params 只存「显式覆盖值」——有存值的参数初始为「自定义」，无存值的
         // 参数初始为「使用默认值」（展示默认值，保存时不固化、跟随脚本声明）。
-        let schema: ScriptParam[] | null = null;
+        let schema: ScriptParam[] | null;
         try {
           const detail = await schedulerApi.getScript(task.scriptId);
           schema = parseParamSchema(detail.paramSchema);
