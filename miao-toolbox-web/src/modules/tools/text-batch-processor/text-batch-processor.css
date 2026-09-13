@@ -921,6 +921,7 @@
 }
 
 .tbp-find-action--all:hover:not(:disabled) {
+  color: var(--miao-on-brand);
   filter: brightness(1.08);
 }
 
