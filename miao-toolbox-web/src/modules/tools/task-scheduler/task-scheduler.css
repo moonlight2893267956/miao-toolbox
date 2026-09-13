@@ -754,6 +754,49 @@
   font-size: 12.5px;
 }
 
+/* ── 参数字段（自定义标签行：参数名 + 类型 + 使用默认值开关） ── */
+.ts-param-field-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 5px;
+}
+
+.ts-param-field-head .ts-param-field-name {
+  font-weight: 600;
+  color: var(--miao-text-primary);
+}
+
+/* 「使用默认值」勾选：靠右显示，琥珀色标记「跟随」语义 */
+.ts-param-use-default-check {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.ts-param-use-default-check .ant-checkbox + span {
+  padding-inline-start: 6px;
+  font-size: 12px;
+  color: var(--miao-text-secondary);
+}
+
+.ts-param-use-default-check.ant-checkbox-wrapper-checked .ant-checkbox + span {
+  color: var(--tool-accent);
+  font-weight: 600;
+}
+
+/* 字段控件去除默认下边距（由外层 head 统一控制节奏） */
+.ts-param-field-control {
+  margin-bottom: 16px;
+}
+
+/* 使用默认值时输入框呈只读观感（保留默认值展示） */
+.ts-param-field-control .ant-input[disabled],
+.ts-param-field-control .ant-input-number-disabled,
+.ts-param-field-control .ant-select-disabled .ant-select-selector {
+  color: var(--miao-text-secondary);
+  background: color-mix(in srgb, var(--miao-bg-muted) 70%, transparent);
+}
+
 .ts-param-field-extra code {
   padding: 1px 5px;
   border-radius: var(--ts-radius-sm);

@@ -4,6 +4,7 @@ import {
   Alert,
   AutoComplete,
   Button,
+  Checkbox,
   Col,
   DatePicker,
   Empty,
@@ -83,26 +84,47 @@ function scriptTypeLabel(type?: ScriptType | null): string {
 }
 
 /**
+ * 参数名 → 初始「使用默认值」状态（仅对声明了默认值的参数生成条目）。
+ *
+ * 任务 params 里没有该参数的取值 → 跟随默认值（true）；有取值 → 已显式覆盖（false）。
+ */
+function buildUseDefaultMap(
+  schema: ScriptParam[] | null,
+  storedParams: Record<string, unknown> | null | undefined,
+): Record<string, boolean> {
+  const map: Record<string, boolean> = {};
+  for (const param of schema ?? []) {
+    const name = param.name?.trim();
+    if (!name) continue;
+    if (param.default == null || String(param.default).trim() === '') continue;
+    const stored = storedParams?.[name];
+    const hasStored = stored !== undefined && stored !== null && stored !== '';
+    map[name] = !hasStored;
+  }
+  return map;
+}
+
+/**
  * 取值模型 → 提交用 params JSON。
  *
- * 懒加载策略：值等于声明默认值的参数不存入——执行时从脚本声明取最新默认值，
- * 这样修改脚本默认值能自动影响所有未显式覆盖该参数的任务。只有用户显式改过的
- * 值（与默认值不同）才固化进任务 params。无有效取值返回 null。
+ * 显式「使用默认值」的参数不写入任务 params（执行时懒加载脚本声明的最新默认值）；
+ * 其余参数取用户填写的值固化。无有效取值返回 null。
  */
 function buildParamsJson(
   schema: ScriptParam[],
   values?: Record<string, unknown> | null,
+  useDefault?: Record<string, boolean> | null,
 ): string | null {
   const payload: Record<string, unknown> = {};
   for (const param of schema) {
     const name = param.name?.trim();
     if (!name) continue;
+    // 使用默认值 → 不固化，执行时跟随脚本最新声明
+    if (useDefault?.[name] === true) continue;
     const coerced = coerceParamValue(param.type, values?.[name]);
-    if (coerced === undefined) continue;
-    // 跳过等于声明默认值的参数——执行时懒加载脚本的最新默认值
-    const defaultValue = coerceParamValue(param.type, param.default);
-    if (defaultValue !== undefined && coerced === defaultValue) continue;
-    payload[name] = coerced;
+    if (coerced !== undefined) {
+      payload[name] = coerced;
+    }
   }
   return Object.keys(payload).length > 0 ? JSON.stringify(payload) : null;
 }
@@ -116,6 +138,13 @@ interface TaskFormValues {
   params?: string | null;
   /** 有参数声明时使用：按声明渲染的取值模型（提交时序列化为 params JSON） */
   paramValues?: Record<string, unknown> | null;
+  /**
+   * 参数名 → 是否「使用脚本默认值」。
+   *
+   * 开启的参数不写入任务 params，执行时跟随脚本声明的最新默认值；
+   * 未声明的参数（无默认值）不在此表中，取值照常固化。
+   */
+  paramUseDefault?: Record<string, boolean> | null;
   cronExpression: string;
   timezone: string;
   validFrom?: Dayjs | null;
@@ -138,6 +167,7 @@ const DEFAULT_VALUES: TaskFormValues = {
   scriptVersion: null,
   params: null,
   paramValues: null,
+  paramUseDefault: {},
   cronExpression: '',
   timezone: 'Asia/Shanghai',
   validFrom: null,
@@ -244,6 +274,8 @@ const TaskFormPage: React.FC = () => {
   const timezoneValue = Form.useWatch('timezone', form) ?? 'Asia/Shanghai';
   const selectedScriptId = Form.useWatch('scriptId', form) ?? null;
   const watchedParamValues = Form.useWatch('paramValues', form);
+  const watchedParamUseDefault: Record<string, boolean> =
+    Form.useWatch('paramUseDefault', form) ?? {};
 
   /** 无值且无默认值的参数：执行时脚本内会读到空值，需显式提示 */
   const missingParams = useMemo(
@@ -306,7 +338,8 @@ const TaskFormPage: React.FC = () => {
 
   /**
    * 拉取脚本详情中的 paramSchema（后端为 JSON 字符串，需解析为数组）。
-   * {@code prefillDefaults}：按声明默认值预填取值（PRD FR-5「带默认值预填」）。
+   * {@code prefillDefaults}：按声明默认值预填取值，并默认全部参数「使用默认值」
+   * ——新建/换脚本时用户尚未做任何覆盖决策，跟随脚本声明是最合理的默认。
    */
   const loadScriptParamSchema = useCallback(
     async (scriptId: number, prefillDefaults = false) => {
@@ -320,6 +353,7 @@ const TaskFormPage: React.FC = () => {
       setScriptParamSchema(schema);
       if (prefillDefaults) {
         form.setFieldValue('paramValues', mergeParamValues(null, schema));
+        form.setFieldValue('paramUseDefault', buildUseDefaultMap(schema, null));
       }
     },
     [form],
@@ -333,6 +367,7 @@ const TaskFormPage: React.FC = () => {
       setScriptParamSchema(null);
       // 换脚本后旧参数值不再适用，清空后按新脚本的声明重新预填
       form.setFieldValue('paramValues', null);
+      form.setFieldValue('paramUseDefault', {});
       form.setFieldValue('params', null);
       if (scriptId === undefined || scriptId === null) {
         return;
@@ -367,16 +402,23 @@ const TaskFormPage: React.FC = () => {
     }
   }, [selectedScriptId, form, loadVersionOptions]);
 
-  /** 一键填充参数默认值：按参数声明的默认值填充取值表单 */
-  const handleFillDefaults = useCallback(() => {
+  /**
+   * 一键把所有「有默认值」的参数切回「使用默认值」——取值同步为声明默认值，
+   * 且保存时不固化进任务（执行时跟随脚本最新默认值）。
+   */
+  const handleUseDefaultsAll = useCallback(() => {
     if (!scriptParamSchema || scriptParamSchema.length === 0) return;
     const defaults = buildDefaultParamValues(scriptParamSchema);
-    form.setFieldValue('paramValues', defaults);
     if (Object.keys(defaults).length === 0) {
       message.warning('该脚本的参数均未设置默认值，请手动填写');
       return;
     }
-    message.success('已填充默认参数');
+    form.setFieldValue('paramValues', { ...(form.getFieldValue('paramValues') ?? {}), ...defaults });
+    form.setFieldValue('paramUseDefault', {
+      ...(form.getFieldValue('paramUseDefault') ?? {}),
+      ...Object.fromEntries(Object.keys(defaults).map((name) => [name, true])),
+    });
+    message.success('已全部切换为使用脚本默认值');
   }, [scriptParamSchema, form]);
 
   /**
@@ -398,7 +440,8 @@ const TaskFormPage: React.FC = () => {
 
   /**
    * 从脚本页返回时同步脚本侧的最新状态：可能刚发布了新版本或改了参数声明。
-   * 参数取值按「已有值优先」合并，新声明的参数自动带入默认值（已清空的不回补）。
+   * 参数取值按「已有值优先」合并，新声明的参数自动带入默认值并置为「使用默认值」
+   * （既有覆盖值不回补、保持覆盖）。
    */
   const refreshFromScript = useCallback(async () => {
     const scriptId = form.getFieldValue('scriptId') as number | undefined;
@@ -412,7 +455,21 @@ const TaskFormPage: React.FC = () => {
     }
     setScriptParamSchema(schema);
     const current = form.getFieldValue('paramValues') as Record<string, unknown> | undefined;
+    const currentUseDefault =
+      (form.getFieldValue('paramUseDefault') as Record<string, boolean> | undefined) ?? {};
+    // 新声明且有默认值的参数：默认置为「使用默认值」；已显式覆盖的保持原决策
+    const nextUseDefault = { ...currentUseDefault };
+    for (const param of schema ?? []) {
+      const name = param.name?.trim();
+      if (!name) continue;
+      const hasDefault = param.default != null && String(param.default).trim() !== '';
+      const hasOverride = currentUseDefault[name] !== undefined;
+      if (hasDefault && !hasOverride) {
+        nextUseDefault[name] = true;
+      }
+    }
     form.setFieldValue('paramValues', mergeParamValues(current, schema));
+    form.setFieldValue('paramUseDefault', nextUseDefault);
   }, [form, loadVersionOptions]);
 
   /** 首次激活由加载逻辑负责；此后每次回到本页都重新同步一次脚本侧状态 */
@@ -441,8 +498,8 @@ const TaskFormPage: React.FC = () => {
         if (cancelled) return;
         const formValues = toFormValues(task);
         // 参数声明：编辑态一并拉取，并用声明默认值补齐展示（任务已有值优先）。
-        // 懒加载语义下，任务 params 只存「显式覆盖值」，执行时再取脚本最新默认值合并；
-        // 表单展示时把默认值补进来让用户看到完整取值，保存时等于默认值的会被过滤掉。
+        // 任务 params 只存「显式覆盖值」——有存值的参数初始为「自定义」，无存值的
+        // 参数初始为「使用默认值」（展示默认值，保存时不固化、跟随脚本声明）。
         let schema: ScriptParam[] | null = null;
         try {
           const detail = await schedulerApi.getScript(task.scriptId);
@@ -455,6 +512,7 @@ const TaskFormPage: React.FC = () => {
         setInitialValues({
           ...formValues,
           paramValues: mergeParamValues(formValues.paramValues, schema),
+          paramUseDefault: buildUseDefaultMap(schema, formValues.paramValues),
         });
         // 版本值由 initialValues 带入，此处仅预加载选项，不覆盖已绑定版本
         void loadScriptOptions({
@@ -491,7 +549,7 @@ const TaskFormPage: React.FC = () => {
         scriptVersion: values.scriptVersion!,
         // 有参数声明 → 用结构化取值序列化；无声明 → 用原始 JSON 文本
         params: hasParamSchema
-          ? buildParamsJson(scriptParamSchema ?? [], values.paramValues)
+          ? buildParamsJson(scriptParamSchema ?? [], values.paramValues, values.paramUseDefault)
           : (values.params ?? null),
         cronExpression: (values.cronExpression ?? '').trim(),
         timezone: values.timezone,
@@ -756,9 +814,13 @@ const TaskFormPage: React.FC = () => {
                           {hasParamSchema ? (
                             <>
                               <p className="ts-param-help-desc">
-                                脚本内通过环境变量读取参数值。未填写的参数：
-                                <strong>有默认值则执行时自动取脚本声明的最新默认值</strong>（改脚本默认值即生效）；
-                                <strong>无默认值则为空值</strong>。等于默认值的取值不会固化到任务里，保持跟随脚本最新声明。
+                                脚本内通过环境变量读取参数值。每个参数可单独选择：
+                                <br />
+                                <strong>勾选「使用默认值」</strong>——不写入固定值，执行时取脚本声明的
+                                <strong>最新默认值</strong>（改脚本默认值即生效，无需改任务）；
+                                <br />
+                                <strong>取消勾选</strong>——填写的值固化为任务级固定值，
+                                不受脚本声明变更影响。
                               </p>
                               <div className="ts-param-table">
                                 {(scriptParamSchema ?? []).map((p) => (
@@ -794,9 +856,9 @@ const TaskFormPage: React.FC = () => {
                         size="small"
                         icon={<ThunderboltOutlined />}
                         className="ts-field-action ts-param-fill-btn"
-                        onClick={handleFillDefaults}
+                        onClick={handleUseDefaultsAll}
                       >
-                        填充默认值
+                        全部使用默认值
                       </Button>
                     )}
                   </div>
@@ -807,46 +869,91 @@ const TaskFormPage: React.FC = () => {
                       type="warning"
                       showIcon
                       message={`${missingParams.length} 个参数无取值且无默认值：${missingParams.join('、')}`}
-                      description="这些参数执行时脚本内为空值。请填写下方取值，或在脚本参数声明里补充默认值——有默认值的参数执行时自动取最新默认值，无需逐个编辑任务。"
+                      description="这些参数执行时脚本内为空值。请在下方填写固定值，或到脚本参数声明里为它们补充默认值（补充后即可勾选「使用默认值」跟随变更）。"
                     />
                   )}
 
                   {hasParamSchema ? (
                     <Row gutter={12}>
-                      {(scriptParamSchema ?? []).map((param) => (
-                        <Col xs={24} md={12} key={param.name}>
-                          <Form.Item
-                            name={['paramValues', param.name.trim()]}
-                            label={
-                              <div className="ts-param-field-label">
+                      {(scriptParamSchema ?? []).map((param) => {
+                        const name = param.name.trim();
+                        const hasDefault =
+                          param.default != null && String(param.default).trim() !== '';
+                        const useDefault = hasDefault && watchedParamUseDefault[name] === true;
+                        return (
+                          <Col xs={24} md={12} key={param.name}>
+                            <div className="ts-param-field">
+                              <div className="ts-param-field-head">
                                 <span className="ts-param-field-name">{param.name}</span>
                                 <Tag className="ts-param-type-tag">{param.type}</Tag>
+                                {hasDefault && (
+                                  <Form.Item
+                                    name={['paramUseDefault', name]}
+                                    valuePropName="checked"
+                                    noStyle
+                                  >
+                                    <Checkbox
+                                      className="ts-param-use-default-check"
+                                      onChange={(e) => {
+                                        // 切回默认值：把展示值同步为声明默认值
+                                        if (e.target.checked) {
+                                          form.setFieldValue(
+                                            ['paramValues', name],
+                                            coerceParamValue(param.type, param.default),
+                                          );
+                                        }
+                                      }}
+                                    >
+                                      使用默认值
+                                    </Checkbox>
+                                  </Form.Item>
+                                )}
                               </div>
-                            }
-                            extra={
-                              <span className="ts-param-field-extra">
-                                脚本内取值 <code>${paramEnvName(param.name.trim())}</code>
-                                {param.desc ? ` · ${param.desc}` : ''}
-                              </span>
-                            }
-                          >
-                            {param.type === 'int' ? (
-                              <InputNumber style={{ width: '100%' }} placeholder="整数" />
-                            ) : param.type === 'bool' ? (
-                              <Select
-                                allowClear
-                                placeholder="true / false"
-                                options={[
-                                  { value: true, label: 'true' },
-                                  { value: false, label: 'false' },
-                                ]}
-                              />
-                            ) : (
-                              <Input placeholder="字符串值" allowClear />
-                            )}
-                          </Form.Item>
-                        </Col>
-                      ))}
+
+                              <Form.Item
+                                name={['paramValues', name]}
+                                className="ts-param-field-control"
+                                extra={
+                                  <span className="ts-param-field-extra">
+                                    {useDefault ? (
+                                      <>
+                                        跟随脚本默认值 <code>{String(param.default)}</code>
+                                        （改脚本默认值即生效）
+                                      </>
+                                    ) : (
+                                      <>
+                                        固定值 · 脚本内取值{' '}
+                                        <code>${paramEnvName(name)}</code>
+                                      </>
+                                    )}
+                                    {param.desc ? ` · ${param.desc}` : ''}
+                                  </span>
+                                }
+                              >
+                                {param.type === 'int' ? (
+                                  <InputNumber
+                                    style={{ width: '100%' }}
+                                    placeholder="整数"
+                                    disabled={useDefault}
+                                  />
+                                ) : param.type === 'bool' ? (
+                                  <Select
+                                    allowClear
+                                    placeholder="true / false"
+                                    disabled={useDefault}
+                                    options={[
+                                      { value: true, label: 'true' },
+                                      { value: false, label: 'false' },
+                                    ]}
+                                  />
+                                ) : (
+                                  <Input placeholder="字符串值" allowClear disabled={useDefault} />
+                                )}
+                              </Form.Item>
+                            </div>
+                          </Col>
+                        );
+                      })}
                     </Row>
                   ) : (
                     <Form.Item
