@@ -141,4 +141,6 @@ export interface TaskPayload {
   retryInterval?: number | null;
   timeoutSeconds?: number | null;
   notifyConfig?: NotifyConfig | null;
+  /** 创建后状态（仅创建时提交；默认 PAUSED，仅显式 ENABLED 才立即开始调度） */
+  status?: TaskStatus;
 }

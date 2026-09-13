@@ -1,6 +1,7 @@
 package com.miao.toolbox.tool.scheduler.dto;
 
 import com.miao.toolbox.tool.scheduler.entity.NotifyConfig;
+import com.miao.toolbox.tool.scheduler.entity.TaskStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -44,6 +45,14 @@ public class CreateTaskRequest {
 
     /** 时区（默认 Asia/Shanghai，由 Service 层补默认值后校验） */
     private String timezone;
+
+    /**
+     * 创建后状态（可空）。
+     *
+     * [2026-09-13 变更] 原实现创建即 ENABLED 自动开始调度，用户无确认机会。
+     * 现默认 PAUSED——仅显式传 ENABLED 才会创建后立即注册调度。
+     */
+    private TaskStatus status;
 
     private LocalDateTime validFrom;
 

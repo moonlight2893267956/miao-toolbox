@@ -1946,3 +1946,12 @@
   scrollbar-width: thin;
   scrollbar-color: var(--miao-border) transparent;
 }
+
+/* ── 创建后立即启动开关：与重试/超时字段同行距但不占三栏 ── */
+.ts-start-switch-item {
+  margin-bottom: 0;
+}
+
+.ts-start-switch-item .ant-form-item-label > label {
+  font-weight: 600;
+}

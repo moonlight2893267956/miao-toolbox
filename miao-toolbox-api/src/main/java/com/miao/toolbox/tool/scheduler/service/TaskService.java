@@ -94,7 +94,8 @@ public class TaskService {
                 .timezone(timezone)
                 .validFrom(req.getValidFrom())
                 .validUntil(req.getValidUntil())
-                .status(TaskStatus.ENABLED)
+                // [2026-09-13 变更] 默认 PAUSED：仅用户显式传 ENABLED 才创建后立即调度
+                .status(req.getStatus() == TaskStatus.ENABLED ? TaskStatus.ENABLED : TaskStatus.PAUSED)
                 .retryCount(req.getRetryCount() != null ? req.getRetryCount() : DEFAULT_RETRY_COUNT)
                 .retryInterval(req.getRetryInterval() != null ? req.getRetryInterval() : DEFAULT_RETRY_INTERVAL)
                 .timeoutSeconds(req.getTimeoutSeconds() != null ? req.getTimeoutSeconds() : DEFAULT_TIMEOUT_SECONDS)
@@ -102,8 +103,12 @@ public class TaskService {
                 .build();
         ScheduledTask saved = taskRepository.save(task);
 
-        schedulerService.runAfterCommit(() -> schedulerService.register(saved));
-        log.info("[task:{}] action=CREATE name={} operator={}", saved.getId(), saved.getName(), currentOperator());
+        // 仅显式 ENABLED 才注册调度；默认 PAUSED 不注册，待用户手动恢复
+        if (saved.getStatus() == TaskStatus.ENABLED) {
+            schedulerService.runAfterCommit(() -> schedulerService.register(saved));
+        }
+        log.info("[task:{}] action=CREATE name={} status={} operator={}",
+                saved.getId(), saved.getName(), saved.getStatus(), currentOperator());
         return toResponse(saved, resolveLastStatus(List.of(saved.getId())));
     }
 

@@ -14,6 +14,7 @@ import {
   Row,
   Select,
   Spin,
+  Switch,
   Tag,
   Tooltip,
   message,
@@ -122,6 +123,8 @@ interface TaskFormValues {
   retryCount?: number | null;
   retryInterval?: number | null;
   timeoutSeconds?: number | null;
+  /** 仅创建态：创建后立即启动（默认关——创建后为暂停状态，需手动启用） */
+  startImmediately?: boolean;
   notifyConfig?: {
     webhook?: { url?: string | null; trigger?: NotifyTrigger | null } | null;
     email?: { recipients?: string[] | null; trigger?: NotifyTrigger | null } | null;
@@ -142,6 +145,7 @@ const DEFAULT_VALUES: TaskFormValues = {
   retryCount: 0,
   retryInterval: 60,
   timeoutSeconds: 60,
+  startImmediately: false,
   notifyConfig: {
     webhook: { url: '', trigger: 'ON_FAILURE' },
     email: { recipients: [], trigger: 'ON_FAILURE' },
@@ -497,6 +501,9 @@ const TaskFormPage: React.FC = () => {
         retryInterval: values.retryInterval ?? 60,
         timeoutSeconds: values.timeoutSeconds ?? 60,
         notifyConfig: buildNotifyPayload(values.notifyConfig),
+        // 仅创建态提交：默认 PAUSED，勾选「创建后立即启动」才传 ENABLED；
+        // 编辑态的启停走任务列表/详情页的专用操作，不在本表单重复
+        ...(isEdit ? {} : { status: values.startImmediately ? 'ENABLED' : 'PAUSED' }),
       };
 
       setSubmitting(true);
@@ -506,7 +513,9 @@ const TaskFormPage: React.FC = () => {
           message.success('任务已更新');
         } else {
           await schedulerApi.createTask(payload);
-          message.success('任务已创建');
+          message.success(
+            values.startImmediately ? '任务已创建并启动' : '任务已创建（暂停状态），可在列表中启用',
+          );
           // KeepAlive 下本页不会卸载：创建后重置，避免下次「新建任务」残留上次内容
           form.resetFields();
           setVersionOptions([]);
@@ -880,6 +889,19 @@ const TaskFormPage: React.FC = () => {
                     </Form.Item>
                   </Col>
                 </Row>
+
+                {/* 创建态专属：默认暂停，避免误创建即调度执行 */}
+                {!isEdit && (
+                  <Form.Item
+                    name="startImmediately"
+                    label="创建后立即启动"
+                    valuePropName="checked"
+                    className="ts-start-switch-item"
+                    tooltip="默认关闭——任务创建后为暂停状态，需在任务列表或详情页手动启用；开启则创建后立即按 cron 开始调度"
+                  >
+                    <Switch checkedChildren="启动" unCheckedChildren="暂停" />
+                  </Form.Item>
+                )}
               </SchedulerPanel>
 
               <SchedulerPanel label="通知配置" meta="Webhook · 邮件" tone="notify" index={4}>
