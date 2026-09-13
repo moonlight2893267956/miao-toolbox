@@ -17,6 +17,11 @@ LABEL maintainer="miao-toolbox"
 # 添加非 root 用户
 RUN addgroup -S miao && adduser -S miao -G miao
 
+# 安装 python3：定时任务 Python 脚本在 api 容器内以子进程执行
+# （ScriptTaskExecutor 对 PYTHON 类型调用 python3，PATH 已含 /usr/bin）
+RUN apk add --no-cache python3 \
+    && ln -sf /usr/bin/python3 /usr/bin/python
+
 WORKDIR /app
 # logback-spring.xml 配置了写文件日志 logs/miao-toolbox.log,需要这个目录
 # chown 让 USER miao 拥有写权限
