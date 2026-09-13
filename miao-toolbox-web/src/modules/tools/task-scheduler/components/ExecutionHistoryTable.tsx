@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Descriptions, Select, Spin, Table, Tag } from 'antd';
+import { Alert, Button, Descriptions, Select, Spin, Table, Tag, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { useNavigate } from 'react-router-dom';
 import { HistoryOutlined, ReloadOutlined } from '@ant-design/icons';
 import { schedulerApi } from '../schedulerApi';
 import type { ExecutionListItem, ExecutionStatus, TaskExecutionDetail } from '../types';
@@ -68,6 +69,7 @@ interface ExecutionHistoryTableProps {
 
 /** 执行历史表格（FR-9）：倒序分页 + 状态筛选 + 展开行详情 */
 const ExecutionHistoryTable: React.FC<ExecutionHistoryTableProps> = ({ taskId, refreshToken = 0 }) => {
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [status, setStatus] = useState<ExecutionStatus | undefined>(undefined);
@@ -137,6 +139,24 @@ const ExecutionHistoryTable: React.FC<ExecutionHistoryTableProps> = ({ taskId, r
     },
     { title: '耗时', dataIndex: 'durationMs', width: 110, render: (value: number | null) => formatDuration(value) },
     { title: '重试', dataIndex: 'retryCount', width: 80 },
+    {
+      title: '',
+      key: 'action',
+      width: 100,
+      fixed: 'right',
+      render: (_, row) => (
+        <Tooltip title="查看完整详情（stdout / stderr / 参数快照）">
+          <Button
+            type="link"
+            size="small"
+            className="ts-exec-detail-link"
+            onClick={() => navigate(`/tools/task-scheduler/executions/${row.id}`)}
+          >
+            详情
+          </Button>
+        </Tooltip>
+      ),
+    },
   ];
 
   return (
@@ -168,7 +188,7 @@ const ExecutionHistoryTable: React.FC<ExecutionHistoryTableProps> = ({ taskId, r
           loading={loading}
           columns={columns}
           dataSource={items}
-          scroll={{ x: 720 }}
+          scroll={{ x: 820 }}
           locale={{
             emptyText: (
               <SchedulerEmpty

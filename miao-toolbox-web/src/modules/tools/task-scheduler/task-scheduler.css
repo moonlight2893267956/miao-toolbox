@@ -1715,3 +1715,234 @@
   scrollbar-width: thin;
   scrollbar-color: var(--miao-border) transparent;
 }
+
+/* ============================================================
+   执行详情页（ExecutionDetailPage）
+   控制台式 stdout/stderr 面板 + 参数快照卡行
+   ============================================================ */
+
+.ts-exec-detail-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 8px 2px;
+}
+
+/* 概览中的耗时读数：加重 mono */
+.ts-exec-duration {
+  font-family: var(--miao-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.ts-exec-task-link,
+.ts-exec-detail-link {
+  padding: 0 2px;
+  height: auto;
+  font-weight: 600;
+}
+
+/* 错误信息区：mono 文本块，红调 */
+.ts-exec-error-alert {
+  margin-top: 12px;
+}
+
+.ts-exec-error-text {
+  font-family: var(--miao-font-mono);
+  font-size: 12px;
+  line-height: 1.7;
+  word-break: break-all;
+  color: var(--miao-error-text);
+}
+
+/* ── 参数快照：名/环境变量/值 三段卡行 ── */
+.ts-exec-params {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ts-exec-param-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  border: 1px solid var(--miao-border);
+  border-radius: var(--ts-radius-sm);
+  background: color-mix(in srgb, var(--miao-bg-muted) 55%, transparent);
+}
+
+.ts-exec-param-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ts-exec-param-name {
+  font-family: var(--miao-font-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--tool-accent);
+}
+
+.ts-exec-param-env {
+  font-family: var(--miao-font-mono);
+  font-size: 11.5px;
+  color: var(--miao-text-tertiary);
+}
+
+.ts-exec-param-value {
+  font-family: var(--miao-font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--miao-text-secondary);
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+/* ── 脚本输出：双栏控制台 ── */
+.ts-exec-output {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.ts-exec-output-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ts-exec-output-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ts-exec-output-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-family: var(--miao-font-mono);
+  color: var(--miao-text-secondary);
+}
+
+/* 输出流标识点：stdout 琥珀 / stderr 红 */
+.ts-exec-output-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.ts-exec-output-dot--out {
+  background: var(--tool-accent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--tool-accent) 55%, transparent);
+}
+
+.ts-exec-output-dot--err {
+  background: var(--miao-error);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--miao-error) 55%, transparent);
+}
+
+.ts-exec-output-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ts-exec-copy-btn {
+  height: 22px;
+  width: 22px;
+  padding: 0;
+  color: var(--miao-text-tertiary);
+}
+
+.ts-exec-copy-btn:hover:not(:disabled) {
+  color: var(--tool-accent);
+}
+
+/* 输出体：终端面板观感——代码面底色 + 上限滚动。
+   --ts-code-* 变量原属 .ts-script-editor 作用域，输出面板自带一份
+   （取值与编辑器代码面一致，暗色经 data-theme 覆盖），保持两处观感同源。 */
+.ts-exec-output-pre {
+  --ts-out-surface: #fbfbfa;
+  margin: 0;
+  padding: 12px 14px;
+  min-height: 72px;
+  max-height: 340px;
+  overflow: auto;
+  border: 1px solid var(--miao-border);
+  border-radius: var(--ts-radius-sm);
+  background: var(--ts-out-surface);
+  font-family: var(--miao-font-mono);
+  font-size: 12px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  word-break: break-all;
+  tab-size: 4;
+}
+
+:root[data-theme='dark'] .ts-exec-output-pre {
+  --ts-out-surface: #121220;
+}
+
+.ts-exec-output-pre--err {
+  border-color: color-mix(in srgb, var(--miao-error) 32%, transparent);
+  color: var(--miao-error-text);
+}
+
+/* ── 原始摘要 ── */
+.ts-exec-raw {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+.ts-exec-raw-title {
+  margin-bottom: 6px;
+  font-family: var(--miao-font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--miao-text-tertiary);
+}
+
+.ts-exec-raw .ts-body-preview {
+  max-height: 300px;
+}
+
+/* 输出面板滚动条与模块语言一致 */
+.ts-exec-output-pre::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.ts-exec-output-pre::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ts-exec-output-pre::-webkit-scrollbar-thumb {
+  background: var(--miao-border);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.ts-exec-output-pre::-webkit-scrollbar-thumb:hover {
+  background: var(--miao-text-tertiary);
+  background-clip: padding-box;
+}
+
+.ts-exec-output-pre {
+  scrollbar-width: thin;
+  scrollbar-color: var(--miao-border) transparent;
+}

@@ -39,6 +39,7 @@ const TextBatchProcessorPage = lazy(() => import('./modules/tools/text-batch-pro
 const TaskSchedulerListPage = lazy(() => import('./modules/tools/task-scheduler/TaskListPage'));
 const TaskSchedulerFormPage = lazy(() => import('./modules/tools/task-scheduler/TaskFormPage'));
 const TaskSchedulerDetailPage = lazy(() => import('./modules/tools/task-scheduler/TaskDetailPage'));
+const ExecutionDetailPage = lazy(() => import('./modules/tools/task-scheduler/ExecutionDetailPage'));
 const ScriptListPage = lazy(() => import('./modules/tools/task-scheduler/ScriptListPage'));
 const ScriptFormPage = lazy(() => import('./modules/tools/task-scheduler/ScriptFormPage'));
 const DashboardPage = lazy(() => import('./modules/admin/DashboardPage'));
@@ -117,6 +118,7 @@ function AppRoutes() {
         <Route path="tools/task-scheduler/scripts/:id" element={<RequireRoute code="TOOL_TASK_SCHEDULER"><ScriptFormPage /></RequireRoute>} />
         <Route path="tools/task-scheduler/new" element={<RequireRoute code="TOOL_TASK_SCHEDULER"><TaskSchedulerFormPage /></RequireRoute>} />
         <Route path="tools/task-scheduler/:id/edit" element={<RequireRoute code="TOOL_TASK_SCHEDULER"><TaskSchedulerFormPage /></RequireRoute>} />
+        <Route path="tools/task-scheduler/executions/:id" element={<RequireRoute code="TOOL_TASK_SCHEDULER"><ExecutionDetailPage /></RequireRoute>} />
         <Route path="tools/task-scheduler/:id" element={<RequireRoute code="TOOL_TASK_SCHEDULER"><TaskSchedulerDetailPage /></RequireRoute>} />
         <Route
           path="tools/network"
