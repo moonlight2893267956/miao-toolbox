@@ -1160,9 +1160,29 @@
   padding: 0;
 }
 
-.ts-pse-add {
-  width: 100%;
+/* 名称非法提示：替代环境变量预览位的红字说明 */
+.ts-pse-name-error {
+  font-size: 11.5px;
+  color: var(--miao-error-text);
+}
+
+/* 添加按钮 + 计数：按钮占满剩余宽度，计数贴右（tabular 防跳动） */
+.ts-pse-add-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin-top: 2px;
+}
+
+.ts-pse-add {
+  flex: 1;
+}
+
+.ts-pse-count {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--miao-text-tertiary);
 }
 
 /* 窄屏：字段网格降为两列 */

@@ -120,6 +120,96 @@ class ScriptServiceTest {
         verify(scriptRepository).save(argThat(s -> schema.equals(s.getParamSchema())));
     }
 
+    // ------------------------------------------------------------
+    // 参数声明校验（FR-2）
+    // ------------------------------------------------------------
+
+    /** 参数声明非法 → 拒绝保存（此处是唯一校验入口，格式/语义必须拦下） */
+    private void assertSchemaRejected(String schema, String expectedMessageFragment) {
+        CreateScriptRequest req = CreateScriptRequest.builder()
+                .name("清理日志")
+                .scriptType(ScriptType.SHELL)
+                .content("echo hello")
+                .paramSchema(schema)
+                .build();
+
+        assertThatThrownBy(() -> service.createScript(req))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining(expectedMessageFragment);
+        verify(scriptRepository, never()).save(any());
+    }
+
+    @DisplayName("参数超 10 个 → 拒绝")
+    @Test
+    void paramSchemaTooManyParamsRejected() {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < 11; i++) {
+            sb.append(i > 0 ? "," : "")
+                    .append("{\"name\":\"p").append(i).append("\",\"type\":\"string\"}");
+        }
+        sb.append("]");
+
+        assertSchemaRejected(sb.toString(), "参数个数不能超过 10");
+    }
+
+    @DisplayName("参数类型非 string/int/bool → 拒绝（含嵌套 object/array）")
+    @Test
+    void paramSchemaInvalidTypeRejected() {
+        assertSchemaRejected("[{\"name\":\"cfg\",\"type\":\"object\"}]", "类型不支持");
+        assertSchemaRejected("[{\"name\":\"list\",\"type\":\"array\"}]", "类型不支持");
+    }
+
+    @DisplayName("参数名为空 → 拒绝")
+    @Test
+    void paramSchemaBlankNameRejected() {
+        assertSchemaRejected("[{\"name\":\"  \",\"type\":\"string\"}]", "缺少名称");
+    }
+
+    @DisplayName("参数名非法标识符（含连字符/空格/数字开头）→ 拒绝")
+    @Test
+    void paramSchemaIllegalNameRejected() {
+        assertSchemaRejected("[{\"name\":\"log-dir\",\"type\":\"string\"}]", "名称不合法");
+        assertSchemaRejected("[{\"name\":\"2fast\",\"type\":\"string\"}]", "名称不合法");
+    }
+
+    @DisplayName("参数名重复 → 拒绝")
+    @Test
+    void paramSchemaDuplicateNameRejected() {
+        assertSchemaRejected(
+                "[{\"name\":\"a\",\"type\":\"string\"},{\"name\":\"a\",\"type\":\"int\"}]",
+                "参数名重复");
+    }
+
+    @DisplayName("参数声明非 JSON 数组 → 拒绝")
+    @Test
+    void paramSchemaMalformedRejected() {
+        assertSchemaRejected("{\"name\":\"a\"}", "格式非法");
+        assertSchemaRejected("not-json", "格式非法");
+    }
+
+    @DisplayName("合法参数声明（含 camelCase/下划线/10 个上限）→ 通过")
+    @Test
+    void paramSchemaValidAccepted() {
+        when(scriptRepository.existsByName(any())).thenReturn(false);
+        when(scriptRepository.save(any())).thenAnswer(inv -> {
+            Script s = inv.getArgument(0);
+            ReflectionTestUtils.setField(s, "id", 1L);
+            return s;
+        });
+
+        String schema = "[{\"name\":\"retentionDays\",\"type\":\"int\",\"default\":\"30\"},"
+                + "{\"name\":\"log_dir\",\"type\":\"string\",\"default\":\"/var/log\"},"
+                + "{\"name\":\"verbose\",\"type\":\"bool\",\"default\":\"true\"}]";
+        CreateScriptRequest req = CreateScriptRequest.builder()
+                .name("清理日志")
+                .scriptType(ScriptType.SHELL)
+                .content("echo hello")
+                .paramSchema(schema)
+                .build();
+
+        assertThat(service.createScript(req).getParamSchema()).isEqualTo(schema);
+    }
+
     @DisplayName("名称重复 → SCHEDULER_SCRIPT_NAME_DUPLICATED")
     @Test
     void createScriptNameDuplicated() {

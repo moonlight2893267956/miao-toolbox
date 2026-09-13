@@ -26,8 +26,15 @@ const TYPE_OPTIONS = [
   { value: 'bool', label: 'bool' },
 ];
 
+/** 参数个数上限（与后端 ScriptService.MAX_PARAMS 一致，FR-2） */
+const MAX_PARAMS = 10;
+
+/** 参数名须为合法标识符（与后端 ScriptService.PARAM_NAME_PATTERN 一致） */
+const PARAM_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
 const ParamSchemaEditor: React.FC<ParamSchemaEditorProps> = ({ value = [], onChange }) => {
   const emit = (next: ScriptParam[]) => onChange?.(next);
+  const atLimit = value.length >= MAX_PARAMS;
 
   const update = (index: number, patch: Partial<ScriptParam>) => {
     emit(value.map((p, i) => (i === index ? { ...p, ...patch } : p)));
@@ -50,7 +57,11 @@ const ParamSchemaEditor: React.FC<ParamSchemaEditorProps> = ({ value = [], onCha
         </p>
       )}
 
-      {value.map((param, index) => (
+      {value.map((param, index) => {
+        const trimmedName = param.name.trim();
+        /** 名称非空但不合标识符规则：即时报错，避免到保存时才被后端拒绝 */
+        const nameInvalid = trimmedName.length > 0 && !PARAM_NAME_PATTERN.test(trimmedName);
+        return (
         <div className="ts-pse-row" key={index}>
           <div className="ts-pse-fields">
             <Input
@@ -58,6 +69,7 @@ const ParamSchemaEditor: React.FC<ParamSchemaEditorProps> = ({ value = [], onCha
               placeholder="参数名（如 retentionDays）"
               value={param.name}
               maxLength={50}
+              status={nameInvalid ? 'error' : undefined}
               onChange={(e) => update(index, { name: e.target.value })}
             />
             <Select
@@ -82,9 +94,13 @@ const ParamSchemaEditor: React.FC<ParamSchemaEditorProps> = ({ value = [], onCha
             />
           </div>
           <div className="ts-pse-foot">
-            {param.name.trim() ? (
+            {nameInvalid ? (
+              <span className="ts-pse-name-error">
+                名称仅可含字母/数字/下划线，且不以数字开头
+              </span>
+            ) : trimmedName ? (
               <Tooltip title="脚本内通过该环境变量读取此参数">
-                <code className="ts-pse-env">{paramEnvName(param.name.trim())}</code>
+                <code className="ts-pse-env">{paramEnvName(trimmedName)}</code>
               </Tooltip>
             ) : (
               <span className="ts-pse-env ts-pse-env--placeholder">填写参数名后预览环境变量</span>
@@ -99,16 +115,24 @@ const ParamSchemaEditor: React.FC<ParamSchemaEditorProps> = ({ value = [], onCha
             />
           </div>
         </div>
-      ))}
+        );
+      })}
 
-      <Button
-        className="ts-pse-add"
-        type="dashed"
-        icon={<PlusOutlined />}
-        onClick={add}
-      >
-        添加参数
-      </Button>
+      <div className="ts-pse-add-row">
+        <Button
+          className="ts-pse-add"
+          type="dashed"
+          icon={<PlusOutlined />}
+          disabled={atLimit}
+          onClick={add}
+        >
+          添加参数
+        </Button>
+        <span className="ts-pse-count">
+          {value.length} / {MAX_PARAMS}
+          {atLimit && ' · 已达上限'}
+        </span>
+      </div>
     </div>
   );
 };

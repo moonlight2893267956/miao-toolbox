@@ -57,6 +57,30 @@ public class ScriptTaskExecutor implements TaskExecutor {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    /**
+     * 子进程环境变量白名单——只有这些键会从 API 进程传给脚本。
+     *
+     * <p>ProcessBuilder 默认继承父进程全部环境变量，其中包含 {@code JWT_SECRET}、
+     * 对象存储/大模型 API Key、代理凭据等平台密钥。若不清空，任何脚本（含从外部
+     * 抄来的）一句 {@code env} 就能带走密钥——这超出了「超管可执行代码」的授权边界。
+     *
+     * <p>保留项及理由：
+     * <ul>
+     *   <li>{@code PATH}：定位 bash / python3</li>
+     *   <li>{@code LANG}/{@code LC_ALL}/{@code TZ}：编码与时区（cron 按任务时区触发，
+     *       脚本内 date 也应一致）</li>
+     *   <li>{@code HTTP(S)_PROXY}/{@code NO_PROXY}/{@code ALL_PROXY}（含小写变体）：
+     *       容器经 host.docker.internal:7890 出网，脚本需要访问外网时依赖</li>
+     * </ul>
+     */
+    private static final List<String> ENV_ALLOWLIST = List.of(
+            "PATH", "LANG", "LC_ALL", "LANGUAGE", "TZ",
+            "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "ALL_PROXY",
+            "http_proxy", "https_proxy", "no_proxy", "all_proxy");
+
+    private static final String DEFAULT_PATH =
+            "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+
     private final ScriptRepository scriptRepository;
     private final ScriptVersionRepository scriptVersionRepository;
     private final ScriptFileService scriptFileService;
@@ -118,7 +142,9 @@ public class ScriptTaskExecutor implements TaskExecutor {
         builder.directory(workDir.toFile());
 
         Map<String, String> paramEnv = toParamEnv(params);
-        builder.environment().putAll(paramEnv);
+        Map<String, String> env = buildSanitizedEnv(workDir, paramEnv);
+        builder.environment().clear();
+        builder.environment().putAll(env);
         // 记录注入的变量名（不记录值，可能含敏感信息）：脚本里取不到值时可直接对照此处
         log.info("[task:{}] injected script params: {}", task.getId(), paramEnv.keySet());
 
@@ -159,6 +185,28 @@ public class ScriptTaskExecutor implements TaskExecutor {
 
     private String command(ScriptType type) {
         return type == ScriptType.PYTHON ? PYTHON_COMMAND : SHELL_COMMAND;
+    }
+
+    /**
+     * 构建脚本子进程的环境变量：只回填白名单键 + 脚本参数变量，其余（含平台密钥）一律不传。
+     *
+     * <p>{@code HOME} 指向脚本自己的工作目录——脚本写 {@code $HOME} 也被限制在
+     * {@code {upload-dir}/{scriptId}/} 内，与工作目录约束一致。
+     */
+    private Map<String, String> buildSanitizedEnv(Path workDir, Map<String, String> paramEnv) {
+        Map<String, String> parent = System.getenv();
+        Map<String, String> env = new LinkedHashMap<>();
+        for (String key : ENV_ALLOWLIST) {
+            String value = parent.get(key);
+            if (value != null && !value.isBlank()) {
+                env.put(key, value);
+            }
+        }
+        env.putIfAbsent("PATH", DEFAULT_PATH);
+        env.putIfAbsent("LANG", "C.UTF-8");
+        env.put("HOME", workDir.toString());
+        env.putAll(paramEnv);
+        return env;
     }
 
     private String failureMessage(int exitCode, String stderr) {

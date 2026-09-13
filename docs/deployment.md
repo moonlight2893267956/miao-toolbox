@@ -373,10 +373,22 @@ docker compose -f docker-compose.prod.yml --env-file .env exec api ls -l /app/da
 
 - 模块受路由码 `TOOL_TASK_SCHEDULER` 保护，**仅超级管理员**可见可用
   （前端侧边栏入口 + 后端 `/api/scheduler/**` 双层校验）
+- **子进程环境变量白名单**（2026-09-13 加固）：脚本进程**不继承** API 进程的环境变量，
+  只放行 `PATH` / `LANG` / `LC_ALL` / `LANGUAGE` / `TZ` / `HOME` 与代理变量
+  （`HTTP_PROXY`/`HTTPS_PROXY`/`NO_PROXY`/`ALL_PROXY` 及小写变体），
+  其余一律不传。**否则脚本一句 `env` 就能带走 `JWT_SECRET`、对象存储/大模型
+  API Key、`NACOS_PASSWORD` 等平台密钥**——这超出了「超管可执行代码」的授权边界
+- 脚本进程 `HOME` 指向自己的工作目录 `{upload-dir}/{scriptId}/`，写 `$HOME` 同样受限
 - 脚本进程的工作目录被限定在 `{upload-dir}/{scriptId}/`，相对路径操作限制在此
 - 物化路径由服务端按自增 BIGINT 拼接，不接受任何用户输入片段，天然免疫 `../` 穿越
+- 脚本内容上限 64KB；参数声明上限 10 个、类型仅 `string/int/bool`、
+  名称须为合法标识符且不重复（`ScriptService.validateParamSchema`）
 - 单次执行默认 60s 超时（最大 600s），超时先终止进程树再强杀，防失控脚本长期占用资源
+- 容器以非 root 用户 `miao` 运行
 - **不做 syscall 级沙箱**：因此不要给普通用户开通本模块路由
+
+> ⚠️ 脚本仍拥有容器内的**完整网络访问权限**（可访问 `miao-mysql` / `miao-redis` /
+> `miao-infra-net`）。若需要更严格的隔离，应把脚本执行拆到独立容器或引入 seccomp 沙箱。
 
 ### 5.3 单实例运行，不支持水平扩展（NFR-4）
 

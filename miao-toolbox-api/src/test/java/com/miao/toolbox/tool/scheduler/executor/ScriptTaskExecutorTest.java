@@ -166,6 +166,77 @@ class ScriptTaskExecutorTest {
     }
 
     // ------------------------------------------------------------
+    // 环境变量隔离（防平台密钥泄漏）
+    // ------------------------------------------------------------
+
+    /** 允许出现在脚本进程中的环境变量名（与 ScriptTaskExecutor.ENV_ALLOWLIST 对应） */
+    private static final java.util.Set<String> ALLOWED_ENV = java.util.Set.of(
+            "PATH", "LANG", "LC_ALL", "LANGUAGE", "TZ", "HOME",
+            "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "ALL_PROXY",
+            "http_proxy", "https_proxy", "no_proxy", "all_proxy");
+
+    /** bash 自行合成/导出的变量（非父进程传入，不含信息量） */
+    private static final java.util.Set<String> SHELL_SYNTHESIZED =
+            java.util.Set.of("PWD", "SHLVL", "OLDPWD", "_");
+
+    /** 受控密钥环境变量名：以 MITM 方式注入，用于确认它不会进入脚本进程 */
+    private static final String CONTROLLED_SECRET_ENV = "MIAO_TEST_SECRET";
+
+    @DisplayName("注入一个受控密钥到 API 进程 → 脚本进程读不到（回归防线）")
+    @Test
+    void controlledParentSecretDoesNotReachScript() throws Exception {
+        // 通过 `MIAO_TEST_SECRET=xxx mvn test` 注入；未注入时跳过
+        String secretValue = System.getenv(CONTROLLED_SECRET_ENV);
+        Assumptions.assumeTrue(secretValue != null && !secretValue.isBlank(),
+                "未注入 " + CONTROLLED_SECRET_ENV + "，跳过该用例");
+
+        // 打印该变量及其值（若泄漏会直接体现在 stdout）
+        stubScript(ScriptType.SHELL, "echo \"leaked=[${" + CONTROLLED_SECRET_ENV + "}]\"");
+        ExecutionResult result = executor.execute(task(null, 30));
+
+        assertThat(result.status()).isEqualTo(ExecutionStatus.SUCCESS);
+        String stdout = (String) response(result).get("stdout");
+        assertThat(stdout).contains("leaked=[]");
+        assertThat(stdout).doesNotContain(secretValue);
+    }
+
+    @DisplayName("脚本进程只拿到白名单环境变量——API 进程的其他变量（含密钥）不泄漏")
+    @Test
+    void scriptEnvIsWhitelistOnly() throws Exception {
+        // compgen -e 为 bash 内建，逐行列出环境变量名，不依赖外部命令
+        stubScript(ScriptType.SHELL, "compgen -e");
+        ExecutionResult result = executor.execute(task(null, 30));
+
+        assertThat(result.status()).isEqualTo(ExecutionStatus.SUCCESS);
+        String stdout = (String) response(result).get("stdout");
+        java.util.Set<String> parentKeys = System.getenv().keySet();
+        // 只关心「确实来自父进程」且不在白名单里的变量——这才是泄漏
+        java.util.List<String> leaked = stdout.lines()
+                .map(String::strip)
+                .filter(parentKeys::contains)
+                .filter(name -> !ALLOWED_ENV.contains(name))
+                .filter(name -> !SHELL_SYNTHESIZED.contains(name))
+                .filter(name -> !name.startsWith("SCRIPT_PARAM_"))
+                .toList();
+
+        assertThat(leaked)
+                .as("脚本进程出现了白名单外的父进程环境变量（平台密钥会随之泄漏）")
+                .isEmpty();
+    }
+
+    @DisplayName("HOME 指向脚本工作目录且 PATH 可用——脚本写 $HOME 被限制在工作目录内")
+    @Test
+    void scriptHomeIsWorkDirAndPathWorks() throws Exception {        stubScript(ScriptType.SHELL, "echo \"HOME=$HOME\"; command -v bash >/dev/null && echo BASH_OK");
+        ExecutionResult result = executor.execute(task(null, 30));
+
+        assertThat(result.status()).isEqualTo(ExecutionStatus.SUCCESS);
+        String stdout = (String) response(result).get("stdout");
+        // 工作目录 = {upload-dir}/{scriptId}/，脚本 HOME 与之相同（scriptId 固定为 1）
+        assertThat(stdout).contains("HOME=" + tempDir.resolve("1"));
+        assertThat(stdout).contains("BASH_OK");
+    }
+
+    // ------------------------------------------------------------
     // 超时（AR-7）
     // ------------------------------------------------------------
 

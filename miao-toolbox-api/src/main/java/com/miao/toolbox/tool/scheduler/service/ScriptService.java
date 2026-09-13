@@ -1,5 +1,7 @@
 package com.miao.toolbox.tool.scheduler.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miao.toolbox.common.constant.ErrorCode;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.common.response.PagedResponse;
@@ -23,8 +25,12 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * 脚本 CRUD、版本管理与删除保护（FR-1/FR-2）。
@@ -42,6 +48,13 @@ public class ScriptService {
     private static final int MAX_CONTENT_BYTES = 64 * 1024;
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final int MAX_PAGE_SIZE = 100;
+    /** 参数声明上限（FR-2 assumption：v1 最多 10 个参数） */
+    private static final int MAX_PARAMS = 10;
+    private static final int MAX_PARAM_NAME_LENGTH = 64;
+    /** 参数名须为合法标识符（映射环境变量 SCRIPT_PARAM_{NAME} 后仍唯一、可用） */
+    private static final Pattern PARAM_NAME_PATTERN = Pattern.compile("^[A-Za-z_][A-Za-z0-9_]*$");
+    private static final Set<String> PARAM_TYPES = Set.of("string", "int", "bool");
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final ScriptRepository scriptRepository;
     private final ScriptVersionRepository scriptVersionRepository;
@@ -61,6 +74,7 @@ public class ScriptService {
         String content = normalizeContent(req.getContent());
         validateContent(content);
         validateScriptType(req.getScriptType());
+        validateParamSchema(req.getParamSchema());
 
         Script script = Script.builder()
                 .name(name)
@@ -98,6 +112,7 @@ public class ScriptService {
 
         script.setName(name);
         script.setDescription(req.getDescription());
+        validateParamSchema(req.getParamSchema());
         script.setParamSchema(req.getParamSchema());
 
         // 内容变更 → 生成新版本（归一化后比较，避免行尾差异导致误判）
@@ -267,6 +282,67 @@ public class ScriptService {
     private void validateScriptType(ScriptType type) {
         if (type == null) {
             throw new BusinessException(ErrorCode.SCHEDULER_SCRIPT_TYPE_INVALID, "脚本类型不支持", 400);
+        }
+    }
+
+    /**
+     * 校验脚本参数声明（FR-2）。
+     *
+     * <p>规则：可空（无参数脚本）；须为 JSON 数组；最多 {@value #MAX_PARAMS} 个；
+     * 每项 name 必填、为合法标识符（≤{@value #MAX_PARAM_NAME_LENGTH} 字符）且不重复；
+     * type 仅允许 {@code string}/{@code int}/{@code bool}（不支持嵌套/数组/对象）。
+     *
+     * <p>此处是唯一校验入口——执行期直接信任声明，故格式与语义必须在此拦下。
+     */
+    @SuppressWarnings("unchecked")
+    private void validateParamSchema(String paramSchema) {
+        if (paramSchema == null || paramSchema.isBlank()) {
+            return;
+        }
+        List<Map<String, Object>> params;
+        try {
+            params = MAPPER.readValue(paramSchema, new TypeReference<List<Map<String, Object>>>() {
+            });
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "参数声明格式非法（需为 JSON 数组）：" + e.getMessage(), 400);
+        }
+        if (params == null) {
+            return;
+        }
+        if (params.size() > MAX_PARAMS) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "参数个数不能超过 " + MAX_PARAMS + " 个（当前 " + params.size() + " 个）", 400);
+        }
+        Set<String> seen = new HashSet<>();
+        for (int i = 0; i < params.size(); i++) {
+            Map<String, Object> param = params.get(i);
+            String position = "第 " + (i + 1) + " 个参数";
+            if (param == null) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, position + "声明为空", 400);
+            }
+            String name = param.get("name") == null ? "" : String.valueOf(param.get("name")).trim();
+            if (name.isEmpty()) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, position + "缺少名称", 400);
+            }
+            if (name.length() > MAX_PARAM_NAME_LENGTH) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        position + "名称过长（上限 " + MAX_PARAM_NAME_LENGTH + " 字符）", 400);
+            }
+            if (!PARAM_NAME_PATTERN.matcher(name).matches()) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        position + "名称不合法（仅字母/数字/下划线，且不以数字开头）：" + name, 400);
+            }
+            if (!seen.add(name)) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        "参数名重复：" + name, 400);
+            }
+            String type = param.get("type") == null ? "" : String.valueOf(param.get("type")).trim();
+            if (!PARAM_TYPES.contains(type)) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        "参数 " + name + " 的类型不支持（仅 string/int/bool）："
+                                + (type.isEmpty() ? "未设置" : type), 400);
+            }
         }
     }
 
