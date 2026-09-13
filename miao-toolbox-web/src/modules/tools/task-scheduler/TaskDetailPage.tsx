@@ -79,6 +79,9 @@ const TaskDetailPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+    // 详情刷新（点「刷新」/从编辑页返回时 isActive 重新激活）需同步刷新执行历史：
+    // KeepAlive 下 ExecutionHistoryTable 不会重新挂载，只能靠 refreshToken 自增驱动重新拉取
+    setHistoryToken((token) => token + 1);
   }, [taskId]);
 
   useEffect(() => {
