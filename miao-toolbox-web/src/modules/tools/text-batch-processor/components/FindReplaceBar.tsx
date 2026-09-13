@@ -143,20 +143,51 @@ const FindReplaceBar: React.FC<FindReplaceBarProps> = ({ textareaRef, value, onC
     }
   }, [query, matches, replaceText, value, caseSensitive, onChange]);
 
+  // 从光标位置提取选中文本或光标所在单词
+  const extractWordAtCaret = useCallback((): string => {
+    const el = textareaRef.current?.nativeElement as HTMLTextAreaElement | undefined;
+    if (!el) return '';
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    // 有选中文本时直接使用
+    if (start !== end) {
+      return valueRef.current.slice(start, end);
+    }
+    // 无选中时，向左右扩展到单词边界
+    const text = valueRef.current;
+    const isWordChar = (c: string) => /[\p{L}\p{N}_]/u.test(c);
+    let s = start;
+    while (s > 0 && isWordChar(text[s - 1])) s--;
+    let e2 = end;
+    while (e2 < text.length && isWordChar(text[e2])) e2++;
+    if (s === e2) return '';
+    return text.slice(s, e2);
+  }, [textareaRef]);
+
   // 快捷键监听
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
       if (mod && (e.key === 'f' || e.key === 'F')) {
         e.preventDefault();
+        const word = extractWordAtCaret();
         setOpen(true);
         setMode('find');
-        setTimeout(() => findInputRef.current?.focus(), 0);
+        if (word) setQuery(word);
+        setTimeout(() => {
+          findInputRef.current?.focus();
+          findInputRef.current?.select();
+        }, 0);
       } else if (mod && (e.key === 'r' || e.key === 'R' || e.key === 'h' || e.key === 'H')) {
         e.preventDefault();
+        const word = extractWordAtCaret();
         setOpen(true);
         setMode('replace');
-        setTimeout(() => findInputRef.current?.focus(), 0);
+        if (word) setQuery(word);
+        setTimeout(() => {
+          findInputRef.current?.focus();
+          findInputRef.current?.select();
+        }, 0);
       } else if (e.key === 'Escape' && open) {
         e.preventDefault();
         close();
