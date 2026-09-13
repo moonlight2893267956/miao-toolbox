@@ -73,24 +73,27 @@ public class ScriptTaskExecutor implements TaskExecutor {
     public ExecutionResult execute(ScheduledTask task) {
         String requestSummary = null;
         try {
-            Map<String, Object> params = parseParams(task.getParams());
-            requestSummary = MAPPER.writeValueAsString(Map.of("params", params));
-
             Script script = task.getScriptId() == null ? null
                     : scriptRepository.findById(task.getScriptId()).orElse(null);
             if (script == null) {
-                return fail(requestSummary, "脚本不存在: " + task.getScriptId());
+                return fail(null, "脚本不存在: " + task.getScriptId());
             }
             if (task.getScriptVersion() == null) {
-                return fail(requestSummary, "任务未绑定脚本版本");
+                return fail(null, "任务未绑定脚本版本");
             }
             ScriptVersion version = scriptVersionRepository
                     .findByScriptIdAndVersion(task.getScriptId(), task.getScriptVersion())
                     .orElse(null);
             if (version == null) {
-                return fail(requestSummary, "脚本版本不存在: " + task.getScriptId()
+                return fail(null, "脚本版本不存在: " + task.getScriptId()
                         + " v" + task.getScriptVersion());
             }
+
+            // 懒加载：先取脚本声明的默认值，再用任务显式覆盖值合并（任务值优先）。
+            // 这样未显式覆盖的参数自动跟随脚本最新默认值——改脚本默认值即可影响所有
+            // 未显式覆盖该参数的任务，无需逐个编辑任务保存。
+            Map<String, Object> params = resolveEffectiveParams(script.getParamSchema(), task.getParams());
+            requestSummary = MAPPER.writeValueAsString(Map.of("params", params));
 
             Path workDir = scriptFileService.workDir(task.getScriptId());
             Path scriptFile = scriptFileService.materialize(
@@ -205,6 +208,45 @@ public class ScriptTaskExecutor implements TaskExecutor {
     // ------------------------------------------------------------
     // 参数 / 摘要
     // ------------------------------------------------------------
+
+    /**
+     * 懒加载合并：脚本声明默认值 + 任务显式覆盖值（任务值优先）。
+     *
+     * <p>任务 params 只存「用户显式覆盖的值」——等于声明默认值的参数在前端保存时
+     * 即被过滤掉。执行时先取脚本声明的最新默认值，再用任务覆盖值合并：
+     * <ul>
+     *   <li>用户没改过的参数 → 自动跟随脚本最新默认值（改脚本默认值即生效）
+     *   <li>用户显式设置过的参数 → 保持固化的覆盖值（不受脚本变更影响）
+     *   <li>脚本后续新增的参数 → 旧任务自动取其默认值
+     * </ul>
+     */
+    private Map<String, Object> resolveEffectiveParams(String paramSchemaJson, String taskParamsJson) throws IOException {
+        Map<String, Object> defaults = parseParamDefaults(paramSchemaJson);
+        Map<String, Object> overrides = parseParams(taskParamsJson);
+        Map<String, Object> effective = new LinkedHashMap<>(defaults);
+        effective.putAll(overrides);
+        return effective;
+    }
+
+    /** 从脚本参数声明 JSON 解析出默认值映射（仅含声明了非空 default 的参数）。 */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseParamDefaults(String paramSchemaJson) throws IOException {
+        if (paramSchemaJson == null || paramSchemaJson.isBlank()) {
+            return Map.of();
+        }
+        List<Map<String, Object>> schema = MAPPER.readValue(paramSchemaJson,
+                new TypeReference<List<Map<String, Object>>>() {});
+        Map<String, Object> defaults = new LinkedHashMap<>();
+        for (Map<String, Object> param : schema) {
+            String name = param.get("name") == null ? null : String.valueOf(param.get("name")).trim();
+            if (name == null || name.isBlank()) continue;
+            Object defaultValue = param.get("default");
+            if (defaultValue != null && !"".equals(String.valueOf(defaultValue).trim())) {
+                defaults.put(name, defaultValue);
+            }
+        }
+        return defaults;
+    }
 
     private Map<String, Object> parseParams(String paramsJson) throws IOException {
         if (paramsJson == null || paramsJson.isBlank()) {

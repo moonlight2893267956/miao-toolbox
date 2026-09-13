@@ -41,9 +41,8 @@ import static org.assertj.core.api.Assertions.fail;
  * 任务入库 → {@link ExecutionEngine#triggerManual} → 异步执行 → 读回 params →
  * 注入 {@code SCRIPT_PARAM_*} 环境变量 → bash 子进程 → 落盘。
  *
- * <p>第二个用例刻意复现「任务 params 为空」的情形——它证明：当任务入库时 params 为空，
- * 执行链路完全正常也会写出空值。这正是 PRD FR-2「参数 schema 变更不影响已绑定的任务
- * （任务执行时使用创建时绑定的参数值）」的必然结果，不是执行器缺陷。
+ * <p>第三个用例验证懒加载语义：任务 params 为空（未显式覆盖）、脚本声明了默认值时，
+ * 执行自动取脚本声明的最新默认值——改脚本默认值即影响任务，无需重新编辑任务。
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -89,14 +88,15 @@ class ScriptParamEndToEndTest {
      * 建脚本（含参数声明）+ 任务，返回任务 id。
      *
      * @param outputFile 脚本写入的目标文件
-     * @param taskParams 任务保存的参数快照 JSON（可为 null，模拟「任务里没填参数」）
+     * @param taskParams 任务保存的参数快照 JSON（可为 null，模拟「任务里没显式覆盖参数」）
+     * @param paramSchema 脚本参数声明 JSON（默认值随声明走，任务未覆盖时执行取此值）
      */
-    private Long createScriptAndTask(Path outputFile, String taskParams) {
+    private Long createScriptAndTask(Path outputFile, String taskParams, String paramSchema) {
         Script script = scriptRepository.save(Script.builder()
                 .name("参数注入验证-" + System.nanoTime())
                 .scriptType(ScriptType.SHELL)
                 .latestVersion(1)
-                .paramSchema("[{\"name\":\"data\",\"type\":\"string\"}]")
+                .paramSchema(paramSchema)
                 .build());
         scriptVersionRepository.save(ScriptVersion.builder()
                 .scriptId(script.getId())
@@ -118,12 +118,16 @@ class ScriptParamEndToEndTest {
                 .build()).getId();
     }
 
-    /** 异步执行：轮询执行记录落库，拿到本次执行结果 */
-    private TaskExecution awaitExecution(Long taskId) throws InterruptedException {
+    /**
+     * 异步执行：轮询执行记录落库，拿到本次执行结果。
+     *
+     * @param afterId 上一次已知执行记录 id（同一任务多次触发时，只认 id 更大的新记录）
+     */
+    private TaskExecution awaitExecution(Long taskId, long afterId) throws InterruptedException {
         long deadline = System.currentTimeMillis() + 30_000;
         while (System.currentTimeMillis() < deadline) {
             List<TaskExecution> records = executionRepository.findAll().stream()
-                    .filter(e -> taskId.equals(e.getTaskId()))
+                    .filter(e -> taskId.equals(e.getTaskId()) && e.getId() > afterId)
                     .toList();
             if (!records.isEmpty()) {
                 return records.stream()
@@ -132,7 +136,7 @@ class ScriptParamEndToEndTest {
             }
             Thread.sleep(200);
         }
-        fail("执行记录未在 30s 内落库（taskId=" + taskId + "）");
+        fail("执行记录未在 30s 内落库（taskId=" + taskId + ", afterId=" + afterId + "）");
         return null;
     }
 
@@ -141,30 +145,78 @@ class ScriptParamEndToEndTest {
     }
 
     @Test
-    @DisplayName("任务保存了参数值 → 脚本内 SCRIPT_PARAM_DATA 取到该值并落盘")
+    @DisplayName("任务显式覆盖了参数值 → 脚本内 SCRIPT_PARAM_DATA 取到任务值并落盘")
     void savedParamsAreInjectedIntoScript() throws Exception {
         Path outputFile = outputDir.resolve("with-params.txt");
-        Long taskId = createScriptAndTask(outputFile, "{\"data\":\"默认值\"}");
+        Long taskId = createScriptAndTask(outputFile, "{\"data\":\"任务值\"}",
+                "[{\"name\":\"data\",\"type\":\"string\",\"default\":\"脚本默认\"}]");
 
         executionEngine.triggerManual(taskId);
-        TaskExecution execution = awaitExecution(taskId);
+        TaskExecution execution = awaitExecution(taskId, 0);
 
         assertThat(execution.getStatus()).isEqualTo(ExecutionStatus.SUCCESS);
-        assertThat(execution.getRequestSummary()).contains("默认值");
-        assertThat(readOutput(outputFile).strip()).isEqualTo("默认值");
+        assertThat(execution.getRequestSummary()).contains("任务值");
+        assertThat(readOutput(outputFile).strip()).isEqualTo("任务值");
     }
 
     @Test
-    @DisplayName("任务 params 为空 → 执行同样成功，但脚本写出空值（复现线上现象，非执行器缺陷）")
+    @DisplayName("任务 params 为空且声明无默认值 → 执行成功但写出空值")
     void emptyTaskParamsProduceEmptyOutput() throws Exception {
         Path outputFile = outputDir.resolve("without-params.txt");
-        Long taskId = createScriptAndTask(outputFile, null);
+        Long taskId = createScriptAndTask(outputFile, null,
+                "[{\"name\":\"data\",\"type\":\"string\"}]");
 
         executionEngine.triggerManual(taskId);
-        TaskExecution execution = awaitExecution(taskId);
+        TaskExecution execution = awaitExecution(taskId, 0);
 
-        // 执行链路完全正常（脚本退出码 0），只是环境变量不存在 → ${VAR} 展开为空
+        // 执行链路完全正常（脚本退出码 0），只是无值可注入 → ${VAR} 展开为空
         assertThat(execution.getStatus()).isEqualTo(ExecutionStatus.SUCCESS);
         assertThat(readOutput(outputFile).strip()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("懒加载：任务未显式覆盖 → 执行取脚本声明的默认值；改默认值后旧任务自动跟随")
+    void lazyDefaultFollowsScriptSchemaChange() throws Exception {
+        Path outputFile = outputDir.resolve("lazy-default.txt");
+        String schemaV1 = "[{\"name\":\"data\",\"type\":\"string\",\"default\":\"默认值V1\"}]";
+        // 模拟前端懒加载保存策略：等于默认值的参数不固化进任务 params
+        Long taskId = createScriptAndTask(outputFile, null, schemaV1);
+
+        // 第一次执行：任务未覆盖 → 取脚本默认值「默认值V1」
+        executionEngine.triggerManual(taskId);
+        TaskExecution first = awaitExecution(taskId, 0);
+        assertThat(first.getStatus()).isEqualTo(ExecutionStatus.SUCCESS);
+        assertThat(readOutput(outputFile).strip()).isEqualTo("默认值V1");
+
+        // 清空输出文件，模拟下次执行
+        Files.deleteIfExists(outputFile);
+
+        // 管理员只改脚本参数声明的默认值（任务不动）——懒加载语义下应自动跟随
+        Script script = scriptRepository.findAll().stream()
+                .filter(s -> taskId != null && s.getId().equals(
+                        taskRepository.findById(taskId).orElseThrow().getScriptId()))
+                .findFirst().orElseThrow();
+        script.setParamSchema("[{\"name\":\"data\",\"type\":\"string\",\"default\":\"默认值V2\"}]");
+        scriptRepository.save(script);
+
+        executionEngine.triggerManual(taskId);
+        TaskExecution second = awaitExecution(taskId, first.getId());
+        assertThat(second.getStatus()).isEqualTo(ExecutionStatus.SUCCESS);
+        // 关键断言：任务从未编辑，但取到了脚本改后的最新默认值
+        assertThat(readOutput(outputFile).strip()).isEqualTo("默认值V2");
+    }
+
+    @Test
+    @DisplayName("懒加载 + 显式覆盖共存：覆盖值优先于脚本默认值")
+    void overrideWinsOverLazyDefault() throws Exception {
+        Path outputFile = outputDir.resolve("override-wins.txt");
+        Long taskId = createScriptAndTask(outputFile, "{\"data\":\"显式覆盖\"}",
+                "[{\"name\":\"data\",\"type\":\"string\",\"default\":\"脚本默认\"}]");
+
+        executionEngine.triggerManual(taskId);
+        TaskExecution execution = awaitExecution(taskId, 0);
+
+        assertThat(execution.getStatus()).isEqualTo(ExecutionStatus.SUCCESS);
+        assertThat(readOutput(outputFile).strip()).isEqualTo("显式覆盖");
     }
 }

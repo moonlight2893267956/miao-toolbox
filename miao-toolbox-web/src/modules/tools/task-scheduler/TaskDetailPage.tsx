@@ -14,6 +14,7 @@ import PageFadeIn from '../../../components/shared/PageFadeIn';
 import { schedulerApi } from './schedulerApi';
 import type { ScheduledTask, ScriptParam } from './types';
 import {
+  defaultBackedParamNames,
   extractErrorMessage,
   formatDateTime,
   missingParamNames,
@@ -89,9 +90,15 @@ const TaskDetailPage: React.FC = () => {
   /** 任务参数快照（解析失败按无参数处理，仅用于展示与校验） */
   const taskParams = React.useMemo(() => parseParamsObject(task?.params), [task?.params]);
 
-  /** 脚本声明了、但任务参数快照里没有取值的参数：执行时对应环境变量不会注入，脚本内为空串 */
+  /** 无值且无默认值的参数：执行时脚本内读到空值，需要显式提醒 */
   const missingParams = React.useMemo(
     () => missingParamNames(declaredSchema, taskParams),
+    [declaredSchema, taskParams],
+  );
+
+  /** 无显式取值、但有默认值兜底的参数：执行时懒加载脚本声明的最新默认值 */
+  const defaultBackedParams = React.useMemo(
+    () => defaultBackedParamNames(declaredSchema, taskParams),
     [declaredSchema, taskParams],
   );
 
@@ -211,15 +218,25 @@ const TaskDetailPage: React.FC = () => {
                 className="ts-param-missing-alert"
                 type="warning"
                 showIcon
-                message={`任务参数缺少脚本声明的 ${missingParams.length} 个参数：${missingParams.join('、')}`}
+                message={`${missingParams.length} 个参数无取值且无默认值：${missingParams.join('、')}`}
                 description={`执行时这些参数不会注入环境变量，脚本内 ${missingParams
                   .map((name) => `$${paramEnvName(name)}`)
-                  .join('、')} 会展开为空串。参数是任务级快照——脚本参数声明的后续变更不影响已创建的任务，请编辑任务并保存一次参数值。`}
+                  .join('、')} 会展开为空串。请编辑任务填写取值，或在脚本参数声明里补充默认值。`}
                 action={
                   <Button size="small" onClick={() => navigate(`/tools/task-scheduler/${task.id}/edit`)}>
                     去编辑
                   </Button>
                 }
+              />
+            )}
+
+            {defaultBackedParams.length > 0 && (
+              <Alert
+                className="ts-param-missing-alert"
+                type="info"
+                showIcon
+                message={`${defaultBackedParams.length} 个参数未显式设置，执行时自动取脚本声明的最新默认值：${defaultBackedParams.join('、')}`}
+                description="修改脚本参数声明里的默认值即可影响本任务，无需重新编辑任务；编辑任务显式设置取值后则以任务值为准。"
               />
             )}
 
@@ -279,12 +296,17 @@ const TaskDetailPage: React.FC = () => {
                     <>
                       <pre className="ts-body-preview">{prettyJson(taskParams)}</pre>
                       <div className="ts-muted">
-                        脚本内取值：{Object.keys(taskParams).map((name) => `$${paramEnvName(name)}`).join('、')}
+                        显式覆盖值（执行时与脚本默认值合并，任务值优先）；脚本内取值：
+                        {Object.keys(taskParams).map((name) => `$${paramEnvName(name)}`).join('、')}
                       </div>
                     </>
+                  ) : defaultBackedParams.length > 0 ? (
+                    <Typography.Text type="secondary">
+                      未显式设置（{defaultBackedParams.length} 个参数执行时自动取脚本最新默认值）
+                    </Typography.Text>
                   ) : missingParams.length > 0 ? (
                     <Typography.Text type="warning">
-                      未配置（脚本声明了 {missingParams.length} 个参数，执行时脚本内为空值）
+                      未配置（{missingParams.length} 个参数无取值且无默认值，执行时脚本内为空值）
                     </Typography.Text>
                   ) : (
                     <span className="ts-muted">无参数</span>

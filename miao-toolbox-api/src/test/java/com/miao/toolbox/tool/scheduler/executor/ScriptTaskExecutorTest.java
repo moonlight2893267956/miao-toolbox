@@ -158,6 +158,7 @@ class ScriptTaskExecutorTest {
     @DisplayName("参数格式非法 → FAILED（不静默按无参数执行）")
     @Test
     void malformedParamsFail() {
+        stubScript(ScriptType.SHELL, "echo ok");
         ExecutionResult result = executor.execute(task("not-a-json", 30));
 
         assertThat(result.status()).isEqualTo(ExecutionStatus.FAILED);

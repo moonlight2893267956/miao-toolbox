@@ -32,9 +32,12 @@ import PageFadeIn from '../../../components/shared/PageFadeIn';
 import { schedulerApi } from './schedulerApi';
 import type { NotifyTrigger, ScheduledTask, ScriptParam, ScriptType, TaskPayload } from './types';
 import {
+  buildDefaultParamValues,
+  coerceParamValue,
   extractErrorMessage,
   fromLocalDateTime,
   missingParamNames,
+  mergeParamValues,
   paramEnvName,
   parseParamSchema,
   parseParamsObject,
@@ -78,35 +81,13 @@ function scriptTypeLabel(type?: ScriptType | null): string {
   return '脚本';
 }
 
-/** 按类型把声明里的默认值转成取值 */
-function coerceParamValue(type: ScriptParam['type'], raw: unknown): unknown {
-  if (raw === undefined || raw === null || raw === '') {
-    return undefined;
-  }
-  if (type === 'int') {
-    return typeof raw === 'number' ? raw : Number(raw);
-  }
-  if (type === 'bool') {
-    return typeof raw === 'boolean' ? raw : String(raw) === 'true';
-  }
-  return String(raw);
-}
-
-/** 依据参数声明构造默认取值（仅含声明了非空默认值的参数） */
-function buildDefaultParamValues(schema: ScriptParam[]): Record<string, unknown> {
-  const values: Record<string, unknown> = {};
-  for (const param of schema) {
-    const name = param.name?.trim();
-    if (!name) continue;
-    const coerced = coerceParamValue(param.type, param.default);
-    if (coerced !== undefined) {
-      values[name] = coerced;
-    }
-  }
-  return values;
-}
-
-/** 取值模型 → 提交用 params JSON（无有效取值返回 null） */
+/**
+ * 取值模型 → 提交用 params JSON。
+ *
+ * 懒加载策略：值等于声明默认值的参数不存入——执行时从脚本声明取最新默认值，
+ * 这样修改脚本默认值能自动影响所有未显式覆盖该参数的任务。只有用户显式改过的
+ * 值（与默认值不同）才固化进任务 params。无有效取值返回 null。
+ */
 function buildParamsJson(
   schema: ScriptParam[],
   values?: Record<string, unknown> | null,
@@ -116,21 +97,13 @@ function buildParamsJson(
     const name = param.name?.trim();
     if (!name) continue;
     const coerced = coerceParamValue(param.type, values?.[name]);
-    if (coerced !== undefined) {
-      payload[name] = coerced;
-    }
+    if (coerced === undefined) continue;
+    // 跳过等于声明默认值的参数——执行时懒加载脚本的最新默认值
+    const defaultValue = coerceParamValue(param.type, param.default);
+    if (defaultValue !== undefined && coerced === defaultValue) continue;
+    payload[name] = coerced;
   }
   return Object.keys(payload).length > 0 ? JSON.stringify(payload) : null;
-}
-
-/** 用声明默认值补齐取值（已有值优先，不覆盖任务里已保存的值） */
-function mergeParamValues(
-  existing: Record<string, unknown> | null | undefined,
-  schema: ScriptParam[] | null,
-): Record<string, unknown> | null {
-  const defaults = schema && schema.length > 0 ? buildDefaultParamValues(schema) : {};
-  const merged = { ...defaults, ...(existing ?? {}) };
-  return Object.keys(merged).length > 0 ? merged : null;
 }
 
 interface TaskFormValues {
@@ -268,7 +241,7 @@ const TaskFormPage: React.FC = () => {
   const selectedScriptId = Form.useWatch('scriptId', form) ?? null;
   const watchedParamValues = Form.useWatch('paramValues', form);
 
-  /** 声明了但任务里没有取值的参数：脚本内会读到空值，需显式提示 */
+  /** 无值且无默认值的参数：执行时脚本内会读到空值，需显式提示 */
   const missingParams = useMemo(
     () =>
       missingParamNames(
@@ -463,9 +436,9 @@ const TaskFormPage: React.FC = () => {
       .then(async (task) => {
         if (cancelled) return;
         const formValues = toFormValues(task);
-        // 参数声明：编辑态一并拉取，并用声明默认值补齐取值（任务已有值优先）。
-        // PRD FR-2 明确「参数 schema 变更不影响已绑定任务」——执行用的是任务保存的
-        // 参数值，因此这里只做预填，需保存任务后生效。
+        // 参数声明：编辑态一并拉取，并用声明默认值补齐展示（任务已有值优先）。
+        // 懒加载语义下，任务 params 只存「显式覆盖值」，执行时再取脚本最新默认值合并；
+        // 表单展示时把默认值补进来让用户看到完整取值，保存时等于默认值的会被过滤掉。
         let schema: ScriptParam[] | null = null;
         try {
           const detail = await schedulerApi.getScript(task.scriptId);
@@ -774,9 +747,9 @@ const TaskFormPage: React.FC = () => {
                           {hasParamSchema ? (
                             <>
                               <p className="ts-param-help-desc">
-                                参数取值来自本页填写的内容，脚本内通过对应环境变量读取。
-                                <strong>未填写的参数在脚本内为空值</strong>；若参数声明里配置了默认值，
-                                可用「填充默认值」一键带入。
+                                脚本内通过环境变量读取参数值。未填写的参数：
+                                <strong>有默认值则执行时自动取脚本声明的最新默认值</strong>（改脚本默认值即生效）；
+                                <strong>无默认值则为空值</strong>。等于默认值的取值不会固化到任务里，保持跟随脚本最新声明。
                               </p>
                               <div className="ts-param-table">
                                 {(scriptParamSchema ?? []).map((p) => (
@@ -824,8 +797,8 @@ const TaskFormPage: React.FC = () => {
                       className="ts-param-missing-alert"
                       type="warning"
                       showIcon
-                      message={`${missingParams.length} 个参数在任务里没有取值：${missingParams.join('、')}`}
-                      description="脚本内将读到空值。参数值随任务保存生效——填写下方取值（或点「填充默认值」）后保存任务即可；脚本参数声明的后续变更不会影响已创建的任务。"
+                      message={`${missingParams.length} 个参数无取值且无默认值：${missingParams.join('、')}`}
+                      description="这些参数执行时脚本内为空值。请填写下方取值，或在脚本参数声明里补充默认值——有默认值的参数执行时自动取最新默认值，无需逐个编辑任务。"
                     />
                   )}
 

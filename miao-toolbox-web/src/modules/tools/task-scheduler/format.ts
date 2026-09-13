@@ -140,21 +140,85 @@ export function parseParamsObject(raw?: string | null): Record<string, unknown> 
 }
 
 /**
- * 声明了参数、但任务参数快照里没有取值的参数名列表。
+ * 声明了参数、但任务里没有显式取值<strong>且声明里也没有默认值</strong>的参数名列表。
  *
- * 非空即意味着任务已创建在当时尚无默认值的脚本声明上——脚本内对应
- * `SCRIPT_PARAM_*` 会展开为空串。参数是任务级别的快照（PRD FR-2）：
- * 脚本声明/默认值的后续变更不会回溯已有任务，需进任务编辑页保存一次。
+ * <p>懒加载语义下，有默认值的参数不算「缺失」——执行时自动取脚本声明的最新默认值。
+ * 此函数只返回真正会读到空值的参数（无值 + 无默认），用于告警提示。
  */
 export function missingParamNames(
   schema: ScriptParam[] | null | undefined,
   params: Record<string, unknown> | null | undefined,
 ): string[] {
   return (schema ?? [])
-    .map((param) => param.name?.trim())
-    .filter((name): name is string => Boolean(name))
-    .filter((name) => {
+    .filter((param) => {
+      const name = param.name?.trim();
+      if (!name) return false;
       const value = params?.[name];
-      return value === undefined || value === null || value === '';
-    });
+      const hasValue = value !== undefined && value !== null && value !== '';
+      if (hasValue) return false;
+      const hasDefault = param.default != null && String(param.default).trim() !== '';
+      return !hasDefault;
+    })
+    .map((param) => param.name.trim());
+}
+
+/**
+ * 声明了默认值、但任务里没有显式取值的参数名列表。
+ *
+ * <p>这些参数在执行时会懒加载脚本声明的最新默认值——改脚本默认值即自动影响
+ * 所有未显式覆盖该参数的任务。用于在详情页/编辑页提示「这些值跟随脚本默认值」。
+ */
+export function defaultBackedParamNames(
+  schema: ScriptParam[] | null | undefined,
+  params: Record<string, unknown> | null | undefined,
+): string[] {
+  return (schema ?? [])
+    .filter((param) => {
+      const name = param.name?.trim();
+      if (!name) return false;
+      const value = params?.[name];
+      const hasValue = value !== undefined && value !== null && value !== '';
+      if (hasValue) return false;
+      const hasDefault = param.default != null && String(param.default).trim() !== '';
+      return hasDefault;
+    })
+    .map((param) => param.name.trim());
+}
+
+/** 按类型把声明里的默认值字符串转成取值（与前端表单控件输出一致） */
+export function coerceParamValue(type: ScriptParam['type'], raw: unknown): unknown {
+  if (raw === undefined || raw === null || raw === '') {
+    return undefined;
+  }
+  if (type === 'int') {
+    return typeof raw === 'number' ? raw : Number(raw);
+  }
+  if (type === 'bool') {
+    return typeof raw === 'boolean' ? raw : String(raw) === 'true';
+  }
+  return String(raw);
+}
+
+/** 依据参数声明构造默认取值（仅含声明了非空默认值的参数） */
+export function buildDefaultParamValues(schema: ScriptParam[]): Record<string, unknown> {
+  const values: Record<string, unknown> = {};
+  for (const param of schema) {
+    const name = param.name?.trim();
+    if (!name) continue;
+    const coerced = coerceParamValue(param.type, param.default);
+    if (coerced !== undefined) {
+      values[name] = coerced;
+    }
+  }
+  return values;
+}
+
+/** 用声明默认值补齐取值（已有值优先，不覆盖任务里已保存的值） */
+export function mergeParamValues(
+  existing: Record<string, unknown> | null | undefined,
+  schema: ScriptParam[] | null,
+): Record<string, unknown> | null {
+  const defaults = schema && schema.length > 0 ? buildDefaultParamValues(schema) : {};
+  const merged = { ...defaults, ...(existing ?? {}) };
+  return Object.keys(merged).length > 0 ? merged : null;
 }
