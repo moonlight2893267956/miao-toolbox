@@ -42,6 +42,7 @@ const TaskSchedulerDetailPage = lazy(() => import('./modules/tools/task-schedule
 const ExecutionDetailPage = lazy(() => import('./modules/tools/task-scheduler/ExecutionDetailPage'));
 const ScriptListPage = lazy(() => import('./modules/tools/task-scheduler/ScriptListPage'));
 const ScriptFormPage = lazy(() => import('./modules/tools/task-scheduler/ScriptFormPage'));
+const WubiTutorPage = lazy(() => import('./modules/tools/wubi-tutor/WubiTutorPage'));
 const DashboardPage = lazy(() => import('./modules/admin/DashboardPage'));
 const UserManagePage = lazy(() => import('./modules/admin/UserManagePage'));
 const InvocationsPage = lazy(() => import('./modules/admin/InvocationsPage'));
@@ -120,6 +121,7 @@ function AppRoutes() {
         <Route path="tools/task-scheduler/:id/edit" element={<RequireRoute code="TOOL_TASK_SCHEDULER"><TaskSchedulerFormPage /></RequireRoute>} />
         <Route path="tools/task-scheduler/executions/:id" element={<RequireRoute code="TOOL_TASK_SCHEDULER"><ExecutionDetailPage /></RequireRoute>} />
         <Route path="tools/task-scheduler/:id" element={<RequireRoute code="TOOL_TASK_SCHEDULER"><TaskSchedulerDetailPage /></RequireRoute>} />
+        <Route path="tools/wubi-tutor" element={<RequireRoute code="TOOL_WUBI_TUTOR"><WubiTutorPage /></RequireRoute>} />
         <Route
           path="tools/network"
           element={

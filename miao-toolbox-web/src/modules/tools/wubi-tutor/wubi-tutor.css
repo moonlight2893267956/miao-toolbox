@@ -1,0 +1,6594 @@
+/**
+ * 五笔练习室 — 样式定义
+ *
+ * 设计语言：「字根工坊」
+ * - 工具强调色 cyan (#22d3ee)，取自 tokens.css --miao-accent-tool-cyan
+ * - 全屏工作台 + 顶部 Tab 导航
+ * - 暗色模式自动适配（继承 data-theme）
+ * - CSS 类统一 wt- 前缀
+ */
+
+/* ============================================================
+   全屏工作台外壳（与其他工具统一）
+   ============================================================ */
+
+.miao-shell:has(.wt-page) {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.miao-shell:has(.wt-page) > .ant-layout {
+  min-height: 0;
+}
+
+.miao-content:has(.wt-page) {
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  min-height: 0;
+  margin: 0;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.miao-content:has(.wt-page) > div {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: 0;
+  width: 100%;
+}
+
+/* ============================================================
+   CSS Custom Properties
+   ============================================================ */
+
+.wt-page {
+  /* ── 工具身份色：深青 ──
+   * 浅色主题下必须用「深青」作交互主色，否则白字在亮青底上不可读。
+   * 亮青 (#22d3ee) 仅用于暗色主题与装饰光晕。
+   */
+  --tool-accent: #0e7490;
+  --wt-accent: var(--tool-accent);
+  --wt-accent-rgb: 14, 116, 144;
+  --wt-accent-hover: #155e75;                                     /* 悬浮加深，白字仍可读 */
+  --wt-accent-active: #0c4a56;
+  --wt-accent-deep: #0c4a56;
+  --wt-accent-light: color-mix(in srgb, var(--wt-accent) 10%, transparent);
+  --wt-accent-medium: color-mix(in srgb, var(--wt-accent) 18%, transparent);
+  --wt-accent-glow: color-mix(in srgb, var(--wt-accent) 28%, transparent);
+  --wt-accent-border: color-mix(in srgb, var(--wt-accent) 26%, transparent);
+
+  /* 驱动共享页头 / AntD 主色为本工具青 */
+  --miao-brand: #0e7490;
+  --miao-brand-hover: #155e75;
+  --miao-brand-active: #0c4a56;
+  --miao-brand-bg: color-mix(in srgb, #0e7490 10%, transparent);
+  --miao-brand-bg-hover: color-mix(in srgb, #0e7490 16%, transparent);
+  --miao-accent-hover: #155e75;
+
+  /* 布局 */
+  --wt-radius: 10px;
+  --wt-radius-sm: 6px;
+
+  /* ── 动效令牌 ──
+   *
+   * 原本只定义了 --wt-transition，而实测 35 处写的是 `transition: all 0.15s`
+   * —— 令牌被绕过，于是时长散了 9 种（120/140/150/160/170/180/200/260/300/400ms），
+   * 其中一堆只差 10ms，是纯粹的没统一。
+   *
+   * 这里把时长收敛到四档，并**把「布局属性不参与过渡」定成规则**：
+   * 练习板上的槽位一旦会移动，用户的视觉锚点就断了；而五笔练的是肌肉记忆，
+   * 锚点比流畅重要。所以 width/height/padding/inset/margin 一律不过渡（瞬间到位）。
+   */
+  --wt-dur-fast: 120ms;    /* 直接反馈：击键、按键态 —— 必须跟手，慢半拍就打断打字节奏 */
+  /*
+   * 150ms 不是拍脑袋挑的：审计后本模块的 transition 时长聚成三簇，
+   * 而 150ms 是压倒性的主导值（19 处，多为悬停），其余零散值都在它上下 30ms 内。
+   * 取它当 base，等于**保住模块原有的手感**，只把旁的杂音收进来。
+   */
+  --wt-dur-base: 150ms;    /* 悬停 / 选中 / 常规状态切换 */
+  --wt-dur-slow: 260ms;    /* 内容进入、进度演进 */
+
+  /*
+   * 循环与强调动作按**用途**分档，不共用一个节拍。
+   *
+   * 曾经想把所有循环统一成 1.6s —— 那是错的：加载转圈拉到 1.6s 会显得迟钝，
+   * 光标闪烁改成 1.6s 会让人盯着难受。这几种动画的「正确速度」由各自的物理感
+   * 与人眼习惯决定，统一它们等于把对的一起改错。
+   */
+  --wt-dur-shake: 300ms;   /* 一次性强调（抖动）：需要 2~3 个来回才看得清 */
+  --wt-dur-spin: 800ms;    /* 匀速旋转（加载转圈）：机械、等速、不抢注意力 */
+  --wt-dur-pulse: 1.5s;    /* 注意力循环（呼吸 / 脉冲 / 骨架 shimmer） */
+  --wt-dur-blink: 1000ms;  /* 光标闪烁：接近人眼习惯的节拍，改了反而不适 */
+
+  --wt-ease: cubic-bezier(0.4, 0, 0.2, 1);          /* 状态切换：稳、不抢戏 */
+  --wt-ease-enter: cubic-bezier(0.22, 1, 0.36, 1);  /* 进入：收尾略缓，像「落定」 */
+  --wt-ease-loop: linear;                            /* 连续动画：匀速才不跳 */
+
+  /*
+   * 可过渡属性白名单，供 transition 直接引用。
+   * 把整串预先拼好，替换时就是一行 `transition: var(--wt-transition-props-fast)`,
+   * 不必在 35 个地方各写六行 —— 也顺手保证它们此后不会各自漂移。
+   */
+  --wt-transition-props-fast:
+    background var(--wt-dur-fast) var(--wt-ease),
+    border-color var(--wt-dur-fast) var(--wt-ease),
+    color var(--wt-dur-fast) var(--wt-ease),
+    box-shadow var(--wt-dur-fast) var(--wt-ease),
+    transform var(--wt-dur-fast) var(--wt-ease),
+    opacity var(--wt-dur-fast) var(--wt-ease);
+
+  --wt-transition-props-base:
+    background var(--wt-dur-base) var(--wt-ease),
+    border-color var(--wt-dur-base) var(--wt-ease),
+    color var(--wt-dur-base) var(--wt-ease),
+    box-shadow var(--wt-dur-base) var(--wt-ease),
+    transform var(--wt-dur-base) var(--wt-ease),
+    opacity var(--wt-dur-base) var(--wt-ease);
+
+  /* 语义色 — 映射到全局令牌（修正变量名） */
+  --wt-bg: var(--miao-bg);
+  --wt-bg-elevated: var(--miao-bg-elevated);
+  --wt-bg-secondary: var(--miao-bg-muted);
+  --wt-bg-tertiary: var(--miao-bg-muted);
+  --wt-text: var(--miao-text-primary);
+  --wt-text-secondary: var(--miao-text-secondary);
+  --wt-text-tertiary: var(--miao-text-tertiary);
+  --wt-border: var(--miao-border);
+  --wt-border-light: var(--miao-border);
+  --wt-border-strong: var(--miao-border-strong);
+  --wt-success: var(--miao-success);
+  --wt-error: var(--miao-error);
+  --wt-warning: var(--miao-warning);
+
+  /* 状态徽章色（暗色适配） */
+  --wt-badge-success-bg: var(--miao-success-bg);
+  --wt-badge-success-text: var(--miao-success-text);
+  --wt-badge-warning-bg: var(--miao-warning-bg);
+  --wt-badge-warning-text: var(--miao-warning-text);
+  --wt-badge-error-bg: var(--miao-error-bg);
+  --wt-badge-error-text: var(--miao-error-text);
+
+  /* 按钮上文字色 */
+  --wt-on-accent: #ffffff;
+
+  /* 工作台表面与阴影 */
+  --wt-surface: var(--miao-bg-elevated);
+  --wt-shadow-1: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --wt-shadow-2: 0 4px 14px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.03);
+
+  /* ── 材质令牌：让台面与键帽有「物理厚度」而非一条 1px 描边 ──
+   *
+   * 键帽面用 color-mix 从 --wt-bg-elevated 推导，不写死颜色：
+   * 浅色主题下得到「白→极浅灰」的下沉感，暗色主题下自动变成
+   * 「略亮→略暗」，两套主题共用一条规则。写死 #fff/#2a2a2e 之类的
+   * 做法会在另一套主题里变成脏边。
+   */
+  --wt-key-face: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--wt-bg-elevated) 88%, #ffffff) 0%,
+    color-mix(in srgb, var(--wt-bg-elevated) 95%, var(--wt-border)) 100%
+  );
+  --wt-key-face-lit: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--wt-bg-elevated) 74%, #ffffff) 0%,
+    color-mix(in srgb, var(--wt-bg-elevated) 90%, #ffffff) 100%
+  );
+  --wt-inset-hi: rgba(255, 255, 255, 0.8);
+  --wt-key-drop: 0 1px 1px rgba(15, 23, 42, 0.05), 0 3px 8px rgba(15, 23, 42, 0.06);
+  --wt-key-drop-hover: 0 2px 3px rgba(15, 23, 42, 0.07), 0 8px 18px rgba(15, 23, 42, 0.1);
+
+  /* 键盘托盘：比页面更深、内凹，键帽像嵌在槽里 */
+  --wt-tray-bg: color-mix(in srgb, var(--wt-bg-secondary) 86%, var(--wt-bg));
+  --wt-tray-inset: inset 0 2px 8px rgba(15, 23, 42, 0.06);
+
+  /* 题目台面：宣纸感 —— 中心一圈极淡的光晕 + 细点阵纹理 */
+  --wt-paper-glow: radial-gradient(
+    58% 52% at 50% 40%,
+    color-mix(in srgb, var(--wt-accent) 7%, transparent),
+    transparent 72%
+  );
+  --wt-paper-dot: rgba(15, 23, 42, 0.028);
+
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--wt-text);
+  border-radius: var(--miao-radius-lg);
+  border: 1px solid var(--wt-border);
+  background-color: var(--wt-bg);
+  background-image:
+    radial-gradient(90% 70% at 10% -15%, color-mix(in srgb, var(--wt-accent) 8%, transparent), transparent 55%),
+    linear-gradient(180deg, color-mix(in srgb, var(--wt-bg-elevated) 55%, var(--wt-bg)) 0%, var(--wt-bg) 40%);
+  box-shadow: var(--wt-shadow-2);
+}
+
+/* 暗色模式：加深阴影 */
+:root[data-theme='dark'] .wt-page {
+  --wt-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --wt-shadow-2: 0 4px 14px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* 暗色模式：改用亮青 + 深色文字，保证对比 */
+:root[data-theme='dark'] .wt-page {
+  --tool-accent: #22d3ee;
+  --wt-accent: #22d3ee;
+  --wt-accent-rgb: 34, 211, 238;
+  --wt-accent-hover: #67e8f9;                                     /* 悬浮提亮，配深字 */
+  --wt-accent-active: #a5f3fc;
+  --wt-accent-deep: #0891b2;
+  --wt-accent-light: color-mix(in srgb, #22d3ee 14%, transparent);
+  --wt-accent-medium: color-mix(in srgb, #22d3ee 22%, transparent);
+  --wt-accent-glow: color-mix(in srgb, #22d3ee 32%, transparent);
+  --wt-accent-border: color-mix(in srgb, #22d3ee 32%, transparent);
+
+  --miao-brand: #22d3ee;
+  --miao-brand-hover: #67e8f9;
+  --miao-brand-active: #0891b2;
+  --miao-brand-bg: color-mix(in srgb, #22d3ee 14%, transparent);
+  --miao-brand-bg-hover: color-mix(in srgb, #22d3ee 20%, transparent);
+  --miao-accent-hover: #67e8f9;
+
+  --wt-on-accent: #06262e;                                        /* 深色文字，亮青底上高对比 */
+
+  /*
+   * 材质令牌的暗色覆盖。
+   *
+   * 必须压掉高光和投影：浅色主题里「白色顶部高光」放到深底上会变成
+   * 一圈发灰的脏边，投影也要加重才有层次（浅色主题的 0.05 在暗色下
+   * 完全看不见）。
+   */
+  --wt-inset-hi: rgba(255, 255, 255, 0.07);
+  --wt-key-drop: 0 1px 1px rgba(0, 0, 0, 0.4), 0 3px 10px rgba(0, 0, 0, 0.35);
+  --wt-key-drop-hover: 0 2px 4px rgba(0, 0, 0, 0.45), 0 10px 22px rgba(0, 0, 0, 0.45);
+  --wt-tray-bg: color-mix(in srgb, var(--wt-bg-secondary) 78%, #000000);
+  --wt-tray-inset: inset 0 2px 8px rgba(0, 0, 0, 0.45);
+  --wt-paper-dot: rgba(255, 255, 255, 0.04);
+}
+
+/* ============================================================
+   页头对齐：与其他工具的 16px 栅格一致
+   ============================================================ */
+
+.wt-page .tph {
+  padding: 16px 16px 0;
+}
+
+/* ============================================================
+   工具条：Tab 导航 + 操作按钮
+   ============================================================ */
+
+.wt-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px 0;
+  flex-shrink: 0;
+}
+
+/* Tab 导航 = 内凹导轨 + 凸起选中块（与键盘托盘同一套「物理」语言） */
+.wt-nav {
+  display: flex;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--wt-tray-bg);
+  border: 1px solid var(--wt-border);
+  box-shadow: var(--wt-tray-inset);
+  overflow-x: auto;
+}
+
+.wt-nav__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--wt-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-nav__tab:hover {
+  color: var(--wt-text);
+  background: color-mix(in srgb, var(--wt-accent) 8%, transparent);
+}
+
+.wt-nav__tab--active {
+  color: var(--wt-on-accent);
+  background: var(--wt-accent);
+  border-color: var(--wt-accent);
+  /* 顶部受光让选中块「抬起来」，否则它和内凹导轨会读成同一层 */
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 26%, transparent),
+    0 2px 8px color-mix(in srgb, var(--wt-accent) 32%, transparent);
+}
+
+/* 激活态悬浮：必须显式重申背景色，
+ * 否则会被 .wt-nav__tab:hover 的浅色背景覆盖（特异性 0,2,0 > 0,1,0），
+ * 造成「白字 + 近透明底」不可读。 */
+.wt-nav__tab--active:hover {
+  color: var(--wt-on-accent);
+  background: var(--wt-accent);
+  border-color: var(--wt-accent);
+}
+
+/* 图标与文字垂直居中对齐（AntD SVG 图标） */
+.wt-nav__tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.wt-nav__tab-icon > .anticon {
+  display: flex;
+  align-items: center;
+}
+
+.wt-toolbar__action {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--wt-border);
+  border-radius: 9px;
+  background: var(--wt-bg-elevated);
+  color: var(--wt-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.wt-toolbar__action:hover {
+  border-color: var(--wt-accent);
+  color: var(--wt-accent);
+  background: color-mix(in srgb, var(--wt-accent) 8%, var(--wt-bg-elevated));
+}
+
+.wt-toolbar__action--active {
+  background: var(--wt-accent);
+  border-color: var(--wt-accent);
+  color: var(--wt-on-accent);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--wt-accent) 35%, transparent);
+}
+
+/* 同样需重申背景，避免被 :hover 的浅色覆盖 */
+.wt-toolbar__action--active:hover {
+  background: var(--wt-accent-hover);
+  border-color: var(--wt-accent-hover);
+  color: var(--wt-on-accent);
+}
+
+/* ============================================================
+   工作台
+   ============================================================ */
+
+.wt-workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px 16px;
+  overflow: hidden;
+}
+
+.wt-workspace__panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-surface);
+  box-shadow: var(--wt-shadow-2);
+}
+
+/* ============================================================
+   占位卡片（未实现的 Tab）
+   ============================================================ */
+
+.wt-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
+  text-align: center;
+  padding: 20px;
+}
+
+.wt-placeholder__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  font-size: 28px;
+  color: var(--wt-accent);
+  margin-bottom: 18px;
+  background: var(--wt-accent-light);
+  border: 1px solid var(--wt-accent-border);
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--wt-accent) 16%, transparent);
+}
+
+.wt-placeholder__title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--wt-text);
+  margin: 0 0 8px;
+}
+
+.wt-placeholder__desc {
+  font-size: 14px;
+  color: var(--wt-text-secondary);
+  max-width: 480px;
+  line-height: 1.7;
+  margin: 0 0 24px;
+}
+
+/*
+ * 空状态的边界说明（哪些模式的错处不进错题本）。
+ *
+ * 左对齐且更淡：它是限定说明而不是主要信息，而且居中排版的长句很难读
+ * （容器是 text-align: center）。
+ */
+.wt-placeholder__desc--note {
+  /* 与上一段同宽：两段的左边缘才会对齐（块本身在 flex 列里居中） */
+  max-width: 480px;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.8;
+  text-align: left;
+  color: var(--wt-text-tertiary);
+}
+
+/* 说明里的强调要用正文色，否则「次要色 + 加粗」仍然读不出重点 */
+.wt-placeholder__desc strong {
+  color: var(--wt-text);
+  font-weight: 700;
+}
+
+.wt-placeholder__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.wt-placeholder__tag {
+  padding: 5px 14px;
+  border-radius: 20px;
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--wt-accent-border);
+}
+
+/* ============================================================
+   五区色（字根图/键盘图复用）
+   ============================================================ */
+
+/* 亮色模式 */
+.wt-page {
+  --wt-zone-heng-bg: color-mix(in srgb, #ef4444 12%, var(--wt-bg-elevated));
+  --wt-zone-heng-border: color-mix(in srgb, #ef4444 40%, transparent);
+  --wt-zone-heng-text: #c62828;
+
+  --wt-zone-shu-bg: color-mix(in srgb, #22c55e 12%, var(--wt-bg-elevated));
+  --wt-zone-shu-border: color-mix(in srgb, #22c55e 40%, transparent);
+  --wt-zone-shu-text: #15803d;
+
+  --wt-zone-pie-bg: color-mix(in srgb, #3b82f6 12%, var(--wt-bg-elevated));
+  --wt-zone-pie-border: color-mix(in srgb, #3b82f6 40%, transparent);
+  --wt-zone-pie-text: #1d4ed8;
+
+  --wt-zone-na-bg: color-mix(in srgb, #f59e0b 12%, var(--wt-bg-elevated));
+  --wt-zone-na-border: color-mix(in srgb, #f59e0b 40%, transparent);
+  --wt-zone-na-text: #b45309;
+
+  --wt-zone-zhe-bg: color-mix(in srgb, #a855f7 12%, var(--wt-bg-elevated));
+  --wt-zone-zhe-border: color-mix(in srgb, #a855f7 40%, transparent);
+  --wt-zone-zhe-text: #7e22ce;
+
+  /* 错误热力色阶（Story 4.2）：由浅到深，亮色模式用低透明度 */
+  --wt-heat-1: color-mix(in srgb, var(--miao-error) 14%, var(--wt-bg-elevated));
+  --wt-heat-2: color-mix(in srgb, var(--miao-error) 30%, var(--wt-bg-elevated));
+  --wt-heat-3: color-mix(in srgb, var(--miao-error) 52%, var(--wt-bg-elevated));
+  --wt-heat-4: color-mix(in srgb, var(--miao-error) 78%, var(--wt-bg-elevated));
+  --wt-heat-text-strong: #ffffff;
+  --wt-heat-border: color-mix(in srgb, var(--miao-error) 34%, transparent);
+}
+
+/* 暗色模式：提亮背景、用浅色文字 */
+:root[data-theme='dark'] .wt-page {
+  --wt-zone-heng-bg: color-mix(in srgb, #ef4444 18%, var(--wt-bg-elevated));
+  --wt-zone-heng-border: color-mix(in srgb, #ef4444 50%, transparent);
+  --wt-zone-heng-text: #f87171;
+
+  --wt-zone-shu-bg: color-mix(in srgb, #22c55e 18%, var(--wt-bg-elevated));
+  --wt-zone-shu-border: color-mix(in srgb, #22c55e 50%, transparent);
+  --wt-zone-shu-text: #4ade80;
+
+  --wt-zone-pie-bg: color-mix(in srgb, #3b82f6 18%, var(--wt-bg-elevated));
+  --wt-zone-pie-border: color-mix(in srgb, #3b82f6 50%, transparent);
+  --wt-zone-pie-text: #60a5fa;
+
+  --wt-zone-na-bg: color-mix(in srgb, #f59e0b 18%, var(--wt-bg-elevated));
+  --wt-zone-na-border: color-mix(in srgb, #f59e0b 50%, transparent);
+  --wt-zone-na-text: #fbbf24;
+
+  --wt-zone-zhe-bg: color-mix(in srgb, #a855f7 18%, var(--wt-bg-elevated));
+  --wt-zone-zhe-border: color-mix(in srgb, #a855f7 50%, transparent);
+  --wt-zone-zhe-text: #c084fc;
+
+  /* 暗色下提高透明度，否则深色底上热力几乎不可见 */
+  --wt-heat-1: color-mix(in srgb, #f87171 18%, var(--wt-bg-elevated));
+  --wt-heat-2: color-mix(in srgb, #f87171 36%, var(--wt-bg-elevated));
+  --wt-heat-3: color-mix(in srgb, #f87171 60%, var(--wt-bg-elevated));
+  --wt-heat-4: color-mix(in srgb, #f87171 88%, var(--wt-bg-elevated));
+  --wt-heat-border: color-mix(in srgb, #f87171 42%, transparent);
+}
+
+/* ============================================================
+   学习 Tab — 视图切换
+   ============================================================ */
+
+.wt-learn {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wt-learn__switcher {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--wt-border);
+}
+
+.wt-learn__switch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border: none;
+  background: transparent;
+  color: var(--wt-text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-learn__switch-btn--active {
+  color: var(--wt-accent);
+  border-bottom-color: var(--wt-accent);
+  font-weight: 600;
+}
+
+/* ============================================================
+   教程组件
+   ============================================================ */
+
+.wt-tutorial {
+  display: flex;
+  gap: 24px;
+  flex: 1;
+  min-height: 0;
+}
+
+.wt-tutorial__sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.wt-tutorial__sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.wt-tutorial__sidebar-header h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--wt-text);
+}
+
+.wt-tutorial__chapter-count {
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-tutorial__chapter-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wt-tutorial__chapter-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  /* 左侧多留 3px 给指示条，避免它压在文字上 */
+  padding: 8px 12px 8px 15px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--wt-dur-base) ease, border-color var(--wt-dur-base) ease;
+  width: 100%;
+}
+
+/*
+ * 当前章的指示条。
+ *
+ * 原先选中态只是「浅底 + 浅描边」，在 9 个条目里几乎看不出选了谁。
+ * 左侧竖条绝对定位、不占布局宽度，因此不会让文字在选中瞬间位移。
+ */
+.wt-tutorial__chapter-btn::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 9px;
+  bottom: 9px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--wt-accent);
+  transform: scaleY(0);
+  transition: transform var(--wt-dur-base) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wt-tutorial__chapter-btn--active::before {
+  transform: scaleY(1);
+}
+
+.wt-tutorial__chapter-btn:hover {
+  background: var(--wt-accent-light);
+}
+
+.wt-tutorial__chapter-btn--active {
+  background: var(--wt-accent-light);
+  border-color: var(--wt-accent-border);
+}
+
+.wt-tutorial__chapter-btn--active .wt-tutorial__chapter-title {
+  font-weight: 600;
+}
+
+.wt-tutorial__chapter-num {
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--wt-text-tertiary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wt-tutorial__chapter-btn::before {
+    transition: none;
+  }
+}
+
+.wt-tutorial__chapter-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--wt-text);
+  margin: 2px 0;
+}
+
+.wt-tutorial__chapter-time {
+  font-size: 11px;
+  color: var(--wt-text-secondary);
+  opacity: 0.7;
+}
+
+.wt-tutorial__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wt-tutorial__header {
+  /* 与正文列同宽：否则「学习目标」条会横贯整行、正文却short一截，两者对不齐 */
+  max-width: 76ch;
+  margin-bottom: 24px;
+}
+
+.wt-tutorial__title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--wt-text);
+  margin: 0 0 10px;
+}
+
+/* 学习目标：左侧强调轨 + 淡强调底，读起来像「本关目标」而非普通提示 */
+.wt-tutorial__goal {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--wt-text-secondary);
+  background: var(--wt-accent-light);
+  padding: 11px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--wt-accent-border);
+  border-left: 3px solid var(--wt-accent);
+}
+
+.wt-tutorial__goal-label {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--wt-accent);
+}
+
+.wt-tutorial__content {
+  flex: 1;
+  overflow-y: auto;
+  /*
+   * 阅读列宽上限。
+   * 中文正文每行 30~40 字最舒服；不限宽时宽屏会拉到 100+ 字，
+   * 回行时找不到下一行的开头 —— 这是长文可读性最大的杀手。
+   */
+  max-width: 72ch;
+  font-size: 15px;
+  line-height: 1.85;
+  color: var(--wt-text);
+}
+
+/* 章节标题已由上方页头展示，隐藏正文首个 h1 避免重复 */
+.wt-tutorial__content h1:first-of-type {
+  display: none;
+}
+
+/*
+ * 用「上方留白远大于下方」表达章节边界，并配一条发丝线。
+ * 只靠字号差异（18 vs 16）在小标题密集处几乎分不出层级。
+ */
+.wt-tutorial__content h2 {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  margin: 36px 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--wt-border);
+  color: var(--wt-text);
+}
+
+.wt-tutorial__content h2:first-of-type {
+  margin-top: 0;
+}
+
+.wt-tutorial__content h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 24px 0 10px;
+  color: var(--wt-text);
+}
+
+.wt-tutorial__content p {
+  margin: 0 0 16px;
+}
+
+.wt-tutorial__content ul,
+.wt-tutorial__content ol {
+  margin: 0 0 16px;
+  padding-left: 24px;
+}
+
+.wt-tutorial__content li {
+  margin-bottom: 8px;
+}
+
+/* 列表标记染成强调色：弱化但可辨识，帮助扫读列表项 */
+.wt-tutorial__content li::marker {
+  color: var(--wt-accent);
+}
+
+.wt-tutorial__content code {
+  font-family: var(--miao-font-mono, 'JetBrains Mono', 'Fira Code', monospace);
+  font-size: 13px;
+  background: var(--wt-accent-light);
+  padding: 2px 6px;
+  border-radius: 5px;
+  color: var(--wt-accent);
+}
+
+/* 代码块用内凹托盘，与页面其他「槽」保持同一材质 */
+.wt-tutorial__content pre {
+  background: var(--wt-tray-bg);
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--wt-border);
+  box-shadow: var(--wt-tray-inset);
+  overflow-x: auto;
+  margin: 0 0 16px;
+  line-height: 1.7;
+}
+
+.wt-tutorial__content pre code {
+  background: transparent;
+  padding: 0;
+  color: var(--wt-text);
+}
+
+.wt-tutorial__table-wrap {
+  overflow-x: auto;
+  margin: 0 0 14px;
+}
+
+.wt-tutorial__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.wt-tutorial__table th,
+.wt-tutorial__table td {
+  border: 1px solid var(--wt-border);
+  padding: 8px 12px;
+  text-align: left;
+  color: var(--wt-text);
+}
+
+.wt-tutorial__table th {
+  background: var(--wt-bg-secondary);
+  font-weight: 600;
+}
+
+.wt-tutorial__table tr:nth-child(even) td {
+  background: var(--wt-bg-secondary);
+}
+
+.wt-tutorial__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-tutorial__loading-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--wt-accent-light);
+  border-top-color: var(--wt-accent);
+  border-radius: 50%;
+  animation: wt-spin var(--wt-dur-spin) linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes wt-spin {
+  to { transform: rotate(360deg); }
+}
+
+.wt-tutorial__error {
+  padding: 20px;
+  color: #ef4444;
+  text-align: center;
+}
+
+/* 教程标记样式 */
+.wt-tutorial__radical-mark {
+  display: inline;
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+  padding: 1px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: 500;
+  border: 1px solid var(--wt-accent-border);
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-tutorial__radical-mark:hover {
+  background: var(--wt-accent);
+  color: var(--wt-on-accent);
+}
+
+.wt-tutorial__char-mark {
+  display: inline;
+  background: color-mix(in srgb, var(--wt-accent) 12%, transparent);
+  color: var(--wt-accent);
+  padding: 1px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: 600;
+  border-bottom: 2px solid var(--wt-accent);
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-tutorial__char-mark:hover {
+  background: var(--wt-accent);
+  color: var(--wt-on-accent);
+}
+
+/*
+ * `[[码:字|编码]]` 标记：汉字（可点击看拆分）+ 等宽编码。
+ * 编码紧跟在汉字后面，读者一眼就能把「字」和「它的码」对上。
+ */
+.wt-tutorial__code-mark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.wt-tutorial__code {
+  padding: 0 6px;
+  border-radius: 4px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+  color: var(--wt-text);
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 0.88em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* 教程底部操作栏 */
+.wt-tutorial__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 20px;
+  border-top: 1px solid var(--wt-border);
+  margin-top: 20px;
+}
+
+.wt-tutorial__nav-btn {
+  padding: 8px 20px;
+  border: 1px solid var(--wt-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--wt-text);
+  cursor: pointer;
+  font-size: 14px;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-tutorial__nav-btn:hover:not(:disabled) {
+  background: var(--wt-accent-light);
+  border-color: var(--wt-accent-border);
+}
+
+.wt-tutorial__nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.wt-tutorial__practice-btn {
+  padding: 8px 24px;
+  border: none;
+  border-radius: 6px;
+  background: var(--wt-accent);
+  color: var(--wt-on-accent);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-tutorial__practice-btn:hover {
+  background: var(--wt-accent-hover);
+}
+
+/* ============================================================
+   字根键盘图
+   ============================================================ */
+
+.wt-radical-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wt-radical-chart__toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wt-radical-chart__mode-switch {
+  display: flex;
+  gap: 4px;
+}
+
+.wt-radical-chart__mode-btn {
+  padding: 6px 16px;
+  border: 1px solid var(--wt-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--wt-text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.wt-radical-chart__mode-btn--active {
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+  border-color: var(--wt-accent-border);
+  font-weight: 600;
+}
+
+.wt-radical-chart__mode-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.wt-radical-chart__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.wt-radical-chart__actions button {
+  padding: 6px 12px;
+  border: 1px solid var(--wt-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--wt-text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.wt-radical-chart__actions button:hover {
+  background: var(--wt-accent-light);
+}
+
+.wt-radical-chart__legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/*
+ * 图例色块：底色由 JSX 内联给出（区色），
+ * 因此受光只能用 background-image 叠加，不能写 background 简写 —— 那会盖掉内联底色。
+ */
+.wt-radical-chart__legend-item {
+  padding: 4px 11px;
+  border-radius: 7px;
+  border: 1px solid;
+  font-size: 12px;
+  font-weight: 600;
+  background-image: linear-gradient(180deg, var(--wt-inset-hi), transparent 72%);
+  box-shadow: inset 0 1px 0 var(--wt-inset-hi);
+}
+
+.wt-radical-chart__keyboard {
+  /* 与练习页键盘同一套「托盘 + 键帽」语言，两处观感必须一致 */
+  background: var(--wt-tray-bg);
+  border: 1px solid var(--wt-border);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: var(--wt-tray-inset);
+  /* 窄屏横向滚动，而不是把键盘挤变形 */
+  overflow-x: auto;
+}
+
+/* 字根总表模式：隐藏键盘图，让表格独占版面 */
+.wt-radical-chart--table .wt-radical-chart__keyboard {
+  display: none;
+}
+
+/* ── 字根总表 ── */
+
+.wt-radical-chart__table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--wt-border);
+  border-radius: 12px;
+  background: var(--wt-bg-secondary);
+}
+
+.wt-radical-chart__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.wt-radical-chart__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--wt-text-secondary);
+  background: var(--wt-bg-tertiary, var(--wt-bg-secondary));
+  border-bottom: 1px solid var(--wt-border);
+  white-space: nowrap;
+}
+
+.wt-radical-chart__table tbody td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--wt-border);
+  vertical-align: middle;
+}
+
+.wt-radical-chart__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.wt-radical-chart__col-key {
+  width: 56px;
+}
+
+.wt-radical-chart__col-name {
+  width: 72px;
+}
+
+.wt-radical-chart__col-mnemonic {
+  width: 220px;
+}
+
+.wt-radical-chart__table-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 2px solid;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.wt-radical-chart__table-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--wt-text);
+}
+
+.wt-radical-chart__table-mnemonic {
+  color: var(--wt-text-secondary);
+}
+
+/* 字根胶囊：字形 + 名称，一个都不省略 */
+.wt-radical-chart__table-radicals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wt-radical-chart__table-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 52px;
+  padding: 4px 8px;
+  border: 1px solid var(--wt-border);
+  border-radius: 8px;
+  background: var(--wt-bg);
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-radical-chart__table-chip:hover {
+  border-color: var(--wt-accent);
+  background: var(--wt-accent-light);
+}
+
+.wt-radical-chart__table-chip--selected {
+  border-color: var(--wt-accent);
+  box-shadow: 0 0 0 2px var(--wt-accent-light);
+}
+
+.wt-radical-chart__table-chip-glyph {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--wt-text);
+}
+
+.wt-radical-chart__table-chip-name {
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--wt-text-secondary);
+  white-space: nowrap;
+}
+
+.wt-radical-chart__table-note {
+  padding: 10px 12px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-radical-chart__keys {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wt-radical-chart__row {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  /* 同排等高：以该排字根最多的键为准，避免高矮参差 */
+  align-items: stretch;
+}
+
+.wt-radical-chart__key {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 92px;
+  /*
+   * 用 min-height 而非固定 height。
+   * 每键字根数 2~8 不等，固定高度放不下时必须能撑高，
+   * 否则只能截断（这正是「看不到全部字根」的成因之一）。
+   */
+  min-height: 76px;
+  border: 2px solid;
+  border-radius: 10px;
+  /*
+   * 顶部受光：用渐变叠在**内联的区色底**之上。
+   * 区色由 JSX 内联 background-color 给出，所以这里只能加
+   * background-image（渐变画在底色之上），不能写 background 简写
+   * —— 那会把内联底色一起覆盖掉。
+   */
+  background-image: linear-gradient(180deg, var(--wt-inset-hi), transparent 62%);
+  box-shadow: inset 0 1px 0 var(--wt-inset-hi), var(--wt-key-drop);
+  cursor: pointer;
+  transition: transform var(--wt-dur-base), box-shadow var(--wt-dur-base);
+  padding: 4px;
+  gap: 2px;
+}
+
+.wt-radical-chart__key:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 0 var(--wt-inset-hi), var(--wt-key-drop-hover);
+}
+
+.wt-radical-chart__key--selected {
+  transform: translateY(-2px);
+  /*
+   * 选中态只能用外环：描边色来自 JSX 内联的区色，
+   * 内联样式优先级高于本文件，改 border-color 不会生效。
+   */
+  box-shadow:
+    inset 0 1px 0 var(--wt-inset-hi),
+    0 0 0 3px var(--wt-accent-glow),
+    var(--wt-key-drop);
+}
+
+.wt-radical-chart__key--z {
+  background: var(--wt-bg-tertiary, #333);
+  border-color: var(--wt-border);
+  color: var(--wt-text-secondary);
+  cursor: default;
+  opacity: 0.5;
+}
+
+.wt-radical-chart__key--z:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* 字母是坐标，键名字是主体（与练习页键盘同一层级规则） */
+.wt-radical-chart__key-letter {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+}
+
+.wt-radical-chart__key-name {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.05;
+}
+
+.wt-radical-chart__key-radicals {
+  font-size: 10px;
+  line-height: 1.3;
+  opacity: 0.82;
+  text-align: center;
+  /*
+   * !! 不要加 overflow:hidden + text-overflow:ellipsis + nowrap !!
+   *
+   * 每键字根数最多 7 个（F 土士二干十寸雨 / D / Q / N），单行 64px 装不下。
+   * 截断后用户会以为字根表本身不全（实测被问过「看不到全部字根」）。
+   * 这里一律换行显示；实在要完整阅读请用「字根总表」视图。
+   */
+  white-space: normal;
+  word-break: break-word;
+  max-width: 84px;
+}
+
+.wt-radical-chart__key-hint {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.wt-radical-chart__detail {
+  background: var(--wt-bg-secondary);
+  border: 1px solid var(--wt-border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.wt-radical-chart__detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.wt-radical-chart__detail-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.wt-radical-chart__detail-zone {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 4px;
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+}
+
+.wt-radical-chart__mnemonic {
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.wt-radical-chart__mnemonic-label {
+  color: var(--wt-text-secondary);
+}
+
+.wt-radical-chart__mnemonic-text {
+  font-weight: 600;
+  color: var(--wt-text);
+}
+
+.wt-radical-chart__radical-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.wt-radical-chart__radical-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid var(--wt-border);
+  border-radius: 8px;
+  background: var(--wt-bg);
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+  gap: 4px;
+  min-width: 80px;
+}
+
+.wt-radical-chart__radical-card:hover {
+  border-color: var(--wt-accent-border);
+}
+
+.wt-radical-chart__radical-card--selected {
+  border-color: var(--wt-accent);
+  box-shadow: 0 0 0 2px var(--wt-accent-light);
+}
+
+.wt-radical-chart__radical-glyph {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-radical-chart__radical-name {
+  font-size: 11px;
+  color: var(--wt-text-secondary);
+  text-align: center;
+}
+
+.wt-radical-chart__radical-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--wt-accent);
+  color: var(--wt-on-accent);
+}
+
+.wt-radical-chart__radical-detail {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--wt-border);
+}
+
+.wt-radical-chart__radical-detail h4 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+/* 成字字根的拆分演示入口 */
+.wt-radical-chart__radical-action {
+  margin: 4px 0 2px;
+  padding: 6px 14px;
+  border: 1px solid var(--wt-accent);
+  border-radius: 8px;
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-radical-chart__radical-action:hover {
+  background: var(--wt-accent);
+  color: var(--wt-on-accent);
+}
+
+.wt-radical-chart__radical-hint {
+  font-size: 13px;
+  color: var(--wt-text-secondary);
+  margin-top: 8px;
+}
+
+/* 拆字演示弹层 */
+.wt-split-demo__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.wt-split-demo__modal {
+  background: var(--wt-bg);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 560px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.wt-split-demo__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--wt-border);
+}
+
+.wt-split-demo__header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.wt-split-demo__close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--wt-text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.wt-split-demo__close:hover {
+  background: var(--wt-bg-secondary);
+}
+
+.wt-split-demo__body {
+  padding: 20px;
+}
+
+.wt-split-demo__char-display {
+  font-size: 64px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--wt-accent);
+  margin-bottom: 20px;
+}
+
+.wt-split-demo__segments {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.wt-split-demo__segment {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 14px;
+  border: 2px solid var(--wt-border);
+  border-radius: 8px;
+  min-width: 60px;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-split-demo__segment--active {
+  border-color: var(--wt-accent);
+  background: var(--wt-accent-light);
+}
+
+.wt-split-demo__segment-radical {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-split-demo__ambiguous {
+  color: var(--wt-text-secondary);
+  font-size: 18px;
+}
+
+/*
+ * 规则字的角色标签（键名码 / 首笔 / 次笔 / 末笔 / 补位）。
+ * 字号比字根小一档：它是说明，不是字根本身。
+ */
+.wt-split-demo__role {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+  color: var(--wt-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.wt-split-demo__unknown {
+  color: var(--wt-text-secondary);
+}
+
+.wt-split-demo__segment-key {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--wt-accent);
+  margin-top: 4px;
+}
+
+.wt-split-demo__code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 14px;
+  border: 2px solid var(--wt-border);
+  border-radius: 8px;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-split-demo__code--active {
+  border-color: var(--wt-accent);
+  background: var(--wt-accent-light);
+}
+
+.wt-split-demo__code-label {
+  font-size: 11px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-split-demo__code-value {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: monospace;
+  color: var(--wt-accent);
+}
+
+.wt-split-demo__status {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.wt-split-demo__status-badge {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.wt-split-demo__status-badge--resolved {
+  background: var(--wt-badge-success-bg);
+  color: var(--wt-badge-success-text);
+}
+
+.wt-split-demo__status-badge--ambiguous {
+  background: var(--wt-badge-warning-bg);
+  color: var(--wt-badge-warning-text);
+}
+
+.wt-split-demo__status-badge--unsupported {
+  background: var(--wt-badge-error-bg);
+  color: var(--wt-badge-error-text);
+}
+
+.wt-split-demo__notes {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wt-split-demo__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--wt-bg-secondary);
+}
+
+.wt-split-demo__note--keyName { border-left: 3px solid #2196f3; }
+.wt-split-demo__note--selfRadical { border-left: 3px solid #4caf50; }
+.wt-split-demo__note--identificationCode { border-left: 3px solid #ff9800; }
+.wt-split-demo__note--simplified { border-left: 3px solid #9c27b0; }
+
+.wt-split-demo__note-icon {
+  flex-shrink: 0;
+}
+
+.wt-split-demo__note-text {
+  color: var(--wt-text);
+}
+
+.wt-split-demo__simplified {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.wt-split-demo__simplified-label {
+  font-size: 13px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-split-demo__simplified-code {
+  font-family: monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--wt-accent);
+  margin: 0 4px;
+}
+
+.wt-split-demo__simplified-level {
+  font-size: 12px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-split-demo__fallback {
+  text-align: center;
+  padding: 16px;
+  background: var(--wt-bg-secondary);
+  border-radius: 8px;
+}
+
+.wt-split-demo__fallback-hint {
+  font-size: 12px;
+  color: var(--wt-text-secondary);
+  margin-top: 8px;
+}
+
+.wt-split-demo__ambiguous-detail {
+  padding: 12px;
+  background: var(--wt-badge-warning-bg);
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.wt-split-demo__ambiguous-detail p {
+  font-size: 13px;
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+.wt-split-demo__ambiguous-item {
+  font-size: 13px;
+  color: var(--wt-text);
+  margin-bottom: 4px;
+}
+
+.wt-split-demo__unsupported {
+  text-align: center;
+  padding: 20px;
+}
+
+.wt-split-demo__unsupported .wt-split-demo__char-display {
+  color: var(--wt-text-secondary);
+}
+
+.wt-split-demo__footer {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--wt-border);
+}
+
+.wt-split-demo__btn {
+  padding: 8px 20px;
+  border: 1px solid var(--wt-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--wt-text);
+  cursor: pointer;
+  font-size: 14px;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-split-demo__btn--play {
+  background: var(--wt-accent);
+  color: var(--wt-on-accent);
+  border: none;
+  font-weight: 600;
+}
+
+.wt-split-demo__btn--play:hover {
+  background: var(--wt-accent-hover);
+}
+
+.wt-split-demo__btn--review:hover {
+  background: var(--wt-accent-light);
+}
+
+.wt-split-demo__btn--close:hover {
+  background: var(--wt-bg-secondary);
+}
+
+/* ── AI 解释区 ──
+ *
+ * 视觉上刻意比确定性内容「轻」：它是附加说明，不该盖过上面的拆分与候选字根。
+ * 左侧强调色细轨表示「这是 AI 说的」，与算法给的内容区分开。
+ */
+.wt-split-demo__ai {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--wt-border);
+  border-left: 3px solid var(--wt-accent);
+  border-radius: 10px;
+  background: var(--wt-bg-secondary);
+}
+
+.wt-split-demo__ai-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.wt-split-demo__ai-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-split-demo__ai-badge {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+  font-size: 11px;
+}
+
+.wt-split-demo__ai-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--wt-text);
+  /* 模型返回的换行要保留，长句要能断 */
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.wt-split-demo__ai-suggestions {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--wt-text-secondary);
+}
+
+/* 降级 / 未过校验：明确说明并以候选字根为准，不静默消失 */
+.wt-split-demo__ai--fallback {
+  border-left-color: var(--wt-border);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--wt-text-secondary);
+}
+
+/* ── AI 区的等待与呈现 ──
+ *
+ * 这里的每一处动效都在解决一个具体问题，不是为了「动起来好看」：
+ *   骨架 shimmer → 等待最长可达一分钟，静态文字会让人以为卡死
+ *   骨架占位     → 答案到达时整块不跳动
+ *   逐句浮现     → 由组件的 framer-motion 负责（见 SplitDemo）
+ */
+
+.wt-split-demo__ai-wrap {
+  /* 骨架与结果共用同一位置，切换时不改变正文高度 */
+  display: block;
+}
+
+.wt-split-demo__ai-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wt-split-demo__ai-skeleton span {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--wt-border) 0%,
+    var(--wt-bg) 50%,
+    var(--wt-border) 100%
+  );
+  background-size: 200% 100%;
+  animation: wt-ai-shimmer var(--wt-dur-pulse) ease-in-out infinite;
+}
+
+/* 长短不一才像文字段落，等长会像表格 */
+.wt-split-demo__ai-skeleton span:nth-child(1) { width: 96%; }
+.wt-split-demo__ai-skeleton span:nth-child(2) { width: 88%; }
+.wt-split-demo__ai-skeleton span:nth-child(3) { width: 62%; }
+
+@keyframes wt-ai-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+.wt-split-demo__ai-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--wt-text-secondary);
+}
+
+/* 逐句浮现后，句子之间需要呼吸感（原来是单段，margin: 0） */
+.wt-split-demo__ai-text {
+  margin: 0 0 6px;
+}
+
+.wt-split-demo__ai-text:last-of-type {
+  margin-bottom: 0;
+}
+
+/* 「解释中…」按钮上的转圈：等待期间给一个持续但不喧闹的信号 */
+.wt-split-demo__btn--ai[data-loading='true']::before {
+  content: '';
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  margin-right: 6px;
+  vertical-align: -1px;
+  border: 2px solid var(--wt-accent);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: wt-ai-spin var(--wt-dur-spin) linear infinite;
+}
+
+@keyframes wt-ai-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 用户要求减少动态效果时，一切持续动画都停下（骨架用静态底色兜底） */
+@media (prefers-reduced-motion: reduce) {
+  .wt-split-demo__ai-skeleton span,
+  .wt-split-demo__btn--ai[data-loading='true']::before {
+    animation: none;
+  }
+
+  .wt-split-demo__ai-skeleton span {
+    background: var(--wt-border);
+  }
+}
+
+/* ============================================================
+   减少动态效果 —— 全模块的 keyframes 兜底
+   ============================================================
+
+   模块原先有 7 处 reduced-motion，但覆盖的都是**悬停类**选择器，
+   9 个 @keyframes 一个都没盖到 —— 而抖动（wt-key-error-shake、
+   wt-prompt-shake）与循环呼吸（wt-slot-breathe、wt-cursor-blink）
+   恰恰是对运动敏感的用户最受不了的那一类。
+
+   规则：这里的动画一律停，但**状态照样看得出来** —— 错误态仍有红边与文案、
+   当前槽位仍有边框强调，只是不再动。动效是锦上添花，不是信息的载体。 */
+@media (prefers-reduced-motion: reduce) {
+  /* 两个抖动：错误反馈 */
+  .wt-practice__prompt--error,
+  .wt-vkeyboard__key--error {
+    animation: none;
+  }
+
+  /* 两个循环：当前槽位呼吸、目标键脉冲 —— 无限动画最耗注意力，优先停掉 */
+  .wt-practice__code-slot--current,
+  .wt-vkeyboard__key--target {
+    animation: none;
+  }
+
+  /* !!
+   * 停掉动画后**必须保证状态仍然看得出来**，否则等于把信息一起删了：
+   * 错误态靠边框与文案、当前槽位靠边框强调、目标键靠底色 —— 这些都在别处已定义，
+   * 所以这里只需要补一处：脉冲键停掉后底色差异不够明显时，用边框补上。
+   */
+  .wt-vkeyboard__key--target {
+    outline: 2px solid var(--wt-accent);
+    outline-offset: -2px;
+  }
+}
+
+.wt-split-demo__btn--ai {
+  border: 1px solid var(--wt-accent);
+  background: transparent;
+  color: var(--wt-accent);
+  font-weight: 600;
+}
+
+.wt-split-demo__btn--ai:hover:not(:disabled) {
+  background: var(--wt-accent-light);
+}
+
+.wt-split-demo__btn--ai:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   练习模式选择
+   ============================================================ */
+
+.wt-practice-picker {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+/*
+ * 模式选择 = 工位台架。
+ *
+ * 原先 9 张卡片完全等价（同底色、同图标处理、只有文案不同），
+ * 读起来像通用的后台卡片栅格 —— 用户没有「该点哪个」的线索。
+ *
+ * 这里不引入额外配色（会给工具增加第二个视觉体系），而是用两个
+ * 极轻的元素建立次序感：
+ *   1) 右上角的等宽序数（01…09）—— 把卡片变成可指认的「工位」
+ *   2) hover 时从左铺满的顶线 —— 唯一使用强调色的地方，
+ *      因此强调色仍然稀缺、指哪打哪
+ */
+.wt-practice-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+  counter-reset: wt-mode;
+}
+
+.wt-practice-picker__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 18px 18px 16px;
+  border: 1px solid var(--wt-border);
+  border-radius: 14px;
+  background: var(--wt-bg-secondary);
+  cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+  transition:
+    transform var(--wt-dur-base) cubic-bezier(0.4, 0, 0.2, 1),
+    border-color var(--wt-dur-base) ease,
+    background var(--wt-dur-base) ease,
+    box-shadow var(--wt-dur-base) ease;
+}
+
+/* 顶线：默认不可见，hover 时由左向右铺满 */
+.wt-practice-picker__card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: var(--wt-accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--wt-dur-slow) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wt-practice-picker__card:hover::before,
+.wt-practice-picker__card:focus-visible::before {
+  transform: scaleX(1);
+}
+
+/* 序数：给卡片一个可指认的坐标 */
+.wt-practice-picker__card::after {
+  counter-increment: wt-mode;
+  content: counter(wt-mode, decimal-leading-zero);
+  position: absolute;
+  top: 15px;
+  right: 16px;
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--wt-text-tertiary);
+  opacity: 0.45;
+  transition: opacity var(--wt-dur-base) ease, color var(--wt-dur-base) ease;
+}
+
+.wt-practice-picker__card:hover::after,
+.wt-practice-picker__card:focus-visible::after {
+  opacity: 0.9;
+  color: var(--wt-accent);
+}
+
+.wt-practice-picker__card:hover {
+  border-color: var(--wt-accent-border);
+  background: var(--wt-bg-elevated);
+  transform: translateY(-3px);
+  box-shadow: var(--wt-key-drop-hover);
+}
+
+.wt-practice-picker__card:active {
+  transform: translateY(-1px);
+}
+
+.wt-practice-picker__card:focus-visible {
+  outline: 2px solid var(--wt-accent);
+  outline-offset: 2px;
+}
+
+.wt-practice-picker__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  font-size: 19px;
+  color: var(--wt-accent);
+  background: var(--wt-accent-light);
+  box-shadow: inset 0 1px 0 var(--wt-inset-hi);
+  transition: transform var(--wt-dur-base) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wt-practice-picker__card:hover .wt-practice-picker__icon {
+  transform: scale(1.06) rotate(-2deg);
+}
+
+.wt-practice-picker__label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-practice-picker__desc {
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--wt-text-secondary);
+}
+
+/* ── 中断现场卡片（继续上次练习） ──
+ *
+ * 视觉上要比模式卡片更「临时」：它是可丢弃的现场，不是对等的一个模式。
+ * 因此用强调色左轨 + 略浅的底，而不是做成第 10 张模式卡。
+ */
+.wt-practice-resume {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 14px 18px;
+  border: 1px solid var(--wt-accent-border);
+  border-left: 3px solid var(--wt-accent);
+  border-radius: 12px;
+  background: var(--wt-accent-light);
+}
+
+.wt-practice-resume__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.wt-practice-resume__label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-practice-resume__detail {
+  font-size: 12px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-practice-resume__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.wt-practice-resume__resume,
+.wt-practice-resume__discard {
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--wt-dur-base) ease, border-color var(--wt-dur-base) ease, color var(--wt-dur-base) ease;
+}
+
+.wt-practice-resume__resume {
+  border: 1px solid var(--wt-accent);
+  background: var(--wt-accent);
+  color: var(--wt-on-accent);
+}
+
+.wt-practice-resume__resume:hover {
+  background: var(--wt-accent-hover);
+  border-color: var(--wt-accent-hover);
+}
+
+/* 丢弃是次要动作：低调，避免误点丢掉整轮进度 */
+.wt-practice-resume__discard {
+  border: 1px solid var(--wt-border);
+  background: transparent;
+  color: var(--wt-text-secondary);
+}
+
+.wt-practice-resume__discard:hover {
+  border-color: var(--wt-error);
+  color: var(--wt-error);
+}
+
+/* 减弱动效：去掉位移与旋转，保留状态色变化 */
+@media (prefers-reduced-motion: reduce) {
+  .wt-practice-picker__card:hover {
+    transform: none;
+  }
+
+  .wt-practice-picker__card:hover .wt-practice-picker__icon {
+    transform: none;
+  }
+
+  .wt-practice-picker__card::before {
+    transition: none;
+  }
+}
+
+/* ============================================================
+   文章选择 / 自定义文本
+   ============================================================ */
+
+.wt-article-picker,
+.wt-custom-input {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.wt-article-picker__bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.wt-article-picker__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-article-picker__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.wt-article-picker__item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--wt-border);
+  border-radius: 12px;
+  background: var(--wt-bg-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-article-picker__item:hover {
+  border-color: var(--wt-accent);
+  background: var(--wt-bg-elevated);
+  transform: translateY(-1px);
+}
+
+.wt-article-picker__item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.wt-article-picker__item-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-article-picker__badge {
+  padding: 1px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.wt-article-picker__badge--beginner {
+  background: var(--miao-success-bg);
+  color: var(--miao-success-text);
+}
+
+.wt-article-picker__badge--intermediate {
+  background: var(--miao-warning-bg);
+  color: var(--miao-warning-text);
+}
+
+.wt-article-picker__badge--challenge {
+  background: var(--miao-error-bg);
+  color: var(--miao-error-text);
+}
+
+.wt-article-picker__item-meta {
+  font-size: 11px;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-article-picker__item-preview {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--wt-text-secondary);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* 自定义文本输入 */
+.wt-custom-input__area {
+  flex: 1 1 auto;
+  min-height: 240px;
+  padding: 16px;
+  border: 1px solid var(--wt-border);
+  border-radius: 12px;
+  background: var(--wt-bg-secondary);
+  color: var(--wt-text);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.8;
+  resize: vertical;
+  outline: none;
+  user-select: text;
+}
+
+.wt-custom-input__area:focus {
+  border-color: var(--wt-accent);
+}
+
+.wt-custom-input__footer {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.wt-custom-input__count {
+  font-size: 12px;
+  color: var(--wt-text-tertiary);
+  font-family: var(--miao-font-mono, monospace);
+}
+
+.wt-custom-input__error {
+  flex: 1;
+  font-size: 12px;
+  color: var(--wt-error);
+}
+
+.wt-custom-input__footer .wt-result__btn {
+  margin-left: auto;
+}
+
+/* ============================================================
+   文章练习看板
+   ============================================================ */
+
+.wt-article-board {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/*
+ * 键盘保持自身高度，压缩全部交给正文区（flex: 1）。
+ * 否则窄屏时键盘会被压扁，键帽里的字根挤成一团 —— 键盘只有「看得清」
+ * 才有参照价值，压扁等于没有。
+ *
+ * 代价是展开时正文只剩两三行：这正是它默认提供一键收起的原因。
+ */
+.wt-article-board__keyboard {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+/* 键盘标题栏：给键盘一个「面板」身份，并承载它自己的开关 */
+.wt-article-board__keyboard-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px 8px;
+}
+
+.wt-article-board__keyboard-title {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--wt-text-tertiary);
+}
+
+/*
+ * 键盘自身的开关（光标跟随）。
+ * 关闭态刻意低调、开启态点亮 —— 用户扫一眼就知道键盘现在会不会自己动，
+ * 不必去回忆上次点过什么。
+ */
+.wt-article-board__keyboard-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--wt-border);
+  border-radius: 8px;
+  background: var(--wt-bg-elevated);
+  color: var(--wt-text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--wt-dur-base) ease, background var(--wt-dur-base) ease, color var(--wt-dur-base) ease;
+}
+
+.wt-article-board__keyboard-toggle:hover {
+  border-color: var(--wt-accent);
+  color: var(--wt-accent);
+}
+
+.wt-article-board__keyboard-toggle--on {
+  border-color: var(--wt-accent-border);
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+  box-shadow: inset 0 1px 0 var(--wt-inset-hi);
+}
+
+.wt-article-board__text {
+  flex: 1 1 auto;
+  /* 下限约两行：键盘展开时正文也不能被压到看不见 */
+  min-height: 96px;
+  overflow-y: auto;
+  padding: 24px;
+  border-radius: 14px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+  font-size: 22px;
+  line-height: 2.1;
+  letter-spacing: 0.02em;
+}
+
+.wt-article-board__token {
+  position: relative;
+  border-radius: 3px;
+  transition: color var(--wt-dur-fast) ease, background var(--wt-dur-fast) ease;
+}
+
+.wt-article-board__token--pending {
+  color: var(--wt-text-tertiary);
+}
+
+.wt-article-board__token--done {
+  color: var(--wt-text);
+}
+
+/*
+ * 当前字：底色 + 描边环。
+ * 刻意**不改字号**——字号变化会让整段文字重排，光标位置随之跳动。
+ * 用 box-shadow 画环也不占布局空间，不会挤动相邻字符。
+ */
+.wt-article-board__token--current {
+  color: var(--wt-accent-deep);
+  background: var(--wt-accent-light);
+  box-shadow: 0 0 0 2px var(--wt-accent-border);
+  border-radius: 5px;
+}
+
+.wt-article-board__token--skip {
+  color: var(--wt-text-tertiary);
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.wt-article-board__cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background: var(--wt-accent);
+  animation: wt-cursor-blink var(--wt-dur-blink) step-end infinite;
+}
+
+@keyframes wt-cursor-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wt-article-board__cursor {
+    animation: none;
+  }
+
+  .wt-article-board__action:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* ── 焦点条 ──
+ *
+ * 全文视图只能回答「整篇打完了多少」，回答不了「我正在打的这个字打了几码」。
+ * 用户在长文里既难定位，也拿不到本字的反馈。焦点条把这两件事拉到视线中心，
+ * 正文退为上下文。
+ */
+.wt-article-board__focus {
+  display: flex;
+  align-items: stretch;
+  gap: 18px;
+  flex-shrink: 0;
+  padding: 16px 20px;
+  border-radius: 16px;
+  border: 1px solid var(--wt-border);
+  background-color: var(--wt-bg-secondary);
+  /* 与练习台面共用同一套宣纸质感 */
+  background-image: var(--wt-paper-glow);
+  background-size: 100% 100%;
+  box-shadow: inset 0 1px 0 var(--wt-inset-hi);
+}
+
+.wt-article-board__focus-glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  border: 2px solid var(--wt-accent-border);
+  background: var(--wt-key-face-lit);
+  box-shadow: inset 0 1px 0 var(--wt-inset-hi), var(--wt-key-drop);
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--wt-accent);
+}
+
+.wt-article-board__focus-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+
+.wt-article-board__focus-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wt-article-board__focus-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-article-board__focus-count {
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--wt-text-tertiary);
+}
+
+/* 本字编码位：与练习页的编码槽同一套「空槽内凹 / 已填凸起」语言 */
+.wt-article-board__focus-codes {
+  display: flex;
+  gap: 8px;
+}
+
+.wt-article-board__focus-code {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 44px;
+  border: 1px solid var(--wt-border);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--wt-bg-tertiary) 55%, transparent);
+  box-shadow: inset 0 2px 4px color-mix(in srgb, var(--wt-text) 7%, transparent);
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--wt-text-tertiary);
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-article-board__focus-code--filled {
+  border-color: var(--wt-accent);
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+  box-shadow:
+    inset 0 1px 0 var(--wt-inset-hi),
+    0 2px 6px color-mix(in srgb, var(--wt-accent) 16%, transparent);
+  transform: translateY(-1px);
+}
+
+.wt-article-board__focus-code--current {
+  border-style: dashed;
+  border-color: var(--wt-accent-border);
+}
+
+/* 行内错误 / 提示：紧贴当前输入，而不是丢到页面底部 */
+.wt-article-board__focus-error,
+.wt-article-board__focus-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.wt-article-board__focus-error {
+  color: var(--wt-error);
+}
+
+.wt-article-board__focus-hint {
+  color: var(--wt-accent);
+}
+
+.wt-article-board__focus-finger {
+  font-weight: 400;
+  color: var(--wt-text-secondary);
+}
+
+/* 下一个字：仅作预览，刻意压低对比度以免与当前字争夺注意力 */
+.wt-article-board__focus-next {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding-left: 18px;
+  border-left: 1px solid var(--wt-border);
+}
+
+.wt-article-board__focus-next-label {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-article-board__focus-next-glyph {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--wt-text-tertiary);
+  opacity: 0.55;
+}
+
+/* ── 操作条 ── */
+.wt-article-board__actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.wt-article-board__action {
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--wt-border);
+  border-radius: 11px;
+  background: var(--wt-bg-elevated);
+  color: var(--wt-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color var(--wt-dur-base) ease, color var(--wt-dur-base) ease,
+    background var(--wt-dur-base) ease, transform var(--wt-dur-base) ease;
+}
+
+.wt-article-board__action:hover:not(:disabled) {
+  border-color: var(--wt-accent);
+  color: var(--wt-accent);
+  background: color-mix(in srgb, var(--wt-accent) 8%, var(--wt-bg-elevated));
+  transform: translateY(-1px);
+}
+
+.wt-article-board__action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/*
+ * 只标注**真实存在**的快捷键。
+ * 文章练习里所有字母键都是输入，因此不能给按钮绑字母键 ——
+ * 仍存在的只有跳过（Ctrl+Enter，见练习会话的全局热键）。
+ */
+.wt-article-board__action kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--wt-border);
+  border-radius: 5px;
+  background: var(--wt-tray-bg);
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 10.5px;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-article-board__progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.wt-article-board__error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--miao-error-bg);
+  border: 1px solid color-mix(in srgb, var(--wt-error) 24%, transparent);
+  color: var(--wt-error);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.wt-article-board__progress-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--wt-bg-secondary);
+  overflow: hidden;
+}
+
+.wt-article-board__progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--wt-accent);
+  transition: width var(--wt-dur-base) ease;
+}
+
+.wt-article-board__progress-text {
+  font-size: 12px;
+  font-family: var(--miao-font-mono, monospace);
+  color: var(--wt-text-secondary);
+  white-space: nowrap;
+}
+
+/* ============================================================
+   复习 Tab
+   ============================================================ */
+
+.wt-review {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.wt-review__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.wt-review__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+}
+
+.wt-review__stat--due {
+  border-color: var(--wt-accent-border);
+  background: var(--wt-accent-light);
+}
+
+.wt-review__stat--mastered {
+  border-color: color-mix(in srgb, var(--miao-success) 30%, transparent);
+  background: var(--miao-success-bg);
+}
+
+.wt-review__stat-value {
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--wt-accent);
+  line-height: 1.1;
+}
+
+.wt-review__stat--mastered .wt-review__stat-value {
+  color: var(--miao-success-text);
+}
+
+.wt-review__stat-label {
+  font-size: 12px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-review__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.wt-review__start {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 22px;
+  border: none;
+  border-radius: 10px;
+  background: var(--wt-accent);
+  color: var(--wt-on-accent);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-review__start:hover:not(:disabled) {
+  background: var(--wt-accent-hover);
+}
+
+.wt-review__start:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.wt-review__clean {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--wt-border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--wt-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.wt-review__clean:hover {
+  border-color: var(--miao-success);
+  color: var(--miao-success-text);
+}
+
+.wt-review__list-wrap {
+  flex-shrink: 0;
+}
+
+.wt-review__list-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--wt-text-secondary);
+}
+
+.wt-review__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wt-review__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+}
+
+.wt-review__item--due {
+  border-color: var(--wt-accent-border);
+}
+
+.wt-review__item-char {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--wt-bg-elevated);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--wt-text);
+  flex-shrink: 0;
+}
+
+.wt-review__item-meta {
+  flex: 1;
+  font-size: 12px;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-review__item-state {
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--wt-bg-elevated);
+  color: var(--wt-text-tertiary);
+}
+
+.wt-review__item-state--due {
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+}
+
+.wt-review__item-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--wt-border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--wt-text-secondary);
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+  flex-shrink: 0;
+}
+
+.wt-review__item-btn:hover {
+  border-color: var(--wt-accent);
+  color: var(--wt-accent);
+}
+
+.wt-review__item-btn--danger:hover {
+  border-color: var(--miao-error);
+  color: var(--wt-error);
+}
+
+/* ============================================================
+   课程闯关地图
+   ============================================================ */
+
+.wt-course {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.wt-course__bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.wt-course__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 13px;
+  border: 1px solid var(--wt-border);
+  border-radius: 8px;
+  background: var(--wt-bg-elevated);
+  color: var(--wt-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-course__back:hover {
+  border-color: var(--wt-accent);
+  color: var(--wt-accent);
+}
+
+.wt-course__coverage {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-course__coverage strong {
+  color: var(--wt-accent);
+  font-family: var(--miao-font-mono, monospace);
+}
+
+.wt-course__detail-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+/* 进度条 */
+.wt-course__progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--wt-bg-secondary);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.wt-course__progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--wt-accent);
+  transition: width var(--wt-dur-slow) ease;
+}
+
+/* 自由模式 / 重置 */
+.wt-course__controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.wt-course__free-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--wt-text);
+  cursor: pointer;
+}
+
+.wt-course__free-mode input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--wt-accent);
+  cursor: pointer;
+}
+
+.wt-course__free-mode em {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-course__reset,
+.wt-course__reset-yes,
+.wt-course__reset-no {
+  padding: 4px 12px;
+  border: 1px solid var(--wt-border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--wt-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.wt-course__reset:hover {
+  border-color: var(--miao-error);
+  color: var(--wt-error);
+}
+
+.wt-course__reset-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-course__reset-yes {
+  border-color: var(--miao-error);
+  color: var(--wt-error);
+  font-weight: 600;
+}
+
+.wt-course__reset-no:hover {
+  border-color: var(--wt-accent);
+  color: var(--wt-accent);
+}
+
+/* 区 */
+.wt-course__zone {
+  flex-shrink: 0;
+}
+
+.wt-course__zone-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--wt-text-secondary);
+}
+
+.wt-course__lessons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+/* 关卡卡片 */
+.wt-course__lesson {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 12px 10px;
+  border: 1px solid var(--wt-border);
+  border-radius: 12px;
+  background: var(--wt-bg-secondary);
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-course__lesson:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.wt-course__lesson--in-progress:hover {
+  border-color: var(--wt-accent);
+  background: var(--wt-bg-elevated);
+  transform: translateY(-2px);
+}
+
+.wt-course__lesson--passed {
+  border-color: color-mix(in srgb, var(--miao-success) 40%, transparent);
+  background: var(--miao-success-bg);
+}
+
+.wt-course__lesson--passed:hover {
+  transform: translateY(-2px);
+}
+
+.wt-course__lesson-status {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.wt-course__lesson--passed .wt-course__lesson-status { color: var(--miao-success-text); }
+.wt-course__lesson--in-progress .wt-course__lesson-status { color: var(--wt-accent); }
+.wt-course__lesson--locked .wt-course__lesson-status { color: var(--wt-text-tertiary); }
+
+.wt-course__lesson-key {
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--wt-text);
+  line-height: 1.1;
+}
+
+.wt-course__lesson-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--wt-accent);
+  line-height: 1.1;
+}
+
+.wt-course__lesson-state {
+  font-size: 10px;
+  color: var(--wt-text-tertiary);
+}
+
+/* 关卡详情 */
+.wt-course__badge {
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.wt-course__badge--passed {
+  background: var(--miao-success-bg);
+  color: var(--miao-success-text);
+}
+
+.wt-course__badge--in-progress {
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+}
+
+.wt-course__badge--locked {
+  background: var(--wt-bg-secondary);
+  color: var(--wt-text-tertiary);
+}
+
+.wt-course__detail-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+}
+
+.wt-course__key-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: var(--wt-accent-light);
+  border: 1px solid var(--wt-accent-border);
+}
+
+.wt-course__key-letter {
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--wt-accent);
+}
+
+.wt-course__key-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-course__radicals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wt-course__radical {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: var(--wt-bg-elevated);
+  border: 1px solid var(--wt-border);
+  font-size: 18px;
+  color: var(--wt-text);
+}
+
+.wt-course__record {
+  font-size: 12px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-course__stages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wt-course__stage {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border: 1px solid var(--wt-border);
+  border-radius: 12px;
+  background: var(--wt-bg-secondary);
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+  text-align: left;
+}
+
+.wt-course__stage:hover {
+  border-color: var(--wt-accent);
+  background: var(--wt-bg-elevated);
+  transform: translateX(3px);
+}
+
+.wt-course__stage-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.wt-course__stage-label {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--wt-text);
+}
+
+.wt-course__stage-play {
+  color: var(--wt-accent);
+  font-size: 16px;
+}
+
+.wt-course__hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--wt-text-tertiary);
+}
+
+/* ============================================================
+   练习会话
+   ============================================================ */
+
+.wt-practice-session {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+}
+
+.wt-practice-session__bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.wt-practice-session__back,
+.wt-practice-session__restart {
+  padding: 5px 13px;
+  border: 1px solid var(--wt-border);
+  border-radius: 8px;
+  background: var(--wt-bg-elevated);
+  color: var(--wt-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-practice-session__back:hover,
+.wt-practice-session__restart:hover {
+  border-color: var(--wt-accent);
+  color: var(--wt-accent);
+}
+
+.wt-practice-session__mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-practice-session__progress {
+  margin-left: auto;
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--wt-text-secondary);
+}
+
+.wt-practice-session__hotkeys {
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--wt-text-tertiary);
+}
+
+/* 键盘状态指示 + 快捷键 */
+.wt-practice-session__footer-info {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.wt-kbd-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.wt-kbd-status--ok {
+  background: var(--miao-success-bg);
+  color: var(--miao-success-text);
+}
+
+.wt-kbd-status--off {
+  background: var(--miao-error-bg);
+  color: var(--miao-error-text);
+}
+
+.wt-kbd-status__count {
+  font-family: var(--miao-font-mono, monospace);
+  opacity: 0.8;
+}
+
+.wt-practice-session__hotkeys kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  margin: 0 2px;
+  border: 1px solid var(--wt-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--wt-bg-secondary);
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 10px;
+  color: var(--wt-text-secondary);
+}
+
+/* IME 警告 */
+.wt-ime-warning {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--miao-warning-bg);
+  border: 1px solid color-mix(in srgb, var(--wt-warning) 28%, transparent);
+  color: var(--miao-warning-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* 码表加载态 */
+.wt-practice-loading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-practice-loading__error {
+  color: var(--wt-error);
+  font-size: 14px;
+}
+
+.wt-practice-loading__retry,
+.wt-practice-loading__back {
+  padding: 7px 20px;
+  border: 1px solid var(--wt-border);
+  border-radius: 8px;
+  background: var(--wt-bg-elevated);
+  color: var(--wt-text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.wt-practice-loading__retry {
+  background: var(--wt-accent);
+  border-color: var(--wt-accent);
+  color: var(--wt-on-accent);
+  font-weight: 600;
+}
+
+/* ============================================================
+   成绩面板（Story 4.2）
+   ============================================================ */
+
+.wt-result {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 28px 24px;
+  overflow-y: auto;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--wt-bg-elevated) 96%, transparent);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--wt-border);
+}
+
+.wt-result__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 620px;
+}
+
+.wt-result__view-back {
+  padding: 5px 12px;
+  border: 1px solid var(--wt-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--wt-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-result__view-back:hover {
+  border-color: var(--wt-accent);
+  color: var(--wt-accent);
+}
+
+.wt-result__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-result__verdict {
+  padding: 9px 18px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  max-width: 620px;
+}
+
+.wt-result__verdict--pass {
+  background: var(--miao-success-bg);
+  color: var(--miao-success-text);
+  border: 1px solid color-mix(in srgb, var(--miao-success) 28%, transparent);
+}
+
+.wt-result__verdict--fail {
+  background: var(--miao-warning-bg);
+  color: var(--miao-warning-text);
+  border: 1px solid color-mix(in srgb, var(--miao-warning) 28%, transparent);
+}
+
+/* 个人最佳横幅 */
+.wt-result__pb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--wt-on-accent);
+  background: linear-gradient(
+    135deg,
+    var(--wt-accent),
+    color-mix(in srgb, var(--wt-accent) 65%, #000)
+  );
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--wt-accent) 32%, transparent);
+}
+
+.wt-result__pb-items {
+  display: flex;
+  gap: 6px;
+}
+
+.wt-result__pb-items > span {
+  padding: 1px 8px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--wt-on-accent) 22%, transparent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* 指标网格 */
+.wt-result__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 620px;
+}
+
+.wt-result__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 10px;
+  border-radius: 11px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg);
+}
+
+.wt-result__icon {
+  display: flex;
+  align-items: center;
+  color: var(--wt-accent);
+  font-size: 15px;
+  opacity: 0.85;
+}
+
+.wt-result__value {
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--wt-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.wt-result__value-sub {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--wt-text-secondary);
+}
+
+.wt-result__label {
+  font-size: 11.5px;
+  color: var(--wt-text-secondary);
+  text-align: center;
+}
+
+/* 差值徽标 */
+.wt-result__delta {
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.wt-result__delta--up {
+  color: var(--miao-success-text);
+}
+
+.wt-result__delta--down {
+  color: var(--miao-error-text);
+}
+
+.wt-result__delta--flat {
+  color: var(--wt-text-secondary);
+}
+
+.wt-result__basis {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-result__combo {
+  padding: 2px 10px;
+  border-radius: 20px;
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+  font-weight: 600;
+}
+
+/* 错误分析入口 */
+.wt-result__errors-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 620px;
+  padding: 14px 18px;
+  border: 1px solid var(--wt-border);
+  border-radius: 11px;
+  background: var(--wt-bg);
+  color: var(--wt-text);
+  text-align: left;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-result__errors-entry:hover {
+  border-color: var(--wt-accent);
+  background: color-mix(in srgb, var(--wt-accent) 6%, var(--wt-bg));
+}
+
+.wt-result__errors-icon {
+  font-size: 20px;
+}
+
+.wt-result__errors-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  font-size: 14px;
+}
+
+.wt-result__errors-desc {
+  font-size: 12px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-result__errors-arrow {
+  color: var(--wt-accent);
+  font-weight: 700;
+}
+
+.wt-result__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.wt-result__btn {
+  padding: 9px 22px;
+  border: 1px solid var(--wt-border);
+  border-radius: 9px;
+  background: var(--wt-bg-elevated);
+  color: var(--wt-text);
+  font-size: 14px;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-result__btn:hover:not(:disabled) {
+  border-color: var(--wt-accent);
+  color: var(--wt-accent);
+}
+
+.wt-result__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.wt-result__btn--primary {
+  background: var(--wt-accent);
+  border-color: var(--wt-accent);
+  color: var(--wt-on-accent);
+  font-weight: 600;
+}
+
+.wt-result__btn--primary:hover:not(:disabled) {
+  background: var(--wt-accent-hover);
+  border-color: var(--wt-accent-hover);
+  color: var(--wt-on-accent);
+}
+
+/* ============================================================
+   错误分析（Story 4.2）
+   ============================================================ */
+
+.wt-errors {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+  max-width: 620px;
+}
+
+.wt-errors--empty {
+  align-items: center;
+  text-align: center;
+  padding: 32px 0;
+}
+
+.wt-errors__empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  margin-bottom: 14px;
+  border-radius: 18px;
+  font-size: 26px;
+  color: var(--miao-success-text);
+  background: var(--miao-success-bg);
+  border: 1px solid color-mix(in srgb, var(--miao-success) 26%, transparent);
+}
+
+.wt-errors__empty-title {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-errors__empty-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--wt-text-secondary);
+  max-width: 340px;
+  line-height: 1.7;
+}
+
+.wt-errors__section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-errors__section-badge {
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--wt-text-secondary);
+  background: var(--wt-bg-secondary);
+  border: 1px solid var(--wt-border);
+}
+
+.wt-errors__heatmap {
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+  overflow-x: auto;
+}
+
+.wt-errors__heat-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-errors__heat-cell {
+  width: 18px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+}
+
+.wt-errors__heat-cell--1 { background: var(--wt-heat-1); }
+.wt-errors__heat-cell--2 { background: var(--wt-heat-2); }
+.wt-errors__heat-cell--3 { background: var(--wt-heat-3); }
+.wt-errors__heat-cell--4 { background: var(--wt-heat-4); }
+
+.wt-errors__heat-legend-label {
+  margin: 0 2px;
+}
+
+.wt-errors__heat-legend-max {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.wt-errors__hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--wt-text-secondary);
+}
+
+/* 易混字根榜 */
+.wt-errors__pairs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.wt-errors__pair {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border-radius: 9px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+}
+
+.wt-errors__pair-glyphs {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.wt-errors__pair-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.wt-errors__pair-glyph--expected {
+  color: var(--miao-success-text);
+  background: var(--miao-success-bg);
+  border: 1px solid color-mix(in srgb, var(--miao-success) 28%, transparent);
+}
+
+.wt-errors__pair-glyph--actual {
+  color: var(--miao-error-text);
+  background: var(--miao-error-bg);
+  border: 1px solid color-mix(in srgb, var(--miao-error) 28%, transparent);
+}
+
+.wt-errors__pair-arrow {
+  color: var(--wt-text-secondary);
+  font-size: 13px;
+}
+
+.wt-errors__pair-desc {
+  flex: 1;
+  font-size: 12.5px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-errors__pair-desc kbd {
+  padding: 1px 6px;
+  margin: 0 2px;
+  border-radius: 4px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg);
+  color: var(--wt-text);
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.wt-errors__pair-count {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--wt-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 错字清单 */
+.wt-errors__chars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wt-errors__char {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-errors__char:hover {
+  border-color: var(--wt-accent);
+  background: color-mix(in srgb, var(--wt-accent) 8%, var(--wt-bg-secondary));
+  transform: translateY(-2px);
+}
+
+.wt-errors__char--current {
+  border-color: color-mix(in srgb, var(--miao-error) 32%, transparent);
+}
+
+.wt-errors__char-glyph {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--wt-text);
+}
+
+.wt-errors__char-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--miao-error);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+}
+
+.wt-errors__practice-btn {
+  margin-top: 14px;
+  padding: 9px 20px;
+  border: 1px solid var(--wt-accent);
+  border-radius: 9px;
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-errors__practice-btn:hover {
+  background: var(--wt-accent);
+  color: var(--wt-on-accent);
+}
+
+/* ============================================================
+   练习看板
+   ============================================================ */
+
+.wt-practice {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.wt-practice__prompt-area {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid var(--wt-border);
+  /*
+   * 宣纸台面：底色照旧，但叠两层几乎看不见的纹理 ——
+   * 中心一圈随主题走的光晕（把视线吸到汉字上），
+   * 以及 16px 细点阵（纸的纤维感，用来消掉大面积纯色的呆板）。
+   * 两者都在 5% 以下，作用是「耐看」而不是「显眼」。
+   */
+  background-color: var(--wt-bg-secondary);
+  background-image:
+    var(--wt-paper-glow),
+    radial-gradient(var(--wt-paper-dot) 1px, transparent 1px);
+  background-size: 100% 100%, 18px 18px;
+  box-shadow: inset 0 1px 0 var(--wt-inset-hi);
+}
+
+.wt-practice__prompt {
+  /* 随视口收缩，窄屏不会把汉字顶出卡片 */
+  font-size: clamp(56px, 8vw, 96px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+  color: var(--wt-text);
+  /* 极轻的墨迹投影：给大字一点「压在纸上」的实体感 */
+  text-shadow: 0 6px 20px color-mix(in srgb, var(--wt-text) 9%, transparent);
+  transition: color var(--wt-dur-fast) ease, text-shadow var(--wt-dur-fast) ease;
+}
+
+.wt-practice__prompt--error {
+  color: var(--wt-error);
+  animation: wt-prompt-shake var(--wt-dur-shake) ease;
+}
+
+@keyframes wt-prompt-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+.wt-practice__hint {
+  font-size: 13px;
+  color: var(--wt-text-tertiary);
+}
+
+/* 编码进度槽位 */
+.wt-practice__code-progress {
+  display: flex;
+  gap: 10px;
+}
+
+/*
+ * 空槽是「凹槽」，填过的槽是「凸起」——
+ * 这个高低差让「已经敲了几码」一眼可见，不用去数字符。
+ */
+.wt-practice__code-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 58px;
+  border: 1px solid var(--wt-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--wt-bg-tertiary) 55%, transparent);
+  box-shadow: inset 0 2px 4px color-mix(in srgb, var(--wt-text) 7%, transparent);
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--wt-text-tertiary);
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-practice__code-slot--filled {
+  border-color: var(--wt-accent);
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+  box-shadow:
+    inset 0 1px 0 var(--wt-inset-hi),
+    0 2px 6px color-mix(in srgb, var(--wt-accent) 16%, transparent);
+  transform: translateY(-1px);
+}
+
+/* 当前待输入位：虚线描边 + 呼吸，指明「下一个敲这里」 */
+.wt-practice__code-slot--current {
+  border-style: dashed;
+  border-color: var(--wt-accent-border);
+  color: var(--wt-accent);
+  animation: wt-slot-breathe var(--wt-dur-pulse) ease-in-out infinite;
+}
+
+@keyframes wt-slot-breathe {
+  0%, 100% { border-color: var(--wt-accent-border); }
+  50% { border-color: var(--wt-accent); }
+}
+
+/* 错误反馈 */
+.wt-practice__error-feedback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--miao-error-bg);
+  border: 1px solid color-mix(in srgb, var(--wt-error) 24%, transparent);
+  color: var(--wt-text);
+  font-size: 14px;
+}
+
+.wt-practice__error-icon {
+  color: var(--wt-error);
+  font-size: 16px;
+}
+
+.wt-practice__error-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--wt-error);
+  color: #fff;
+  font-family: var(--miao-font-mono, monospace);
+  font-weight: 700;
+}
+
+.wt-practice__error-finger {
+  font-size: 12px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-practice__retry-hint {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--wt-accent);
+  white-space: nowrap;
+}
+
+.wt-practice__split-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--wt-border);
+  border-radius: 7px;
+  background: var(--wt-bg-elevated);
+  color: var(--wt-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-practice__split-btn:hover {
+  border-color: var(--wt-accent);
+  color: var(--wt-accent);
+}
+
+/* 简码提示 */
+.wt-practice__simplified-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: var(--miao-success-bg);
+  color: var(--miao-success-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ============================================================
+   虚拟键盘
+   ============================================================ */
+
+.wt-vkeyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--wt-border);
+  /*
+   * 托盘而非平面：底色比页面更深 + 内凹投影，
+   * 键帽因此像「嵌在槽里」，而不是浮在同一张纸上。
+   */
+  background: var(--wt-tray-bg);
+  box-shadow: var(--wt-tray-inset);
+  user-select: none;
+  overflow-x: auto;
+}
+
+.wt-vkeyboard__row {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  /* 同排等高：以该排字根最多的键为准，避免高矮参差 */
+  align-items: stretch;
+  /*
+   * 窄屏时让行宽撑到内容宽，交给父级的 overflow-x 滚动。
+   * 少了这行的 `max-content`：行会被压到容器宽，键在其中溢出，
+   * 父级无内容可滚 —— 表现为键盘左边被裁掉且无法拖回。
+   */
+  min-width: max-content;
+}
+
+.wt-vkeyboard__key {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 58px;
+  /*
+   * min-height 而非固定 height。
+   * 每键字根数 2~8 不等，字根串换行后需要能撑高；
+   * 固定高度会把它裁掉（配合 overflow:hidden，现象是「字根少了一截」）。
+   */
+  min-height: 58px;
+  /* 底部多留 4px：给手指色条让位，字根不会压在色条上 */
+  padding: 4px 4px 8px;
+  border: 1px solid var(--wt-border);
+  border-radius: 9px;
+  /*
+   * 键帽质感 = 顶部渐变面 + 1px 内高光 + 底部投影，三者缺一
+   * 就会退回成「白底描边方块」。内高光是「受光边」，
+   * 它让键帽看起来比托盘高一层。
+   */
+  background: var(--wt-key-face);
+  box-shadow: inset 0 1px 0 var(--wt-inset-hi), var(--wt-key-drop);
+  color: var(--wt-text-secondary);
+  font-family: inherit;
+  cursor: default;
+  overflow: hidden;
+  transition: transform var(--wt-dur-fast) ease, border-color var(--wt-dur-fast) ease, background var(--wt-dur-fast) ease,
+    box-shadow var(--wt-dur-fast) ease;
+}
+
+.wt-vkeyboard__key--interactive {
+  cursor: pointer;
+}
+
+.wt-vkeyboard__key--interactive:hover {
+  border-color: var(--wt-accent-border);
+  background: var(--wt-key-face-lit);
+  box-shadow: inset 0 1px 0 var(--wt-inset-hi), var(--wt-key-drop-hover);
+  transform: translateY(-1px);
+}
+
+/* 目标键：键面提亮 + 光环脉动 */
+.wt-vkeyboard__key--target {
+  border-color: var(--wt-accent);
+  background: var(--wt-key-face-lit);
+  color: var(--wt-accent);
+  animation: wt-key-pulse var(--wt-dur-pulse) ease-in-out infinite;
+}
+
+/*
+ * 脉动只改「光环」那一层，键帽的内高光与投影必须一并带上 ——
+ * box-shadow 在关键帧里是整体替换的，漏写就会让键帽在动画期间
+ * 丢掉内高光与立体感，看起来像被压扁。
+ */
+@keyframes wt-key-pulse {
+  0%, 100% {
+    box-shadow:
+      inset 0 1px 0 var(--wt-inset-hi),
+      0 0 0 0 var(--wt-accent-glow),
+      var(--wt-key-drop);
+  }
+  50% {
+    box-shadow:
+      inset 0 1px 0 var(--wt-inset-hi),
+      0 0 0 6px color-mix(in srgb, var(--wt-accent) 0%, transparent),
+      var(--wt-key-drop);
+  }
+}
+
+/* 已按键：按下内凹，而不是单纯降透明度 */
+.wt-vkeyboard__key--pressed {
+  background: var(--wt-tray-bg);
+  box-shadow: var(--wt-tray-inset);
+  color: var(--wt-text-tertiary);
+  opacity: 0.62;
+}
+
+/* 错误键：红色键面 + 红环 + 抖动 */
+.wt-vkeyboard__key--error {
+  border-color: var(--wt-error);
+  background: var(--miao-error-bg);
+  color: var(--wt-error);
+  box-shadow:
+    inset 0 1px 0 var(--wt-inset-hi),
+    0 0 0 3px color-mix(in srgb, var(--wt-error) 20%, transparent),
+    var(--wt-key-drop);
+  animation: wt-key-error-shake var(--wt-dur-shake) ease;
+}
+
+@keyframes wt-key-error-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+/* ── 热力图模式（Story 4.2）────────────────────────────
+ * 键位底色按错误次数分 4 档加深；热力色覆盖手指色条，
+ * 因为此时「哪个键错得多」比「哪个手指管」更值得关注。
+ */
+.wt-vkeyboard--heatmap .wt-vkeyboard__key {
+  cursor: default;
+}
+
+.wt-vkeyboard--heatmap .wt-vkeyboard__key:disabled {
+  opacity: 1;
+}
+
+.wt-vkeyboard__key--heat-0 {
+  background: var(--wt-bg-elevated);
+  border-color: var(--wt-border);
+  color: var(--wt-text-secondary);
+  opacity: 0.55;
+}
+
+.wt-vkeyboard__key--heat-1 {
+  background: var(--wt-heat-1);
+  border-color: var(--wt-heat-border);
+  color: var(--wt-text);
+}
+
+.wt-vkeyboard__key--heat-2 {
+  background: var(--wt-heat-2);
+  border-color: var(--wt-heat-border);
+  color: var(--wt-text);
+}
+
+.wt-vkeyboard__key--heat-3 {
+  background: var(--wt-heat-3);
+  border-color: var(--wt-heat-border);
+  color: var(--wt-heat-text-strong);
+}
+
+.wt-vkeyboard__key--heat-4 {
+  background: var(--wt-heat-4);
+  border-color: var(--wt-heat-border);
+  color: var(--wt-heat-text-strong);
+}
+
+/* heat-3/4 底色已深，键名字需跟着提亮 */
+.wt-vkeyboard__key--heat-3 .wt-vkeyboard__key-name,
+.wt-vkeyboard__key--heat-4 .wt-vkeyboard__key-name,
+.wt-vkeyboard__key--heat-3 .wt-vkeyboard__heat-count,
+.wt-vkeyboard__key--heat-4 .wt-vkeyboard__heat-count {
+  color: var(--wt-heat-text-strong);
+  opacity: 0.9;
+}
+
+.wt-vkeyboard__heat-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.wt-vkeyboard__key--z {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/*
+ * 键位内部层级：字母是「坐标」，键名字才是主体。
+ *
+ * 两者原本几乎同号（14/12px）且都是实色，视觉上互相争夺注意力，
+ * 一眼看不出「这个键叫什么」。现在把字母压成浅色小标签，
+ * 键名字放大加粗 —— 扫一眼先看到「金」，再确认它在 Q 上。
+ */
+.wt-vkeyboard__key-letter {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+}
+
+.wt-vkeyboard__key-name {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.wt-vkeyboard__key-radicals {
+  font-size: 9px;
+  line-height: 1.15;
+  opacity: 0.78;
+  letter-spacing: 0.02em;
+  max-width: 100%;
+  /*
+   * !! 不要加 overflow:hidden + text-overflow:ellipsis + nowrap !!
+   *
+   * 每键字根数最多 7 个（F 土士二干十寸雨 / D / Q / N）。
+   * 单行只能放 4~5 个，截断后用户看到的字根表本身就是残缺的 ——
+   * 实测被反馈过「没法看到全部的字根」。
+   *
+   * 58px 宽、9px 字号下 7 个字根换行刚好 2 行，
+   * 配合 `.wt-vkeyboard__key` 的 min-height 不会溢出。
+   */
+  white-space: normal;
+  word-break: break-word;
+  text-align: center;
+}
+
+.wt-vkeyboard__key-hint {
+  font-size: 9px;
+  opacity: 0.6;
+}
+
+/*
+ * 手指色条 —— 键帽下沿的内嵌导轨。
+ *
+ * 原来是贴边的通栏色块（left/right: 0），像一条外部装饰；
+ * 缩进 + 圆角后它成为键帽的一部分，读作「这个键归哪根手指」的刻度。
+ */
+.wt-vkeyboard__finger-bar {
+  position: absolute;
+  left: 7px;
+  right: 7px;
+  bottom: 4px;
+  height: 3px;
+  border-radius: 2px;
+  opacity: 0.85;
+}
+
+/* 减弱动效 */
+@media (prefers-reduced-motion: reduce) {
+  /*
+   * 关掉动画时必须把键帽的内高光与投影补回来 ——
+   * 状态类的 box-shadow 是整体替换的，只写 animation: none
+   * 会让目标键退回成「扁平描边方块」。
+   */
+  .wt-vkeyboard__key--target {
+    animation: none;
+    box-shadow:
+      inset 0 1px 0 var(--wt-inset-hi),
+      0 0 0 3px color-mix(in srgb, var(--wt-accent) 30%, transparent),
+      var(--wt-key-drop);
+  }
+
+  .wt-vkeyboard__key--error {
+    animation: none;
+  }
+
+  /* 呼吸描边改为常亮，仍能指明「下一个敲这里」 */
+  .wt-practice__code-slot--current {
+    animation: none;
+    border-color: var(--wt-accent);
+  }
+}
+
+/* ============================================================
+   实时指标条
+   ============================================================ */
+
+/*
+ * 指标条 = 仪表组。
+ *
+ * 读数（数字）是主角，标签是配角：原先把两者放同一行、字号只差 4px，
+ * 扫视时读不出「哪个数字是什么」。现在图标做成强调色芯片（与其他工具的
+ * 图标处理一致），标签退成小号字距放大的说明，读数放大并加等宽网格 ——
+ * 数字位数变化时不会左右跳动。
+ */
+.wt-metrics-bar {
+  display: flex;
+  align-items: center;
+  padding: 10px 8px;
+  border-radius: 14px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-elevated);
+  box-shadow: inset 0 1px 0 var(--wt-inset-hi);
+  flex-wrap: wrap;
+}
+
+.wt-metrics-bar--frozen {
+  border-color: var(--wt-accent-border);
+  background: var(--wt-accent-light);
+}
+
+/* 各项等宽：读数变化时整条不会左右伸缩 */
+.wt-metrics-bar__item {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 124px;
+  align-items: center;
+  gap: 9px;
+  padding: 2px 14px;
+}
+
+.wt-metrics-bar__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+  font-size: 14px;
+}
+
+.wt-metrics-bar__label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-metrics-bar__value {
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-family: var(--miao-font-mono, monospace);
+  color: var(--wt-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.wt-metrics-bar__value--combo {
+  color: var(--wt-accent);
+}
+
+.wt-metrics-bar__unit {
+  font-size: 11px;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-metrics-bar__divider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 26px;
+  background: var(--wt-border);
+}
+
+/* ============================================================
+   规则速查卡抽屉
+   ============================================================ */
+
+.wt-cheat-sheet__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 900;
+}
+
+.wt-cheat-sheet__drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 420px;
+  max-width: 90vw;
+  height: 100vh;
+  background: var(--wt-bg);
+  border-left: 1px solid var(--wt-border);
+  /*
+   * 投影必须走主题变量：原先写死 rgba(0,0,0,0.15)，
+   * 在暗色主题里等于没画（深色投影落在深色底上）。
+   */
+  box-shadow:
+    var(--wt-shadow-2),
+    -18px 0 48px color-mix(in srgb, var(--wt-text) 12%, transparent);
+  z-index: 901;
+  display: flex;
+  flex-direction: column;
+}
+
+.wt-cheat-sheet__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--wt-border);
+}
+
+.wt-cheat-sheet__header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.wt-cheat-sheet__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--wt-text-secondary);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background var(--wt-dur-base) ease, border-color var(--wt-dur-base) ease, color var(--wt-dur-base) ease;
+}
+
+.wt-cheat-sheet__close:hover {
+  background: var(--wt-bg-secondary);
+  border-color: var(--wt-border);
+  color: var(--wt-text);
+}
+
+.wt-cheat-sheet__search {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--wt-border);
+  position: relative;
+}
+
+/* 搜索框做内凹槽：与页面其他「输入位」同一材质 */
+.wt-cheat-sheet__search-input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--wt-border);
+  border-radius: 9px;
+  background: var(--wt-tray-bg);
+  box-shadow: var(--wt-tray-inset);
+  color: var(--wt-text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color var(--wt-dur-base) ease, box-shadow var(--wt-dur-base) ease;
+}
+
+.wt-cheat-sheet__search-input:focus {
+  border-color: var(--wt-accent);
+  box-shadow: var(--wt-tray-inset), 0 0 0 3px var(--wt-accent-glow);
+}
+
+.wt-cheat-sheet__search-clear {
+  position: absolute;
+  right: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--wt-text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.wt-cheat-sheet__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.wt-cheat-sheet__section {
+  margin-bottom: 24px;
+}
+
+/* 分节标题：左侧强调刻度 + 发丝线，长清单里能快速定位分节 */
+.wt-cheat-sheet__section-title {
+  position: relative;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--wt-text);
+  margin: 0 0 10px;
+  padding: 0 0 7px 12px;
+  border-bottom: 1px solid var(--wt-border);
+}
+
+.wt-cheat-sheet__section-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--wt-accent);
+}
+
+.wt-cheat-sheet__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wt-cheat-sheet__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 13px;
+  transition: background var(--wt-dur-base) ease, border-color var(--wt-dur-base) ease, transform var(--wt-dur-base) ease;
+}
+
+.wt-cheat-sheet__item--clickable {
+  cursor: pointer;
+}
+
+/* 悬停加描边 + 轻微右移：明确「这一条可以点」 */
+.wt-cheat-sheet__item--clickable:hover {
+  background: var(--wt-accent-light);
+  border-color: var(--wt-accent-border);
+  transform: translateX(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wt-cheat-sheet__item--clickable:hover {
+    transform: none;
+  }
+}
+
+.wt-cheat-sheet__item-glyph {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--wt-accent);
+  min-width: 28px;
+  text-align: center;
+}
+
+.wt-cheat-sheet__item-desc {
+  flex: 1;
+  color: var(--wt-text);
+}
+
+.wt-cheat-sheet__item-key {
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--wt-accent);
+  background: var(--wt-accent-light);
+  padding: 3px 8px;
+  border-radius: 6px;
+  box-shadow: inset 0 1px 0 var(--wt-inset-hi);
+}
+
+.wt-cheat-sheet__search-count {
+  font-size: 13px;
+  color: var(--wt-text-secondary);
+  margin: 0 0 12px;
+}
+
+.wt-cheat-sheet__no-results {
+  text-align: center;
+  color: var(--wt-text-secondary);
+  padding: 20px;
+}
+
+/* ============================================================
+   响应式
+   ============================================================ */
+
+@media (max-width: 1023px) {
+  .wt-page .tph {
+    padding: 12px 12px 0;
+  }
+
+  .wt-toolbar {
+    padding: 10px 12px 0;
+  }
+
+  .wt-workspace {
+    padding: 10px 12px 12px;
+  }
+
+  .wt-workspace__panel {
+    padding: 14px;
+  }
+
+  .wt-tutorial {
+    flex-direction: column;
+  }
+
+  .wt-tutorial__sidebar {
+    width: 100%;
+  }
+
+  .wt-tutorial__chapter-list {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 6px;
+  }
+
+  .wt-tutorial__chapter-btn {
+    flex-shrink: 0;
+    min-width: 120px;
+  }
+
+  .wt-radical-chart__key {
+    width: 56px;
+    height: 56px;
+  }
+
+  .wt-radical-chart__key-radicals {
+    display: none;
+  }
+
+  .wt-cheat-sheet__drawer {
+    width: 100vw;
+  }
+
+  .wt-split-demo__modal {
+    width: 95%;
+  }
+
+  .wt-split-demo__char-display {
+    font-size: 48px;
+  }
+}
+
+/* ============================================================
+   今日计划卡片（Story 4.4）
+   ============================================================ */
+
+.wt-plan {
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border-radius: 13px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+}
+
+.wt-plan--done {
+  border-color: color-mix(in srgb, var(--miao-success) 30%, transparent);
+  background: color-mix(in srgb, var(--miao-success) 6%, var(--wt-bg-secondary));
+}
+
+.wt-plan__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.wt-plan__head-left {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.wt-plan__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-plan__subtitle {
+  font-size: 12.5px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-plan__time {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.wt-plan__time-label {
+  font-size: 11.5px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-plan__time-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--wt-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.wt-plan__tasks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.wt-plan__task {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-elevated);
+  transition: border-color var(--wt-dur-base) ease;
+}
+
+.wt-plan__task--done {
+  opacity: 0.72;
+}
+
+/* 完成态用对勾 + 降透明度表达，不用红色标记未完成 */
+.wt-plan__check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--wt-border);
+  color: var(--wt-on-accent);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.wt-plan__task--done .wt-plan__check {
+  border-color: var(--miao-success);
+  background: var(--miao-success);
+}
+
+.wt-plan__task-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.wt-plan__task-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--wt-text);
+}
+
+.wt-plan__task-desc {
+  font-size: 11.5px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-plan__start {
+  flex-shrink: 0;
+  padding: 5px 16px;
+  border: 1px solid var(--wt-accent);
+  border-radius: 8px;
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-plan__start:hover {
+  background: var(--wt-accent);
+  color: var(--wt-on-accent);
+}
+
+.wt-plan__task-done-tag {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: var(--miao-success-bg);
+  color: var(--miao-success-text);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ============================================================
+   成绩 Tab（Story 4.4）
+   ============================================================ */
+
+.wt-stats {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  padding-right: 4px;
+}
+
+.wt-stats--empty {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.wt-stats__empty-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  border-radius: 20px;
+  font-size: 28px;
+  color: var(--wt-accent);
+  background: var(--wt-key-face-lit);
+  border: 1px solid var(--wt-accent-border);
+  box-shadow:
+    inset 0 1px 0 var(--wt-inset-hi),
+    0 6px 24px color-mix(in srgb, var(--wt-accent) 18%, transparent);
+}
+
+/*
+ * 外圈虚线环：把空状态读成「仪表还没转起来」，
+ * 而不是「出错了」。实线会像告警，虚线才像占位。
+ */
+.wt-stats__empty-icon::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border-radius: 27px;
+  border: 1px dashed var(--wt-accent-border);
+  opacity: 0.75;
+}
+
+.wt-stats__empty-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-stats__empty-desc {
+  margin: 0;
+  max-width: 400px;
+  font-size: 13.5px;
+  line-height: 1.8;
+  color: var(--wt-text-secondary);
+}
+
+.wt-stats__section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wt-stats__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.wt-stats__section-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-stats__controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* 分段控件 */
+.wt-seg {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  border: 1px solid var(--wt-border);
+  background: color-mix(in srgb, var(--wt-bg-elevated) 70%, transparent);
+}
+
+.wt-seg__btn {
+  padding: 5px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--wt-text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-seg__btn:hover {
+  color: var(--wt-text);
+  background: color-mix(in srgb, var(--wt-accent) 8%, transparent);
+}
+
+.wt-seg__btn--active {
+  background: var(--wt-accent);
+  color: var(--wt-on-accent);
+}
+
+.wt-seg__btn--active:hover {
+  background: var(--wt-accent);
+  color: var(--wt-on-accent);
+}
+
+/* 坚持指标卡 */
+.wt-stats__metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.wt-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+}
+
+.wt-stat-card--active {
+  border-color: var(--wt-accent-border);
+  background: color-mix(in srgb, var(--wt-accent) 6%, var(--wt-bg-secondary));
+}
+
+.wt-stat-card__icon {
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  color: var(--wt-accent);
+  opacity: 0.85;
+}
+
+.wt-stat-card__value {
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--wt-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.wt-stat-card__label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 11.5px;
+  color: var(--wt-text-secondary);
+  text-align: center;
+}
+
+.wt-stat-card__sub {
+  font-size: 10.5px;
+  font-style: normal;
+  opacity: 0.75;
+}
+
+.wt-stats__today {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--wt-text-secondary);
+}
+
+/* 里程碑 */
+.wt-milestones {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wt-milestone {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 11px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+}
+
+.wt-milestone__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  padding: 0 8px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--wt-accent);
+  background: var(--wt-accent-light);
+  border: 1px solid var(--wt-accent-border);
+}
+
+.wt-milestone__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.wt-milestone__title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--wt-text);
+}
+
+.wt-milestone__desc {
+  font-size: 11.5px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-milestone__progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  width: 170px;
+}
+
+.wt-milestone__bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--wt-bg);
+  border: 1px solid var(--wt-border);
+}
+
+.wt-milestone__bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--wt-accent);
+  transition: width var(--wt-dur-slow) ease;
+}
+
+.wt-milestone__text {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--wt-text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   练习趋势图（Story 4.4 · 视觉精修）
+   ------------------------------------------------------------
+   设计意图：让「数据形状」成为唯一焦点，其余元素一律降级。
+   - 网格只留 3 条且极低对比，不再用虚线噪点
+   - 折线用 CSS drop-shadow 轻微浮起，凌驾于网格之上
+   - 均值参考线用虚线，与「实测折线」明确区分
+   - 底部练习日条带补足稀疏数据的可读性
+   ============================================================ */
+
+.wt-stats__chart {
+  padding: 14px 16px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--wt-border);
+  background:
+    radial-gradient(
+      120% 100% at 0% 0%,
+      color-mix(in srgb, var(--wt-accent) 5%, transparent),
+      transparent 62%
+    ),
+    var(--wt-bg-secondary);
+}
+
+.wt-trend {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.wt-trend--empty {
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  color: var(--wt-text-secondary);
+  font-size: 13px;
+}
+
+/* ── 主数值 + 辅助信息 ── */
+
+.wt-trend__meta {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.wt-trend__primary {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.wt-trend__primary-value {
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--wt-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.wt-trend__primary-value em {
+  margin-left: 3px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--wt-text-secondary);
+}
+
+.wt-trend__primary-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--wt-text-secondary);
+}
+
+.wt-trend__chips {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.wt-trend__chip {
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg);
+  font-size: 11.5px;
+  color: var(--wt-text-secondary);
+  white-space: nowrap;
+}
+
+.wt-trend__chip strong {
+  color: var(--wt-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.wt-trend__chip--peak strong {
+  color: var(--wt-accent);
+}
+
+/* ── 画布 ── */
+
+/*
+ * 画布高度**不在这里**：由 TrendChart 用几何量内联给到 min-height，
+ * 保证「图表高度只有一处真相」。这里再写一个高度就是第二个会漂移的常量。
+ */
+.wt-trend__canvas {
+  position: relative;
+}
+
+.wt-trend__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* 极低对比网格：只做定位参考，不与折线抢注意力 */
+.wt-trend__grid {
+  stroke: var(--wt-border);
+  stroke-width: 1;
+  opacity: 0.55;
+}
+
+.wt-trend__grid--baseline {
+  opacity: 1;
+  stroke: color-mix(in srgb, var(--wt-text) 20%, transparent);
+}
+
+.wt-trend__tick-label {
+  fill: var(--wt-text-secondary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 轴单位：只出现在最高刻度的数字后面（如「50 秒」）。
+ * 比数字小一号、更淡，读起来是刻度的附属信息而不是另一个数。
+ */
+.wt-trend__tick-unit {
+  fill: var(--wt-text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+/* 值域注释：纵轴不从 0 起时必须说清，否则会被误读成全量程 */
+.wt-trend__domain-note {
+  fill: var(--wt-text-secondary);
+  font-size: 9.5px;
+  opacity: 0.65;
+}
+
+/* ── 折线 ── */
+
+.wt-trend__line {
+  fill: none;
+  stroke: var(--wt-accent);
+  stroke-width: 2.25;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  /*
+   * 用 CSS drop-shadow 而不是 SVG <filter> + floodColor：
+   * 后者在 presentation attribute 里无法解析 var()，会静默失效。
+   */
+  filter: drop-shadow(
+    0 1.5px 2.2px color-mix(in srgb, var(--wt-accent) 34%, transparent)
+  );
+}
+
+.wt-trend__area {
+  stroke: none;
+}
+
+/* 每日竖茎：稀疏数据下撑出「体量感」，不会让人误以为图表坏了 */
+.wt-trend__stem {
+  stroke: var(--wt-accent);
+  stroke-width: 1.5;
+  opacity: 0.16;
+}
+
+/*
+ * 休息日：基线上的空心小点。
+ * 明确表达「当天没有测量」—— 与「练了但值为 0」（实心点贴基线）区分开。
+ */
+.wt-trend__idle {
+  fill: none;
+  stroke: var(--wt-text-secondary);
+  stroke-width: 1.2;
+  opacity: 0.4;
+}
+
+/* ── 均值参考线 ── */
+
+.wt-trend__avg-line line {
+  stroke: var(--wt-text-secondary);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  opacity: 0.45;
+}
+
+/*
+ * 均值标签加一圈卡片底色的描边（paint-order: stroke）。
+ * 折线末端常常正好穿过均值线，没有描边时两者会糊在一起。
+ */
+.wt-trend__avg-line text {
+  fill: var(--wt-text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--wt-bg-secondary);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+/* ── 数据点 ── */
+
+.wt-trend__dot {
+  fill: var(--wt-accent);
+  stroke: var(--wt-bg-secondary);
+  stroke-width: 1.75;
+}
+
+.wt-trend__dot-halo {
+  fill: var(--wt-accent);
+  opacity: 0.14;
+}
+
+.wt-trend__dot--hover {
+  stroke: var(--wt-bg-elevated);
+  stroke-width: 2;
+}
+
+/* ── 峰值数值徽标 ── */
+
+.wt-trend__peak-label rect {
+  fill: var(--wt-accent);
+}
+
+.wt-trend__peak-label text {
+  fill: var(--wt-on-accent);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── hover 指示线 ── */
+
+.wt-trend__cursor {
+  stroke: var(--wt-accent);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  opacity: 0.5;
+}
+
+/* ── 练习日条带 ── */
+
+.wt-trend__strip {
+  fill: var(--wt-border);
+  opacity: 0.5;
+}
+
+.wt-trend__strip--on {
+  fill: var(--wt-accent);
+  opacity: 1;
+}
+
+/* ── Tooltip ── */
+
+.wt-trend__tooltip {
+  position: absolute;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-elevated);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+/* 首尾数据点改用左/右对齐，避免 tooltip 越出容器被裁切 */
+.wt-trend__tooltip--center {
+  transform: translateX(-50%);
+}
+
+.wt-trend__tooltip--start {
+  transform: translateX(-6px);
+}
+
+.wt-trend__tooltip--end {
+  transform: translateX(calc(-100% + 6px));
+}
+
+.wt-trend__tooltip-date {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--wt-text-secondary);
+}
+
+.wt-trend__tooltip-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--wt-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.wt-trend__tooltip-value em {
+  margin-left: 3px;
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--wt-text-secondary);
+}
+
+.wt-trend__tooltip-empty {
+  font-size: 11px;
+  color: var(--wt-text-secondary);
+  opacity: 0.85;
+}
+
+.wt-trend__tooltip-tag {
+  padding: 1px 7px;
+  border-radius: 20px;
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.wt-stats__range-summary {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-stats__range-summary strong {
+  color: var(--wt-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   成就墙（Story 4.4）
+   ============================================================ */
+
+.wt-ach-wall {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.wt-ach-wall__summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.wt-ach-wall__count {
+  font-size: 13px;
+  color: var(--wt-text-secondary);
+  white-space: nowrap;
+}
+
+.wt-ach-wall__count strong {
+  font-size: 17px;
+  color: var(--wt-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.wt-ach-wall__bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--wt-bg-secondary);
+  border: 1px solid var(--wt-border);
+}
+
+.wt-ach-wall__bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--wt-accent),
+    color-mix(in srgb, var(--wt-accent) 60%, #fff)
+  );
+  transition: width var(--wt-dur-slow) ease;
+}
+
+.wt-ach-wall__section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.wt-ach-wall__section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--wt-text-secondary);
+}
+
+.wt-ach-wall__section-count {
+  padding: 1px 8px;
+  border-radius: 20px;
+  background: var(--wt-bg-secondary);
+  border: 1px solid var(--wt-border);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.wt-ach-wall__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 9px;
+}
+
+.wt-ach {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 11px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+  /* 未解锁：降饱和 + 降透明度，而不是直接隐藏 */
+  opacity: 0.55;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-ach--unlocked {
+  opacity: 1;
+  border-color: var(--wt-accent-border);
+  background: color-mix(in srgb, var(--wt-accent) 7%, var(--wt-bg-secondary));
+}
+
+.wt-ach__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 0 8px;
+  border-radius: 11px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--wt-text-secondary);
+  background: var(--wt-bg);
+  border: 1px solid var(--wt-border);
+}
+
+.wt-ach--unlocked .wt-ach__badge {
+  color: var(--wt-on-accent);
+  background: linear-gradient(
+    135deg,
+    var(--wt-accent),
+    color-mix(in srgb, var(--wt-accent) 62%, #000)
+  );
+  border-color: transparent;
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--wt-accent) 30%, transparent);
+}
+
+.wt-ach__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.wt-ach__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-ach__desc {
+  font-size: 11px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-ach__progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.wt-ach__progress-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--wt-bg);
+  border: 1px solid var(--wt-border);
+}
+
+.wt-ach__progress-fill {
+  height: 100%;
+  background: var(--wt-accent);
+  opacity: 0.55;
+  transition: width var(--wt-dur-slow) ease;
+}
+
+.wt-ach__progress-text {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--wt-text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.wt-ach__check {
+  flex-shrink: 0;
+  color: var(--wt-accent);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+/* ============================================================
+   成就 Toast（不打断练习）
+   ============================================================ */
+
+.wt-ach-toasts {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* 容器不吃事件，用户正在打字时不会误触 */
+  pointer-events: none;
+}
+
+.wt-ach-toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 250px;
+  max-width: 320px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--wt-accent-border);
+  background: var(--wt-bg-elevated);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.18);
+  animation: wt-toast-in var(--wt-dur-slow) var(--wt-ease-enter);
+}
+
+.wt-ach-toast--plain {
+  border-color: var(--wt-border);
+}
+
+/*
+ * 通用提示（如「已加入难字本」）挪到右上角：
+ * 成就 Toast 固定在右下角，两者位置相同会完全重叠。
+ */
+.wt-ach-toasts--upper {
+  top: 22px;
+  bottom: auto;
+}
+
+@keyframes wt-toast-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wt-ach-toast {
+    animation: none;
+  }
+}
+
+.wt-ach-toast__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  padding: 0 8px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--wt-on-accent);
+  background: linear-gradient(
+    135deg,
+    var(--wt-accent),
+    color-mix(in srgb, var(--wt-accent) 62%, #000)
+  );
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--wt-accent) 34%, transparent);
+}
+
+.wt-ach-toast__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.wt-ach-toast__label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--wt-accent);
+}
+
+.wt-ach-toast__title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-ach-toast__desc {
+  font-size: 11.5px;
+  color: var(--wt-text-secondary);
+}
+
+/* ============================================================
+   移动端适配（Story 4.4 新增区块）
+   ============================================================ */
+
+@media (max-width: 1023px) {
+  .wt-stats__metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wt-milestone {
+    flex-wrap: wrap;
+  }
+
+  .wt-milestone__progress {
+    width: 100%;
+  }
+
+  .wt-ach-wall__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .wt-ach-toasts {
+    right: 12px;
+    left: 12px;
+    bottom: 12px;
+  }
+
+  .wt-ach-toast {
+    min-width: 0;
+    max-width: none;
+  }
+
+  .wt-trend__active {
+    margin-left: 0;
+  }
+}
+
+/* ============================================================
+   练习参数选择面板（分区 / 方向 / 词组长度）
+   ============================================================ */
+
+.wt-options {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.wt-options__group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wt-options__label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--wt-text-secondary);
+}
+
+.wt-options__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wt-options__choice {
+  padding: 9px 18px;
+  border: 1px solid var(--wt-border);
+  border-radius: 10px;
+  background: var(--wt-bg-secondary);
+  color: var(--wt-text);
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-options__choice:hover {
+  border-color: var(--wt-accent);
+  color: var(--wt-accent);
+}
+
+.wt-options__choice--active {
+  border-color: var(--wt-accent);
+  background: var(--wt-accent);
+  color: var(--wt-on-accent);
+  font-weight: 600;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--wt-accent) 30%, transparent);
+}
+
+/* 激活态悬浮必须重申背景，否则被 :hover 的浅色覆盖成白字白底 */
+.wt-options__choice--active:hover {
+  background: var(--wt-accent-hover);
+  border-color: var(--wt-accent-hover);
+  color: var(--wt-on-accent);
+}
+
+.wt-options__hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--wt-text-secondary);
+}
+
+.wt-options__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--wt-border);
+}
+
+.wt-options__loading {
+  font-size: 12.5px;
+  color: var(--wt-text-secondary);
+}
+
+/* ============================================================
+   查码 Tab（Story 5.1）
+   ============================================================ */
+
+.wt-lookup {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── 输入区 ── */
+
+.wt-lookup__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+  transition: border-color var(--wt-dur-base) ease;
+}
+
+.wt-lookup__bar:focus-within {
+  border-color: var(--wt-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--wt-accent) 14%, transparent);
+}
+
+.wt-lookup__icon {
+  display: flex;
+  align-items: center;
+  color: var(--wt-accent);
+  font-size: 16px;
+}
+
+.wt-lookup__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--wt-text);
+  font-size: 14px;
+}
+
+.wt-lookup__input::placeholder {
+  color: var(--wt-text-secondary);
+  opacity: 0.75;
+}
+
+.wt-lookup__clear {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--wt-bg);
+  color: var(--wt-text-secondary);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.wt-lookup__clear:hover {
+  color: var(--wt-text);
+}
+
+/* 降级提示 */
+.wt-lookup__notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 7px 12px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--miao-warning-bg);
+  color: var(--miao-warning-text);
+  font-size: 12px;
+}
+
+.wt-lookup__notice-retry {
+  margin-left: auto;
+  padding: 2px 10px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+/* ── 结果区 ── */
+
+.wt-lookup__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.wt-lookup__summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  color: var(--wt-text-secondary);
+  flex-wrap: wrap;
+}
+
+.wt-lookup__summary code {
+  padding: 1px 7px;
+  border-radius: 5px;
+  background: var(--wt-bg-secondary);
+  border: 1px solid var(--wt-border);
+  font-family: var(--miao-font-mono, monospace);
+  color: var(--wt-accent);
+  font-weight: 700;
+}
+
+.wt-lookup__summary strong {
+  color: var(--wt-text);
+}
+
+.wt-lookup__dup {
+  padding: 1px 8px;
+  border-radius: 20px;
+  background: var(--miao-warning-bg);
+  color: var(--miao-warning-text);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+/* 反查候选 */
+.wt-lookup__candidates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wt-lookup__candidate {
+  position: relative;
+  min-width: 52px;
+  height: 52px;
+  padding: 0 10px;
+  border-radius: 11px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+  color: var(--wt-text);
+  font-size: 24px;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-lookup__candidate:hover {
+  border-color: var(--wt-accent);
+  background: color-mix(in srgb, var(--wt-accent) 8%, var(--wt-bg-secondary));
+  transform: translateY(-2px);
+}
+
+.wt-lookup__candidate-text {
+  display: block;
+  line-height: 1;
+}
+
+/* 重码序号：让「第几个候选」一目了然 */
+.wt-lookup__candidate-rank {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--wt-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 正查结果表 ── */
+
+.wt-lookup__table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── 词组取码讲解 ──
+ *
+ * 词组此前只给一个最终编码，看不出「这个码怎么来的」。
+ * 这一行把它拆开：规则 → 每字取了几码 → 结论。
+ *
+ * 视觉上刻意压低（字号比正文小、取到的码才是重点色）：
+ * 它是「解释」而不是「数据」，不该和编码本身抢注意力。
+ */
+.wt-lookup__compose {
+  flex-basis: 100%;            /* 独占一行（父级 .wt-lookup__row 已允许换行） */
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--wt-border);
+  font-size: 11.5px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-lookup__compose-rule {
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-lookup__compose-part {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.wt-lookup__compose-char {
+  padding: 0;
+  border: none;
+  border-bottom: 1px dotted var(--wt-border-strong);
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--wt-text);
+  cursor: pointer;
+  transition: color var(--wt-dur-fast) var(--wt-ease),
+    border-color var(--wt-dur-fast) var(--wt-ease);
+}
+
+.wt-lookup__compose-char:hover:not(:disabled) {
+  color: var(--wt-accent);
+  border-bottom-color: var(--wt-accent);
+}
+
+.wt-lookup__compose-char:disabled {
+  cursor: default;
+  color: var(--wt-text-tertiary);
+  border-bottom: none;
+}
+
+/* 取到的码 —— 本行的视觉重点 */
+.wt-lookup__compose-taken {
+  font-family: var(--miao-font-mono, monospace);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--wt-accent);
+}
+
+/* 该字全码（来源），只作对照，压到最低 */
+.wt-lookup__compose-full {
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 10.5px;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-lookup__compose-skip {
+  padding: 1px 7px;
+  border-radius: 20px;
+  background: var(--wt-bg-tertiary);
+  font-size: 10.5px;
+}
+
+.wt-lookup__compose-ok {
+  font-size: 11px;
+  color: var(--wt-success);
+}
+
+/*
+ * 推导与词表不一致：用 warning 而不是 error ——
+ * 词表里有极少数（实测 3/15704）是特殊收录，这是「例外」不是「错误」。
+ */
+.wt-lookup__compose-note {
+  font-size: 11px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-lookup__compose-ok code,
+.wt-lookup__compose-note code {
+  font-family: var(--miao-font-mono, monospace);
+  font-weight: 700;
+}
+
+.wt-lookup__compose-note code {
+  color: var(--wt-warning);
+}
+
+.wt-lookup__row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;             /* 让取码讲解能换到下一行 */
+  gap: 14px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+}
+
+.wt-lookup__row-char {
+  min-width: 44px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: var(--wt-bg);
+  color: var(--wt-text);
+  font-size: 26px;
+  line-height: 1.15;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-lookup__row-char:hover {
+  border-color: var(--wt-accent);
+  color: var(--wt-accent);
+}
+
+.wt-lookup__row-codes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.wt-lookup__code {
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--wt-accent);
+}
+
+.wt-lookup__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 20px;
+  border: 1px solid var(--wt-accent-border);
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.wt-lookup__badge code {
+  font-family: var(--miao-font-mono, monospace);
+  font-weight: 700;
+}
+
+/* 反查候选里的简码标注：比常规徽标更小，且给出全码 */
+.wt-lookup__badge--inline {
+  padding: 1px 7px;
+  font-size: 10px;
+}
+
+.wt-lookup__candidate-code {
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 10.5px;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-lookup__badge--phrase {
+  border-color: var(--wt-border);
+  background: var(--wt-bg);
+  color: var(--wt-text-secondary);
+}
+
+/* 正查结论行：条目数 + 一键复制整段编码 */
+.wt-lookup__summary--actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.wt-lookup__copy-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--wt-accent-border);
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--wt-dur-fast) var(--wt-ease),
+    background var(--wt-dur-fast) var(--wt-ease);
+}
+
+.wt-lookup__copy-all:hover {
+  border-color: var(--wt-accent);
+}
+
+/* 整段编码可能很长（一句话几十个字母），按钮里只露一截，完整值悬停可见 */
+.wt-lookup__copy-all code {
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--miao-font-mono, monospace);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.wt-lookup__copy-all--done {
+  border-color: var(--wt-success);
+  color: var(--wt-success);
+}
+
+.wt-lookup__copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 6px 13px;
+  border: 1px solid var(--wt-border);
+  border-radius: 8px;
+  background: var(--wt-bg-elevated);
+  color: var(--wt-text-secondary);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-lookup__copy:hover {
+  border-color: var(--wt-accent);
+  color: var(--wt-accent);
+}
+
+.wt-lookup__copy--done {
+  border-color: var(--miao-success);
+  background: var(--miao-success-bg);
+  color: var(--miao-success-text);
+}
+
+/* 未收录 */
+.wt-lookup__missing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+  font-size: 12.5px;
+}
+
+.wt-lookup__missing-label {
+  color: var(--wt-text-secondary);
+}
+
+.wt-lookup__missing-char {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--miao-error-bg);
+  color: var(--miao-error-text);
+  font-size: 17px;
+}
+
+.wt-lookup__missing-hint {
+  color: var(--wt-text-secondary);
+  opacity: 0.85;
+}
+
+/* 空态 / 无结果 / 非法输入 */
+.wt-lookup__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 240px;
+  text-align: center;
+  color: var(--wt-text-secondary);
+}
+
+.wt-lookup__empty-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-lookup__empty-desc {
+  margin: 0;
+  max-width: 420px;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.wt-lookup__empty-desc kbd,
+.wt-lookup__empty-desc code {
+  padding: 1px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 12px;
+  color: var(--wt-accent);
+}
+
+.wt-lookup__error {
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--miao-error) 30%, transparent);
+  background: var(--miao-error-bg);
+  color: var(--miao-error-text);
+  font-size: 13px;
+}
+
+@media (max-width: 1023px) {
+  .wt-lookup__row {
+    gap: 10px;
+    padding: 9px 11px;
+  }
+
+  .wt-lookup__row-char {
+    font-size: 22px;
+    min-width: 38px;
+  }
+
+  .wt-lookup__code {
+    font-size: 16px;
+  }
+
+  .wt-lookup__copy span {
+    display: none;
+  }
+}

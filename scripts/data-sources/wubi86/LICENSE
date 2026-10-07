@@ -1,0 +1,13 @@
+五笔字型输入法 86 版码表数据
+
+来源：RIME rime-wubi 项目 (https://github.com/rime/rime-wubi)
+许可证：GPL-3.0
+
+本目录包含从上游项目归一化提取的码表快照：
+- wubi86.chars.tsv  — 单字编码（字\t编码）
+- wubi86.phrases.tsv — 词组编码（词\t编码）
+
+快照以 TSV 格式存储，可由 scripts/build-wubi-tables.mjs 离线读取并生成前端 JSON chunk。
+重新取数请运行：node scripts/fetch-wubi-dict.mjs --fetch
+
+此许可证副本依据上游项目的 LICENSE 文件保留。

@@ -87,6 +87,14 @@ routes:
     sortOrder: 11
     adminRoute: false
     enabled: true
+  - code: TOOL_WUBI_TUTOR
+    name: 五笔练习室
+    path: /tools/wubi-tutor
+    category: TOOL
+    icon: KeyOutlined
+    sortOrder: 13
+    adminRoute: false
+    enabled: true
   - code: PAGE_SETTINGS
     name: 个人设置
     path: /settings
