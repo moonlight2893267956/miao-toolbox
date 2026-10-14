@@ -1,7 +1,7 @@
 package com.miao.toolbox.tool.wubi;
 
 import com.miao.toolbox.auth.annotation.RequireRoute;
-import com.miao.toolbox.observability.MiaoAiClient;
+import com.miao.toolbox.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -10,14 +10,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.Map;
 
 /**
- * 五笔拆字 AI 解释。
+ * 五笔拆字 AI 解释入口。
  *
- * <p>端点：{@code POST /api/wubi/ai/explain}（同步）。受 {@code TOOL_WUBI_TUTOR} 路由权限保护
- * （该路由已由 {@code V36__register_wubi_tutor_route.sql} 注册）。
+ * <p>端点：{@code POST /api/wubi/ai/explain}、{@code POST /api/wubi/ai/followup}（同步）。
+ * 受 {@code TOOL_WUBI_TUTOR} 路由权限保护（该路由已由 {@code V36__register_wubi_tutor_route.sql} 注册）。
+ * 业务逻辑在 {@link WubiAiService}，这里只做转发 —— 不写 try/catch，
+ * 让 {@code BusinessException} 冒泡给全局 {@code GlobalExceptionHandler}，
+ * 统一产出 {@code {code, message, requestId}} 错误壳。
  *
  * <h3>为什么走同步而不是 SSE</h3>
  * 与正则 / Cron 那两个 SSE agent 不同，wubi-explainer **不流式返回**：它要给出
@@ -31,6 +33,12 @@ import java.util.Map;
  * <h3>校验分工</h3>
  * 这里只做「形」的校验（字段在不在、类型对不对），**取值域校验留给 agent**：
  * 候选字根集在 agent 手上，在中间层重复实现一份只会变成两处需要同步的真相。
+ *
+ * <h3>错误码语义</h3>
+ * 上游错误由 {@link WubiAiService} 翻译成面向用户的语义码：会话失效 410
+ * （{@code AI_CONVERSATION_EXPIRED}）、并发占用 409（{@code AI_CONVERSATION_BUSY}）、
+ * 配额耗尽 429（{@code AI_QUOTA_EXCEEDED}）；请求体不合法为 400
+ * （{@code VALIDATION_FAILED}）。前端按 HTTP 状态与 {@code code} 分支做提示与降级。
  */
 @Slf4j
 @RestController
@@ -39,58 +47,23 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class WubiAiController {
 
-    /** wubi-explainer agent key，对应 Nacos 中 miao.ai.agents 下的 key */
-    private static final String AGENT_KEY = "wubi-explainer";
+    private final WubiAiService wubiAiService;
 
-    private final MiaoAiClient aiClient;
-
+    /**
+     * POST /api/wubi/ai/explain —— 解释某个字为什么这么拆。
+     */
     @PostMapping("/explain")
-    public ResponseEntity<Object> explain(@RequestBody Map<String, Object> body) {
-        Object charValue = body.get("char");
-        Object codeValue = body.get("code");
-        Object positions = body.get("positions");
+    public ResponseEntity<ApiResponse<Map<String, Object>>> explain(
+            @RequestBody Map<String, Object> body) {
+        return ResponseEntity.ok(ApiResponse.success(wubiAiService.explain(body)));
+    }
 
-        if (!(charValue instanceof String) || ((String) charValue).isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "char 不能为空"));
-        }
-        if (!(codeValue instanceof String) || ((String) codeValue).isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "code 不能为空"));
-        }
-        if (!(positions instanceof List<?> list) || list.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "positions 不能为空"));
-        }
-
-        try {
-            Map<String, Object> metadata = Map.of(
-                    "tool", "wubi-tutor",
-                    "action", "explain-split",
-                    // 带上字，便于在 ai_invocations / Langfuse 里按字复盘失败样本
-                    "char", charValue
-            );
-
-            var response = aiClient.invoke(AGENT_KEY, body, metadata);
-            var output = response.getOutput();
-
-            if (!(output instanceof Map)) {
-                log.warn("wubi-explainer 返回非预期结构: {}", output);
-                return ResponseEntity.internalServerError()
-                        .body(Map.of("error", "AI 返回结构异常"));
-            }
-
-            /*
-             * 原样回传 agent 的输出。
-             *
-             * 其中 positions 是**待校验的断言**，由前端拿候选字根核对后才决定是否展示 ——
-             * 中间层不做「看起来像就放行」的过滤，否则校验就成了摆设。
-             */
-            return ResponseEntity.ok(output);
-        } catch (Exception e) {
-            log.error("五笔拆字解释失败", e);
-            String msg = e.getMessage() != null ? e.getMessage() : "AI 解释服务异常";
-            if (msg.contains("配额") || msg.contains("quota") || msg.contains("额度")) {
-                return ResponseEntity.status(429).body(Map.of("error", "AI 额度已用完"));
-            }
-            return ResponseEntity.internalServerError().body(Map.of("error", msg));
-        }
+    /**
+     * POST /api/wubi/ai/followup —— 对上一轮的解释追问（需带 conversationId）。
+     */
+    @PostMapping("/followup")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> followup(
+            @RequestBody Map<String, Object> body) {
+        return ResponseEntity.ok(ApiResponse.success(wubiAiService.followup(body)));
     }
 }
