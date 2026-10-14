@@ -59,6 +59,41 @@ const SPLIT: SplitResult = {
   notes: [{ type: 'simplified', message: '此字有三级简码：jvk' }],
 };
 
+/**
+ * 「礼」= pynn：末位 n 是末笔折的**识别码**，不是字根。
+ *
+ * 这份 fixture 对应线上真实翻车点：agent 如实回 `radical: null` + `recognition: true`，
+ * 而解析层若要求 radical 必须是字符串，整份断言会被丢掉，用户看到一句
+ * 没有原因的通用失败（「解释未通过与字根表的核对」）。
+ */
+const REC_SPLIT: SplitResult = {
+  char: '礼',
+  code: 'pynn',
+  status: 'ambiguous',
+  segments: [
+    { key: 'p', candidates: [{ glyph: '礻', name: '示字旁' } as never], certain: null },
+    { key: 'y', candidates: [{ glyph: '丶', name: '点' } as never], certain: null },
+    { key: 'n', candidates: [{ glyph: '乙', name: '折笔' } as never], certain: null },
+    {
+      key: 'n',
+      candidates: [
+        { glyph: '乙', name: '折笔' } as never,
+        { glyph: '已', name: '已字' } as never,
+      ],
+      certain: null,
+    },
+  ],
+  notes: [{ type: 'identificationCode', message: '末位「n」可能为识别码（末笔 + 字型结构推导）' }],
+};
+
+/** 礼的正确断言：前三位是字根，末位是识别码（radical 为 null） */
+const REC_POSITIONS = [
+  { key: 'p', radical: '礻' },
+  { key: 'y', radical: '丶' },
+  { key: 'n', radical: '乙' },
+  { key: 'n', radical: null, recognition: true },
+];
+
 describe('buildExplainContext', () => {
   it('把编码、逐位键位、候选字根与标注都带上', () => {
     const ctx = buildExplainContext(SPLIT);
@@ -150,6 +185,44 @@ describe('validateExplainResult — 落不到候选集就不许展示', () => {
     expect(validateExplainResult(null, ctx)).toBeNull();
     expect(validateExplainResult([], ctx)).toBeNull();
   });
+
+  // ── 识别码位：末位没有字根是对的，不是「没给断言」 ──
+  describe('末笔识别码位', () => {
+    const recCtx: WubiExplainParams = buildExplainContext(REC_SPLIT);
+
+    it('末位声明识别码（radical 为 null）→ 通过', () => {
+      expect(validateExplainResult(REC_POSITIONS, recCtx)).toEqual({ ok: true, violations: [] });
+    });
+
+    it('末位不给字根却没声明识别码 → 不通过（沉默不算答案）', () => {
+      const v = validateExplainResult([...REC_POSITIONS.slice(0, 3), { key: 'n', radical: null }], recCtx);
+      expect(v!.ok).toBe(false);
+      expect(v!.violations.some((x) => x.includes('没有给出字根'))).toBe(true);
+    });
+
+    it('非末位声明识别码 → 不通过（识别码只可能出现在末位）', () => {
+      const v = validateExplainResult(
+        [
+          { key: 'p', radical: '礻' },
+          { key: 'y', radical: null, recognition: true },
+          ...REC_POSITIONS.slice(2),
+        ],
+        recCtx,
+      );
+      expect(v!.ok).toBe(false);
+      expect(v!.violations.some((x) => x.includes('没有给出字根'))).toBe(true);
+    });
+
+    it('末位声明识别码，但该键不在识别码的 15 个键里 → 不通过', () => {
+      // o 不在识别码键里（g/f/d、h/j/k、t/r/e、y/u/i、n/b/v）
+      const v = validateExplainResult(
+        [...VALID.slice(0, 3), { key: 'o', radical: null, recognition: true }],
+        ctx,
+      );
+      expect(v!.ok).toBe(false);
+      expect(v!.violations.some((x) => x.includes('识别码的 15 个键'))).toBe(true);
+    });
+  });
 });
 
 describe('parseWubiExplainResult', () => {
@@ -171,7 +244,8 @@ describe('parseWubiExplainResult', () => {
     const parsed = parseWubiExplainResult(raw, ctx);
 
     expect(parsed.explanation).toContain('照');
-    expect(parsed.positions).toEqual(positions);
+    // 归一化后每一位都带 recognition 标记（没有声明就是 false）
+    expect(parsed.positions).toEqual(positions.map((p) => ({ ...p, recognition: false })));
     expect(parsed.suggestions).toEqual(['注意「曰」与「日」的区别']);
     expect(parsed.validation).toEqual({ ok: true, violations: [] });
   });
@@ -210,6 +284,33 @@ describe('parseWubiExplainResult', () => {
     const parsed = parseWubiExplainResult(raw, ctx);
     expect(parsed.positions).toBeNull();
     expect(parsed.validation).toBeNull();
+  });
+
+  /*
+   * !! 线上翻车点（礼 pynn）!!
+   *
+   * 末位是末笔识别码时，agent 的 positions 末项是 `radical: null` + `recognition: true`
+   * ——那是**正确**的返回。此处若只认字符串，整份断言被判废，validation 变成 null，
+   * 于是 UI 只剩「解释未通过与字根表的核对」这一句无从下手的话，而重试永远无效。
+   */
+  it('识别码位的 radical 为 null 时不再整份判废', () => {
+    const raw = JSON.stringify({
+      explanation: '「礼」的五笔编码是 pynn：礻 + 丶 + 乙，末位是末笔折的识别码。',
+      positions: [
+        { index: 0, key: 'p', radical: '礻', recognition: false },
+        { index: 1, key: 'y', radical: '丶', recognition: false },
+        { index: 2, key: 'n', radical: '乙', recognition: false },
+        { index: 3, key: 'n', radical: null, recognition: true, recognition_stroke: '折' },
+      ],
+      error: null,
+      self_check: { ok: true, attempts: 2, violations: [] },
+    });
+
+    const parsed = parseWubiExplainResult(raw, buildExplainContext(REC_SPLIT));
+
+    expect(parsed.positions?.map((p) => p.radical)).toEqual(['礻', '丶', '乙', null]);
+    expect(parsed.validation).toEqual({ ok: true, violations: [] });
+    expect(isExplanationDisplayable(parsed)).toBe(true);
   });
 
   it('缺 positions 时解释仍然可读，但判定为不可展示', () => {

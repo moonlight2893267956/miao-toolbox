@@ -502,21 +502,30 @@ function readError(err: unknown): ApiError {
 }
 
 /**
- * 首轮不可展示时给用户一个可读的原因（三级兜底）。
+ * 首轮不可展示时给用户一个可读的原因（三级兜底 + 定位到哪一步）。
  *
  * 只显示「没通过核对」而不说原因，等于把排查成本转给用户 ——
  * 而这三种原因的处理方式完全不同：前端核对不通过 = agent 挑错了字根；
  * agent 自校验不通过 = 同上且能看到原因；agent 的 error = 服务侧问题。
+ *
+ * 三条都空时**不能**直接回通用文案：那正是「解析层静默失败」的形态
+ * （模型给了正文却没给可校验的断言），一句「没通过核对」既不告诉用户
+ * 是模型的问题还是我们的问题，也没有任何可排查的线索。
  */
 function explainFailureReason(result: {
+  explanation?: string | null;
+  positions?: unknown[] | null;
   validation?: { violations: string[] } | null;
   selfCheck?: { violations?: string[] } | null;
   error?: string | null;
 } | null): string {
-  return (
+  const specific =
     result?.validation?.violations[0] ??
     result?.selfCheck?.violations?.[0] ??
-    result?.error ??
-    '解释未通过与字根表的核对'
-  );
+    result?.error;
+  if (specific) return specific;
+
+  if (!result?.explanation) return '模型没有给出讲解正文';
+  if (!result?.positions) return '模型没有给出逐位断言（positions），无法与码表核对';
+  return '解释未通过与字根表的核对';
 }

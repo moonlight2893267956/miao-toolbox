@@ -36,6 +36,8 @@ import {
   pickSuggestions,
   tryParseJsonObject,
 } from '../../../../../services/aiStreamParse';
+import type { WubiKey } from '../../data/radicals';
+import { IDENTIFICATION_KEYS } from './code';
 import type { SplitResult } from './splitter';
 import type { KeyError } from './session';
 
@@ -70,7 +72,18 @@ export interface WubiExplainParams {
 /** 模型的结构化断言，正是要被校验的部分 */
 export interface WubiExplainPosition {
   key: string;
-  radical: string;
+  /**
+   * 这一位的字根。**null = 没给字根**，只可能是两种情形：
+   * 补位位（该键不代表任何字根），或末位的**末笔识别码**（识别码不是字根）。
+   *
+   * ⚠️ 别把它读成「模型偷懒」：识别码位本来就挑不出字根，agent 会如实回
+   * `radical: null` + `recognition: true`（见 wubi/verify.py 的识别码分支）。
+   * 这里若要求非 null 的字符串，等于把**所有带识别码的字**（礼 pynn、在 dhfd…）
+   * 整份断言丢掉，用户只会看到一句没有原因的通用失败 —— 线上就是这么翻车的。
+   */
+  radical: string | null;
+  /** 模型是否声明这一位是末笔识别码（只有识别码位允许 radical 为 null） */
+  recognition?: boolean;
 }
 
 /**
@@ -149,10 +162,12 @@ export function buildExplainContext(
 /**
  * 校验模型的结构化断言是否落在算法给出的候选集内。
  *
- * 三条：
+ * 四条：
  * 1. 位数与编码位数一致；
  * 2. 第 i 位的 key 必须等于编码第 i 位（编码是权威，模型不得改写）；
- * 3. 第 i 位的 radical 必须在该位的候选字根里（补位位为空数组，不许给字根）。
+ * 3. 第 i 位的 radical 必须在该位的候选字根里（补位位为空数组，不许给字根）；
+ * 4. **没给字根（null）时必须是合法的识别码位**：只在末位、且模型声明了
+ *    `recognition`、且该键属于识别码的 15 个键 —— 三条都可机器判定。
  *
  * 任一条不过 → `ok: false`，调用方应当**退回确定性视图**，
  * 而不是把没校验通过的解释展示给用户。
@@ -165,6 +180,7 @@ export function validateExplainResult(
 
   const violations: string[] = [];
   const codeChars = params.code.split('');
+  const lastIndex = codeChars.length - 1;
 
   if (positions.length !== codeChars.length) {
     violations.push(`位数不符：编码 ${codeChars.length} 位，模型给了 ${positions.length} 位`);
@@ -180,6 +196,32 @@ export function validateExplainResult(
     }
 
     const allowed = params.positions[i]?.candidates ?? [];
+
+    /*
+     * 没给字根：只有两种正当情形（都不是「模型偷懒」）
+     *   a) 补位位 —— 该键（L）不代表任何字根，本来就没有字根可给；
+     *   b) 末位的末笔识别码 —— 识别码不是字根，agent 会回 null + recognition。
+     * 其余情形仍要拦：给不出字根又不说是什么，等于让模型用沉默蒙混过去。
+     */
+    if (pos.radical === null) {
+      if (allowed.length === 0) return;
+
+      if (i !== lastIndex || !pos.recognition) {
+        const glyphs = allowed.map((c) => c.glyph).join('/');
+        violations.push(
+          `第 ${i + 1} 位没有给出字根，也没有声明为末笔识别码（是字根位，候选：${glyphs}）`,
+        );
+        return;
+      }
+
+      if (!IDENTIFICATION_KEYS.has(expectedKey as WubiKey)) {
+        violations.push(
+          `第 ${i + 1} 位声明为末笔识别码，但 ${expectedKey} 键不在识别码的 15 个键里`,
+        );
+      }
+      return;
+    }
+
     // 补位位候选为空：该键不代表任何字根，给字根即为编造
     if (allowed.length === 0) {
       violations.push(`第 ${i + 1} 位是补位，不应给出字根，模型给了「${pos.radical}」`);
@@ -268,7 +310,12 @@ function unwrapOutput(obj: Record<string, unknown> | null): Record<string, unkno
   return obj;
 }
 
-/** 从 output 取 positions；形状不对时返回 null（而不是塞进半个对象） */
+/**
+ * 从 output 取 positions；形状不对时返回 null（而不是塞进半个对象）。
+ *
+ * `radical` 允许为 null / 空串（识别码位与补位位就是没有字根），但**字段必须存在** ——
+ * 字段缺失是 agent 的契约被改坏了，那是另一回事，照旧整份判废。
+ */
 function parsePositions(
   output: Record<string, unknown> | null,
 ): WubiExplainPosition[] | null {
@@ -278,9 +325,15 @@ function parsePositions(
   const out: WubiExplainPosition[] = [];
   for (const item of raw) {
     if (typeof item !== 'object' || item === null) return null;
-    const { key, radical } = item as Record<string, unknown>;
-    if (typeof key !== 'string' || typeof radical !== 'string') return null;
-    out.push({ key, radical });
+    const { key, radical, recognition } = item as Record<string, unknown>;
+    if (typeof key !== 'string') return null;
+    if (!('radical' in (item as Record<string, unknown>))) return null;
+    if (radical !== null && typeof radical !== 'string') return null;
+    out.push({
+      key,
+      radical: typeof radical === 'string' && radical ? radical : null,
+      recognition: recognition === true,
+    });
   }
   return out.length > 0 ? out : null;
 }
