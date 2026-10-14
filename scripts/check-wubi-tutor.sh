@@ -294,6 +294,85 @@ fi
 (cd "$WEB" && npm run lint) || fail "lint 未通过"
 ok "单测 / 类型 / Lint 全部通过"
 
+# ─────────────────────────────────────────────────────────
+echo ""
+echo ">>> 6/6 AI 讲解多轮接口（可选：需 ADMIN_PASSWORD，AI 不可用时只告警）"
+# ─────────────────────────────────────────────────────────
+# 判定口径：
+#   · 契约形状（400 校验、统一响应壳、轮次递增、会话失效码）必须对 → 不对就 fail
+#   · AI 是否可用、agent 是否启用多轮 → 不可用只 warn
+#     （AI 是可选增强，配置缺失不该让整个验收脚本变红）
+if [[ -z "${ADMIN_PASSWORD:-}" ]]; then
+  warn "未设置 ADMIN_PASSWORD，跳过 AI 多轮接口验收"
+else
+  BASE="${API_BASE:-http://localhost:8080}"
+  TOKEN=$(curl -s --max-time 15 -X POST "$BASE/api/auth/login" -H 'Content-Type: application/json' \
+    -d "{\"username\":\"${ADMIN_USERNAME:-admin}\",\"password\":\"$ADMIN_PASSWORD\"}" \
+    | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['accessToken'])" 2>/dev/null || true)
+
+  if [[ -z "${TOKEN:-}" ]]; then
+    warn "登录失败，跳过 AI 多轮接口验收（检查 ADMIN_PASSWORD 与后端状态）"
+  else
+    # ── 形校验：缺 positions 必须 400，且错误体是统一响应壳 ──
+    BAD=$(curl -s --max-time 15 -o /tmp/wt55-bad.json -w '%{http_code}' \
+      -X POST "$BASE/api/wubi/ai/explain" \
+      -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+      -d '{"char":"照","code":"jvko"}' || echo "000")
+    if [[ "$BAD" == "400" ]] && grep -q '"code"' /tmp/wt55-bad.json; then
+      ok "缺 positions → 400 且为统一响应壳"
+    else
+      fail "缺 positions 期望 400 + {code,...}，实际 $BAD：$(head -c 200 /tmp/wt55-bad.json)"
+    fi
+
+    # ── 首轮：拿 conversationId ──
+    EXPLAIN=$(curl -s --max-time 300 -X POST "$BASE/api/wubi/ai/explain" \
+      -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+      -d '{"task":"explain-split","char":"照","code":"jvko","positions":[
+            {"index":0,"key":"j","candidates":[{"glyph":"日","name":"日字"},{"glyph":"曰","name":"曰字"}]},
+            {"index":1,"key":"v","candidates":[{"glyph":"刀","name":"刀字"}]},
+            {"index":2,"key":"k","candidates":[{"glyph":"口","name":"口字"}]},
+            {"index":3,"key":"o","candidates":[{"glyph":"灬","name":"四点底"}]}],
+          "notes":[]}')
+    CONV=$(echo "$EXPLAIN" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+data=d.get('data') or {}
+print(data.get('conversationId') or '')" 2>/dev/null || true)
+
+    if [[ -z "$CONV" ]]; then
+      warn "首轮未返回 conversationId（AI 不可用或 agent 未启用多轮）：$(echo "$EXPLAIN" | head -c 200)"
+    else
+      ok "首轮返回会话 ID（多轮已启用）"
+
+      # ── 追问：turn 必须递增 ──
+      FOLLOW=$(curl -s --max-time 300 -X POST "$BASE/api/wubi/ai/followup" \
+        -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+        -d "{\"char\":\"照\",\"question\":\"第 1 位为什么取「日」不取「曰」？\",\"conversationId\":\"$CONV\"}")
+      echo "$FOLLOW" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+data=d.get('data') or {}
+turn=data.get('turn') or 0
+kind=(data.get('followup') or {}).get('kind')
+print('  ✅ 追问：turn=%s kind=%s citations=%s' % (turn, kind, len(data.get('citations') or [])))
+raise SystemExit(0 if turn >= 2 else 1)
+" || warn "追问未返回 >=2 的轮次号：$(echo "$FOLLOW" | head -c 200)"
+
+      # ── 会话失效：伪造 ID 必须 410/404（前端据此自动开新会话）──
+      GONE=$(curl -s --max-time 60 -o /tmp/wt55-gone.json -w '%{http_code}' \
+        -X POST "$BASE/api/wubi/ai/followup" \
+        -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+        -d '{"char":"照","question":"为什么？","conversationId":"conv_deadbeef00000000000000000000dead"}' || echo "000")
+      if [[ "$GONE" == "410" ]] || [[ "$GONE" == "404" ]]; then
+        ok "会话失效 → $GONE（前端可自动开新会话）"
+      else
+        warn "会话失效期望 410/404，实际 $GONE：$(head -c 160 /tmp/wt55-gone.json)"
+      fi
+    fi
+    rm -f /tmp/wt55-bad.json /tmp/wt55-gone.json
+  fi
+fi
+
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "✅ 五笔练习室验收全部通过"

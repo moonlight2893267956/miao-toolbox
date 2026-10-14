@@ -339,10 +339,85 @@ node scripts/build-wubi-tables.mjs --sample
 | **码表已按频次裁剪** | 极生僻字与长尾词组可能查不到；查码页会明确提示「未收录」而非显示空表格 |
 | **文章练习仅内置篇章 + 自定义文本** | 无网络抓取 |
 | **复习调度为简化 SM-2** | 非完整算法，按 1/2/4/7/15/30 天固定档位推进 |
+| **AI 讲解只针对单字** | 词组不做整体讲解（agent 只接受单字），通过词组里的字根 chip 逐个进入单字会话 |
+| **AI 讲解不跨刷新** | 会话由 miao-ai 平台维护（TTL 默认 1 小时），刷新后需重新选字；不做历史会话列表 |
+| **AI 讲解不流式** | 骨架 + 阶段提示（8s/28s）+ 取消替代；流式留作后续增强（理由见 §7） |
 
 ---
 
-## 7. 验收方式
+## 7. 查码的 AI 讲解台（Story wt-5-5）
+
+查码 Tab 是**双栏**：左栏确定性事实（编码 / 简码 / 候选 / 词组取码推导），
+右栏是**以字为锚**的多轮讲解台。点结果里的字即选中并自动开讲；拆字动画降为每行的
+「拆分」次要按钮（弹层内另提供「去讲解台追问」入口）。
+
+### 链路与端点
+
+```
+浏览器 → POST /api/wubi/ai/explain   {char, code, positions, notes, error?, conversationId?}
+       → POST /api/wubi/ai/followup  {char, question, conversationId}
+       → WubiAiService（形校验 / 会话懒创建 / 上游错误码映射）
+       → MiaoAiClient（Bearer 密钥只在后端）
+       → miao-ai: wubi-explainer（agent.yaml 声明 conversation.enabled: true）
+```
+
+**响应形状**：成功 `{code:"SUCCESS", data:{…agent 输出…, conversationId, turn, historyTruncated}, requestId}`；
+失败 `{code, message, requestId}`，码值：
+
+| code | HTTP | 前端行为 |
+|---|---|---|
+| `VALIDATION_FAILED` | 400 | 形校验失败（开发期问题，直接暴露消息） |
+| `AI_CONVERSATION_EXPIRED` | 410 | **自动开新会话 + 重放首轮 + 重发该问题**（最多一次）并提示 |
+| `AI_CONVERSATION_NOT_FOUND` | 404 | 同上（会话或 agent 已在平台侧不存在）；与 410 分开以便排障区分生命周期 vs 部署问题 |
+| `AI_CONVERSATION_FORBIDDEN` | 403 | 会话无权访问（多为配置串了 key） |
+| `AI_CONVERSATION_BUSY` | 409 | 「上一轮还在处理中」（前端已串行化，正常不会出现） |
+| `AI_QUOTA_EXCEEDED` | 429 | 明确文案；讲解台请求带 `skipGlobalErrorToast`，避免与 axios 拦截器的 429 全局提示重复 |
+| `AI_AGENT_NOT_CONFIGURED` / `AI_AGENT_DISABLED` | 503 | 讲解台停用并说明；查码与拆分演示不受影响 |
+| `AI_RESPONSE_INVALID` | 502 | 上游 2xx 但空响应体 / 输出结构异常 |
+| `AI_SERVICE_UNAVAILABLE` | 503 | 上游 5xx 或连接失败（唯一会重试的一类） |
+| `AI_ANALYSIS_FAILED` | 502 | 其它异常 |
+
+> ⚠️ **非 2xx 由 RestTemplate 在 `exchange` 内部抛出，不会走到 `is2xxSuccessful` 判断。**
+> 这一点踩过：旧实现把「非 2xx」写在 2xx 分支之后，等于把上游 410/429 全吞成
+> `AI_SERVICE_UNAVAILABLE(503)` —— 「会话过期自动开新会话」因此在真实环境永不触发。
+> 现在由 `catch (HttpStatusCodeException)` 显式接住（必须排在 `RestClientException` 之前），
+> 并由 `MiaoAiClientTest` 起本机 HttpServer 做真实往返验证。
+
+### 为什么不做流式
+
+agent 的 `config["stream"]` 只是把**已经算好的**正文分块吐出来（见 miao-ai `agent.py` 的
+`_stream_result`）——真实等待发生在事实采集、决策与校验那一步，流式不能把它变快；
+而首轮要给出结构化断言交给前端逐条核对，先看到半截 JSON 反而更糟。
+所以改用「骨架占位 + 分阶段文案（8s 说明预热、28s 提示可取消）+ 取消按钮」。
+
+### 可信度分层（本模块纪律的延续）
+
+只有**能被机器判定**的部分才被承认，UI 按可信度分层呈现：
+
+| 层 | 来源 | 判定 |
+|---|---|---|
+| 正文 | `explanation` | 首轮必须通过候选集核对（`isExplanationDisplayable`） |
+| 依据 | `citations` | `kind=reasoned` 时**必须有引用**才算通过（无引用标「未附依据」） |
+| 未核验断言 | `new_claims` | 单独成块（琥珀色 + 文字标签），绝不与已核实事实混同 |
+| 位次修正 | `followup.accepted/index/glyph/previous_radical` | 前端**独立核对** glyph 是否在该位候选集内；不在标「未通过核对」并列出候选 |
+| 降级回答 | `followup.fallback` | 标「离线回答」（agent 明确说明未新增事实） |
+
+判定表与实现见 `utils/wubi/aiExplain.ts` 的 `verifyTurn`（附注释说明每种情形的理由）。
+
+### 超时口径（改之前先读）
+
+agent 最坏 ~145s（两次模型尝试 + 联网核验）→ 后端 `read-timeout: 200000` → 前端
+`REQUEST_TIMEOUT_MS = 240000`。**这三层必须保持「外层大于内层」**，否则会在 agent
+还在算的时候先断，用户看到「AI 不可用」，而答案马上就好。
+
+### 配置
+
+`miao.ai.agents.wubi-explainer`（Nacos `SECRET_GROUP/miao-ai.yaml` 的 dev/prod 模板 +
+`.env.example` 占位符）。密钥只配在 Nacos 与本机 `application-local.yml`。
+
+---
+
+## 8. 验收方式
 
 ```bash
 # 一条命令跑通关键路径（CI 可用，失败非 0 退出）
@@ -352,7 +427,7 @@ bash scripts/check-wubi-tutor.sh
 API_BASE=http://localhost:8080 bash scripts/check-wubi-tutor.sh
 ```
 
-脚本五段：
+脚本六段：
 
 1. **路由注册与访问控制** —— 静态断言 `TOOL_WUBI_TUTOR` 已注册，可选 HTTP 断言
 2. **构建物完整性** —— 4 个 JSON 的 `v` / `count` / `bucket` 字段与条目长度自洽
@@ -362,11 +437,21 @@ API_BASE=http://localhost:8080 bash scripts/check-wubi-tutor.sh
 
    > ⚠️ 这个口径**测不出字根表缺字根**：它只问「码位对应的键有没有候选」，
    > 而每个键都有 ≥2 个字根，故恒为 100%。「正确的那一个字根在不在候选里」
-   > 由 `data/radicals.test.ts` 的 `REQUIRED_RADICALS` 保证（见 §10 坑 7）。
+   > 由 `data/radicals.test.ts` 的 `REQUIRED_RADICALS` 保证（见 §11 坑 7）。
 4. **chunk 体积** —— 解析构建产物，与上表预算逐项对照；**并断言码表确为独立 chunk**
 5. **静态检查 / 单测 / 类型 / Lint** —— 全部通过。静态检查含
    「字根展示完整性」：组件不得对 `radicals` 调用 `slice`、
-   字根展示的 CSS 规则不得用 `nowrap` / `ellipsis`（理由见 §10 坑 5）
+   字根展示的 CSS 规则不得用 `nowrap` / `ellipsis`（理由见 §11 坑 5）
+6. **AI 讲解多轮接口**（可选，需 `ADMIN_PASSWORD`）—— 400 形校验与统一响应壳、
+   首轮返回 `conversationId`、追问 `turn` 递增、伪造会话返回 410/404。
+   **AI 不可用时只告警不失败**：AI 是可选增强，配置缺失不该让整条验收变红
+
+浏览器验收（查码讲解台的交互与结构）：
+
+```bash
+ADMIN_PASSWORD=*** python3 scripts/headless-check-wt-5-5-ai-explain-chat.py
+# MIAO_AI=0 可跳过依赖真实模型的断言（只验结构与降级说明）
+```
 
 单模块单测：
 
@@ -376,14 +461,15 @@ cd miao-toolbox-web && npx vitest run src/modules/tools/wubi-tutor
 
 ---
 
-## 8. 目录结构
+## 9. 目录结构
 
 ```
 wubi-tutor/
-├── WubiTutorPage.tsx          页面外壳（Tab 路由 + 全局弹层）
+├── WubiTutorPage.tsx          页面外壳（Tab 路由 + 全局弹层 + 跨 Tab 交接状态）
 ├── wubi-tutor.css             全部样式（类名统一 wt- 前缀）
-├── tabs/                      5 个 Tab
+├── tabs/                      5 个 Tab（查码 Tab 为「事实 + 讲解」双栏）
 ├── components/                字根图 / 虚拟键盘 / 拆字演示 / 成绩面板 / 趋势图 …
+│   └── explain/               查码讲解台：ExplainConsole / ChatTurn / ChatComposer
 ├── data/
 │   ├── radicals.ts            字根表、键位、手指分配
 │   ├── tutorial/              教程章节
@@ -391,7 +477,9 @@ wubi-tutor/
 └── utils/wubi/                纯函数与 Hook
     ├── 纯函数：code / splitter / session / metrics / errorAnalysis
     │          statsAggregation / achievements / dailyPlan / lookup / course
-    ├── Hook：useWubiStorage / useWubiData / usePracticeSession / useWubiStats …
+    │          aiExplain / explainChat / explainQuestions   ← 讲解台逻辑（可单测）
+    ├── Hook：useWubiStorage / useWubiData / usePracticeSession / useWubiStats /
+    │         useWubiExplainChat（文件仍叫 useWubiAI.ts，Story wt-5-5 重写）
     └── 每个纯函数模块都有同名 .test.ts
 ```
 
@@ -403,7 +491,7 @@ wubi-tutor/
 
 ---
 
-## 9. 视觉语言与材质令牌
+## 10. 视觉语言与材质令牌
 
 基调是**「字根工坊 · 精密台面」**：汉字是纸上的墨迹，键盘是仪表盘，指标是量具。
 落到实现上是一小组**材质令牌**（定义在 `.wt-page` 的令牌块内，浅色 / 暗色各一份）：
@@ -435,7 +523,7 @@ wubi-tutor/
 
 动效统一在 `@media (prefers-reduced-motion: reduce)` 里降级为常亮状态。
 
-## 10. 给后续维护者的提醒
+## 11. 给后续维护者的提醒
 
 按踩坑频率排序，以下问题在本模块**反复出现过**：
 

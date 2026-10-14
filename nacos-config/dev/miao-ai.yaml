@@ -25,3 +25,14 @@ miao:
         read-timeout: 120000
         retry-count: 2
         retry-interval: 1000
+      # 五笔拆字讲解（查码 Tab 的多轮讲解台）。
+      # agent 侧最坏 ~145s（两次模型尝试 + 联网核验字根），所以 read-timeout 必须盖住；
+      # 前端对应 REQUEST_TIMEOUT_MS=240s 再盖住后端 —— 否则用户会看到「AI 不可用」，
+      # 而实际上答案马上就好。retry-count 砍到 1：讲解不是重试能变快的东西。
+      wubi-explainer:
+        base-url: "${MIAO_AI_AGENTS_WUBI_EXPLAINER_BASE_URL}"
+        agent-name: "wubi-explainer"
+        api-key: "${MIAO_AI_AGENTS_WUBI_EXPLAINER_API_KEY}"
+        read-timeout: 200000
+        retry-count: 1
+        retry-interval: 1000

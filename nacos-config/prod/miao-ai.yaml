@@ -25,3 +25,12 @@ miao:
         read-timeout: 120000
         retry-count: 2
         retry-interval: 1000
+      # 五笔拆字讲解（查码 Tab 的多轮讲解台）。
+      # agent 侧最坏 ~145s，read-timeout 必须盖住；前端 REQUEST_TIMEOUT_MS=240s 再盖住后端。
+      wubi-explainer:
+        base-url: "${MIAO_AI_AGENT_WUBI_BASE_URL}"
+        agent-name: "${MIAO_AI_AGENT_WUBI_NAME:wubi-explainer}"
+        api-key: "${MIAO_AI_AGENT_WUBI_API_KEY}"
+        read-timeout: 200000
+        retry-count: 1
+        retry-interval: 1000
