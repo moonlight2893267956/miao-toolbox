@@ -116,7 +116,7 @@ const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                         /*
                          * !! 不得对字根做 slice 截断 !!
                          *
-                         * 每键最多 7 个字根（F/D/Q/N），此处曾写死
+                         * 每键最多 10 个字根（Q），此处曾写死
                          * `slice(0, 5)` —— 练习页键盘上用户看到的字根表
                          * 本身就是残缺的，且因为还叠加了 CSS 的
                          * `nowrap + ellipsis`，看起来像是「设计如此」。

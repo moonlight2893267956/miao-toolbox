@@ -22,6 +22,7 @@
 import type { CourseProgress } from './course';
 import type { ModeRecords } from './sessionStats';
 import type { KeyError } from './session';
+import type { ChallengeMode, ChallengeResult, ChallengeSubmitPayload } from './challenge';
 // 仅类型导入（编译期擦除，不给存储层引入运行时依赖）
 import type { WubiTabKey } from '../../types';
 
@@ -75,6 +76,37 @@ export interface ReviewItem {
   level?: number;
 }
 
+/** 单个挑战模式的本地最佳记录 */
+export interface ChallengeBestRecord {
+  score: number;
+  accuracy: number;
+  durationSec: number;
+  maxCombo: number;
+  /** 达成时间（时间戳，用于列表排序与「最近提升」展示） */
+  achievedAt: number;
+  /** 归属日期 YYYY-MM-DD */
+  statDate: string;
+}
+
+/**
+ * 挑战进度的**本地副本**。
+ *
+ * 后端榜单已经是权威数据，本地为什么还要存一份：
+ * - 离线 / 未登录 / 接口异常时，模式卡仍要能显示「个人最佳」；
+ * - 上报失败后需要有东西可以重试（见 `pendingSync`）。
+ * 服务端返回的权威值到达后覆盖本地，两处不一致时一律以服务端为准。
+ *
+ * 作为 `ProgressData` 的**可选字段**追加：升 SCHEMA_VERSION 会触发
+ * 「备份 + 重置全部学习数据」的既有逻辑，代价远大于收益。
+ */
+export interface ChallengeProgress {
+  bests: Partial<Record<ChallengeMode, ChallengeBestRecord>>;
+  /** 每日挑战已完成日期（升序、去重） */
+  dailyCompletedDates: string[];
+  /** 最近一次上报失败的载荷；下次进入挑战页时重试 */
+  pendingSync?: ChallengeSubmitPayload | null;
+}
+
 export interface ProgressData {
   tutorialChapter: number;
   masteredKeys: string[];
@@ -86,6 +118,8 @@ export interface ProgressData {
   achievements: string[];
   /** 各练习模式的最近一次/最佳成绩（Story 4.2 对比用） */
   modeRecords: ModeRecords;
+  /** 挑战进度（可选：旧数据没有该字段，读取时兜底为空） */
+  challenges?: ChallengeProgress;
 }
 
 export interface SettingsData {
@@ -101,6 +135,13 @@ export interface SettingsData {
    * 跳回学习页，用户得重新点一遍（实测反馈）。
    */
   lastTab: WubiTabKey;
+  /**
+   * 查码 Tab：选中一个字时是否自动开始 AI 讲解（Story 5.5）。
+   *
+   * 默认**开**（这是重设计的核心体验），但必须可关：AI 调用有额度与十几秒的
+   * 等待成本，「我只是想查个码」的时候不该被迫付这笔账。
+   */
+  autoExplain: boolean;
 }
 
 export interface WubiStorageData {
@@ -160,6 +201,7 @@ const DEFAULT_SETTINGS: SettingsData = {
   practiceMode: 'drill',
   soundFeedback: false,
   lastTab: 'learn',
+  autoExplain: true,
 };
 
 const DEFAULT_PROGRESS: ProgressData = {
@@ -170,7 +212,11 @@ const DEFAULT_PROGRESS: ProgressData = {
   course: { freeMode: false, lessons: {} },
   achievements: [],
   modeRecords: {},
+  challenges: { bests: {}, dailyCompletedDates: [] },
 };
+
+/** 每日挑战打卡记录保留天数（与日统计的 90 天同量级，但打卡只需要一个季度） */
+export const CHALLENGE_DAILY_KEEP_DAYS = 120;
 
 /**
  * 把存储里读到的 progress 补全为完整结构。
@@ -196,7 +242,122 @@ export function normalizeProgress(raw: Partial<ProgressData> | null | undefined)
     modeRecords: raw.modeRecords && typeof raw.modeRecords === 'object'
       ? raw.modeRecords
       : {},
+    challenges: normalizeChallengeProgress(raw.challenges),
   };
+}
+
+/**
+ * 挑战进度的字段级兜底。
+ *
+ * 与 `normalizeProgress` 同一约定：旧版本数据缺字段时补默认值，
+ * 而不是让下游 `.filter()` / `[mode]` 抛错。
+ */
+export function normalizeChallengeProgress(
+  raw: Partial<ChallengeProgress> | null | undefined,
+): ChallengeProgress {
+  if (!raw || typeof raw !== 'object') {
+    return { bests: {}, dailyCompletedDates: [] };
+  }
+
+  const bests: Partial<Record<ChallengeMode, ChallengeBestRecord>> = {};
+  const rawBests = raw.bests && typeof raw.bests === 'object' ? raw.bests : {};
+  for (const mode of ['sprint', 'survival', 'daily'] as ChallengeMode[]) {
+    const record = rawBests[mode];
+    if (!record || typeof record !== 'object') continue;
+    if (!Number.isFinite(record.score)) continue;
+    bests[mode] = {
+      score: Number(record.score),
+      accuracy: Number.isFinite(record.accuracy) ? Number(record.accuracy) : 0,
+      durationSec: Number.isFinite(record.durationSec) ? Number(record.durationSec) : 0,
+      maxCombo: Number.isFinite(record.maxCombo) ? Number(record.maxCombo) : 0,
+      achievedAt: Number.isFinite(record.achievedAt) ? Number(record.achievedAt) : 0,
+      statDate: typeof record.statDate === 'string' ? record.statDate : '',
+    };
+  }
+
+  return {
+    bests,
+    dailyCompletedDates: Array.isArray(raw.dailyCompletedDates)
+      ? raw.dailyCompletedDates.filter((d): d is string => typeof d === 'string')
+      : [],
+    /*
+     * 没有待同步载荷时**不带这个字段**，而不是写成 null。
+     * 理由：它会被整体 JSON 序列化进 localStorage，多一个恒为 null 的键
+     * 只会让「有没有待同步内容」这件事多出「null / undefined / 缺失」三种写法，
+     * 而调用方要判真假就得同时处理三种。
+     */
+    ...(raw.pendingSync ? { pendingSync: raw.pendingSync } : {}),
+  };
+}
+
+// ─── 挑战进度合并（纯函数） ──────────────────────────────
+
+/**
+ * 把一次挑战结果并入本地进度。
+ *
+ * 规则：
+ * - **仅在更优时**覆盖该模式最佳（判据与榜单同序，见 `isBetterChallengeResult`）；
+ * - 每日挑战顺带记一笔打卡日期，并裁剪到最近 {@link CHALLENGE_DAILY_KEEP_DAYS} 天；
+ * - 上报失败的载荷挂在 `pendingSync` 上，等下次进挑战页重试。
+ *
+ * 返回新对象，不改动入参 —— 存储层的其他合并逻辑同样是纯函数，
+ * 便于单测直接断言，也避免 React 状态因为原地修改而漏渲染。
+ */
+export function mergeChallengeResult(
+  prev: ChallengeProgress | null | undefined,
+  result: ChallengeResult,
+  payload: ChallengeSubmitPayload,
+  achievedAt: number,
+): ChallengeProgress {
+  const base = normalizeChallengeProgress(prev);
+
+  const currentBest = base.bests[result.mode];
+  const better = !currentBest || isBetterResultShape(result, currentBest);
+
+  const bests = better
+    ? {
+      ...base.bests,
+      [result.mode]: {
+        score: result.score,
+        accuracy: result.accuracy,
+        durationSec: result.durationSec,
+        maxCombo: result.maxCombo,
+        achievedAt,
+        statDate: result.statDate,
+      },
+    }
+    : base.bests;
+
+  const dailyCompletedDates = result.mode === 'daily'
+    ? trimDailyDates([
+      ...base.dailyCompletedDates.filter((d) => d !== result.statDate),
+      result.statDate,
+    ])
+    : base.dailyCompletedDates;
+
+  return {
+    bests,
+    dailyCompletedDates,
+    pendingSync: payload,
+  };
+}
+
+/** 与 `isBetterChallengeResult` 同序的比较（此处按存储结构比对，避免循环依赖） */
+function isBetterResultShape(
+  result: ChallengeResult,
+  best: ChallengeBestRecord,
+): boolean {
+  if (result.score !== best.score) return result.score > best.score;
+  if (result.accuracy !== best.accuracy) return result.accuracy > best.accuracy;
+  return result.durationSec < best.durationSec;
+}
+
+/** 打卡日期去重升序 + 裁剪（只保留最近 N 天，避免 localStorage 无限增长） */
+function trimDailyDates(dates: string[]): string[] {
+  const sorted = Array.from(new Set(dates)).sort();
+  return sorted.length > CHALLENGE_DAILY_KEEP_DAYS
+    ? sorted.slice(sorted.length - CHALLENGE_DAILY_KEEP_DAYS)
+    : sorted;
 }
 
 // ─── 内存降级 ────────────────────────────────────────────
@@ -265,6 +426,7 @@ function normalizeSettings(raw: Partial<SettingsData>): SettingsData {
     lastTab: typeof raw.lastTab === 'string'
       ? (raw.lastTab as WubiTabKey)
       : DEFAULT_SETTINGS.lastTab,
+    autoExplain: bool(raw.autoExplain, DEFAULT_SETTINGS.autoExplain),
   };
 }
 

@@ -109,6 +109,25 @@ const ArticleBoard: React.FC<ArticleBoardProps> = ({
   const totalTyped = session.inputKeys.length;
   const codeText = current?.token.code ?? '';
 
+  /*
+   * 段信息：只有长文被切段时题源才会给出。
+   * 单段（短文）时为 undefined，UI 靠它决定要不要显示段号与两级进度。
+   */
+  const segment = question?.segment;
+
+  /*
+   * 两级进度：
+   *   · 段内进度 = 本段已敲键 / 本段总键
+   *   · 全篇进度 = (已完成段数 + 段内比例) / 总段数
+   *
+   * 用「段内比例」去插值而不是「段数整数」，否则打完第 1 段就显示 100%，
+   * 剩下的段看起来像没在走 —— 这正是长文最需要避免的「看不出进度」。
+   */
+  const innerRatio = totalKeys > 0 ? Math.min(1, totalTyped / totalKeys) : 0;
+  const overallRatio = segment
+    ? Math.min(1, (segment.index + innerRatio) / segment.total)
+    : innerRatio;
+
   const expectedKey = current ? getExpectedKey(question!, totalTyped) : '';
   const expectedMeta = expectedKey ? getKeyMeta(expectedKey as WubiKey) : null;
 
@@ -181,7 +200,15 @@ const ArticleBoard: React.FC<ArticleBoardProps> = ({
 
           <div className="wt-article-board__focus-body">
             <div className="wt-article-board__focus-head">
-              <span className="wt-article-board__focus-label">当前输入</span>
+              <span className="wt-article-board__focus-label">
+                当前输入
+                {/* 段号嵌在标签里，不额外占一行版面 */}
+                {segment && (
+                  <span className="wt-article-board__focus-segment">
+                    第 {segment.index + 1} / {segment.total} 段
+                  </span>
+                )}
+              </span>
               <span className="wt-article-board__focus-count">
                 {codeTyped} / {codeTotal} 码
               </span>
@@ -293,19 +320,30 @@ const ArticleBoard: React.FC<ArticleBoardProps> = ({
         </div>
       )}
 
-      {/* 全篇进度 */}
+      {/* 全篇进度：长文时是两级（外层全篇 / 内层本段），短文退化为单级 */}
       <div className="wt-article-board__progress">
-        <div className="wt-article-board__progress-bar">
+        <div className="wt-article-board__progress-track">
           <div
             className="wt-article-board__progress-fill"
-            style={{
-              width: `${totalKeys > 0
-                ? Math.min(100, (totalTyped / totalKeys) * 100)
-                : 0}%`,
-            }}
+            style={{ width: `${overallRatio * 100}%` }}
           />
+          {segment && (
+            /*
+             * 本段高亮：位置与宽度都按「占全篇的比例」算，
+             * 才能精确叠在总条上当前段的那一格；
+             * 若按段内比例直接当宽度，会和总条错位。
+             */
+            <div
+              className="wt-article-board__progress-inner"
+              style={{
+                left: `${(segment.index / segment.total) * 100}%`,
+                width: `${(innerRatio / segment.total) * 100}%`,
+              }}
+            />
+          )}
         </div>
         <span className="wt-article-board__progress-text">
+          {segment ? `${segment.index + 1} / ${segment.total} 段 · ` : ''}
           {totalTyped} / {totalKeys} 键
         </span>
       </div>

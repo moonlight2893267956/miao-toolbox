@@ -13,11 +13,15 @@ import {
   WubiStorage,
   exportData,
   importData,
+  mergeChallengeResult,
+  normalizeChallengeProgress,
   type ProgressData,
   type SettingsData,
   type DailyStat,
   type ReviewItem,
+  type ChallengeProgress,
 } from './storage';
+import type { ChallengeResult, ChallengeSubmitPayload } from './challenge';
 import type { SessionResult } from './session';
 import { createReviewItem } from './reviewScheduler';
 import { toSummary, recordModeResult, type ModeRecord } from './sessionStats';
@@ -139,6 +143,60 @@ export function useWubiStorage() {
     storage.saveProgress(progress);
   }, [storage]);
 
+  // ── 挑战（挑战三件套）──────────────────────────────────
+
+  /** 读取挑战进度（含兜底，旧数据不会有该字段） */
+  const loadChallengeProgress = useCallback((): ChallengeProgress => {
+    try {
+      return normalizeChallengeProgress(storage.loadAll().progress.challenges);
+    } catch (err) {
+      console.error('[useWubiStorage] 挑战进度读取失败:', err);
+      return { bests: {}, dailyCompletedDates: [] };
+    }
+  }, [storage]);
+
+  /**
+   * 挑战结束：把结果并入本地进度并落盘。
+   *
+   * 先落本地再上报：接口失败时「个人最佳 / 今日打卡」不能跟着丢，
+   * 失败的上报载荷存在 `pendingSync` 里等下次重试。
+   *
+   * @returns 合并后的进度（调用方用它更新界面，避免再读一次存储）
+   */
+  const recordChallengeProgress = useCallback((
+    result: ChallengeResult,
+    payload: ChallengeSubmitPayload,
+  ): ChallengeProgress => {
+    try {
+      const progress = storage.loadAll().progress;
+      const merged = mergeChallengeResult(progress.challenges, result, payload, Date.now());
+      storage.saveProgress({ ...progress, challenges: merged });
+      return merged;
+    } catch (err) {
+      console.error('[useWubiStorage] 挑战进度落盘失败:', err);
+      return mergeChallengeResult(null, result, payload, Date.now());
+    }
+  }, [storage]);
+
+  /** 上报成功后清掉待同步标记 */
+  const clearChallengePendingSync = useCallback(() => {
+    try {
+      const progress = storage.loadAll().progress;
+      const current = normalizeChallengeProgress(progress.challenges);
+      if (!current.pendingSync) return;
+      // 重建而不是写 null：见 storage.normalizeChallengeProgress 的说明
+      storage.saveProgress({
+        ...progress,
+        challenges: {
+          bests: current.bests,
+          dailyCompletedDates: current.dailyCompletedDates,
+        },
+      });
+    } catch (err) {
+      console.error('[useWubiStorage] 清理待同步标记失败:', err);
+    }
+  }, [storage]);
+
   /** 读取设置 */
   const loadSettings = useCallback((): SettingsData => storage.loadAll().settings, [storage]);
 
@@ -200,6 +258,9 @@ export function useWubiStorage() {
     loadStats,
     loadReview,
     unlockAchievements,
+    loadChallengeProgress,
+    recordChallengeProgress,
+    clearChallengePendingSync,
     loadSettings,
     saveSettings,
     updateSettings,

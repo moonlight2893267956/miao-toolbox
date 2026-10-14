@@ -26,7 +26,7 @@ import {
   type Radical,
   type WubiKeyMeta,
 } from '../../data/radicals';
-import { type CharCode } from './code';
+import { IDENTIFICATION_KEYS, type CharCode } from './code';
 
 // ─── 类型定义 ────────────────────────────────────────────
 
@@ -205,13 +205,23 @@ function computeSplit(char: string, code: string): SplitResult {
     segments.push({ key: codeChar as WubiKey, candidates, certain, role });
   }
 
-  // 标注：识别码（编码为 4 位且最后一位可能需要识别码说明）
+  /*
+   * 标注：识别码（4 位编码的末位「可能是识别码」）。
+   *
+   * ⚠️ 两个前提缺一不可，此前只判了后者：
+   *
+   * 1. **末位键本身得是识别码键**（15 个：g/f/d、h/j/k、t/r/e、y/u/i、n/b/v）。
+   *    缺这条会给出**事实错误**的提示：「编」= xyna 的末位是 a（艹，取一二三末的末位），
+   *    a 根本不在识别码表里，却被提示成「末位可能为识别码」。而且这条 note 会随
+   *    `buildExplainContext` 原样进 agent 提示词，把模型推向「声明识别码」——
+   *    agent 自检（识别码键只有那 15 个 / 笔形对不上）必定拒绝，整轮讲解就此失败。
+   * 2. 末位的候选字根**都不字面出现在字形里**：字形包含只是弱证据（艹 在「扁」里
+   *    写作卄，`includes` 判不出来），所以它只能用来「给提示」，不能用来下结论。
+   */
   if (code.length === 4 && !isKeyNameChar(char)) {
-    // 检查最后一位是否可能是识别码
-    // 这里做简化判断：如果前 3 位的字根已能确定字形且最后一位是「补位」性质
-    // 完整的识别码判定需要字形结构分析，此处给出提示性标注
+    const lastKey = code[code.length - 1] as WubiKey;
     const lastSegment = segments[segments.length - 1];
-    if (lastSegment && lastSegment.candidates.length > 0) {
+    if (IDENTIFICATION_KEYS.has(lastKey) && lastSegment && lastSegment.candidates.length > 0) {
       // 仅当最后一位的字根不直接出现在字形中时，提示可能是识别码
       const lastCandidatesInChar = lastSegment.candidates.filter(
         (r) => char.includes(r.glyph) || char === r.glyph,
@@ -219,7 +229,7 @@ function computeSplit(char: string, code: string): SplitResult {
       if (lastCandidatesInChar.length === 0) {
         notes.push({
           type: 'identificationCode',
-          message: `末位「${code[code.length - 1]}」可能为识别码（末笔 + 字型结构推导）`,
+          message: `末位「${lastKey}」可能为识别码（末笔 + 字型结构推导）`,
         });
       }
     }

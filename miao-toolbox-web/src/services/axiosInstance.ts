@@ -4,6 +4,19 @@ import { message as antdMessage } from 'antd';
 import { getAccessToken, getSigningKey } from '../contexts/AuthContext';
 import { silentRefresh } from './tokenRefresh';
 
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    /**
+     * 跳过全局兜底提示（含 429 的 warning 与 5xx 的「请刷新页面重试」）。
+     *
+     * 用于**调用方自己会在界面里展示错误**的场景：例如查码的 AI 讲解台 ——
+     * 它会在右栏给出「AI 讲解当前不可用（原因）」，此时再弹一条「刷新页面重试」
+     * 既重复，又和「稍后重试即可」的真实处置相反。
+     */
+    skipGlobalErrorToast?: boolean;
+  }
+}
+
 // 错误去重：同一消息 2 秒内只展示一次
 const errorThrottle = new Map<string, number>();
 function showErrorOnce(msg: string, type: 'error' | 'warning' = 'error') {
@@ -78,8 +91,8 @@ axiosInstance.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    // 429 限流提示
-    if (error.response?.status === 429) {
+    // 429 限流提示（调用方自带错误展示时跳过，避免与场景内的提示重复）
+    if (error.response?.status === 429 && !error.config?.skipGlobalErrorToast) {
       const msg = (error.response?.data as { message?: string })?.message || '请求过于频繁，请稍后再试';
       antdMessage.warning(msg);
       return Promise.reject(error);
@@ -129,6 +142,11 @@ axiosInstance.interceptors.response.use(
     }
 
     const status = error.response?.status;
+
+    // 调用方自带错误展示（如 AI 讲解台、内嵌错误区）：不弹全局提示，避免重复与自相矛盾的指引
+    if (error.config?.skipGlobalErrorToast) {
+      return Promise.reject(error);
+    }
 
     // 429 已在上游拦截器弹过 warning，不再兜底提示
     if (status === 429) {

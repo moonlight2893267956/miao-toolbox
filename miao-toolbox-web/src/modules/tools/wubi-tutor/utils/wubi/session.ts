@@ -708,6 +708,37 @@ export function skipCurrentQuestion(
 }
 
 /**
+ * 主动结束会话（挑战模式的「到点 / 命尽」终止）。
+ *
+ * ── 为什么需要它 ──
+ *
+ * 原有状态机只会因「题量打满」自然结束（见 `advanceAfterCorrect` /
+ * `skipCurrentQuestion` 里的 `finite && completed >= total` 分支）。
+ * 限时冲刺与生存挑战的终止条件来自**外部**（计时器到点 / 生命归零），
+ * 题源本身是无限的，因此必须有一个显式的终止入口。
+ *
+ * ── 语义 ──
+ *
+ * 只改状态位，**保留全部计数**：已完成题数 / 击键 / 错字 / 连击都是
+ * 已经发生的事实，结算面板要用它们。因此这里不做任何清零，
+ * 与 `reset` 是相反方向的两种操作。
+ *
+ * 幂等：已结束原样返回（重复调用不会产生第二个「结束」事件）；
+ * `idle` 也原样返回 —— 从未开始的会话不该被标记成「已完成」。
+ */
+export function finishSession(state: SessionState): SessionState {
+  if (state.status === 'finished' || state.status === 'idle') return state;
+
+  return {
+    ...state,
+    status: 'finished',
+    // 结束时若正停在「等待修正」的错误态，必须一并清掉，否则结算面板背后
+    // 还挂着一张「按任意键重新作答」的提示条
+    inErrorState: false,
+  };
+}
+
+/**
  * 计算会话结果。
  */
 export function computeSessionResult(state: SessionState, durationSec: number): SessionResult {

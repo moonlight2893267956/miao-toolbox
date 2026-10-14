@@ -12,13 +12,11 @@
  * - 提供「加入难字本」动作
  */
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { splitChar, describeSplit, type SplitResult } from '../utils/wubi/splitter';
 import { parseChar, getSimplifiedCodes, type CharMap } from '../utils/wubi/code';
-import { useWubiAI } from '../utils/wubi/useWubiAI';
-import { isExplanationDisplayable } from '../utils/wubi/aiExplain';
-import { MOTION, STAGGER } from '../utils/wubi/motion';
+import { MOTION } from '../utils/wubi/motion';
 
 interface SplitDemoProps {
   /** 是否打开 */
@@ -29,6 +27,14 @@ interface SplitDemoProps {
   onClose: () => void;
   /** 加入难字本回调 */
   onAddToReview?: (char: string) => void;
+  /**
+   * 「去讲解台追问」回调（Story 5.5）。
+   *
+   * 弹层里不再放追问输入框：多轮对话需要一个能持续看结果的台面，
+   * 而不是一个滚到底才能看见输入框的弹层。这里只负责**交接** ——
+   * 关掉弹层、切到查码 Tab、把当前字锚定到讲解台。
+   */
+  onOpenExplain?: (char: string) => void;
   /**
    * 字编码映射。
    *
@@ -42,87 +48,13 @@ interface SplitDemoProps {
 const ANIMATION_STEP_MS = 300;
 
 const SplitDemo: React.FC<SplitDemoProps> = ({
-  open, char, onClose, onAddToReview, charMap,
+  open, char, onClose, onAddToReview, onOpenExplain, charMap,
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  /*
-   * AI 解释：可选增强。
-   *
-   * 只有点按钮才会请求 —— 不进任何热路径，也不在打开弹层时自动触发：
-   * 这个模块对用户的核心承诺是「能练」，AI 只是锦上添花，
-   * 不该为它付出等待、额度或隐私上的代价。
-   */
-  const {
-    explainSplit, reset: resetAi,
-    loading: aiLoading,
-    result: aiResult, error: aiError,
-  } = useWubiAI();
-
-  /** 校验通过的解释才展示；没通过一律退回确定性视图 */
-  const aiDisplayable = isExplanationDisplayable(aiResult);
-
-  /**
-   * 未能展示时的原因（三级兜底）。
-   *
-   * 只显示「没通过核对」而不说原因，等于把排查成本转给用户 ——
-   * 而这三种原因的处理方式完全不同：
-   *   前端校验的违规 → agent 挑错了字根（改提示词）
-   *   agent 自校验的违规 → 同上，且能看到它试述的文件名/原因
-   *   agent 的 error   → 服务侧问题（模型未配置 / 输出非法 JSON / 输入不合法）
-   */
-  const aiFailureReason = aiDisplayable
-    ? null
-    : aiResult?.validation?.violations[0]
-      ?? aiResult?.selfCheck?.violations?.[0]
-      ?? aiResult?.error
-      ?? null;
-
   /** 用户开了「减少动态效果」就一律不做位移/渐入 —— 动效永远不该是可用性的前提 */
   const reduceMotion = useReducedMotion() ?? false;
-
-  /** 解释按句切开，逐句浮现：比整块蹦出来更像「说给你听」，也让等待有个交代 */
-  const explanationSentences = useMemo(() => {
-    const text = aiResult?.explanation ?? '';
-    return text
-      .split(/(?<=[。！？；])/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }, [aiResult]);
-
-  const aiSuggestions = aiResult?.suggestions ?? [];
-
-  /**
-   * 等待超过 8 秒就补一句「为什么慢」。
-   *
-   * 首次调用要预热模型，实测可能十几到几十秒 —— 只显示「正在分析」会让人以为卡死。
-   * 与其让用户对着不动的界面猜，不如主动交代：慢是正常的，且会慢多久。
-   */
-  const [aiSlow, setAiSlow] = useState(false);
-  useEffect(() => {
-    if (!aiLoading) {
-      setAiSlow(false);
-      return;
-    }
-    const timer = setTimeout(() => setAiSlow(true), 8000);
-    return () => clearTimeout(timer);
-  }, [aiLoading]);
-
-  /**
-   * 有结果（成功或失败）后把它滚进视野。
-   *
-   * AI 区在整个可滚动正文的最底部 —— 不滚过去，用户点了按钮却看不到任何东西，
-   * 只会以为「没反应」。这是本次最实际的一处可用性修复。
-   */
-  const aiPanelRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!aiDisplayable && !aiError && !aiFailureReason) return;
-    aiPanelRef.current?.scrollIntoView({
-      behavior: reduceMotion ? 'auto' : 'smooth',
-      block: 'nearest',
-    });
-  }, [aiDisplayable, aiError, aiFailureReason, reduceMotion]);
 
   const result: SplitResult | null = useMemo(() => {
     if (!char || !charMap) return null;
@@ -141,14 +73,13 @@ const SplitDemo: React.FC<SplitDemoProps> = ({
     return getSimplifiedCodes(char, charMap);
   }, [char, charMap]);
 
-  // 重置动画状态；换字或重开时连同上一次的 AI 解释一起清掉
+  // 重置动画状态；换字或重开时回到第一步
   useEffect(() => {
     if (open) {
       setCurrentStep(0);
       setIsPlaying(false);
-      resetAi();
     }
-  }, [open, char, resetAi]);
+  }, [open, char]);
 
   // 自动播放
   useEffect(() => {
@@ -397,89 +328,25 @@ const SplitDemo: React.FC<SplitDemoProps> = ({
             )}
 
             {/*
-              AI 解释区（整体一块，ref 用于结果到达后滚进视野）。
-              三种收场都落在「用户仍有东西可看」上：
-                生成中 → 骨架占位 + 分阶段提示（慢也要慢得明白）
-                成功   → 逐句浮现的解释 + 逐条滑入的提醒
-                失败   → 明确说明原因，并退回上方候选字根
+              AI 讲解不再挂在这个弹层里（Story 5.5）。
+              多轮追问需要一个能持续看结果的台面，而弹层里输入框在滚动区最底部，
+              回答一长就被推到视野之外；同一功能两处实现也迟早各自演化。
+              这里只留一个交接入口，由查码 Tab 的讲解台接手。
             */}
-            <div className="wt-split-demo__ai-wrap" ref={aiPanelRef}>
-              {aiLoading && (
-                <div className="wt-split-demo__ai">
-                  <div className="wt-split-demo__ai-head">
-                    <span className="wt-split-demo__ai-title">AI 解释</span>
-                    <span className="wt-split-demo__ai-badge">分析中</span>
-                  </div>
-                  {/* 骨架先占住结果的位置，答案到达时整块不会跳 */}
-                  <div className="wt-split-demo__ai-skeleton" aria-hidden="true">
-                    <span />
-                    <span />
-                    <span />
-                  </div>
-                  <p className="wt-split-demo__ai-hint">
-                    {aiSlow
-                      ? '首次调用要预热模型，通常十几到几十秒 —— 这次会稍久一点。'
-                      : '正在对照字根表核对这个字的拆法…'}
-                  </p>
-                </div>
-              )}
-
-              {!aiLoading && aiDisplayable && (
-                <motion.div
-                  className="wt-split-demo__ai"
-                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: reduceMotion ? 0 : MOTION.slow, ease: 'easeOut' }}
+            {onOpenExplain && (
+              <div className="wt-split-demo__explain-entry">
+                <p className="wt-split-demo__explain-text">
+                  想弄明白「为什么这么拆」、或者追问「换另一个字根行不行」？
+                </p>
+                <button
+                  type="button"
+                  className="wt-split-demo__explain-btn"
+                  onClick={() => onOpenExplain(char)}
                 >
-                  <div className="wt-split-demo__ai-head">
-                    <span className="wt-split-demo__ai-title">AI 解释</span>
-                  </div>
-                  {explanationSentences.map((sentence, idx) => (
-                    <motion.p
-                      key={idx}
-                      className="wt-split-demo__ai-text"
-                      initial={reduceMotion ? false : { opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: reduceMotion ? 0 : MOTION.slow, delay: idx * STAGGER.sentence, ease: 'easeOut' }}
-                    >
-                      {sentence}
-                    </motion.p>
-                  ))}
-                  {aiSuggestions.length > 0 && (
-                    <ul className="wt-split-demo__ai-suggestions">
-                      {aiSuggestions.map((s, idx) => (
-                        <motion.li
-                          key={idx}
-                          initial={reduceMotion ? false : { opacity: 0, x: -4 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{
-                            duration: reduceMotion ? 0 : MOTION.slow,
-                            // 排在解释之后，形成「先讲完再叮嘱」的节奏
-                            delay: explanationSentences.length * STAGGER.sentence
-                              + idx * STAGGER.item,
-                          }}
-                        >
-                          {s}
-                        </motion.li>
-                      ))}
-                    </ul>
-                  )}
-                </motion.div>
-              )}
-
-              {!aiLoading && (aiError || (aiResult && !aiDisplayable)) && (
-                <motion.div
-                  className="wt-split-demo__ai wt-split-demo__ai--fallback"
-                  initial={reduceMotion ? false : { opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: reduceMotion ? 0 : MOTION.slow }}
-                >
-                  {aiError
-                    ? `AI 解释暂时不可用（${aiError}），可对照上方的候选字根分析。`
-                    : `这次解释没通过与字根表的核对${aiFailureReason ? `（${aiFailureReason}）` : ''}，已按上方的候选字根为准。`}
-                </motion.div>
-              )}
-            </div>
+                  去讲解台追问 →
+                </button>
+              </div>
+            )}
           </div>
 
           {/* 底部操作栏 */}
@@ -489,19 +356,6 @@ const SplitDemo: React.FC<SplitDemoProps> = ({
               onClick={isPlaying ? handleReplay : handlePlay}
             >
               {isPlaying ? '重放' : '播放动画'}
-            </button>
-            {/*
-              只在用户点它时才请求 AI。不自动触发、不预取 ——
-              拆字解释是「我想弄明白」的动作，不是每次看字都要付费的动作。
-            */}
-            <button
-              className="wt-split-demo__btn wt-split-demo__btn--ai"
-              onClick={() => result && explainSplit(result)}
-              disabled={!result || aiLoading}
-              // 转圈由 CSS 的 [data-loading='true']::before 提供，不用额外元素
-              data-loading={aiLoading ? 'true' : undefined}
-            >
-              {aiLoading ? '解释中…' : 'AI 解释'}
             </button>
             {onAddToReview && (
               <button

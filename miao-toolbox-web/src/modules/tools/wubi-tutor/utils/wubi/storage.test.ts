@@ -9,11 +9,15 @@ import {
   WubiStorage,
   exportData,
   importData,
+  normalizeChallengeProgress,
+  mergeChallengeResult,
+  CHALLENGE_DAILY_KEEP_DAYS,
   type ReviewItem,
   type SettingsData,
   type ProgressData,
 } from './storage';
-import { toDateKey, todayKey } from './statsAggregation';
+import { toDateKey, todayKey, addDays } from './statsAggregation';
+import type { ChallengeResult, ChallengeSubmitPayload } from './challenge';
 
 // 模拟 localStorage
 const mockStore = new Map<string, string>();
@@ -53,6 +57,7 @@ describe('WubiStorage — 基本读写', () => {
       practiceMode: 'lenient',
       soundFeedback: true,
       lastTab: 'practice',
+      autoExplain: true,
     };
 
     storage.saveSettings(settings);
@@ -71,6 +76,11 @@ describe('WubiStorage — 基本读写', () => {
       course: { freeMode: true, lessons: {} },
       achievements: ['first-10'],
       modeRecords: {},
+      // 读取时会走 normalizeProgress，挑战进度会被补成默认结构
+      challenges: {
+        bests: { sprint: { score: 88, accuracy: 0.95, durationSec: 60, maxCombo: 12, achievedAt: 1, statDate: '2026-10-09' } },
+        dailyCompletedDates: ['2026-10-09'],
+      },
     };
 
     storage.saveProgress(progress);
@@ -394,6 +404,7 @@ describe('WubiStorage — 导入导出', () => {
       practiceMode: 'lenient',
       soundFeedback: true,
       lastTab: 'stats',
+      autoExplain: true,
     });
 
     storage.saveProgress({
@@ -466,6 +477,7 @@ describe('WubiStorage — 内存降级', () => {
       practiceMode: 'drill',
       soundFeedback: false,
       lastTab: 'learn',
+      autoExplain: true,
     });
     // 内存态不持久化，读回默认值
     const data = storage.loadAll();
@@ -501,6 +513,16 @@ describe('WubiStorage — 设置字段级兜底', () => {
     expect(settings.practiceMode).toBe('lenient');
     // 新字段补默认，而不是 undefined
     expect(settings.lastTab).toBe('learn');
+    // autoExplain（Story 5.5）同样：老数据没有它 → 默认开
+    expect(settings.autoExplain).toBe(true);
+  });
+
+  it('autoExplain 显式关闭时被保留（不是每次读回都变回默认）', () => {
+    mockStore.set(settingsKey('quiet-user'), JSON.stringify({ autoExplain: false }));
+
+    const { settings } = new WubiStorage('quiet-user').loadAll();
+
+    expect(settings.autoExplain).toBe(false);
   });
 
   it('字段类型不对时回退默认值', () => {
@@ -508,6 +530,7 @@ describe('WubiStorage — 设置字段级兜底', () => {
       showVirtualKeyboard: 'yes',
       practiceMode: 'whatever',
       lastTab: 42,
+      autoExplain: 'on',
     }));
 
     const storage = new WubiStorage('bad-user');
@@ -516,6 +539,7 @@ describe('WubiStorage — 设置字段级兜底', () => {
     expect(settings.showVirtualKeyboard).toBe(true);
     expect(settings.practiceMode).toBe('drill');
     expect(settings.lastTab).toBe('learn');
+    expect(settings.autoExplain).toBe(true);
   });
 
   it('导入缺少 lastTab 的旧导出文件不会失败', () => {
@@ -534,5 +558,139 @@ describe('WubiStorage — 设置字段级兜底', () => {
 
     expect(result.ok).toBe(true);
     expect(storage.loadAll().settings.lastTab).toBe('learn');
+  });
+});
+
+/*
+ * 挑战进度：作为 ProgressData 的**可选字段**追加，
+ * 因此重点验证「旧数据没有该字段时不炸」与「只有更优才覆盖」。
+ */
+describe('挑战进度合并', () => {
+  const makeResult = (over: Partial<ChallengeResult> = {}): ChallengeResult => ({
+    mode: 'sprint',
+    score: 100,
+    correctChars: 100,
+    correctQuestions: 20,
+    totalQuestions: 24,
+    accuracy: 0.9,
+    durationSec: 60,
+    maxCombo: 30,
+    statDate: '2026-10-09',
+    ...over,
+  });
+
+  const makePayload = (over: Partial<ChallengeSubmitPayload> = {}): ChallengeSubmitPayload => ({
+    mode: 'sprint',
+    score: 100,
+    correctChars: 100,
+    accuracyPercent: 90,
+    durationSec: 60,
+    maxCombo: 30,
+    statDate: '2026-10-09',
+    ...over,
+  });
+
+  it('normalizeChallengeProgress：空值补默认结构，脏记录被丢弃', () => {
+    // 没有待同步内容时不该凭空造一个 pendingSync: null 字段（见实现注释）
+    expect(normalizeChallengeProgress(null))
+      .toEqual({ bests: {}, dailyCompletedDates: [] });
+
+    const raw = {
+      bests: {
+        sprint: { score: 100, accuracy: 0.5, durationSec: 60, maxCombo: 3, achievedAt: 1, statDate: '2026-10-09' },
+        survival: {},           // 没有 score → 视为无效记录
+      },
+      dailyCompletedDates: ['2026-10-09', 123],
+    } as unknown as Parameters<typeof normalizeChallengeProgress>[0];
+
+    const normalized = normalizeChallengeProgress(raw);
+    expect(normalized.bests.sprint?.score).toBe(100);
+    expect(normalized.bests.survival).toBeUndefined();
+    // 非字符串日期被过滤，避免后续 addDays 抛错
+    expect(normalized.dailyCompletedDates).toEqual(['2026-10-09']);
+  });
+
+  it('只有更优才覆盖个人最佳', () => {
+    const first = mergeChallengeResult(null, makeResult({ score: 100 }), makePayload(), 1);
+    expect(first.bests.sprint?.score).toBe(100);
+
+    const worse = mergeChallengeResult(first, makeResult({ score: 80, accuracy: 1 }), makePayload({ score: 80 }), 2);
+    expect(worse.bests.sprint?.score).toBe(100);
+
+    const better = mergeChallengeResult(first, makeResult({ score: 120 }), makePayload({ score: 120 }), 3);
+    expect(better.bests.sprint?.score).toBe(120);
+  });
+
+  it('同分时依次比准确率、比用时（与榜单排序同序）', () => {
+    const base = mergeChallengeResult(
+      null,
+      makeResult({ score: 100, accuracy: 0.9, durationSec: 60 }),
+      makePayload(),
+      1,
+    );
+
+    const betterAccuracy = mergeChallengeResult(
+      base,
+      makeResult({ score: 100, accuracy: 0.99, durationSec: 60 }),
+      makePayload(),
+      2,
+    );
+    expect(betterAccuracy.bests.sprint?.accuracy).toBeCloseTo(0.99);
+
+    const faster = mergeChallengeResult(
+      base,
+      makeResult({ score: 100, accuracy: 0.9, durationSec: 45 }),
+      makePayload(),
+      3,
+    );
+    expect(faster.bests.sprint?.durationSec).toBe(45);
+  });
+
+  it('每日挑战记打卡日期；同日重玩不重复；其它模式不动打卡', () => {
+    const daily = mergeChallengeResult(
+      null,
+      makeResult({ mode: 'daily', score: 28 }),
+      makePayload({ mode: 'daily' }),
+      1,
+    );
+    expect(daily.dailyCompletedDates).toEqual(['2026-10-09']);
+
+    const replay = mergeChallengeResult(
+      daily,
+      makeResult({ mode: 'daily', score: 30 }),
+      makePayload({ mode: 'daily' }),
+      2,
+    );
+    expect(replay.dailyCompletedDates).toEqual(['2026-10-09']);
+
+    const sprint = mergeChallengeResult(
+      replay,
+      makeResult({ mode: 'sprint', statDate: '2026-10-10' }),
+      makePayload(),
+      3,
+    );
+    expect(sprint.dailyCompletedDates).toEqual(['2026-10-09']);
+  });
+
+  it('打卡日期裁剪到上限（避免 localStorage 无限增长）', () => {
+    const many = Array.from(
+      { length: CHALLENGE_DAILY_KEEP_DAYS + 10 },
+      (_, i) => addDays('2026-10-09', -i),
+    );
+
+    const merged = mergeChallengeResult(
+      { bests: {}, dailyCompletedDates: many },
+      makeResult({ mode: 'daily' }),
+      makePayload({ mode: 'daily' }),
+      1,
+    );
+
+    expect(merged.dailyCompletedDates).toHaveLength(CHALLENGE_DAILY_KEEP_DAYS);
+  });
+
+  it('把待同步载荷留在 pendingSync，供下次重试', () => {
+    const merged = mergeChallengeResult(null, makeResult(), makePayload({ score: 100 }), 1);
+
+    expect(merged.pendingSync).toEqual(makePayload({ score: 100 }));
   });
 });

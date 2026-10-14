@@ -16,13 +16,15 @@ import {
   skipCurrentQuestion as skipPure,
   resumeSession as resumePure,
   confirmShortAnswer,
+  finishSession as finishSessionPure,
+  getExpectedKey,
   type SessionCounters,
   computeSessionResult,
   type SessionState,
   type SessionResult,
   type SessionMode,
 } from './session';
-import type { QuestionSource } from './questionSource';
+import type { Question, QuestionSource } from './questionSource';
 import {
   computeMetrics,
   calculateAccuracy,
@@ -52,13 +54,33 @@ import { randomSeed } from './rng';
 
 // ─── Hook ────────────────────────────────────────────────
 
+/**
+ * 一次「答错」的上下文（挑战模式的扣命 / 反馈用）。
+ *
+ * 粒度是**题**而不是键：同一题连按错几次只回调一次，
+ * 与 `session.wrongQuestionCount`（准确率的分母口径）保持一致，
+ * 否则「错一次扣一条命」会变成「乱按几下就死」。
+ */
+export interface WrongAnswerInfo {
+  /** 出错的那道题 */
+  question: Question;
+  /** 出错的位置（0 起，即已输入位数） */
+  position: number;
+  /** 该位置期望按下的键；越界时为空串 */
+  expectedKey: string;
+  /** 实际按下的键 */
+  actualKey: string;
+}
+
 export interface UsePracticeSessionOptions {
   mode: SessionMode;
   onSessionEnd?: (result: SessionResult) => void;
+  /** 每答错一题回调一次（挑战模式扣命用） */
+  onWrongAnswer?: (info: WrongAnswerInfo) => void;
 }
 
 export function usePracticeSession(options: UsePracticeSessionOptions) {
-  const { mode, onSessionEnd } = options;
+  const { mode, onSessionEnd, onWrongAnswer } = options;
 
   const [session, setSessionState] = useState<SessionState>(createInitialSessionState);
 
@@ -97,6 +119,18 @@ export function usePracticeSession(options: UsePracticeSessionOptions) {
   const keystrokesRef = useRef<KeystrokeRecord[]>([]);
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
   const endFiredRef = useRef(false);
+
+  /**
+   * `onWrongAnswer` 的最新值。
+   *
+   * !! 必须走 ref，不能进 `answer` 的依赖 !!
+   *
+   * 调用方普遍写成内联箭头函数，每次渲染都是新引用；一旦进依赖，
+   * `answer` 会被重建 → `useKeyboardCapture` 重新订阅键盘 →
+   * keydown 热路径上多一次解绑/绑定（NFR-1 明确要求热路径不做多余工作）。
+   * 扣命只发生在答题那一刻，用 ref 取最新回调即可。
+   */
+  const onWrongAnswerRef = useRef(onWrongAnswer);
 
   // ── 启动会话 ──
   /**
@@ -214,6 +248,16 @@ export function usePracticeSession(options: UsePracticeSessionOptions) {
 
   const clearStartError = useCallback(() => setStartError(null), []);
 
+  /**
+   * 主动结束本轮（挑战模式的「到点 / 命尽」）。
+   *
+   * 只置结束位、保留全部计数；随后的「会话结束」effect 会照常产出
+   * `SessionResult` 并触发 `onSessionEnd`，因此挑战层与普通练习共用同一条结算路径。
+   */
+  const finish = useCallback(() => {
+    applySession(finishSessionPure(stateRef.current));
+  }, [applySession]);
+
   // ── 答题 ──
   const answer = useCallback((key: string) => {
     const source = sourceRef.current;
@@ -232,7 +276,24 @@ export function usePracticeSession(options: UsePracticeSessionOptions) {
        * （改写 used 集合与随机数发生器），于是每答一题题源前进两次：
        * 用户看到的题序仍正常，但中断恢复会落到相邻的题目上。
        */
-      applySession(handleAnswerKey(current, source, mode, key));
+      const next = handleAnswerKey(current, source, mode, key);
+      applySession(next);
+
+      /*
+       * 答错回调（挑战模式扣命）。
+       *
+       * 判据是 `wrongQuestionCount` 从无到有 —— 也就是「这一题刚刚变错」。
+       * 不能在 `handleAnswerKey` 内部回调：状态机是纯函数，加副作用会让它
+       * 无法在严格模式下被安全地重复求值（同一题会扣两条命）。
+       */
+      if (next.wrongQuestionCount > current.wrongQuestionCount && current.currentQuestion) {
+        onWrongAnswerRef.current?.({
+          question: current.currentQuestion,
+          position: current.inputKeys.length,
+          expectedKey: getExpectedKey(current.currentQuestion, current.inputKeys.length),
+          actualKey: key,
+        });
+      }
 
       /*
        * 记录击键（仅供速度滑窗使用；计数与准确率以 session 为准）。
@@ -318,6 +379,11 @@ export function usePracticeSession(options: UsePracticeSessionOptions) {
     onSkip: skip,
   });
 
+  // ── 同步答错回调（写入 ref，供 answer 读取；见 onWrongAnswerRef 说明）──
+  useEffect(() => {
+    onWrongAnswerRef.current = onWrongAnswer;
+  }, [onWrongAnswer]);
+
   // ── 计时器：running 期间每 200ms 推进「已用时」 ──
   useEffect(() => {
     if (!isRunning) return;
@@ -399,6 +465,8 @@ export function usePracticeSession(options: UsePracticeSessionOptions) {
     skip,
     confirmShort,
     reset,
+    /** 主动结束本轮（挑战模式：到点 / 命尽） */
+    finish,
     isRunning,
   };
 }

@@ -68,6 +68,17 @@ const IDENTIFICATION_TABLE: Record<LastStroke, Record<CharStructure, WubiKey>> =
   zhe:  { 'left-right': 'n', 'up-down': 'b', 'misc': 'v' },
 };
 
+/**
+ * 可能是识别码的键位（15 个）。
+ *
+ * 识别码是「末笔区 × 字型位」的交叉结果，五个笔画区各占三个键，
+ * **不是只有左右型那一列（g/h/t/y/n）**。判断「末位有没有可能是识别码」时
+ * 必须按这 15 个键来，否则上下型、杂合型的字会被整体漏判。
+ */
+export const IDENTIFICATION_KEYS: ReadonlySet<WubiKey> = new Set(
+  Object.values(IDENTIFICATION_TABLE).flatMap((row) => Object.values(row)),
+);
+
 // ─── 核心函数 ────────────────────────────────────────────
 
 /**

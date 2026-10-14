@@ -29,6 +29,14 @@ function makeSource(text: string) {
   );
 }
 
+/** 传入段长上限的题源（长文分段用） */
+function makeSegmentedSource(text: string, maxCharsPerSegment: number) {
+  return createArticleSource(
+    { scope: 'builtin', text, skipUncodable: true, maxCharsPerSegment },
+    CHAR_MAP,
+  );
+}
+
 describe('文章练习流程', () => {
   it('题源产出的题目带 tokens', () => {
     const source = makeSource('中国你好');
@@ -163,5 +171,93 @@ describe('文章练习流程', () => {
 
     expect(codableCount).toBe(4);
     expect(state.status).toBe('finished');
+  });
+});
+
+/**
+ * 长文分段。
+ *
+ * 与上面的「整篇 = 一道题」并存：分段与否只取决于 `maxCharsPerSegment`
+ * 与可打字数的关系，短文在传了上限的情况下仍然 total = 1。
+ */
+describe('文章长文分段', () => {
+  const LONG = '中国你好。'.repeat(30); // 150 token / 120 可打字
+
+  it('短文即使传了段长上限也仍然整篇一题（向后兼容）', () => {
+    const source = makeSegmentedSource('中国你好', 100);
+    expect(source.init().total).toBe(1);
+    expect(source.next(source.init()).segment).toBeUndefined();
+  });
+
+  it('长文超上限时 total = 段数', () => {
+    const source = makeSegmentedSource(LONG, 40);
+    const total = source.init().total;
+    expect(total).toBeGreaterThan(1);
+  });
+
+  it('分段题目带 segment 元信息，段号从 1 起', () => {
+    const source = makeSegmentedSource(LONG, 40);
+    const state = source.init();
+    const total = state.total as number;
+
+    const first = source.next(state);
+    expect(first.segment).toEqual({ index: 0, total });
+    expect(first.charCount).toBeGreaterThan(0);
+    expect(first.hint).toContain(`第 1 / ${total} 段`);
+
+    // 递进题号拿到下一段
+    state.index = 1;
+    const second = source.next(state);
+    expect(second.segment).toEqual({ index: 1, total });
+  });
+
+  it('各段的 tokens 拼起来等于整篇（分段不丢字）', () => {
+    const source = makeSegmentedSource(LONG, 40);
+    const state = source.init();
+    const total = state.total as number;
+
+    const parts: string[] = [];
+    for (let i = 0; i < total; i += 1) {
+      state.index = i;
+      parts.push(source.next(state).tokens!.map((t) => t.char).join(''));
+    }
+    expect(parts.join('')).toBe(LONG);
+  });
+
+  it('打完一段只推进一段，打完最后一段才结束', () => {
+    const source = makeSegmentedSource(LONG, 40);
+    let state = startSession(createInitialSessionState(), source);
+    const total = state.questionState!.total as number;
+
+    const typeSegment = () => {
+      const keys = state.currentQuestion!.answerKeys;
+      for (const key of keys) {
+        state = handleAnswerKey(state, source, 'drill', key);
+      }
+    };
+
+    for (let i = 1; i < total; i += 1) {
+      typeSegment();
+      expect(state.completedCount, `第 ${i} 段打完应处于下一段`).toBe(i);
+      expect(state.status, '还有剩余段时不应结束').toBe('running');
+    }
+
+    typeSegment();
+    expect(state.status).toBe('finished');
+    expect(state.completedCount).toBe(total);
+  });
+
+  it('分段后累计字数等于整篇可打字数', () => {
+    const source = makeSegmentedSource(LONG, 40);
+    const state = source.init();
+    const total = state.total as number;
+
+    let sum = 0;
+    for (let i = 0; i < total; i += 1) {
+      state.index = i;
+      sum += source.next(state).charCount ?? 0;
+    }
+    // '中国你好。' × 30 = 120 个可打字字（句号不计）
+    expect(sum).toBe(120);
   });
 });

@@ -92,7 +92,12 @@ export const WUBI_KEYS: WubiKeyMeta[] = [
     mnemonic: '王旁青头戋五一',
     radicals: [
       { glyph: '王', name: '王字旁', keyName: true },
-      { glyph: '青', name: '青头（上半部）' },
+      /*
+       * 「青头」是 龶（青字上半部），不是整字「青」——
+       * 此前写作 '青' 会把带月字底的整字当成字根，且 isSelfRadical('青')
+       * 会误判为真，拆字演示里「青」被当成成字字根。
+       */
+      { glyph: '龶', name: '青头（龶）' },
       { glyph: '戋', name: '戋字' },
       { glyph: '五', name: '数字五' },
       { glyph: '一', name: '横笔（一画）' },
@@ -122,6 +127,8 @@ export const WUBI_KEYS: WubiKeyMeta[] = [
       { glyph: '古', name: '古字' },
       { glyph: '石', name: '石字' },
       { glyph: '厂', name: '厂字头' },
+      // ナ（𠂇，右/左/有 的字头）— 标准表在 D 键列出
+      { glyph: 'ナ', name: '右字头（ナ／𠂇）' },
     ],
   },
   {
@@ -144,6 +151,8 @@ export const WUBI_KEYS: WubiKeyMeta[] = [
       { glyph: '匚', name: '右框（匚）' },
       { glyph: '七', name: '七字' },
       { glyph: '廿', name: '甘字头' },
+      // 甘字头的另一种写法（卅），标准字根表按字形分别列出
+      { glyph: '卅', name: '甘字头变体（卅）' },
     ],
   },
 
@@ -157,7 +166,8 @@ export const WUBI_KEYS: WubiKeyMeta[] = [
       { glyph: '上', name: '上字' },
       { glyph: '止', name: '止字' },
       { glyph: '卜', name: '卜字' },
-      { glyph: '虎', name: '虎字头（虍）' },
+      // 「虎皮」取的是虎字头 虍，不是整字「虎」
+      { glyph: '虍', name: '虎字头（虍）' },
       { glyph: '皮', name: '皮字' },
     ],
   },
@@ -166,6 +176,8 @@ export const WUBI_KEYS: WubiKeyMeta[] = [
     mnemonic: '日早两竖与虫依',
     radicals: [
       { glyph: '日', name: '日字', keyName: true },
+      // 曰 与 日 同键（标准 86 字根表在 J 键列出）
+      { glyph: '曰', name: '曰字（与日同键）' },
       { glyph: '早', name: '早字' },
       { glyph: '刂', name: '两竖（立刀旁）' },
       { glyph: '虫', name: '虫字' },
@@ -187,6 +199,9 @@ export const WUBI_KEYS: WubiKeyMeta[] = [
       { glyph: '甲', name: '甲字' },
       { glyph: '囗', name: '方框（囗）' },
       { glyph: '四', name: '数字四' },
+      // 「四」的两个近形字根（标准表在 L 键列出）：罒（网字头）、皿（皿字底）
+      { glyph: '罒', name: '网字头（罒）' },
+      { glyph: '皿', name: '皿字底（皿）' },
       { glyph: '车', name: '车字' },
       { glyph: '力', name: '力字' },
     ],
@@ -210,7 +225,8 @@ export const WUBI_KEYS: WubiKeyMeta[] = [
     mnemonic: '禾竹反文双人立',
     radicals: [
       { glyph: '禾', name: '禾字旁', keyName: true },
-      { glyph: '竹', name: '竹字头（⺮）' },
+      { glyph: '竹', name: '竹字头' },
+      { glyph: '⺮', name: '竹字头变体（⺮）' },
       { glyph: '丿', name: '撇笔（丿）' },
       { glyph: '彳', name: '双人旁' },
       /*
@@ -226,7 +242,8 @@ export const WUBI_KEYS: WubiKeyMeta[] = [
     mnemonic: '白手看头斤字提',
     radicals: [
       { glyph: '白', name: '白字', keyName: true },
-      { glyph: '手', name: '手字旁（扌）' },
+      { glyph: '手', name: '手字' },
+      { glyph: '扌', name: '提手旁变体（扌）' },
       { glyph: '看', name: '看头（上半部）' },
       { glyph: '斤', name: '斤字' },
     ],
@@ -236,6 +253,10 @@ export const WUBI_KEYS: WubiKeyMeta[] = [
     mnemonic: '月彡乃用家衣底',
     radicals: [
       { glyph: '月', name: '月字旁', keyName: true },
+      { glyph: '⺼', name: '肉月旁变体（⺼）' },
+      // 舟、丹 均为「月」形变体，标准表在 E 键列出
+      { glyph: '舟', name: '舟字旁' },
+      { glyph: '丹', name: '丹字' },
       { glyph: '彡', name: '三撇（彡）' },
       { glyph: '乃', name: '乃字' },
       { glyph: '用', name: '用字' },
@@ -246,7 +267,8 @@ export const WUBI_KEYS: WubiKeyMeta[] = [
     key: 'w', zone: 'pie', keyNameChar: '人', finger: 'l-ring',
     mnemonic: '人八登头祭字头',
     radicals: [
-      { glyph: '人', name: '单人旁（亻）', keyName: true },
+      { glyph: '人', name: '人字', keyName: true },
+      { glyph: '亻', name: '单人旁变体（亻）' },
       { glyph: '八', name: '八字' },
       { glyph: '癶', name: '登头（癶）' },
       { glyph: '祭', name: '祭字头（⺬）' },
@@ -254,15 +276,19 @@ export const WUBI_KEYS: WubiKeyMeta[] = [
   },
   {
     key: 'q', zone: 'pie', keyNameChar: '金', finger: 'l-pinky',
-    mnemonic: '金勺缺点无尾鱼，犬旁留叉儿一点夕',
+    mnemonic: '金勺缺点无尾鱼，犬旁留叉儿一点夕，氏无七',
     radicals: [
-      { glyph: '金', name: '金字旁（钅）', keyName: true },
-      { glyph: '勺', name: '勺字（缺一点）' },
+      { glyph: '金', name: '金字旁', keyName: true },
+      { glyph: '钅', name: '金字旁变体（钅）' },
+      { glyph: '勺', name: '勺字' },
+      // 口诀「金勺缺点」→ 勺去掉那一点，即 勹
+      { glyph: '勹', name: '包字头（勹，勺缺一点）' },
       { glyph: '鱼', name: '鱼字（无尾）' },
       { glyph: '犭', name: '反犬旁' },
       { glyph: '乂', name: '叉字' },
       { glyph: '儿', name: '儿字' },
       { glyph: '夕', name: '夕字' },
+      { glyph: '氏', name: '氏字（无七）' },
     ],
   },
 
@@ -272,6 +298,7 @@ export const WUBI_KEYS: WubiKeyMeta[] = [
     mnemonic: '言文方广在四一，高头一捺谁人去',
     radicals: [
       { glyph: '言', name: '言字旁', keyName: true },
+      { glyph: '讠', name: '言字旁变体（讠）' },
       { glyph: '文', name: '文字' },
       { glyph: '方', name: '方字' },
       { glyph: '广', name: '广字头' },
@@ -296,9 +323,11 @@ export const WUBI_KEYS: WubiKeyMeta[] = [
     key: 'i', zone: 'na', keyNameChar: '水', finger: 'r-middle',
     mnemonic: '水旁兴头小倒置',
     radicals: [
-      { glyph: '水', name: '水字旁（氵）', keyName: true },
+      { glyph: '水', name: '水字', keyName: true },
+      { glyph: '氵', name: '三点水变体（氵）' },
       { glyph: '兴', name: '兴头（⺍）' },
-      { glyph: '小', name: '小字（⺌）' },
+      { glyph: '小', name: '小字' },
+      { glyph: '⺌', name: '小字头变体（⺌）' },
     ],
   },
   {
@@ -340,7 +369,8 @@ export const WUBI_KEYS: WubiKeyMeta[] = [
       { glyph: '匚', name: '左框（已类变形）' },
       { glyph: '乙', name: '折笔（乙）' },
       { glyph: '尸', name: '尸字头' },
-      { glyph: '心', name: '心字旁（忄）' },
+      { glyph: '心', name: '心字' },
+      { glyph: '忄', name: '竖心旁变体（忄）' },
       { glyph: '羽', name: '羽字' },
     ],
   },
@@ -394,6 +424,9 @@ export const WUBI_KEYS: WubiKeyMeta[] = [
        * 用到了 g/f 两个别的键；字根表也把字根显示成了「丝」。
        */
       { glyph: '纟', name: '绞丝旁（纟）', keyName: true },
+      // 绞丝旁的另外两种写法（糸/糹），标准字根表按字形分别列出
+      { glyph: '糸', name: '绞丝旁变体（糸）' },
+      { glyph: '糹', name: '绞丝旁变体（糹）' },
       /*
        * 「慈母无心」对应的是「母」，不是「幺」。
        * 此前把两个口诀混成了一处：幺 其实来自「幼无力」（幼去掉力），

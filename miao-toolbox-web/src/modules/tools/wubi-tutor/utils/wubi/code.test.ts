@@ -9,6 +9,7 @@ import {
   checkKeyNameChar,
   checkSelfRadical,
   deriveIdentificationCode,
+  IDENTIFICATION_KEYS,
   stripNonCodeChars,
   buildCharMap,
   buildPhraseMap,
@@ -174,6 +175,19 @@ describe('deriveIdentificationCode', () => {
 
   it('字型为 null 时返回 null', () => {
     expect(deriveIdentificationCode('heng', null)).toBeNull();
+  });
+});
+
+describe('IDENTIFICATION_KEYS', () => {
+  it('是 15 个键（五个笔画区各 3 个），不是只有左右型那一列', () => {
+    // 只认 g/h/t/y/n 会让上下型、杂合型的识别码判断整体失真
+    expect(IDENTIFICATION_KEYS.size).toBe(15);
+    for (const key of ['g', 'f', 'd', 'h', 'j', 'k', 't', 'r', 'e',
+      'y', 'u', 'i', 'n', 'b', 'v'] as const) {
+      expect(IDENTIFICATION_KEYS.has(key)).toBe(true);
+    }
+    // 「编」末位的 a 不是识别码键
+    expect(IDENTIFICATION_KEYS.has('a')).toBe(false);
   });
 });
 

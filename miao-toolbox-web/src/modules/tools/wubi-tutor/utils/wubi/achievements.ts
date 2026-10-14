@@ -28,6 +28,12 @@ export interface AchievementContext {
   bestAccuracy: number;
   /** 历史最大连击 */
   maxCombo: number;
+  /** 是否完成过任意一次挑战（限时冲刺 / 生存 / 每日） */
+  challengePlayed: boolean;
+  /** 限时冲刺历史最佳分数（= 单次最多正确字数） */
+  bestSprintScore: number;
+  /** 每日挑战连续打卡天数 */
+  challengeStreak: number;
 }
 
 export interface AchievementDef {
@@ -52,7 +58,7 @@ export const GROUP_LABELS: Record<AchievementGroup, string> = {
   review: '复习',
 };
 
-// ─── 成就清单（17 项）────────────────────────────────────
+// ─── 成就清单（20 项）────────────────────────────────────
 
 export const ACHIEVEMENTS: AchievementDef[] = [
   // 练习量
@@ -208,6 +214,40 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     group: 'coverage',
     target: 25,
     measure: (c) => c.passedLessons,
+  },
+
+  // 挑战（限时冲刺 / 生存 / 每日）
+  {
+    id: 'challenge-first',
+    title: '初试锋芒',
+    desc: '完成第一次挑战',
+    badge: '挑',
+    group: 'volume',
+    target: 1,
+    /*
+     * 这里刻意用布尔转 0/1 而不是「挑战次数」：
+     * 次数只存本地、且每次会话都会变，用它做阈值会让成就进度条
+     * 在离线和在线之间跳动；「玩过没玩过」是稳定的事实。
+     */
+    measure: (c) => (c.challengePlayed ? 1 : 0),
+  },
+  {
+    id: 'sprint-50',
+    title: '疾风骤雨',
+    desc: '限时冲刺单次打对 50 字',
+    badge: '冲',
+    group: 'speed',
+    target: 50,
+    measure: (c) => c.bestSprintScore,
+  },
+  {
+    id: 'daily-streak-7',
+    title: '打卡一周',
+    desc: '每日挑战连续打卡 7 天',
+    badge: '卡',
+    group: 'streak',
+    target: 7,
+    measure: (c) => c.challengeStreak,
   },
 
   // 复习

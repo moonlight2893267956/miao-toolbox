@@ -14,6 +14,7 @@ import {
   toReviewChar,
   confirmShortAnswer,
   getExpectedKey,
+  finishSession,
 } from './session';
 import {
   createKeyDrillSource,
@@ -921,5 +922,85 @@ describe('confirmShortAnswer — 简码 + 空格出字', () => {
     const finished: typeof state = { ...state, status: 'finished' };
 
     expect(confirmShortAnswer(finished, source)).toBe(finished);
+  });
+});
+
+/*
+ * finishSession —— 挑战模式的「到点 / 命尽」终止入口。
+ *
+ * 这是**唯一**不依赖题量的结束路径，因此重点验证两件事：
+ * 1. 只改状态位，已发生的计数一个都不能丢（结算面板要用）；
+ * 2. 幂等 —— 计时器每 200ms 都可能再喊一次「结束」，
+ *    重复调用若产生第二个 finished 状态，会重复触发结算与上报。
+ */
+describe('finishSession', () => {
+  /** 造一个「正在练习且已有成绩」的会话 */
+  function runningSession() {
+    const source = createMockSource([
+      { id: 'q1', mode: 'char-code', prompt: '王', answerKeys: ['g', 'g', 'g', 'g'], charCount: 1 },
+      { id: 'q2', mode: 'char-code', prompt: '的', answerKeys: ['r', 'q', 'y', 'y'], charCount: 1 },
+    ]);
+    let state = startSession(createInitialSessionState(), source);
+    // 打对 3 键（不完整），制造击键与连击计数
+    state = handleAnswerKey(state, source, 'lenient', 'g');
+    state = handleAnswerKey(state, source, 'lenient', 'g');
+    state = handleAnswerKey(state, source, 'lenient', 'g');
+    return { source, state };
+  }
+
+  it('running → finished，且保留全部计数', () => {
+    const { state } = runningSession();
+    expect(state.status).toBe('running');
+    expect(state.totalKeystrokes).toBe(3);
+    expect(state.maxCombo).toBe(3);
+
+    const finished = finishSession(state);
+
+    expect(finished.status).toBe('finished');
+    expect(finished.totalKeystrokes).toBe(3);
+    expect(finished.maxCombo).toBe(3);
+    expect(finished.inputKeys).toEqual(['g', 'g', 'g']);
+    expect(finished.completedCount).toBe(state.completedCount);
+  });
+
+  it('feedback（等待修正）状态下结束会一并清掉错误态', () => {
+    const source = createMockSource([
+      { id: 'q1', mode: 'char-code', prompt: '王', answerKeys: ['g', 'g', 'g', 'g'], charCount: 1 },
+    ]);
+    let state = startSession(createInitialSessionState(), source);
+    state = handleAnswerKey(state, source, 'drill', 'z'); // 按错 → 错误态
+    expect(state.inErrorState).toBe(true);
+
+    const finished = finishSession(state);
+
+    expect(finished.status).toBe('finished');
+    expect(finished.inErrorState).toBe(false);
+    // 错误仍然记在账上
+    expect(finished.wrongQuestionCount).toBe(1);
+  });
+
+  it('幂等：已结束的会话原样返回（引用不变）', () => {
+    const { state } = runningSession();
+    const finished = finishSession(state);
+
+    expect(finishSession(finished)).toBe(finished);
+  });
+
+  it('idle 会话不会被标记成 finished', () => {
+    const idle = createInitialSessionState();
+
+    expect(finishSession(idle)).toBe(idle);
+  });
+
+  it('结束后可直接结算，得到与自然结束同构的结果', () => {
+    const { state } = runningSession();
+    const finished = finishSession(state);
+
+    const result = computeSessionResult(finished, 60);
+
+    expect(result.totalQuestions).toBe(finished.completedCount);
+    expect(result.totalKeystrokes).toBe(3);
+    expect(result.maxCombo).toBe(3);
+    expect(result.durationSec).toBe(60);
   });
 });

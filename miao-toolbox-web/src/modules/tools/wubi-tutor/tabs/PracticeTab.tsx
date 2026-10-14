@@ -61,7 +61,19 @@ import {
   type QuestionSource,
 } from '../utils/wubi/questionSource';
 import { validateCustomText } from '../utils/wubi/articleTokenizer';
-import { ARTICLES, DIFFICULTY_LABELS, estimateMinutes, type Article } from '../data/articles';
+import {
+  ARTICLES,
+  STYLE_LABELS,
+  groupArticlesByDifficulty,
+  estimateMinutes,
+  type Article,
+} from '../data/articles';
+import {
+  analyzeArticle,
+  formatAnalysisTags,
+  type ArticleAnalysis,
+} from '../utils/wubi/articleAnalysis';
+import { DEFAULT_SEGMENT_MAX_CHARS } from '../utils/wubi/articleSegment';
 import {
   getLearnedKeys,
   type Lesson,
@@ -190,6 +202,18 @@ const OPTION_MODES = new Set<PracticeKind>(['key-drill', 'radical-identify', 'ph
 
 const ROUND_SIZE = 20;
 
+/**
+ * 文章段长上限（可打字数）。
+ *
+ * 短于此的文章仍是「整篇一题」，超出的自动切段 —— 这样 5000 字的自定义文本
+ * 不用一口气打完，中途退出后从段边界续打即可。
+ *
+ * 它是**模块常量而不是用户设置**：段数由它决定，而快照里存的是「已完成段数」，
+ * 一旦两处用的值不同，续打就会落到不相干的段落。所以 `handleResume` 会校验
+ * 快照里记录的段长与当前常量是否一致，不一致宁可丢弃快照也不恢复到错误位置。
+ */
+const ARTICLE_SEGMENT_MAX_CHARS = DEFAULT_SEGMENT_MAX_CHARS;
+
 /** 空错误分析结果（会话刚开始、尚未结算时占位） */
 const EMPTY_ERROR_SUMMARY: ErrorSummary = analyzeErrors(null, []);
 
@@ -262,6 +286,20 @@ const PracticeTab: React.FC<PracticeTabProps> = ({
    * 二字词练习拉 90KB 而不是把 150KB 全拉下来。
    */
   const phraseBuckets = useMemo(() => bucketsForPhraseLength(phraseLength), [phraseLength]);
+
+  /*
+   * 18 篇文章的难度分析，**只算一次**。
+   *
+   * analyzeArticle 内部会跑一遍 tokenizeArticle（分配 token 数组），
+   * 若在 render 里逐篇调用，任何 state 变化都会重算 18 篇；
+   * 而这些结果只依赖文章文本与码表，两者都不随交互变化。
+   */
+  const articleAnalyses = useMemo(() => {
+    const map = new Map<string, ArticleAnalysis>();
+    if (!dataState.chars) return map;
+    for (const a of ARTICLES) map.set(a.id, analyzeArticle(a.text, dataState.chars));
+    return map;
+  }, [dataState.chars]);
   const phraseData = phraseDataFor(phraseBuckets);
   const phrasesReady = phraseData.status === 'ready' && phraseData.map !== null;
 
@@ -387,6 +425,7 @@ const PracticeTab: React.FC<PracticeTabProps> = ({
           scope: 'builtin',
           text: selectedArticle.text,
           skipUncodable: true,
+          maxCharsPerSegment: ARTICLE_SEGMENT_MAX_CHARS,
         }, dataState.chars);
       case 'custom-article':
         if (!dataState.chars || !customText.trim()) return null;
@@ -394,6 +433,7 @@ const PracticeTab: React.FC<PracticeTabProps> = ({
           scope: 'custom',
           text: customText,
           skipUncodable: true,
+          maxCharsPerSegment: ARTICLE_SEGMENT_MAX_CHARS,
         }, dataState.chars);
       default:
         return null;
@@ -420,9 +460,13 @@ const PracticeTab: React.FC<PracticeTabProps> = ({
       case 'wrong-chars':
         return { chars: wrongCharsPool };
       case 'custom-article':
-        return { text: customText };
+        // 段长必须入快照：段数由它决定，不记录就无法判断恢复位置是否还对得上
+        return { text: customText, maxCharsPerSegment: ARTICLE_SEGMENT_MAX_CHARS };
       case 'article':
-        return { articleId: selectedArticle?.id ?? '' };
+        return {
+          articleId: selectedArticle?.id ?? '',
+          maxCharsPerSegment: ARTICLE_SEGMENT_MAX_CHARS,
+        };
       default:
         return {};
     }
@@ -526,6 +570,27 @@ const PracticeTab: React.FC<PracticeTabProps> = ({
     }
 
     const p = interrupted.params;
+
+    /*
+     * 段长一致性校验（放在任何 setState 之前）。
+     *
+     * 快照里的 `completed` 是「已完成段数」，而段数由段长上限决定。
+     * 当前常量与快照记录不一致时，恢复出来的段号会指向不相干的位置 ——
+     * 宁可丢弃快照，也不要把用户「恢复」到错的地方。
+     *
+     * 字段缺失（旧版本写的快照）时跳过校验：那种快照的 completed 是 1 段语义，
+     * 恢复时题源算出的 total 也是 1，天然自洽。
+     */
+    if (
+      (mode.kind === 'article' || mode.kind === 'custom-article')
+      && p.maxCharsPerSegment !== undefined
+      && p.maxCharsPerSegment !== ARTICLE_SEGMENT_MAX_CHARS
+    ) {
+      clearInterrupted();
+      setInterrupted(null);
+      return;
+    }
+
     /*
      * 参数逐个校验后再应用。
      * 快照来自 localStorage，可能被旧版本写过或被手改 —— 直接塞进 state
@@ -737,7 +802,14 @@ const PracticeTab: React.FC<PracticeTabProps> = ({
     if (!pendingStart) return;
     if (!dataState.chars) return; // 码表未就绪：停留加载态
     const source = createArticleSource(
-      { scope: 'builtin', text: pendingStart.text, skipUncodable: true },
+      {
+        scope: 'builtin',
+        text: pendingStart.text,
+        skipUncodable: true,
+        // 与 buildSource 用同一个段长上限：两条启动路径的参数必须一致，
+        // 否则「码表未就绪时先排队」这条路会退化成整篇一题
+        maxCharsPerSegment: ARTICLE_SEGMENT_MAX_CHARS,
+      },
       dataState.chars,
     );
     start(source);
@@ -1074,29 +1146,64 @@ const PracticeTab: React.FC<PracticeTabProps> = ({
           <h3 className="wt-article-picker__title">选择文章</h3>
         </div>
         <div className="wt-article-picker__list">
-          {ARTICLES.map((article) => {
-            const charCount = Array.from(article.text).length;
-            return (
-              <button
-                key={article.id}
-                className="wt-article-picker__item"
-                onClick={() => handleSelectArticle(article)}
-              >
-                <div className="wt-article-picker__item-head">
-                  <span className="wt-article-picker__item-title">{article.title}</span>
-                  <span className={`wt-article-picker__badge wt-article-picker__badge--${article.difficulty}`}>
-                    {DIFFICULTY_LABELS[article.difficulty]}
-                  </span>
-                </div>
-                <div className="wt-article-picker__item-meta">
-                  {charCount} 字 · 约 {estimateMinutes(article.text)} 分钟
-                </div>
-                <div className="wt-article-picker__item-preview">
-                  {article.text.slice(0, 40)}…
-                </div>
-              </button>
-            );
-          })}
+          {groupArticlesByDifficulty().map((group) => (
+            <section key={group.difficulty} className="wt-article-picker__group">
+              {/* 分组头用内凹槽：和刚建立的表头材质一致 */}
+              <h4 className="wt-article-picker__group-head">
+                <span className={`wt-article-picker__badge wt-article-picker__badge--${group.difficulty}`}>
+                  {group.label}
+                </span>
+                <span className="wt-article-picker__group-count">{group.items.length} 篇</span>
+              </h4>
+
+              <div className="wt-article-picker__group-items">
+                {group.items.map((article) => {
+                  const analysis = articleAnalyses.get(article.id);
+                  // 码表还没加载时先不给字数/风险标签，避免闪一下再跳数字
+                  const charCount = analysis ? analysis.codableChars : 0;
+                  const tags = analysis ? formatAnalysisTags(analysis) : [];
+                  return (
+                    <button
+                      key={article.id}
+                      className="wt-article-picker__item"
+                      onClick={() => handleSelectArticle(article)}
+                    >
+                      <div className="wt-article-picker__item-head">
+                        <span className="wt-article-picker__item-title">{article.title}</span>
+                        <span className="wt-article-picker__item-style">
+                          {STYLE_LABELS[article.style]}
+                          {article.author ? ` · ${article.author}` : ''}
+                        </span>
+                      </div>
+
+                      <div className="wt-article-picker__item-meta">
+                        {analysis ? (
+                          <>
+                            <span>{charCount} 字 · 约 {estimateMinutes(article.text)} 分钟</span>
+                            {tags.map((t) => (
+                              <span key={t} className="wt-article-picker__warn">{t}</span>
+                            ))}
+                            {/* 分段提示：只有会被切开的长文才提示 */}
+                            {charCount > ARTICLE_SEGMENT_MAX_CHARS && (
+                              <span className="wt-article-picker__seg-hint">
+                                分 {Math.ceil(charCount / ARTICLE_SEGMENT_MAX_CHARS)} 段
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span>码表加载中…</span>
+                        )}
+                      </div>
+
+                      <div className="wt-article-picker__item-preview">
+                        {article.text.slice(0, 40)}…
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </div>
       </div>
     );

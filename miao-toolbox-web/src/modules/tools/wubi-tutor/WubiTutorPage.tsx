@@ -24,6 +24,7 @@ import {
 } from './types';
 import LearnTab from './tabs/LearnTab';
 import PracticeTab from './tabs/PracticeTab';
+import ChallengeTab from './tabs/ChallengeTab';
 import ReviewTab from './tabs/ReviewTab';
 import StatsTab from './tabs/StatsTab';
 import LookupTab from './tabs/LookupTab';
@@ -36,6 +37,7 @@ import { useWubiStorage } from './utils/wubi/useWubiStorage';
 const TAB_COMPONENTS: Record<WubiTabKey, React.FC<any>> = {
   learn: LearnTab,
   practice: PracticeTab,
+  challenge: ChallengeTab,
   review: ReviewTab,
   stats: StatsTab,
   lookup: LookupTab,
@@ -134,6 +136,22 @@ const WubiTutorPage: React.FC = () => {
 
   const handleNoticeDone = useCallback(() => setNotice(null), []);
 
+  /**
+   * 拆字演示弹层「去讲解台追问」（Story 5.5）。
+   *
+   * 交接三件事：关弹层、切到查码 Tab、把字交给讲解台锚定。
+   * 这些都在 reducer 里一次完成（WT_EXPLAIN_CHAR），避免三次 dispatch
+   * 之间出现「弹层已关、Tab 还没切」的中间态。
+   */
+  const handleExplainFromDemo = useCallback((char: string) => {
+    dispatch({ type: 'WT_EXPLAIN_CHAR', payload: char });
+    setNotice(`已在讲解台讲解「${char}」`);
+  }, []);
+
+  const handleExplainRequestHandled = useCallback(() => {
+    dispatch({ type: 'WT_CLEAR_EXPLAIN_CHAR' });
+  }, []);
+
   const ActiveTabComponent = TAB_COMPONENTS[state.activeTab];
 
   return (
@@ -189,6 +207,8 @@ const WubiTutorPage: React.FC = () => {
             practiceScope={state.practiceScope}
             onPracticeScopeHandled={handleClearPracticeScope}
             onGotoReview={handleGotoReview}
+            explainRequest={state.explainRequest}
+            onExplainRequestHandled={handleExplainRequestHandled}
           />
         </div>
       </main>
@@ -199,6 +219,7 @@ const WubiTutorPage: React.FC = () => {
         char={state.splitDemoChar}
         onClose={handleCloseSplitDemo}
         onAddToReview={handleAddToReview}
+        onOpenExplain={handleExplainFromDemo}
         charMap={dataState.chars}
       />
 

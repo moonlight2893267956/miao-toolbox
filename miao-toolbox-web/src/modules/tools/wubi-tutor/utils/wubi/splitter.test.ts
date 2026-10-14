@@ -131,6 +131,35 @@ describe('splitChar', () => {
   });
 });
 
+describe('识别码提示（回归：只在末位真的是识别码键时才提示）', () => {
+  beforeEach(() => {
+    clearSplitCache();
+  });
+
+  it('「编」xyna 末位是 a（艹），不得提示「末位可能为识别码」', () => {
+    /*
+     * a 不在识别码表（g/f/d、h/j/k、t/r/e、y/u/i、n/b/v）里，「编」的末位
+     * 是「取一二三末」的艹，不是识别码。
+     *
+     * 此前这条提示按「末位候选字形是否字面出现在字里」判 —— 艹 在「扁」里写作卄，
+     * includes 判不出来，于是误报。误报有两个出口，都很糟：
+     *   · 拆分演示里给用户看，是事实错误；
+     *   · 经 buildExplainContext 进 agent 提示词，把模型推向「声明识别码」，
+     *     而 agent 自检必拒 → 「编」的讲解整轮失败（真实故障）。
+     */
+    const result = splitChar('编', 'xyna');
+
+    expect(result.notes.some((n) => n.type === 'identificationCode')).toBe(false);
+  });
+
+  it('「豪」ypeu 末位 u 确为识别码位，提示保留', () => {
+    // 亠 + 冖 + 豕（3 个字根）+ 识别码 u：这一位本来就是识别码
+    const result = splitChar('豪', 'ypeu');
+
+    expect(result.notes.some((n) => n.type === 'identificationCode')).toBe(true);
+  });
+});
+
 describe('describeSplit', () => {
   it('resolved 结果有可读描述', () => {
     const result = splitChar('王', 'gggg');

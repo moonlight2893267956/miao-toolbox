@@ -37,6 +37,9 @@ function makeCtx(overrides: Partial<AchievementContext> = {}): AchievementContex
     bestSpeed: 0,
     bestAccuracy: 0,
     maxCombo: 0,
+    challengePlayed: false,
+    bestSprintScore: 0,
+    challengeStreak: 0,
     ...overrides,
   };
 }

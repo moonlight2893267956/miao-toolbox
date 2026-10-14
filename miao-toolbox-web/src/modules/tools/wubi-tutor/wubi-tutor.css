@@ -1025,6 +1025,28 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  /*
+   * !! 必须自己能滚 !!
+   *
+   * 键盘图有 3 行（QWERTY / ASDFG·HJKLM / ZXCVBNM），在常见视口高度下
+   * 总高会超过可用高度。此前这里没有滚动容器、也没有 flex 收缩约束，
+   * 溢出部分被外层 .wt-workspace__panel 的 overflow:hidden 直接裁掉 ——
+   * 第 3 行（折区 Z X C V B N M）永远看不到，用户会以为字根表少了一大片。
+   */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* 滚动时内容贴边不美观，补一点右侧余量 */
+  padding-right: 4px;
+}
+
+/*
+ * 子元素禁止被压缩。
+ * 否则 flex 列会把「工具栏 / 图例 / 键盘」压扁以塞进可视高度，
+ * 键盘就永远不溢出、滚动条永不出现、第 3 行仍被裁。
+ */
+.wt-radical-chart > * {
+  flex-shrink: 0;
 }
 
 .wt-radical-chart__toolbar {
@@ -1335,7 +1357,7 @@
   /*
    * !! 不要加 overflow:hidden + text-overflow:ellipsis + nowrap !!
    *
-   * 每键字根数最多 7 个（F 土士二干十寸雨 / D / Q / N），单行 64px 装不下。
+   * 每键字根数最多 10 个（Q 金钅勺勹鱼犭乂儿夕氏），单行 92px 装不下。
    * 截断后用户会以为字根表本身不全（实测被问过「看不到全部字根」）。
    * 这里一律换行显示；实在要完整阅读请用「字根总表」视图。
    */
@@ -1787,153 +1809,48 @@
   background: var(--wt-bg-secondary);
 }
 
-/* ── AI 解释区 ──
+/* ── 去讲解台追问（Story 5.5 的交接入口） ──
  *
- * 视觉上刻意比确定性内容「轻」：它是附加说明，不该盖过上面的拆分与候选字根。
- * 左侧强调色细轨表示「这是 AI 说的」，与算法给的内容区分开。
+ * 弹层里不再放追问输入框（原来的 AI 解释区与追问区已迁到查码 Tab 的讲解台）：
+ * 多轮追问需要一个能持续看结果的台面，而弹层是滚动的、输入框在最底部，
+ * 回答一长就被推到视野之外。这里只留一句「然后呢」和一个入口按钮。
  */
-.wt-split-demo__ai {
-  margin-top: 12px;
+.wt-split-demo__explain-entry {
+  margin-top: 14px;
   padding: 12px 14px;
-  border: 1px solid var(--wt-border);
-  border-left: 3px solid var(--wt-accent);
+  border: 1px dashed var(--wt-border-strong);
   border-radius: 10px;
   background: var(--wt-bg-secondary);
 }
 
-.wt-split-demo__ai-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
+.wt-split-demo__explain-text {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--wt-text-secondary);
 }
 
-.wt-split-demo__ai-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--wt-text);
-}
-
-.wt-split-demo__ai-badge {
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--wt-accent-light);
+.wt-split-demo__explain-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--wt-accent);
+  border-radius: var(--wt-radius-sm);
+  background: transparent;
   color: var(--wt-accent);
-  font-size: 11px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
 }
 
-.wt-split-demo__ai-text {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--wt-text);
-  /* 模型返回的换行要保留，长句要能断 */
-  white-space: pre-wrap;
-  word-break: break-word;
+.wt-split-demo__explain-btn:hover {
+  background: var(--wt-accent);
+  color: var(--wt-on-accent);
 }
 
-.wt-split-demo__ai-suggestions {
-  margin: 8px 0 0;
-  padding-left: 18px;
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--wt-text-secondary);
-}
-
-/* 降级 / 未过校验：明确说明并以候选字根为准，不静默消失 */
-.wt-split-demo__ai--fallback {
-  border-left-color: var(--wt-border);
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--wt-text-secondary);
-}
-
-/* ── AI 区的等待与呈现 ──
- *
- * 这里的每一处动效都在解决一个具体问题，不是为了「动起来好看」：
- *   骨架 shimmer → 等待最长可达一分钟，静态文字会让人以为卡死
- *   骨架占位     → 答案到达时整块不跳动
- *   逐句浮现     → 由组件的 framer-motion 负责（见 SplitDemo）
- */
-
-.wt-split-demo__ai-wrap {
-  /* 骨架与结果共用同一位置，切换时不改变正文高度 */
-  display: block;
-}
-
-.wt-split-demo__ai-skeleton {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.wt-split-demo__ai-skeleton span {
-  height: 12px;
-  border-radius: 6px;
-  background: linear-gradient(
-    90deg,
-    var(--wt-border) 0%,
-    var(--wt-bg) 50%,
-    var(--wt-border) 100%
-  );
-  background-size: 200% 100%;
-  animation: wt-ai-shimmer var(--wt-dur-pulse) ease-in-out infinite;
-}
-
-/* 长短不一才像文字段落，等长会像表格 */
-.wt-split-demo__ai-skeleton span:nth-child(1) { width: 96%; }
-.wt-split-demo__ai-skeleton span:nth-child(2) { width: 88%; }
-.wt-split-demo__ai-skeleton span:nth-child(3) { width: 62%; }
-
+/* 骨架 shimmer 关键帧：弹层里的 AI 区已移除，讲解台继续用它 */
 @keyframes wt-ai-shimmer {
   from { background-position: 200% 0; }
   to { background-position: -200% 0; }
-}
-
-.wt-split-demo__ai-hint {
-  margin: 10px 0 0;
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--wt-text-secondary);
-}
-
-/* 逐句浮现后，句子之间需要呼吸感（原来是单段，margin: 0） */
-.wt-split-demo__ai-text {
-  margin: 0 0 6px;
-}
-
-.wt-split-demo__ai-text:last-of-type {
-  margin-bottom: 0;
-}
-
-/* 「解释中…」按钮上的转圈：等待期间给一个持续但不喧闹的信号 */
-.wt-split-demo__btn--ai[data-loading='true']::before {
-  content: '';
-  display: inline-block;
-  width: 11px;
-  height: 11px;
-  margin-right: 6px;
-  vertical-align: -1px;
-  border: 2px solid var(--wt-accent);
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: wt-ai-spin var(--wt-dur-spin) linear infinite;
-}
-
-@keyframes wt-ai-spin {
-  to { transform: rotate(360deg); }
-}
-
-/* 用户要求减少动态效果时，一切持续动画都停下（骨架用静态底色兜底） */
-@media (prefers-reduced-motion: reduce) {
-  .wt-split-demo__ai-skeleton span,
-  .wt-split-demo__btn--ai[data-loading='true']::before {
-    animation: none;
-  }
-
-  .wt-split-demo__ai-skeleton span {
-    background: var(--wt-border);
-  }
 }
 
 /* ============================================================
@@ -1969,22 +1886,6 @@
     outline: 2px solid var(--wt-accent);
     outline-offset: -2px;
   }
-}
-
-.wt-split-demo__btn--ai {
-  border: 1px solid var(--wt-accent);
-  background: transparent;
-  color: var(--wt-accent);
-  font-weight: 600;
-}
-
-.wt-split-demo__btn--ai:hover:not(:disabled) {
-  background: var(--wt-accent-light);
-}
-
-.wt-split-demo__btn--ai:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 /* ============================================================
@@ -2243,7 +2144,43 @@
   color: var(--wt-text);
 }
 
+/* 列表本身改成纵向流：分组头要独占一行 */
 .wt-article-picker__list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ── 难度分组 ── */
+
+.wt-article-picker__group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/*
+ * 分组头用内凹槽，和刚建立的表头材质一致 —— 两处「标题性条带」
+ * 用同一种语言，选择界面与榜单表格才像一家人。
+ */
+.wt-article-picker__group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: var(--wt-tray-bg);
+  box-shadow: var(--wt-tray-inset);
+}
+
+.wt-article-picker__group-count {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-article-picker__group-items {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
@@ -2305,8 +2242,42 @@
 }
 
 .wt-article-picker__item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   font-size: 11px;
   color: var(--wt-text-tertiary);
+}
+
+/* 风格 + 作者：题面右侧的次要信息 */
+.wt-article-picker__item-style {
+  font-size: 11px;
+  color: var(--wt-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/*
+ * 风险徽标：只在真有落差时才出现（见 formatAnalysisTags）。
+ * 颜色沿用既有语义 token，不另造红黄绿。
+ */
+.wt-article-picker__warn {
+  padding: 1px 7px;
+  border-radius: 999px;
+  color: var(--wt-badge-warning-text);
+  background: var(--wt-badge-warning-bg);
+  border: 1px solid color-mix(in srgb, var(--wt-warning) 30%, transparent);
+}
+
+/* 分段提示：中性偏强调，与风险徽标区分开 */
+.wt-article-picker__seg-hint {
+  padding: 1px 7px;
+  border-radius: 999px;
+  color: var(--wt-accent);
+  background: var(--wt-accent-light);
+  border: 1px solid var(--wt-accent-border);
 }
 
 .wt-article-picker__item-preview {
@@ -2567,6 +2538,22 @@
   color: var(--wt-text-tertiary);
 }
 
+/*
+ * 段号：嵌在「当前输入」标签里，不额外占一行版面。
+ * 父级带了 0.08em 字距，这里要显式归零 —— 胶囊里加字距会显得松散。
+ */
+.wt-article-board__focus-segment {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  letter-spacing: normal;
+  color: var(--wt-accent);
+  background: var(--wt-accent-light);
+  border: 1px solid var(--wt-accent-border);
+  white-space: nowrap;
+}
+
 .wt-article-board__focus-count {
   font-family: var(--miao-font-mono, monospace);
   font-size: 12px;
@@ -2736,7 +2723,9 @@
   font-weight: 600;
 }
 
-.wt-article-board__progress-bar {
+.wt-article-board__progress-track {
+  /* 本段高亮要绝对定位到轨道上，因此轨道必须是定位容器 */
+  position: relative;
   flex: 1;
   height: 6px;
   border-radius: 3px;
@@ -2749,6 +2738,18 @@
   border-radius: 3px;
   background: var(--wt-accent);
   transition: width var(--wt-dur-base) ease;
+}
+
+/*
+ * 本段高亮：精确叠在总条上「当前段」那一格。
+ * 取 on-accent 色 —— 明暗两套主题下它都与强调色差得开明度。
+ */
+.wt-article-board__progress-inner {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--wt-on-accent);
+  opacity: 0.75;
 }
 
 .wt-article-board__progress-text {
@@ -4220,6 +4221,12 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /*
+   * 作为 .wt-practice（flex 列 + overflow-y:auto）的子项，
+   * 必须禁止收缩：否则视口不够高时键盘会被**压扁**而不是让容器滚动，
+   * 键帽里的字根就被裁掉 —— 与字根图第 3 行被裁是同一类问题。
+   */
+  flex-shrink: 0;
   padding: 14px;
   border-radius: 14px;
   border: 1px solid var(--wt-border);
@@ -4447,11 +4454,11 @@
   /*
    * !! 不要加 overflow:hidden + text-overflow:ellipsis + nowrap !!
    *
-   * 每键字根数最多 7 个（F 土士二干十寸雨 / D / Q / N）。
+   * 每键字根数最多 10 个（Q 金钅勺勹鱼犭乂儿夕氏）。
    * 单行只能放 4~5 个，截断后用户看到的字根表本身就是残缺的 ——
    * 实测被反馈过「没法看到全部的字根」。
    *
-   * 58px 宽、9px 字号下 7 个字根换行刚好 2 行，
+   * 58px 宽、9px 字号下 10 个字根换行需要 3 行，
    * 配合 `.wt-vkeyboard__key` 的 min-height 不会溢出。
    */
   white-space: normal;
@@ -6147,10 +6154,56 @@
 
 /* ── 结果区 ── */
 
-.wt-lookup__body {
+/*
+ * 双栏（Story 5.5）：左「事实」右「讲解」。
+ *
+ * 桌面端并排，各自独立滚动 —— 追问时还能同时看到编码与词组取码推导，
+ * 这是「一边查一边问」的前提。窄屏改为分段切换（见文件末尾的媒体查询），
+ * 让每一栏都能吃满高度，而不是两栏各挤一半。
+ */
+.wt-lookup__split {
   flex: 1 1 auto;
   min-height: 0;
+  display: flex;
+  gap: 16px;
+}
+
+.wt-lookup__facts {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
   overflow-y: auto;
+}
+
+/* ── 窄屏分段切换：桌面端不出现 ── */
+
+.wt-lookup__panes {
+  display: none;
+  flex-shrink: 0;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+}
+
+.wt-lookup__pane-tab {
+  flex: 1;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--wt-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-lookup__pane-tab--active {
+  background: var(--wt-surface);
+  color: var(--wt-accent);
+  font-weight: 600;
+  box-shadow: var(--wt-shadow-1);
 }
 
 .wt-lookup__summary {
@@ -6348,6 +6401,16 @@
   border-radius: 10px;
   border: 1px solid var(--wt-border);
   background: var(--wt-bg-secondary);
+  transition: var(--wt-transition-props-base);
+}
+
+/* 词组行整行可点（点空白处也选中）：指针与边框回馈让「这行是能点的」看得出来 */
+.wt-lookup__row--clickable {
+  cursor: pointer;
+}
+
+.wt-lookup__row--clickable:hover {
+  border-color: var(--wt-accent-border);
 }
 
 .wt-lookup__row-char {
@@ -6466,6 +6529,34 @@
   color: var(--wt-success);
 }
 
+/*
+ * 每行的「拆分」次要按钮（Story 5.5）。
+ *
+ * 点字的主语义已让位给「看 AI 讲解」，拆字动画降为副入口 ——
+ * 所以它必须比「复制」更轻：不加底色、不加边框，只在悬停时浮出来。
+ * 不是藏起来：拆字演示仍是这个模块最可信的确定性视图。
+ */
+.wt-lookup__row-split {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border: 1px dashed var(--wt-border-strong);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--wt-text-tertiary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-lookup__row-split:hover {
+  border-style: solid;
+  border-color: var(--wt-accent);
+  color: var(--wt-accent);
+}
+
 .wt-lookup__copy {
   display: inline-flex;
   align-items: center;
@@ -6553,6 +6644,17 @@
   line-height: 1.8;
 }
 
+/* 主/次动作的说明（点字=讲解，点「拆分」=动画）：交互改了就得写出来 */
+.wt-lookup__empty-hint {
+  margin: 0;
+  max-width: 420px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--wt-border);
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--wt-text-tertiary);
+}
+
 .wt-lookup__empty-desc kbd,
 .wt-lookup__empty-desc code {
   padding: 1px 6px;
@@ -6590,5 +6692,2279 @@
 
   .wt-lookup__copy span {
     display: none;
+  }
+
+  /* 窄屏：分段切换，每一栏吃满高度 */
+  .wt-lookup__panes {
+    display: flex;
+  }
+
+  .wt-lookup__split {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .wt-lookup__split[data-pane='facts'] .wt-chat {
+    display: none;
+  }
+
+  .wt-lookup__split[data-pane='chat'] .wt-lookup__facts {
+    display: none;
+  }
+
+  .wt-chat {
+    width: 100%;
+    border-left: none;
+    padding-left: 0;
+  }
+}
+
+/* ============================================================
+   查码讲解台（Story 5.5）
+   ------------------------------------------------------------
+   设计意图：这是「同一个字被逐层问清楚」的记录，不是聊天气泡。
+
+   · 会话轨：左侧一条细轨，首轮节点是该字的田字格字形块，追问是圆点 ——
+     换字时锚点块会变，这正是会话切换的视觉边界。
+   · 可信度分层：正文 / 依据（可核对）/ 未核验断言 / 位次修正各占一层，
+     每层都有文字标签，去掉颜色仍然可读。
+   · 田字格：字形块用 2×2 网格底纹点出「这是汉字」，是本模块的视觉签名。
+   ============================================================ */
+
+.wt-chat {
+  flex: 0 0 auto;
+  width: clamp(320px, 38%, 460px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 16px;
+  border-left: 1px solid var(--wt-border);
+}
+
+/* ── 田字格底纹（字形块共用） ── */
+
+.wt-chat__anchor,
+.wt-chat__empty-glyph,
+.wt-chat__node--anchor,
+.wt-chat__delta-from,
+.wt-chat__delta-to {
+  background-image:
+    linear-gradient(var(--wt-border-light) 1px, transparent 1px),
+    linear-gradient(90deg, var(--wt-border-light) 1px, transparent 1px);
+  background-size: 50% 50%;
+}
+
+/* ── 锚点栏 ── */
+
+.wt-chat__head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wt-chat__anchor {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--wt-accent-border);
+  background-color: var(--wt-bg-elevated);
+  color: var(--wt-text);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.wt-chat__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* 词组锚点：块里只放首字，原文与「词组」标记在右边一行说清楚 */
+.wt-chat__anchor--phrase {
+  font-size: 22px;
+}
+
+.wt-chat__anchor-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.wt-chat__anchor-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--wt-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wt-chat__anchor-flag {
+  flex: none;
+  padding: 1px 6px;
+  border: 1px solid var(--wt-badge-phrase-border, var(--wt-accent-border));
+  border-radius: 999px;
+  color: var(--wt-accent);
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+
+.wt-chat__anchor-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+/* 取码规则名：解析「每一位为什么是它」的前提，用次要色以免抢走编码的位置 */
+.wt-chat__rule {
+  color: var(--wt-text-secondary);
+  font-size: 11.5px;
+}
+
+.wt-chat__code {
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--wt-accent);
+}
+
+.wt-chat__turn-count {
+  font-size: 11.5px;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-chat__actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.wt-chat__action {
+  padding: 4px 10px;
+  border: 1px solid var(--wt-border);
+  border-radius: var(--wt-radius-sm);
+  background: var(--wt-bg-secondary);
+  color: var(--wt-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-chat__action:not(:disabled):hover {
+  border-color: var(--wt-accent-border);
+  color: var(--wt-accent);
+}
+
+.wt-chat__action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── 提示条 ── */
+
+.wt-chat__hint {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--wt-bg-secondary);
+  color: var(--wt-text-secondary);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.wt-chat__hint--warn {
+  background: var(--wt-badge-warning-bg);
+  color: var(--wt-badge-warning-text);
+}
+
+.wt-chat__hint-close {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  line-height: 1;
+}
+
+/* ── 会话轨 ── */
+
+.wt-chat__thread {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* 左侧留给会话轨：24px 缩进 = 节点(18px) + 呼吸位，节点中心正好压在轨上 */
+  padding: 2px 6px 8px 24px;
+}
+
+/* 轨本体：从第一个节点到最后一个，不贯穿整栏（避免看起来像排版线）。
+   用 border-strong 而不是 border：轨道是这一栏的结构线索，
+   8% 透明度的常规描边在浅色主题下几乎看不见。 */
+.wt-chat__thread::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 10px;
+  bottom: 14px;
+  width: 1px;
+  background: var(--wt-border-strong);
+}
+
+.wt-chat__turn {
+  position: relative;
+}
+
+.wt-chat__turn + .wt-chat__turn {
+  margin-top: 14px;
+}
+
+/* ── 轨上的节点 ── */
+
+.wt-chat__node {
+  position: absolute;
+  left: -24px;
+  top: 2px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background-color: var(--wt-surface);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--wt-accent);
+}
+
+.wt-chat__node--anchor {
+  border: 1px solid var(--wt-accent-border);
+  font-weight: 600;
+}
+
+.wt-chat__node--dot,
+.wt-chat__node--notice {
+  border-radius: 50%;
+}
+
+.wt-chat__node--dot::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--wt-accent);
+}
+
+.wt-chat__node--notice::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--wt-border-strong);
+}
+
+/* ── 用户提问：左线 + 「问」标记，一眼区分问与答 ── */
+
+.wt-chat__turn--ask .wt-chat__ask {
+  display: flex;
+  gap: 7px;
+  margin: 0;
+  padding: 7px 10px;
+  border-left: 2px solid var(--wt-accent);
+  border-radius: 0 8px 8px 0;
+  background: var(--wt-accent-light);
+  color: var(--wt-text);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+/* 「问」标记：一眼区分用户问的与 AI 答的，不靠缩进猜（去掉颜色也成立） */
+.wt-chat__turn--ask .wt-chat__ask::before {
+  content: '问';
+  flex: none;
+  align-self: flex-start;
+  margin-top: 1px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--wt-surface);
+  color: var(--wt-accent);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+/* 重试动作块：没有轨节点，因为它不是一条记录，而是一个可执行的动作 */
+.wt-chat__turn--retry {
+  margin-top: 8px;
+}
+
+/* ── 系统提示轮 ── */
+
+.wt-chat__turn--notice .wt-chat__notice-text {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--wt-text-tertiary);
+}
+
+/* 失败轮的处置提示：告诉用户「这一步重试没用、该走哪条路」 */
+.wt-chat__notice-hint {
+  margin: 5px 0 0;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--wt-text-tertiary);
+}
+
+/* 失败轮的尝试次数：重试后提示只留最新一条，靠它说明「确实重试过」 */
+.wt-chat__attempt {
+  margin-left: 4px;
+  color: var(--wt-text-tertiary);
+  opacity: 0.8;
+}
+
+.wt-chat__retry {
+  margin-top: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--wt-border);
+  border-radius: 6px;
+  background: var(--wt-bg-secondary);
+  color: var(--wt-text-secondary);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.wt-chat__retry:hover {
+  border-color: var(--wt-accent-border);
+  color: var(--wt-accent);
+}
+
+/* ── AI 回答 ── */
+
+.wt-chat__turn-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.wt-chat__badge {
+  padding: 1px 7px;
+  border-radius: 20px;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.wt-chat__badge--accent {
+  background: var(--wt-accent-light);
+  color: var(--wt-accent);
+}
+
+.wt-chat__badge--muted {
+  background: var(--wt-bg-secondary);
+  color: var(--wt-text-secondary);
+}
+
+.wt-chat__badge--warn {
+  background: var(--wt-badge-warning-bg);
+  color: var(--wt-badge-warning-text);
+}
+
+.wt-chat__badge--fail {
+  background: var(--wt-badge-error-bg);
+  color: var(--wt-badge-error-text);
+}
+
+.wt-chat__based {
+  font-size: 10.5px;
+  color: var(--wt-text-tertiary);
+}
+
+/* ── 词组事实行（规则 + 逐位来源）：读正文前先摆事实 ── */
+
+.wt-chat__phrase-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: var(--wt-bg-secondary);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.wt-chat__origins {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.wt-chat__origin {
+  padding: 1px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg);
+  color: var(--wt-text-secondary);
+  font-size: 10.5px;
+}
+
+.wt-chat__text {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--wt-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.wt-chat__text:last-child {
+  margin-bottom: 0;
+}
+
+/* 依据：等宽 chip，逐条能指回历史字段 */
+.wt-chat__cites {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.wt-chat__cites-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-chat__cite {
+  padding: 1px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-secondary);
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 10.5px;
+  color: var(--wt-text-secondary);
+}
+
+/* 未核验断言：琥珀色独立块，绝不与已核实内容混在一起 */
+.wt-chat__claims {
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-left: 2px solid var(--miao-warning);
+  border-radius: 0 8px 8px 0;
+  background: var(--wt-badge-warning-bg);
+}
+
+.wt-chat__claims-label {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--wt-badge-warning-text);
+}
+
+.wt-chat__claims-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--wt-badge-warning-text);
+}
+
+/* 位次修正：田字格 before → after */
+.wt-chat__delta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--wt-accent-border);
+  background: var(--wt-accent-light);
+}
+
+.wt-chat__delta--rejected {
+  border-color: color-mix(in srgb, var(--miao-warning) 34%, transparent);
+  background: var(--wt-badge-warning-bg);
+}
+
+.wt-chat__delta-from,
+.wt-chat__delta-to {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--wt-border);
+  background-color: var(--wt-surface);
+  color: var(--wt-text);
+  font-size: 19px;
+  line-height: 1;
+}
+
+.wt-chat__delta-to {
+  border-color: var(--wt-accent);
+  color: var(--wt-accent);
+}
+
+.wt-chat__delta--rejected .wt-chat__delta-to {
+  border-color: var(--miao-warning);
+  color: var(--wt-badge-warning-text);
+}
+
+.wt-chat__delta-arrow {
+  flex: none;
+  color: var(--wt-accent);
+  font-size: 14px;
+}
+
+.wt-chat__delta-caption {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--wt-text-secondary);
+}
+
+/* ── 骨架与阶段提示 ── */
+
+.wt-chat__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wt-chat__skeleton span {
+  height: 11px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--wt-border) 0%,
+    var(--wt-bg) 50%,
+    var(--wt-border) 100%
+  );
+  background-size: 200% 100%;
+  animation: wt-ai-shimmer var(--wt-dur-pulse) ease-in-out infinite;
+}
+
+.wt-chat__skeleton span:nth-child(1) { width: 94%; }
+.wt-chat__skeleton span:nth-child(2) { width: 86%; }
+.wt-chat__skeleton span:nth-child(3) { width: 58%; }
+
+.wt-chat__stage {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--wt-text-secondary);
+}
+
+/* ── 空态与手动开始 ── */
+
+.wt-chat__empty {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 8px;
+  text-align: center;
+}
+
+.wt-chat__empty-glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 10px;
+  border: 1px dashed var(--wt-border-strong);
+  background-color: var(--wt-bg-secondary);
+  color: var(--wt-text-tertiary);
+  font-size: 26px;
+}
+
+.wt-chat__empty-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--wt-text);
+}
+
+.wt-chat__empty-desc {
+  margin: 0;
+  max-width: 320px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--wt-text-secondary);
+}
+
+.wt-chat__switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--wt-text-secondary);
+  cursor: pointer;
+}
+
+.wt-chat__manual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 8px;
+}
+
+.wt-chat__start {
+  padding: 8px 16px;
+  border: 1px solid var(--wt-accent);
+  border-radius: var(--wt-radius-sm);
+  background: var(--wt-accent);
+  color: var(--wt-on-accent);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.wt-chat__start:hover {
+  background: var(--wt-accent-hover);
+}
+
+/* ── 输入区 ── */
+
+.wt-chat__foot {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--wt-border);
+}
+
+.wt-chat__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wt-chat__chip {
+  padding: 4px 9px;
+  border: 1px dashed var(--wt-border-strong);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--wt-text-secondary);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-chat__chip:hover {
+  border-color: var(--wt-accent);
+  border-style: solid;
+  color: var(--wt-accent);
+  background: var(--wt-accent-light);
+}
+
+.wt-chat__chip--revise {
+  border-color: var(--wt-accent-border);
+}
+
+.wt-chat__pending {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-chat__pending-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--wt-accent);
+  animation: wt-chat-pulse var(--wt-dur-pulse) ease-in-out infinite;
+}
+
+@keyframes wt-chat-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+.wt-chat__cancel {
+  margin-left: auto;
+  padding: 2px 10px;
+  border: 1px solid var(--wt-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--wt-text-secondary);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.wt-chat__cancel:hover {
+  border-color: var(--wt-accent-border);
+  color: var(--wt-accent);
+}
+
+.wt-chat__form {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.wt-chat__input {
+  flex: 1;
+  min-width: 0;
+  max-height: 96px;
+  padding: 8px 10px;
+  border: 1px solid var(--wt-border);
+  border-radius: var(--wt-radius-sm);
+  background: var(--wt-bg);
+  color: var(--wt-text);
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.6;
+  resize: none;
+}
+
+.wt-chat__input::placeholder {
+  color: var(--wt-text-tertiary);
+}
+
+.wt-chat__input:focus {
+  outline: none;
+  border-color: var(--wt-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--wt-accent) 12%, transparent);
+}
+
+.wt-chat__input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.wt-chat__send {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--wt-accent);
+  border-radius: var(--wt-radius-sm);
+  background: var(--wt-accent);
+  color: var(--wt-on-accent);
+  font-size: 14px;
+  cursor: pointer;
+  transition: var(--wt-transition-props-base);
+}
+
+.wt-chat__send:not(:disabled):hover {
+  background: var(--wt-accent-hover);
+}
+
+.wt-chat__send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.wt-chat__tip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 10.5px;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-chat__tip-text {
+  margin-left: auto;
+}
+
+.wt-chat__switch--compact {
+  font-size: 10.5px;
+  color: var(--wt-text-secondary);
+}
+
+/* ── 降低动效：动效永远不该是可用性的前提 ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .wt-chat__skeleton span,
+  .wt-chat__pending-dot {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   挑战（挑战三件套 + 排行榜）
+   ------------------------------------------------------------
+   竞技感但不喧宾夺主：全部沿用现有圆角卡片 / 内凹托盘 / 描边与阴影变量，
+   只在挑战语义下把强调色用于「进度、生命、名次」三类信息。
+   ============================================================ */
+
+.wt-challenge {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  /* 与字根图同一处理：自己能滚，避免内容被外层 overflow:hidden 裁掉 */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.wt-challenge > * {
+  flex-shrink: 0;
+}
+
+/* ── 页头 ── */
+
+.wt-challenge__hero {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wt-challenge__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--wt-text);
+}
+
+.wt-challenge__subtitle {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--wt-text-secondary);
+}
+
+.wt-challenge__loading,
+.wt-challenge__data-error {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--wt-text-secondary);
+  background: var(--wt-bg-secondary);
+  border: 1px solid var(--wt-border);
+}
+
+.wt-challenge__data-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-color: var(--wt-badge-error-text);
+  color: var(--wt-badge-error-text);
+}
+
+/* ── 模式卡 ── */
+
+.wt-challenge__modes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.wt-challenge-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 18px 16px 16px;
+  overflow: hidden;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 14px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-surface);
+  color: var(--wt-text);
+  box-shadow: var(--wt-shadow-1);
+  transition:
+    transform var(--wt-dur-base) var(--wt-ease),
+    border-color var(--wt-dur-base) ease,
+    box-shadow var(--wt-dur-base) ease;
+}
+
+/* 顶线：默认不可见，hover 时自左向右铺满（与练习模式卡同一语言） */
+.wt-challenge-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--wt-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--wt-dur-slow) var(--wt-ease);
+}
+
+.wt-challenge-card:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: var(--wt-accent-border);
+  box-shadow: var(--wt-shadow-2);
+}
+
+.wt-challenge-card:hover:not(:disabled)::before {
+  transform: scaleX(1);
+}
+
+.wt-challenge-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.wt-challenge-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 17px;
+  color: var(--wt-accent);
+  background: var(--wt-accent-light);
+  border: 1px solid var(--wt-accent-border);
+}
+
+.wt-challenge-card__label {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.wt-challenge-card__tagline {
+  font-size: 12.5px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-challenge-card__hint {
+  font-size: 11.5px;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-challenge-card__best {
+  margin-top: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--wt-accent);
+  background: var(--wt-accent-light);
+  border: 1px solid var(--wt-accent-border);
+}
+
+/* ── 通用按钮 ── */
+
+.wt-challenge-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 9px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-bg-elevated);
+  color: var(--wt-text);
+  font-size: 13px;
+  transition:
+    background var(--wt-dur-base) ease,
+    border-color var(--wt-dur-base) ease,
+    transform var(--wt-dur-fast) ease;
+}
+
+.wt-challenge-btn:hover:not(:disabled) {
+  border-color: var(--wt-accent-border);
+  background: var(--wt-accent-light);
+}
+
+.wt-challenge-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.wt-challenge-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.wt-challenge-btn--primary {
+  border-color: var(--wt-accent);
+  background: var(--wt-accent);
+  color: var(--wt-on-accent);
+  font-weight: 600;
+}
+
+.wt-challenge-btn--primary:hover:not(:disabled) {
+  background: var(--wt-accent-hover);
+  border-color: var(--wt-accent-hover);
+}
+
+/* ── 挑战进行中 ── */
+
+.wt-challenge-session {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.wt-challenge-session > * {
+  flex-shrink: 0;
+}
+
+.wt-challenge-session__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wt-challenge-session__mode {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--wt-text);
+}
+
+.wt-challenge-session__rule {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--wt-text-tertiary);
+}
+
+/* ── HUD ── */
+
+.wt-hud {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: var(--wt-tray-bg);
+  border: 1px solid var(--wt-border);
+  box-shadow: var(--wt-tray-inset);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 危险态：颜色之外还给出动效，保证「没看清颜色」也能感知 */
+.wt-hud--danger {
+  border-color: var(--wt-error);
+  animation: wt-hud-alert var(--wt-dur-pulse) ease-in-out infinite;
+}
+
+@keyframes wt-hud-alert {
+  0%, 100% { box-shadow: var(--wt-tray-inset), 0 0 0 0 var(--wt-accent-glow); }
+  50% { box-shadow: var(--wt-tray-inset), 0 0 0 3px var(--wt-accent-glow); }
+}
+
+.wt-hud__timer {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 1px;
+  min-width: 76px;
+}
+
+.wt-hud__ring {
+  width: 22px;
+  height: 22px;
+  transform: rotate(-90deg);
+  align-self: center;
+}
+
+.wt-hud__ring-track {
+  fill: none;
+  stroke: var(--wt-border);
+  stroke-width: 4;
+}
+
+.wt-hud__ring-fill {
+  fill: none;
+  stroke: var(--wt-accent);
+  stroke-width: 4;
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--wt-dur-base) linear;
+}
+
+.wt-hud--danger .wt-hud__ring-fill {
+  stroke: var(--wt-error);
+}
+
+.wt-hud__timer-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-hud__timer-unit {
+  font-size: 11px;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-hud__lives {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wt-hud__lives-label,
+.wt-hud__score-label,
+.wt-hud__combo-label,
+.wt-hud__progress-label {
+  font-size: 11.5px;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-hud__lives-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.wt-hud__life {
+  width: 11px;
+  height: 11px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--wt-error);
+  transition: opacity var(--wt-dur-base) ease, transform var(--wt-dur-base) var(--wt-ease);
+}
+
+.wt-hud__life--lost {
+  background: var(--wt-border-strong);
+  opacity: 0.4;
+  transform: rotate(-45deg) scale(0.75);
+}
+
+.wt-hud__lives-value,
+.wt-hud__progress-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--wt-text);
+}
+
+.wt-hud__score {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.wt-hud__score-value {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--wt-accent);
+}
+
+.wt-hud__combo {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.wt-hud__combo-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--wt-text);
+}
+
+.wt-hud__combo-value--hot {
+  color: var(--wt-warning);
+}
+
+.wt-hud__combo-best {
+  font-size: 11px;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-hud__progress {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* ── 每日打卡卡 ── */
+
+.wt-daily-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-surface);
+  box-shadow: var(--wt-shadow-1);
+  overflow: hidden;
+}
+
+/* 已完成：左侧强调轨 + 一次性高光扫过 */
+.wt-daily-card--done {
+  border-color: var(--wt-accent-border);
+}
+
+.wt-daily-card--done::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--wt-accent);
+  animation: wt-daily-sweep var(--wt-dur-slow) var(--wt-ease-enter);
+}
+
+@keyframes wt-daily-sweep {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
+.wt-daily-card__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wt-daily-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: var(--wt-accent);
+  background: var(--wt-accent-light);
+  border: 1px solid var(--wt-accent-border);
+}
+
+.wt-daily-card__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wt-daily-card__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--wt-text);
+}
+
+.wt-daily-card__sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--wt-text-tertiary);
+}
+
+/* 盖章：一次性淡入 + 轻微旋转，只在完成的那一刻出现 */
+.wt-daily-card__stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--wt-accent);
+  border: 1px dashed var(--wt-accent-border);
+  background: var(--wt-accent-light);
+  transform: rotate(-3deg);
+  animation: wt-daily-stamp var(--wt-dur-slow) var(--wt-ease-enter);
+}
+
+@keyframes wt-daily-stamp {
+  from { opacity: 0; transform: rotate(-14deg) scale(1.3); }
+  to { opacity: 1; transform: rotate(-3deg) scale(1); }
+}
+
+.wt-daily-card__body {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.wt-daily-card__calendar {
+  display: flex;
+  gap: 8px;
+}
+
+.wt-daily-card__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.wt-daily-card__day-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  border: 1px solid var(--wt-border-strong);
+  background: transparent;
+  transition: background var(--wt-dur-base) ease, border-color var(--wt-dur-base) ease;
+}
+
+.wt-daily-card__day--done .wt-daily-card__day-dot {
+  background: var(--wt-accent);
+  border-color: var(--wt-accent);
+}
+
+/* 今天：外圈光环（不只靠填充色区分） */
+.wt-daily-card__day--today .wt-daily-card__day-dot {
+  box-shadow: 0 0 0 3px var(--wt-accent-glow);
+}
+
+.wt-daily-card__day-label {
+  font-size: 10.5px;
+  color: var(--wt-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.wt-daily-card__stats {
+  display: flex;
+  gap: 24px;
+  margin-left: auto;
+}
+
+.wt-daily-card__streak,
+.wt-daily-card__today-score {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.wt-daily-card__streak-value {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--wt-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.wt-daily-card__today-value {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--wt-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.wt-daily-card__today-max {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-daily-card__streak-label,
+.wt-daily-card__today-label {
+  font-size: 11.5px;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-daily-card__footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wt-daily-card__hint {
+  font-size: 11.5px;
+  color: var(--wt-text-tertiary);
+}
+
+/* ── 排行榜 ── */
+
+.wt-lb {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--wt-border);
+  /* 与结算面板同一套材质：顶部一道内高光，面板像「立起来的一块板」而不是一张平纸 */
+  background:
+    linear-gradient(180deg, var(--wt-inset-hi) 0%, transparent 56px),
+    var(--wt-surface);
+  box-shadow: var(--wt-shadow-2);
+}
+
+.wt-lb__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.wt-lb__group {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--wt-bg-secondary);
+  border: 1px solid var(--wt-border);
+}
+
+.wt-lb__group--right {
+  margin-left: auto;
+}
+
+/*
+ * 次级筛选（总榜 / 日榜）做成**下划线页签**。
+ * 主控件（挑战模式）是填充药丸，如果两个都用填充药丸，
+ * 面板左右各一个高亮块互相抢焦点；次级就该退一档。
+ */
+.wt-lb__group--subtle {
+  padding: 0;
+  gap: 2px;
+  background: transparent;
+  border-color: transparent;
+}
+
+.wt-lb__group--subtle .wt-lb__seg {
+  position: relative;
+  padding: 6px 10px;
+  border-radius: 7px;
+}
+
+.wt-lb__group--subtle .wt-lb__seg--active {
+  background: transparent;
+  color: var(--wt-accent);
+}
+
+.wt-lb__group--subtle .wt-lb__seg--active::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--wt-accent);
+}
+
+.wt-lb__seg {
+  padding: 6px 14px;
+  cursor: pointer;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--wt-text-secondary);
+  font-size: 13px;
+  transition: background var(--wt-dur-base) ease, color var(--wt-dur-base) ease;
+}
+
+.wt-lb__seg:hover {
+  color: var(--wt-text);
+}
+
+.wt-lb__seg--active {
+  background: var(--wt-accent);
+  color: var(--wt-on-accent);
+  font-weight: 600;
+}
+
+/* 说明行：左=计分规则，右=参与人数胶囊。两端对齐后压住了面板的左右边 */
+.wt-lb__meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-lb__meta-count {
+  margin-left: auto;
+  flex: none;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  color: var(--wt-text-secondary);
+  background: var(--wt-bg-secondary);
+  border: 1px solid var(--wt-border);
+}
+
+.wt-lb__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wt-lb__skeleton-row {
+  height: 34px;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--wt-bg-secondary) 25%,
+    color-mix(in srgb, var(--wt-bg-secondary) 60%, var(--wt-border)) 37%,
+    var(--wt-bg-secondary) 63%
+  );
+  background-size: 400% 100%;
+  animation: wt-lb-shimmer var(--wt-dur-spin) ease infinite;
+}
+
+@keyframes wt-lb-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
+}
+
+/* 空榜：画一个虚线托盘，说明「这里本来有东西」，而不是一块莫名其妙的空白 */
+.wt-lb__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 30px 16px;
+  border: 1px dashed var(--wt-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--wt-bg-secondary) 45%, transparent);
+}
+
+.wt-lb__empty-text {
+  margin: 0;
+  font-size: 13px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-lb__table-wrap {
+  overflow-x: auto;
+}
+
+/*
+ * 满宽 + 固定列宽等分。
+ *
+ * 走过两次弯路，这里把原因写清楚：
+ *   · 全宽 + 弹性「用户」列：那一列会吞掉所有余量（撑到 586px），
+ *     名字和它自己的分数隔半屏，中间像被挖空；
+ *   · 收成 700px 居中：行是紧凑了，但表格左边缘（x≈182）和上方工具栏、
+ *     说明文字的左边缘（x≈21）对不上 —— 被反馈「更不协调、直线也没对齐」。
+ * 现在：表格铺满面板（左右边缘都与工具栏对齐），列宽按百分比固定，
+ * 余量**摊到每一列**而不是全塞进用户列，于是既没有挖空、也不会错位。
+ */
+.wt-lb__table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 13px;
+  /* 等宽数字：名次 / 成绩 / 准确率才能纵向成列 */
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 表头做成一条**内凹槽**：和虚拟键盘、结算面板的成绩托盘同一套材质语言。
+ * 表格因此读作「表头段 + 数据段」两层，而不是靠一根 1px 线硬分；
+ * 标签也用居中对齐，和下面统一后的方块、文字落在同一条中轴上。
+ */
+.wt-lb__table thead th {
+  padding: 8px 12px;
+  vertical-align: middle;
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--wt-text-secondary);
+  background: var(--wt-tray-bg);
+  box-shadow: var(--wt-tray-inset);
+  white-space: nowrap;
+}
+
+/* 凹槽两端收口，让它像一条被嵌进面板的槽而不是一块方色 */
+.wt-lb__table thead th:first-child {
+  border-radius: 9px 0 0 9px;
+}
+
+.wt-lb__table thead th:last-child {
+  border-radius: 0 9px 9px 0;
+}
+
+/*
+ * !! 一整行的纵向对齐只认一条轴：单元格内容的**居中轴** !!
+ *
+ * 之前是各行其是：文字按基线对齐、方块按各自的行盒排，
+ * 结果「名次」的奖牌块是 26×26、头像却只有 24×24，两块并排时上边缘齐、
+ * 下边缘差 4px —— 被反复反馈「明显没对齐」。
+ * 现在统一成 vertical-align: middle：文字、奖牌块、头像、标签全部
+ * 居中在同一条中轴线上，方块尺寸也统一成 26×26，上下边缘必然重合。
+ */
+.wt-lb__table td {
+  padding: 8px 12px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--wt-border-light);
+  color: var(--wt-text);
+  transition: background var(--wt-dur-base) ease;
+}
+
+/*
+ * 数字列一律右对齐。
+ * 原来全表左对齐，等宽数字在定宽列里右端参差，读起来是锯齿。
+ * 必须带上 .wt-lb__table 前缀才压得过上面 `.wt-lb__table th/td` 的
+ * `text-align: left`（那边是「一个类 + 一个元素」，比单个类名高一级）。
+ */
+.wt-lb__table .wt-lb__col-score,
+.wt-lb__table .wt-lb__col-num {
+  text-align: right;
+}
+
+/*
+ * 列宽用百分比（table-layout: fixed 下按第一行取宽度）：
+ *   名次 8% / 成绩 15% / 准确率 15% / 连击 15% / 用时 15%，
+ *   未指定宽度的「用户」列自动分到剩下的 32%。
+ * 这样各列按比例分掉面板余量，任何一个列都不会被撑得离谱。
+ */
+.wt-lb__col-rank { width: 8%; }
+.wt-lb__col-score { width: 15%; }
+.wt-lb__col-num { width: 15%; }
+
+/*
+ * 斑马纹用**底色**分行，不再只靠 1px 浅线 ——
+ * 宽屏上一行三百多像素高时，那条浅线几乎看不见，整块表格糊成一片。
+ */
+.wt-lb__table tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--wt-bg-secondary) 60%, transparent);
+}
+
+.wt-lb__table tbody tr:hover td {
+  background: var(--wt-accent-light);
+}
+
+/*
+ * 名次：
+ *   前三名 → 实心奖牌块（渐变 + 键帽投影），是这一行唯一的「高亮」
+ *   4 名以后 → 只留数字、不画盒子。原来每行都套一个灰盒子，
+ *            一屏五十行就是五十个盒子，榜单会变得很吵。
+ * 两者都固定 26px 宽并居中，保证整列纵向对齐。
+ */
+.wt-lb__rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 固定 26×26（不是 min-width）：所有名次的方块尺寸完全一致，
+     奖牌块与右侧头像也因此能逐像素对齐 */
+  width: 26px;
+  height: 26px;
+  font-weight: 600;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-lb__rank--gold,
+.wt-lb__rank--silver,
+.wt-lb__rank--bronze {
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 800;
+  box-shadow: var(--wt-key-drop);
+}
+
+/* 冠军额外一层暖色外环：长榜单里一眼能找到第一名（是光晕，不是线条） */
+.wt-lb__rank--gold {
+  color: #6b4d09;
+  background: linear-gradient(150deg, #f7dd7d, #d4af37);
+  box-shadow:
+    var(--wt-key-drop),
+    0 0 0 3px color-mix(in srgb, #d4af37 18%, transparent);
+}
+
+.wt-lb__rank--silver {
+  color: #4c555d;
+  background: linear-gradient(150deg, #e6ecf1, #a8b3bd);
+}
+
+.wt-lb__rank--bronze {
+  color: #5a3413;
+  background: linear-gradient(150deg, #eaad72, #b96f2c);
+}
+
+.wt-lb__score {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--wt-accent);
+}
+
+/* 统计数字：字重提一档 + 次要色，和「成绩」明确拉开一级层级 */
+.wt-lb__table tbody td.wt-lb__col-num {
+  font-weight: 600;
+  color: var(--wt-text-secondary);
+}
+
+/* 百分号比数字小一号，让「88%」里的数字本身更突出 */
+.wt-lb__unit {
+  margin-left: 1px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--wt-text-tertiary);
+}
+
+/* 本人行：竖条已去掉，改用「名字加粗」加强定位（不引入新的线条） */
+.wt-lb__table tbody tr.wt-lb__row--me .wt-lb__name {
+  font-weight: 600;
+}
+
+.wt-lb__user {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/*
+ * 名次格**保持普通表格单元**，不要也加 display:flex。
+ * 试过让名次格和用户格都用 flex 居中，结果浏览器要给两个 flex 单元格各套一层
+ * 匿名表格单元，整行被撑成双倍高（86px），奖牌块和头像直接错到两半行去。
+ * 现在靠「td 的 vertical-align:middle + 奖牌块/头像同为 26×26」对齐，
+ * 实测两者中心差 0.3px（亚像素，肉眼不可见）。
+ */
+
+/*
+ * 头像字：给用户列一个左锚点。
+ * 尺寸与圆角**刻意与「名次」的奖牌块完全一致**（26×26 / 9px），
+ * 这样两个方块并排时上下边缘严丝合缝 —— 差 2px 都会被看出来。
+ */
+.wt-lb__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--wt-text-secondary);
+  background: var(--wt-bg-secondary);
+  border: 1px solid var(--wt-border);
+}
+
+.wt-lb__avatar--me {
+  color: var(--wt-on-accent);
+  background: var(--wt-accent);
+  border-color: transparent;
+}
+
+.wt-lb__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wt-lb__me-tag {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 10.5px;
+  color: var(--wt-on-accent);
+  background: var(--wt-accent);
+}
+
+/*
+ * 本人行：只用底色 + 名字后的「你」标签，**不再画左侧竖条**。
+ *
+ * 那条 inset 竖条画在单元格的 12px 内边距里，比「名次」列的文字和奖牌块
+ * 整整靠左 12px —— 它谁也对不齐，孤零零挂在行边，被反馈过
+ * 「直线也没对齐」；而且底色 + 标签已经足够定位本人行，竖条是多余的。
+ *
+ * 选择器要压过上面的斑马纹与 hover，所以写成 tr.wt-lb__row--me 并放在它们之后。
+ */
+.wt-lb__table tbody tr.wt-lb__row--me td {
+  background: var(--wt-accent-light);
+}
+
+.wt-lb__table tbody tr.wt-lb__row--footer td {
+  border-top: 1px dashed var(--wt-accent-border);
+}
+
+/* ── 结算面板：一块机械记分牌 ── */
+
+.wt-challenge-result {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px 24px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--wt-border);
+  /* 顶部微亮、底部微沉：让它像一块「立在台面上的板」而不是一张平纸 */
+  background:
+    linear-gradient(180deg, var(--wt-inset-hi) 0%, transparent 42px),
+    var(--wt-surface);
+  box-shadow: var(--wt-shadow-2);
+  overflow: hidden;
+  animation: wt-challenge-result-in var(--wt-dur-slow) var(--wt-ease-enter);
+}
+
+/* 破纪录时把描边与投影染成强调色，一眼看出「这局不一样」 */
+.wt-challenge-result--record {
+  border-color: var(--wt-accent-border);
+  box-shadow:
+    var(--wt-shadow-2),
+    0 0 0 3px var(--wt-accent-light);
+}
+
+@keyframes wt-challenge-result-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 新纪录：顶部一次性高光扫过（不循环） */
+.wt-challenge-result__sheen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--wt-accent) 35%,
+    var(--wt-warning) 55%,
+    var(--wt-accent) 70%,
+    transparent
+  );
+  background-size: 220% 100%;
+  animation: wt-challenge-sheen var(--wt-dur-slow) var(--wt-ease-enter);
+}
+
+@keyframes wt-challenge-sheen {
+  from { opacity: 0; background-position: 140% 0; }
+  to { opacity: 1; background-position: 0 0; }
+}
+
+/* ── 页头：模式 · 结束原因 · 新纪录徽记 ── */
+
+.wt-challenge-result__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: wt-challenge-rise var(--wt-dur-slow) var(--wt-ease-enter) both;
+}
+
+.wt-challenge-result__mode {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--wt-text);
+}
+
+.wt-challenge-result__reason {
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  color: var(--wt-text-secondary);
+  background: var(--wt-bg-secondary);
+  border: 1px solid var(--wt-border);
+}
+
+.wt-challenge-result__record {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 3px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--wt-on-accent);
+  background: linear-gradient(135deg, var(--wt-accent), var(--wt-accent-hover));
+  box-shadow: var(--wt-key-drop);
+  animation: wt-challenge-record-pop var(--wt-dur-slow) var(--wt-ease-enter) 160ms both;
+}
+
+@keyframes wt-challenge-record-pop {
+  from { opacity: 0; transform: scale(0.86) rotate(-2deg); }
+  to { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes wt-challenge-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 主体：左成绩托盘 + 右对比轨 ── */
+
+/*
+ * 两块内容分别**锚在左右两端**。
+ * 之前用 1fr 让对比轨铺满整行，0 分时它就变成横贯面板的一条灰线，
+ * 像分隔线而不像数据；收到固定上限 + 两端对齐后，中间留白才读作构图。
+ */
+.wt-challenge-result__body {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 24px;
+  animation: wt-challenge-rise var(--wt-dur-slow) var(--wt-ease-enter) 60ms both;
+}
+
+/* 成绩落在「内凹托盘」里 —— 与虚拟键盘同一套材质语言 */
+.wt-challenge-result__stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 22px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--wt-border);
+  background: var(--wt-tray-bg);
+  box-shadow: var(--wt-tray-inset);
+}
+
+/*
+ * 托盘内底部的极淡强调色，把视线压到数字上。
+ * 早先做成**向外**的光晕，浅色主题下会在托盘下方糊出一团灰蓝，
+ * 看着像渲染瑕疵；收进托盘内部、降一点不透明度就干净了。
+ */
+.wt-challenge-result__stage::after {
+  content: '';
+  position: absolute;
+  inset: auto 14px 5px;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, var(--wt-accent-medium), transparent 72%);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.wt-challenge-result__stage-caption {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-challenge-result__score {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.wt-challenge-result__score-value {
+  font-size: 58px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--wt-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.wt-challenge-result__score-unit {
+  font-size: 15px;
+  color: var(--wt-text-tertiary);
+}
+
+/* 右栏：个人最佳 + 对比轨 */
+.wt-challenge-result__compare {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  /* 上限 520px：够画一条可读的量轨，又不会变成横贯面板的灰线 */
+  flex: 0 1 520px;
+  min-width: 0;
+}
+
+.wt-challenge-result__compare-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.wt-challenge-result__best-label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-challenge-result__best-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--wt-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.wt-challenge-result__delta {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--wt-success);
+  background: var(--wt-badge-success-bg);
+  border: 1px solid color-mix(in srgb, var(--wt-success) 30%, transparent);
+}
+
+.wt-challenge-result__delta--down {
+  color: var(--wt-text-secondary);
+  background: var(--wt-bg-secondary);
+  border-color: var(--wt-border);
+}
+
+/* 轨道：内凹槽 + 强调色填充，给出「离最佳还差多少」的直观量 */
+.wt-challenge-result__track {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  /* 25/50/75% 三道极淡刻度：空轨时也读得出「这是一条 0→最佳的量尺」 */
+  background-color: var(--wt-bg-secondary);
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(25% - 1px),
+    var(--wt-border-strong) calc(25% - 1px) 25%
+  );
+  box-shadow: var(--wt-tray-inset);
+  overflow: hidden;
+}
+
+.wt-challenge-result__track-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--wt-accent-medium), var(--wt-accent));
+  /* 从 0 长出来：让「这局打了多少」有动作而不是静态条 */
+  animation: wt-challenge-track-grow var(--wt-dur-pulse) var(--wt-ease-enter) 140ms both;
+  transform-origin: left center;
+}
+
+@keyframes wt-challenge-track-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.wt-challenge-result__track-origin {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: var(--wt-accent);
+  opacity: 0.55;
+}
+
+.wt-challenge-result__compare-hint {
+  min-height: 16px;
+  font-size: 12px;
+  color: var(--wt-text-secondary);
+}
+
+/* ── 指标：四枚键帽小卡 ── */
+
+.wt-challenge-result__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  animation: wt-challenge-rise var(--wt-dur-slow) var(--wt-ease-enter) 120ms both;
+}
+
+.wt-challenge-result__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 10px 13px 11px;
+  border-radius: 11px;
+  border: 1px solid var(--wt-border);
+  /* 键帽材质：上高光 + 下投影，和虚拟键盘同一套观感 */
+  background-image: var(--wt-key-face);
+  box-shadow: var(--wt-key-drop);
+}
+
+/* 每张卡顶部的强调细轨 */
+.wt-challenge-result__item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 13px;
+  right: 13px;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: var(--wt-accent-medium);
+}
+
+.wt-challenge-result__item-value {
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--wt-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.wt-challenge-result__item-suffix {
+  margin-left: 1px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-challenge-result__item-label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--wt-text-tertiary);
+}
+
+/* 准确率按档位着色（其余指标保持中性，不做红绿灯） */
+.wt-challenge-result__item--good::before { background: var(--wt-success); }
+.wt-challenge-result__item--good .wt-challenge-result__item-value { color: var(--wt-success); }
+.wt-challenge-result__item--mid::before { background: var(--wt-warning); }
+.wt-challenge-result__item--mid .wt-challenge-result__item-value { color: var(--wt-badge-warning-text); }
+.wt-challenge-result__item--low::before { background: var(--wt-error); }
+.wt-challenge-result__item--low .wt-challenge-result__item-value { color: var(--wt-badge-error-text); }
+
+/* ── 页脚：状态灯 + 操作 ── */
+
+.wt-challenge-result__foot {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 2px;
+  animation: wt-challenge-rise var(--wt-dur-slow) var(--wt-ease-enter) 180ms both;
+}
+
+.wt-challenge-result__sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--wt-text-secondary);
+}
+
+/* LED 指示灯：颜色 + 呼吸，两者都表达状态 */
+.wt-challenge-result__sync-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--wt-text-tertiary);
+}
+
+.wt-challenge-result__sync--pending .wt-challenge-result__sync-dot {
+  background: var(--wt-warning);
+  animation: wt-challenge-led var(--wt-dur-pulse) var(--wt-ease-loop) infinite;
+}
+
+.wt-challenge-result__sync--ok .wt-challenge-result__sync-dot {
+  background: var(--wt-success);
+}
+
+.wt-challenge-result__sync--failed .wt-challenge-result__sync-dot {
+  background: var(--wt-error);
+}
+
+@keyframes wt-challenge-led {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.wt-challenge-result__sync-dim {
+  color: var(--wt-text-tertiary);
+}
+
+.wt-challenge-result__sync--failed {
+  color: var(--wt-badge-warning-text);
+}
+
+.wt-challenge-result__sync-error {
+  color: var(--wt-badge-error-text);
+}
+
+.wt-challenge-result__actions {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+/* ── 响应式 ── */
+
+@media (max-width: 1024px) {
+  .wt-challenge__modes {
+    grid-template-columns: 1fr;
+  }
+
+  /* 结算：成绩托盘与对比轨改为上下堆叠，避免窄屏下数字被挤扁 */
+  .wt-challenge-result__body {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .wt-challenge-result__compare {
+    flex: 0 1 auto;
+    width: 100%;
+  }
+
+  .wt-challenge-result__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wt-challenge-result__foot {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .wt-challenge-result__actions {
+    margin-left: 0;
+  }
+
+  .wt-daily-card__body {
+    gap: 14px;
+  }
+
+  .wt-daily-card__stats {
+    margin-left: 0;
+  }
+
+  .wt-hud {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .wt-hud__progress {
+    margin-left: 0;
+  }
+
+  .wt-lb__col-num {
+    display: none;
+  }
+}
+
+/* ── 降低动效 ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .wt-challenge-result,
+  .wt-challenge-result__sheen,
+  .wt-challenge-result__head,
+  .wt-challenge-result__body,
+  .wt-challenge-result__grid,
+  .wt-challenge-result__foot,
+  .wt-challenge-result__record,
+  .wt-challenge-result__track-fill,
+  .wt-challenge-result__sync-dot,
+  .wt-hud--danger,
+  .wt-lb__skeleton-row,
+  .wt-daily-card--done::after,
+  .wt-daily-card__stamp {
+    animation: none;
+  }
+
+  .wt-challenge-card:hover:not(:disabled) {
+    transform: none;
   }
 }

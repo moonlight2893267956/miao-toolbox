@@ -14,6 +14,11 @@ import {
 } from '../../data/radicals';
 import type { CharMap, PhraseMap } from './code';
 import { tokenizeArticle, type ArticleToken } from './articleTokenizer';
+import {
+  segmentArticleTokens,
+  shouldSegment,
+  type ArticleSegment,
+} from './articleSegment';
 import { createRng, type Rng } from './rng';
 
 // ─── 类型定义 ────────────────────────────────────────────
@@ -59,6 +64,13 @@ export interface Question {
    * 为 0 时统计层会回退到「按题计」，见 `session.computeSessionResult`。
    */
   charCount?: number;
+  /**
+   * 文章模式的分段信息。
+   *
+   * 只有长文被切段时才有值；短文（整篇一题）不设此字段，
+   * 这样 UI 可以靠 `segment == null` 判断「不需要显示段号」。
+   */
+  segment?: { index: number; total: number };
 }
 
 export interface QuestionSource {
@@ -745,6 +757,24 @@ export interface ArticleConfig {
   text: string;
   /** 是否跳过无编码字符 */
   skipUncodable: boolean;
+  /**
+   * 单段可打字数上限。
+   *
+   * 缺省或 <= 0 → 整篇作为一道题（短文的既有行为，保持不变）。
+   * 超过上限 → 长文自动切段，每段成为一道短题：中断点落在段边界上，
+   * 续打时从下一段开始，而不必把整篇重来。
+   */
+  maxCharsPerSegment?: number;
+}
+
+/** 文章题源的内部状态 */
+interface ArticleSourceInternal {
+  /** 整篇 token（未分段时用） */
+  tokens: ArticleToken[];
+  /** 整篇可打序列（未分段时用） */
+  playableTokens: ArticleToken[];
+  /** 分段结果；null 表示未分段 */
+  segments: ArticleSegment[] | null;
 }
 
 export function createArticleSource(config: ArticleConfig, charMap: CharMap): QuestionSource {
@@ -755,22 +785,61 @@ export function createArticleSource(config: ArticleConfig, charMap: CharMap): Qu
     ? tokens.filter((t) => t.isCodable)
     : tokens;
 
+  /*
+   * 分段判定只看**可打字数**：标点与空白不计入段长，
+   * 否则一段 120 字的短文会因为标点多而被切成好几段。
+   *
+   * 分段在构造期一次算好 —— `next()` 必须同步（见 QuestionSource 注释），
+   * 不能在里面现算。
+   */
+  const codableCount = tokens.reduce((n, t) => n + (t.isCodable ? 1 : 0), 0);
+  const segments: ArticleSegment[] | null = shouldSegment(codableCount, config.maxCharsPerSegment)
+    ? segmentArticleTokens(tokens, config.maxCharsPerSegment ?? 0)
+    : null;
+
+  /*
+   * 未分段时 total 恒为 1（整篇 = 一道题）—— 这是 `article-flow.test.ts`
+   * 的既有断言，短文必须保持这个语义。
+   * 分段时 total = 段数，续打机制（resumeSession 按 completed 快进题源）
+   * 天然成立：completed 就是「已完成段数」。
+   */
+  const total = segments ? segments.length : 1;
+
+  /** 按题号取出当前段的 token / 可打序列 / 段信息 */
+  const resolve = (
+    state: QuestionState,
+  ): { tokens: ArticleToken[]; playableTokens: ArticleToken[]; segment?: ArticleSegment } => {
+    const internal = state.internal as ArticleSourceInternal;
+    if (!segments) {
+      return { tokens: internal.tokens, playableTokens: internal.playableTokens };
+    }
+    /*
+     * index 越界时夹到末段：正常路径不会越界（session 保证 index < total），
+     * 但夹住比抛错更稳 —— 越界只可能来自脏快照，不该让整个练习崩掉。
+     */
+    const seg = segments[Math.min(state.index, segments.length - 1)];
+    return {
+      tokens: seg.tokens,
+      playableTokens: config.skipUncodable ? seg.tokens.filter((t) => t.isCodable) : seg.tokens,
+      segment: seg,
+    };
+  };
+
   return {
     id: 'article',
     mode: 'article',
     finite: true,
-    // 整篇文章 = 一道题，故 total 恒为 1（不是字数！）
-    init: () => ({ index: 0, total: 1, internal: { tokens, playableTokens, cursor: 0 } }),
+    init: () => ({ index: 0, total, internal: { tokens, playableTokens, segments } }),
     next: (state) => {
-      const internal = state.internal as { tokens: ArticleToken[]; playableTokens: ArticleToken[] };
+      const { tokens: segTokens, playableTokens: segPlayable, segment } = resolve(state);
 
-      if (internal.playableTokens.length === 0) {
+      if (segPlayable.length === 0) {
         throw new Error('Empty article');
       }
 
-      // 文章模式：整篇作为一道大题，answerKeys 为全部可打字符的编码序列
+      // 一道题 = 一段（未分段时就是整篇）：answerKeys 为该段可打字符的编码序列
       const allKeys: string[] = [];
-      for (const token of internal.playableTokens) {
+      for (const token of segPlayable) {
         const entry = charMap.get(token.char);
         if (entry) {
           allKeys.push(...entry.code.split(''));
@@ -782,10 +851,13 @@ export function createArticleSource(config: ArticleConfig, charMap: CharMap): Qu
         mode: 'article',
         prompt: config.text.slice(0, 50) + (config.text.length > 50 ? '…' : ''),
         answerKeys: allKeys,
-        // 整篇作为一道大题，字数是可打字数（此前被当成 1 个字）
-        charCount: internal.playableTokens.length,
-        tokens: internal.tokens,
-        hint: `共 ${internal.playableTokens.length} 字`,
+        // 一道题的字数 = 该段可打字数（此前整篇被当成 1 个字）
+        charCount: segPlayable.length,
+        tokens: segTokens,
+        hint: segment
+          ? `第 ${segment.index + 1} / ${total} 段 · 本段 ${segPlayable.length} 字`
+          : `共 ${segPlayable.length} 字`,
+        ...(segment ? { segment: { index: segment.index, total } } : {}),
       };
     },
   };

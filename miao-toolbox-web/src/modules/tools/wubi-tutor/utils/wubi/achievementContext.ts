@@ -9,7 +9,9 @@
  */
 
 import { computeStreak, computeTotals, todayKey } from './statsAggregation';
+import { challengeStreak } from './dailyChallenge';
 import type { AchievementContext } from './achievements';
+import type { ChallengeMode } from './challenge';
 import type { ProgressData, DailyStat, ReviewItem } from './storage';
 import type { ModeRecords, ModeRecord } from './sessionStats';
 
@@ -56,6 +58,26 @@ export function countReviewItems(review: ReviewItem[]): number {
   return review.filter((r) => r && r.char).length;
 }
 
+// ─── 挑战派生 ────────────────────────────────────────────
+
+/** 指定模式的挑战最佳分数（没有记录时为 0） */
+export function bestChallengeScore(progress: ProgressData, mode: ChallengeMode): number {
+  return progress?.challenges?.bests?.[mode]?.score ?? 0;
+}
+
+/**
+ * 是否完成过任意一次挑战。
+ *
+ * 判据取「有任意模式最佳」或「有任意打卡日期」的并集：
+ * 只有旧数据（挑战字段整体缺失）时才为 false。
+ */
+export function hasPlayedChallenge(progress: ProgressData): boolean {
+  const challenges = progress?.challenges;
+  if (!challenges) return false;
+  return Object.keys(challenges.bests ?? {}).length > 0
+    || (challenges.dailyCompletedDates?.length ?? 0) > 0;
+}
+
 // ─── 主函数 ──────────────────────────────────────────────
 
 export interface BuildContextInput {
@@ -87,6 +109,10 @@ export function buildAchievementContext(input: BuildContextInput): AchievementCo
     bestSpeed: Math.max(totals.bestDaySpeed, bestSpeedAcrossModes(records)),
     bestAccuracy: Math.max(totals.bestDayAccuracy, bestAccuracyAcrossModes(records)),
     maxCombo: bestComboAcrossModes(records),
+    challengePlayed: hasPlayedChallenge(progress),
+    bestSprintScore: bestChallengeScore(progress, 'sprint'),
+    // 打卡连续天数用挑战自己的日期序列，与「练习连续天数」互不影响
+    challengeStreak: challengeStreak(progress?.challenges?.dailyCompletedDates ?? [], today),
   };
 }
 

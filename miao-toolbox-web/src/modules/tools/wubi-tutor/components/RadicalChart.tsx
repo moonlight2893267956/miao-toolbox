@@ -233,7 +233,7 @@ const RadicalChart: React.FC<RadicalChartProps> = ({ onRadicalClick, onCharClick
                     </span>
                     {/*
                       !! 不要对字根做 slice / ellipsis !!
-                      每键最多 7 个字根（F/D/Q/N），格子放不下时应当**换行**而不是
+                      每键最多 9 个字根（Q/N），格子放不下时应当**换行**而不是
                       截断。此前 `slice(0, 6)` + `nowrap + ellipsis` 双截断，
                       F 键的「雨」、Q 键的第 7 个字根根本显示不出来，
                       用户看到的就是「这个图看不到全部字根」。
@@ -322,7 +322,7 @@ const RadicalChart: React.FC<RadicalChartProps> = ({ onRadicalClick, onCharClick
           </table>
           <p className="wt-radical-chart__table-note">
             共 {WUBI_KEYS.reduce((sum, m) => sum + m.radicals.length, 0)} 个字根，
-            分布在 25 个键上（每键 2~7 个）。
+            分布在 25 个键上（每键 2~10 个）。
           </p>
         </div>
       )}
