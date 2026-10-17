@@ -894,6 +894,9 @@
   align-items: center;
   box-sizing: border-box;
   width: 100%;
+  /* 固定行高：虚拟滚动按固定行高估算 + 测量，行高必须恒定，
+     否则任何一次测量偏差都会让后续行被推偏（表现为行错位/重叠） */
+  height: 28px;
   min-height: 28px;
   padding-top: 2px;
   padding-bottom: 2px;
@@ -904,7 +907,10 @@
   user-select: none;
   position: relative;
   overflow: hidden;
-  backface-visibility: hidden;
+  /* 注意：不要在这里加 backface-visibility / will-change 之类的合成层触发声明。
+     行本身就靠 transform: translateY() 定位，再强制提升为独立合成层后，
+     滚动时会偶发「行仍绘制在旧位置」的错位假象（表现为两行文字/徽标叠在一起，
+     刷新后恢复）。行内容始终是普通流内容，不需要独立图层。 */
 }
 
 .jw-node-row--with-type-badge {
@@ -994,8 +1000,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transform: translateZ(0);
-  backface-visibility: hidden;
 }
 
 /* Key 可编辑态（双击编辑键名） */
@@ -1120,8 +1124,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: bottom;
-  transform: translateZ(0);
-  backface-visibility: hidden;
 }
 
 .jw-node__value--string {
@@ -1216,6 +1218,9 @@
 .jw-ellipsis-expand-btn {
   margin-left: 8px;
   padding: 1px 8px;
+  /* 显式压小行高：否则按钮继承 .jw-tree-rows 的 24px 行高，
+     会把「…N more items」这一行撑到 32px，破坏行高恒定的前提 */
+  line-height: 18px;
   border: 1px solid var(--miao-border);
   border-radius: 999px;
   background: var(--miao-bg-elevated);

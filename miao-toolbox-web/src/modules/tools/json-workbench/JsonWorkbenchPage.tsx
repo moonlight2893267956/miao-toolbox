@@ -25,6 +25,7 @@ import { getAllDescendantIds, renameKeyAtPath, setValueAtPath } from './utils/pa
 import { jsonRepair } from './utils/jsonRepair';
 import { getAncestorPaths } from './utils/breadcrumb';
 import { computeSearchResults } from './utils/search';
+import { locateJsonPath } from './utils/jsonPathLocator';
 import { validateBySchema } from './utils/schemaValidate';
 import { compressAndEscapeJson, inspectEscapedJsonString, unescapeJsonString } from './utils/jsonEscape';
 import { inferSchemaFromValue, SAMPLE_SCHEMA } from './utils/inferSchema';
@@ -629,25 +630,19 @@ export default function JsonWorkbenchPage() {
     dispatch({ type: 'JSON_WB_TOGGLE_NODE', payload: nodeId });
   }, []);
 
+  // 原始文本局部变量：供 handleSelect 定位用（避免把整个 state 放进依赖）
+  const rawJson = state.rawJson;
+
   const handleSelect = useCallback((nodeId: string) => {
     dispatch({ type: 'JSON_WB_SELECT_NODE', payload: nodeId });
 
-    // AC-4: 点击树节点时，计算该节点在 JSON 文本中的行号
-    // 通过 nodeId（JSONPath）找到对应行号
-    if (state.rawJson && nodeId) {
-      // 简单策略：在 rawJson 中搜索 key 来定位行号
-      // 后续 Story 可以用更精确的行映射
-      const node = state.flatNodeList.find((n) => n.id === nodeId);
-      if (node) {
-        const keyPattern = node.parentId === null ? '' : `"${node.key}"`;
-        const idx = state.rawJson.indexOf(keyPattern);
-        if (idx >= 0) {
-          const lineNum = state.rawJson.substring(0, idx).split('\n').length;
-          setScrollTarget(lineNum);
-        }
-      }
-    }
-  }, [state.flatNodeList, state.rawJson]);
+    // AC-4: 点击树节点时，把左侧原文编辑器定位到该节点所在行。
+    // 必须按 JSONPath 逐段下降到原文定位：数组元素共用同一批 key，
+    // 用 indexOf(`"key"`) 取第一次出现会让第 2 个元素跳到第 1 个元素上。
+    if (!rawJson || !nodeId) return;
+    const located = locateJsonPath(rawJson, nodeId);
+    if (located) setScrollTarget(located.line);
+  }, [rawJson]);
 
   // ─── 搜索逻辑 ─────────────────────────────────────────
 

@@ -10,6 +10,7 @@ import {
 import { Dropdown, Input, message, Tooltip } from 'antd';
 import type { JsonNode, ParseError, SchemaError } from '../types';
 import { getVisibleNodes } from '../utils/parseAndFlatten';
+import { JW_ROW_HEIGHT, normalizeRowHeight } from '../utils/virtualRowMetrics';
 
 // ─── 错误信息分类 ──────────────────────────────────────
 
@@ -101,6 +102,16 @@ const TYPE_BADGE: Record<string, { label: string; className: string }> = {
   boolean: { label: 'bool', className: 'jw-badge jw-badge--boolean' },
   null:    { label: 'null', className: 'jw-badge jw-badge--null' },
 };
+
+// ─── 虚拟滚动行高约定 ──────────────────────────────────
+
+/**
+ * 行高与测量兜底规则集中在 utils/virtualRowMetrics（纯函数，有单测锁死）：
+ * - JW_ROW_HEIGHT 必须与 CSS `.jw-node-row` 的真实高度严格相等，否则任何
+ *   「尚未测量」的行都会把后续行整体推偏；
+ * - normalizeRowHeight 把隐藏 / 未布局时量到的 0、NaN、过小值回落到行高，
+ *   避免 0 高写进虚拟化尺寸缓存后与下一行完全重叠（用户看到的「展示错乱」）。
+ */
 
 // ─── 值展示 ────────────────────────────────────────────
 
@@ -589,12 +600,37 @@ export default function JsonTreeView({
   // 展开/折叠前捕获 scrollTop，用于操作后恢复视口位置
   const savedScrollTopRef = useRef<number | null>(null);
 
+  /**
+   * 尺寸缓存必须按「节点路径」键控，而不是默认的数组下标。
+   *
+   * 展开/折叠会让可见行在列表里的下标整体漂移（一次展开可能插入几十行），
+   * 而 React 行以 node.id 为 key，行 DOM 会被复用而不会重新触发 ref 测量；
+   * 按下标键控时，旧行的测量结果会落到新行身上，甚至出现 0 高行 —— 表现为
+   * 「父行与子行完全重叠、类型徽标叠在一起」的展示错乱。
+   * 用 useRef 传递最新列表，保证 getItemKey 引用稳定（避免每次渲染都让
+   * 测量缓存失效重算）。
+   */
+  const visibleNodesRef = useRef(visibleNodes);
+  visibleNodesRef.current = visibleNodes;
+  const getItemKey = useCallback(
+    (index: number) => visibleNodesRef.current[index]?.id ?? `__index_${index}`,
+    [],
+  );
+
   const virtualizer = useVirtualizer({
     count: visibleNodes.length,
     getScrollElement: () => scrollRef.current,
-    // 行高估算：CSS .jw-node-row min-height:28px + 视觉留白 ≈ 30px
-    // 配合 measureElement 动态测量实际高度
-    estimateSize: () => 30,
+    // 按节点路径键控测量缓存，让尺寸跟着「行」而不是跟着「下标」走
+    getItemKey,
+    // 估算值与 CSS 真实行高一致：未测量的行也不会把后面的行推偏
+    estimateSize: () => JW_ROW_HEIGHT,
+    // 兜底测量：0 / NaN / 过小（隐藏或未布局时）一律回落到行高，杜绝 0 高行重叠。
+    // 用 offsetHeight（整数 border-box）而不是 getBoundingClientRect().height：
+    // 后者会带上祖先 transform / 页面 zoom 的缩放，一旦被缩放缩放值就会污染尺寸缓存；
+    // 同时忽略 ResizeObserver 的 entry 快照，永远读「当前」尺寸，避免陈旧值串号。
+    measureElement: (element) => normalizeRowHeight(
+      element instanceof HTMLElement ? element.offsetHeight : element.getBoundingClientRect().height,
+    ),
     overscan: 10,
   });
 

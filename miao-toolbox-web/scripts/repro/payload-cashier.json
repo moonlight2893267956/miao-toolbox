@@ -1,0 +1,677 @@
+{
+  "errno": 0,
+  "errmsg": "OK",
+  "data": {
+    "content": {
+      "user": {
+        "passwdfree": {
+          "status": 0,
+          "limit_amount": 0
+        },
+        "fingerprint": {
+          "status": 0,
+          "type": 1
+        },
+        "ultrafast": {
+          "status": 0
+        }
+      },
+      "pay": {
+        "easypay": {
+          "status": "1",
+          "bind_card_arr": {}
+        }
+      },
+      "market_info": {
+        "recommend_words": "",
+        "activities": {
+          "bind_list": {
+            "other_debit": {
+              "bank_code": "other_debit",
+              "card_type": "2",
+              "activity_id": "1809",
+              "seller_code": "otherdebitbind",
+              "status": "1",
+              "market_type": "2",
+              "discount_amount_min": "1",
+              "discount_amount_max": "500",
+              "market_words": "最高减5元"
+            },
+            "other_credit": {
+              "bank_code": "other_credit",
+              "card_type": "1",
+              "activity_id": "1808",
+              "seller_code": "othercreditbind",
+              "status": "1",
+              "market_type": "2",
+              "discount_amount_min": "1",
+              "discount_amount_max": "500",
+              "market_words": "最高减5元"
+            }
+          },
+          "unbind_list": {
+            "other_debit": {
+              "bank_code": "other_debit",
+              "card_type": "2",
+              "activity_id": "1820",
+              "seller_code": "otherdebitunbind",
+              "status": "1",
+              "market_type": "2",
+              "discount_amount_min": "1",
+              "discount_amount_max": "689",
+              "market_words": "最高减6.89元"
+            },
+            "other_credit": {
+              "bank_code": "other_credit",
+              "card_type": "1",
+              "activity_id": "1819",
+              "seller_code": "othercreditunbind",
+              "status": "1",
+              "market_type": "2",
+              "discount_amount_min": "1",
+              "discount_amount_max": "689",
+              "market_words": "最高减6.89元"
+            }
+          }
+        }
+      },
+      "one_key_bind_card_bank_list": [
+        {
+          "bank_uniq_code": "301",
+          "bank_name": "中国建设银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_3002.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4003.png",
+          "background_color": "blue",
+          "card_type": [
+            {
+              "type": 1,
+              "bank_code": "3002"
+            },
+            {
+              "type": 2,
+              "bank_code": "4003"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "401",
+          "bank_name": "中国农业银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4001.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_40010.png",
+          "background_color": "green",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4001"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "101",
+          "bank_name": "中国工商银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_3001.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4002.png",
+          "background_color": "red",
+          "card_type": [
+            {
+              "type": 1,
+              "bank_code": "3001"
+            },
+            {
+              "type": 2,
+              "bank_code": "4002"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "1201",
+          "bank_name": "中国银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4009.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4009.png",
+          "background_color": "red",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4009"
+            },
+            {
+              "type": 1,
+              "bank_code": "3004"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "201",
+          "bank_name": "招商银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4004.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4004.png",
+          "background_color": "red",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4004"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "2501",
+          "bank_name": "中国邮政储蓄银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4005.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_3005.png",
+          "background_color": "green",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4005"
+            },
+            {
+              "type": 1,
+              "bank_code": "3005"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "1101",
+          "bank_name": "交通银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4013.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4013.png",
+          "background_color": "blue",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4013"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "5101",
+          "bank_name": "平安银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4008.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_3019.png",
+          "background_color": "yellow",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4008"
+            },
+            {
+              "type": 1,
+              "bank_code": "3019"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "501",
+          "bank_name": "中信银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4014.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_3007.png",
+          "background_color": "red",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4014"
+            },
+            {
+              "type": 1,
+              "bank_code": "3007"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "1701",
+          "bank_name": "兴业银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4007.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_3015.png",
+          "background_color": "blue",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4007"
+            },
+            {
+              "type": 1,
+              "bank_code": "3015"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "601",
+          "bank_name": "浦发银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4018.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_3017.png",
+          "background_color": "blue",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4018"
+            },
+            {
+              "type": 1,
+              "bank_code": "3017"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "1301",
+          "bank_name": "民生银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4006.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_3010.png",
+          "background_color": "blue",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4006"
+            },
+            {
+              "type": 1,
+              "bank_code": "3010"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "701",
+          "bank_name": "中国光大银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_3008.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_3008.png",
+          "background_color": "yellow",
+          "card_type": [
+            {
+              "type": 1,
+              "bank_code": "3008"
+            },
+            {
+              "type": 2,
+              "bank_code": "4015"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "8360",
+          "bank_name": "广发银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4017.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_3018.png",
+          "background_color": "red",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4017"
+            },
+            {
+              "type": 1,
+              "bank_code": "3018"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "1601",
+          "bank_name": "华夏银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4016.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4016.png",
+          "background_color": "red",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4016"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "2101",
+          "bank_name": "北京银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4045.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_3013.png",
+          "background_color": "red",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4045"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "6501",
+          "bank_name": "江苏银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4130.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4130.png",
+          "background_color": "blue",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4130"
+            },
+            {
+              "type": 1,
+              "bank_code": "3040"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "8110",
+          "bank_name": "安徽农信",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4463.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4463.png",
+          "background_color": "red",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4463"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "8221",
+          "bank_name": "四川农信",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4238.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4238.png",
+          "background_color": "green",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4238"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "2301",
+          "bank_name": "上海银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4043.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_3012.png",
+          "background_color": "blue",
+          "card_type": [
+            {
+              "type": 1,
+              "bank_code": "3012"
+            },
+            {
+              "type": 2,
+              "bank_code": "4043"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "8064",
+          "bank_name": "广东农信",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_3260.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_3260.png",
+          "background_color": "yellow",
+          "card_type": [
+            {
+              "type": 1,
+              "bank_code": "3260"
+            },
+            {
+              "type": 2,
+              "bank_code": "4236"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "8349",
+          "bank_name": "河北农信",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4227.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4227.png",
+          "background_color": "green",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4227"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "5409",
+          "bank_name": "重庆农商银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4203.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4203.png",
+          "background_color": "red",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4203"
+            },
+            {
+              "type": 1,
+              "bank_code": "3128"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "6003",
+          "bank_name": "徽商银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4077.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_3035.png",
+          "background_color": "red",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4077"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "2601",
+          "bank_name": "杭州银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_3165.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_3165.png",
+          "background_color": "blue",
+          "card_type": [
+            {
+              "type": 1,
+              "bank_code": "3165"
+            },
+            {
+              "type": 2,
+              "bank_code": "4061"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "3701",
+          "bank_name": "南京银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4062.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4062.png",
+          "background_color": "red",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4062"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "6207",
+          "bank_name": "青岛银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_3171.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_3171.png",
+          "background_color": "red",
+          "card_type": [
+            {
+              "type": 1,
+              "bank_code": "3171"
+            },
+            {
+              "type": 2,
+              "bank_code": "4087"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "2201",
+          "bank_name": "北京农商银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4209.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4209.png",
+          "background_color": "red",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4209"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "7103",
+          "bank_name": "桂林银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4460.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4460.png",
+          "background_color": "blue",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4460"
+            },
+            {
+              "type": 1,
+              "bank_code": "3180"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "3301",
+          "bank_name": "浙商银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_3240.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_3240.png",
+          "background_color": "red",
+          "card_type": [
+            {
+              "type": 1,
+              "bank_code": "3240"
+            },
+            {
+              "type": 2,
+              "bank_code": "4026"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "6209",
+          "bank_name": "西安银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_3238.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_3238.png",
+          "background_color": "blue",
+          "card_type": [
+            {
+              "type": 1,
+              "bank_code": "3238"
+            },
+            {
+              "type": 2,
+              "bank_code": "4081"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "7201",
+          "bank_name": "渤海银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_3251.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_3251.png",
+          "background_color": "blue",
+          "card_type": [
+            {
+              "type": 1,
+              "bank_code": "3251"
+            },
+            {
+              "type": 2,
+              "bank_code": "4027"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "9634",
+          "bank_name": "山西银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4698.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4698.png",
+          "background_color": "gray",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4698"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "5207",
+          "bank_name": "韩亚银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4036.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4036.png",
+          "background_color": "gray",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4036"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "3015",
+          "bank_name": "富民银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4690.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4690.png",
+          "background_color": "blue",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4690"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "3005",
+          "bank_name": "网商银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4719.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4719.png",
+          "background_color": "gray",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4719"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "502",
+          "bank_name": "百信银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4686.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4686.png",
+          "background_color": "blue",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4686"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "8379",
+          "bank_name": "苏州农商银行",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4216.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4216.png",
+          "background_color": "gray",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4216"
+            },
+            {
+              "type": 1,
+              "bank_code": "3060"
+            }
+          ]
+        },
+        {
+          "bank_uniq_code": "8353",
+          "bank_name": "黑龙江农信",
+          "bank_icon_url": "https://www.dxmpay.com/css/android/images/ic_4243.png",
+          "background_url": "https://pay2.dxmstatic.com/cdn-www.dxmpay.com/css/android/images/bg_4243.png",
+          "background_color": "green",
+          "card_type": [
+            {
+              "type": 2,
+              "bank_code": "4243"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
