@@ -27,6 +27,8 @@ import type {
   TurnVerification,
   WubiExplainParams,
 } from './aiExplain';
+import type { ExecTrace } from './execStream';
+import { EMPTY_EXEC_TRACE } from './execStream';
 import type { WubiPhraseExplainParams } from './phraseExplain';
 
 /** 首轮参数：单字拆字（explain-split）或词组取码（explain-phrase） */
@@ -128,6 +130,14 @@ export interface ExplainThread {
   asked: string[];
   /** 首轮累计尝试次数（重试不叠提示，但要让用户看到「已经试过几次」） */
   anchorAttempts: number;
+  /**
+   * 本轮（首轮或最近一次追问）的执行过程：工具调用 + 说明。
+   *
+   * 只保留**当前这一轮**的过程：它是「我正在等什么」的实时说明，
+   * 不是历史记录 —— 上一轮的过程留着会让用户以为还在跑。
+   * 每轮开始时清空（见 `ANCHOR_START` / `ASK`）。
+   */
+  exec: ExecTrace;
 }
 
 export interface ExplainChatState {
@@ -166,6 +176,13 @@ export type ExplainChatAction =
   | { type: 'CONVERSATION_EXPIRED'; char: string; text?: string }
   /** 系统提示轮（不占用轮次） */
   | { type: 'NOTICE'; char: string; text: string }
+  /**
+   * 收到一条执行过程事件（工具调用/说明）。
+   *
+   * 由流式读取循环高频派发，因此 reducer 必须**就地折叠**：
+   * 同一个 `call_id` 更新同一行，不能每来一条就 append（否则一次调用会变成两行）。
+   */
+  | { type: 'EXEC'; char: string; trace: ExecTrace }
   /** 用户取消等待：结束 loading/asking 态并留一条提示 */
   | { type: 'CANCEL'; char: string; text?: string }
   /** 重开：清空当前字的线程并回到首轮加载态 */
@@ -201,6 +218,8 @@ export function explainChatReducer(
         ...t,
         status: 'loading',
         error: null,
+        // 新一轮开始：上一轮的过程轨必须清掉，否则会显示上一轮的工具调用
+        exec: EMPTY_EXEC_TRACE,
         // 重试开始：上一次的失败提示先收掉，避免与骨架并列造成「还在失败」的错觉
         turns: withoutNotices(t.turns, 'anchor-fail'),
       }));
@@ -258,6 +277,8 @@ export function explainChatReducer(
       return patch(state, action.char, (t) => ({
         ...t,
         status: 'asking',
+        // 新一轮追问开始：上一轮的过程轨清掉，否则会显示上一轮的工具调用
+        exec: EMPTY_EXEC_TRACE,
         asked: t.asked.includes(action.question) ? t.asked : [...t.asked, action.question],
         turns: [
           ...t.turns,
@@ -341,6 +362,15 @@ export function explainChatReducer(
         ],
       }));
 
+    case 'EXEC':
+      /*
+       * 过程轨折叠：直接替换为流式循环算好的 trace。
+       *
+       * 折叠逻辑（按 call_id 找行、就地更新）放在纯函数 `foldExec` 里，
+       * 这里只负责「写进当前线程」—— reducer 保持简单，边界情形都能单测。
+       */
+      return patch(state, action.char, (t) => ({ ...t, exec: action.trace }));
+
     case 'NOTICE':
       return patch(state, action.char, (t) => ({
         ...t,
@@ -388,6 +418,7 @@ export function explainChatReducer(
         positions: [],
         historyTruncated: false,
         anchorAttempts: 0,
+        exec: EMPTY_EXEC_TRACE,
         turns: [],
         // 历史已清空：快捷追问的去重依据也必须清，否则同一问题再也推荐不出来
         asked: [],
@@ -419,6 +450,7 @@ function createThread(char: string, code: string, params: ExplainParams): Explai
     turns: [],
     asked: [],
     anchorAttempts: 0,
+    exec: EMPTY_EXEC_TRACE,
   };
 }
 

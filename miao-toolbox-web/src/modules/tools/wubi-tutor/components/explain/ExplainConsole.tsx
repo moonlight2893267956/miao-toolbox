@@ -25,6 +25,7 @@ import { latestAssistantTurnId } from '../../utils/wubi/explainChat';
 import { buildQuickAsks } from '../../utils/wubi/explainQuestions';
 import { phraseOriginLabel } from '../../utils/wubi/phraseExplain';
 import ChatTurn from './ChatTurn';
+import ExecTraceView from './ExecTrace';
 import ChatComposer from './ChatComposer';
 
 interface ExplainConsoleProps {
@@ -59,6 +60,7 @@ const ExplainConsole: React.FC<ExplainConsoleProps> = ({
     busy,
     hasAnswer,
     turnCount,
+    exec,
     followupEnabled,
   } = chat;
 
@@ -241,7 +243,26 @@ const ExplainConsole: React.FC<ExplainConsoleProps> = ({
           />
         ))}
 
-        {showSkeleton && (
+        {/*
+          等待期的两种形态：
+          · 已收到执行事件 → 过程轨（用户能看到「在调什么、多久」）；
+          · 还没收到（老版本 agent / 事件还没到）→ 骨架 + 分阶段文案兜底。
+          过程轨是**增强**：没有它时体验与之前完全一致，不能因为缺事件就空等。
+        */}
+        {/*
+          等待中 + 失败态都展示：失败时过程轨是**唯一的诊断线索**
+          （用户能看到「卡在联网检索」还是「模型第二次尝试被拒」）。
+          只在「已成功收场」时收回 —— 那时结论已经完整，过程不再需要。
+        */}
+        {!hasAnswer && exec.entries.length + exec.notes.length > 0 && (
+          <ExecTraceView trace={exec} busy={busy} reduceMotion={reduceMotion} />
+        )}
+
+        {/*
+          有过程轨时不再画骨架：两条「正在加载」并列是冗余，而且过程轨的信息
+          严格更强（哪一步、多久）。骨架只在**还没收到任何事件**时兜底。
+        */}
+        {showSkeleton && exec.entries.length === 0 && exec.notes.length === 0 && (
           <div className="wt-chat__turn wt-chat__turn--answer">
             <div className="wt-chat__skeleton" aria-hidden="true">
               <span />

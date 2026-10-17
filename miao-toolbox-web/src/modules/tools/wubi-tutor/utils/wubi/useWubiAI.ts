@@ -1,17 +1,23 @@
 /**
  * 查码讲解台 —— 多轮会话 Hook。
  *
- * 调用后端 `/api/wubi/ai/explain`（首轮）与 `/api/wubi/ai/followup`（追问），
- * 二者都是**同步**接口：后端经 `MiaoAiClient` 转发到 miao-ai 的 `wubi-explainer`，
- * 并在平台侧维护会话（`conversationId` 由后端创建并随响应回来）。密钥不出后端：
+ * 调用后端的**流式**端点（`/api/wubi/ai/explain/stream`、`/followup/stream`），
+ * 失败时**自动回退**到同步端点（`/explain`、`/followup`）。后端经 `MiaoAiClient`
+ * 转发到 miao-ai 的 `wubi-explainer`，并在平台侧维护会话。密钥不出后端：
  * 浏览器只跟自家 `/api` 说话。
  *
- * ── 为什么不用 SSE 流式 ──
+ * ── 流什么、不流什么（这是本文件最重要的约定）──
  *
- * agent 的流式只是把**已经算好的**正文按块吐出来（见 agent.py 的 `_stream_result`），
- * 真实等待发生在决策与校验那一步 —— 流式不能把它变快，只是让等待看起来有事发生。
- * 而拆字讲解要给出**结构化断言**交给前端逐条核对，先看到半截 JSON 反而更糟。
- * 所以本次采用「同步 + 骨架 + 分阶段提示 + 可取消」，流式留作后续增强。
+ * 流式消费 `event: exec`（工具调用过程）→ 过程轨可见；
+ * **`event: token` 一律丢弃**，正文仍等 `done.output` 走现有候选集核对后一次性展示。
+ * 也就是「过程可见」与「结论不抢先露出」两件事同时成立 ——
+ * 早期「不做流式」的理由（先看到半截未校验 JSON 更糟）对正文依然成立，因此没有推翻它。
+ *
+ * ── 为什么保留同步路径 ──
+ *
+ * 流式是**可选增强**：握手失败、读流中断、上游报错任何一步都可能让流不可用。
+ * 回退一次同步请求，用户仍能拿到讲解（AI 是可选增强，这条纪律不能破）。
+ * 但**确定性失败**（配额用尽 / 会话无权 / agent 未启用）不回退 —— 再打一次只是白等。
  *
  * ── 三层纪律 ──
  *
@@ -30,6 +36,8 @@ import {
   parseFollowupTurn,
   parseWubiExplainResult,
 } from './aiExplain';
+import { StreamFailure, consumeExplainStream } from './explainStream';
+import { EMPTY_EXEC_TRACE, type ExecTrace } from './execStream';
 import {
   isPhraseExplanationDisplayable,
   parseWubiPhraseExplainJson,
@@ -105,6 +113,8 @@ export interface UseWubiExplainChatResult {
   hasAnswer: boolean;
   /** 已完成轮次数 */
   turnCount: number;
+  /** 当前这一轮的执行过程（工具调用 + 说明）；空轨表示暂无过程信息 */
+  exec: ExecTrace;
   /** 多轮追问是否可用（后端回了会话 ID 才可用） */
   followupEnabled: boolean;
 }
@@ -168,6 +178,64 @@ export function useWubiExplainChat(): UseWubiExplainChatResult {
   );
 
   /**
+   * 走一次流式请求；失败且**值得回退**时返回 null，让调用方转同步路径。
+   *
+   * 设计要点：
+   * - 过程事件随到随派发（`EXEC`），这是「等待期可见」的唯一来源；
+   * - `token` 由 `consumeExplainStream` 内部丢弃，这里拿不到半截正文；
+   * - 流建立前的 4xx/5xx 与流中的 `error` 都归一成 `StreamFailure`，
+   *   只有 `retriable` 才回退 —— 配额/权限类失败再打一次同步只是白等 200s。
+   *
+   * @returns `done.output`；需要回退时返回 null
+   * @throws 不可回退的 StreamFailure（交给调用方按业务错误处理）
+   */
+  const streamOnce = useCallback(
+    async (
+      url: string,
+      body: Record<string, unknown>,
+      char: string,
+      signal: AbortSignal,
+    ): Promise<{ output: Record<string, unknown> | null; conversationId: string | null; turn: number | null; historyTruncated: boolean } | null> => {
+      try {
+        let output: Record<string, unknown> | null = null;
+        /*
+         * 会话信息来自 `conversation` 事件（流的第一条），**必须接住**：
+         * 同步路径是从响应体里读 `conversationId`/`turn`，流式路径没有响应体，
+         * 漏了这个回调等于「首轮讲解成功但追问永远不可用」——
+         * 界面上表现为「当前会话未启用多轮追问」，而实际会话已创建。
+         */
+        let conversationId: string | null = null;
+        let turn: number | null = null;
+        let historyTruncated = false;
+        await consumeExplainStream(
+          url,
+          body,
+          {
+            onExec: (trace: ExecTrace) => dispatch({ type: 'EXEC', char, trace }),
+            onConversation: (payload) => {
+              conversationId = payload.conversationId ?? conversationId;
+              turn = payload.turn ?? turn;
+              historyTruncated = payload.historyTruncated;
+            },
+            onDone: ({ output: payload }) => {
+              output = payload;
+            },
+          },
+          signal,
+        );
+        return { output, conversationId, turn, historyTruncated };
+      } catch (err) {
+        if (err instanceof StreamFailure) {
+          if (err.retriable) return null; // 交给调用方回退同步
+          throw err;
+        }
+        throw err; // 主动中止等：原样上抛，由调用方的 catch 处理
+      }
+    },
+    [],
+  );
+
+  /**
    * 首轮讲解：拿候选集打包好的上下文去问 agent。
    *
    * @returns 本轮生效的会话 ID（拿不到就是 null）。**必须回传它**：
@@ -184,13 +252,30 @@ export function useWubiExplainChat(): UseWubiExplainChatResult {
       dispatch({ type: 'ANCHOR_START', char });
 
       try {
-        const res = await post('/api/wubi/ai/explain', {
-          ...params,
-          ...(conversationId ? { conversationId } : {}),
-        }, signal);
+        const body = { ...params, ...(conversationId ? { conversationId } : {}) };
+
+        /*
+         * 先试流式：过程轨（联网检索/模型判断）能实时看到。
+         * 返回 null 表示「这次流不可用，值得回退同步」；不可回退的失败会抛出来。
+         */
+        const streamed = await streamOnce(
+          '/api/wubi/ai/explain/stream',
+          body,
+          char,
+          signal,
+        );
         if (token !== tokenRef.current) return null;
 
-        const data = unwrapApiData(res.data);
+        /*
+         * 流式成功：`output` 是 done 里的结构化结果，会话信息来自 conversation 事件。
+         * 流式失败回退：走同步端点，会话信息从响应体里读（与改造前一致）。
+         */
+        const fallbackData = streamed
+          ? null
+          : unwrapApiData((await post('/api/wubi/ai/explain', body, signal)).data);
+        if (token !== tokenRef.current) return null;
+
+        const data = streamed?.output ?? fallbackData;
         const json = JSON.stringify(data);
 
         /*
@@ -229,7 +314,9 @@ export function useWubiExplainChat(): UseWubiExplainChatResult {
           return null;
         }
 
-        const nextConversationId = readString(data, 'conversationId') ?? conversationId;
+        // 流式路径的会话 id 来自 conversation 事件；同步回退路径来自响应体
+        const nextConversationId =
+          streamed?.conversationId ?? readString(data, 'conversationId') ?? conversationId;
         dispatch({
           type: 'ANCHOR_OK',
           char,
@@ -237,8 +324,8 @@ export function useWubiExplainChat(): UseWubiExplainChatResult {
           verification: 'ok',
           positions,
           conversationId: nextConversationId,
-          turn: readNumber(data, 'turn'),
-          historyTruncated: data?.historyTruncated === true,
+          turn: streamed?.turn ?? readNumber(data, 'turn'),
+          historyTruncated: streamed?.historyTruncated ?? data?.historyTruncated === true,
         });
         setAiUnavailable(null);
         return nextConversationId;
@@ -253,7 +340,7 @@ export function useWubiExplainChat(): UseWubiExplainChatResult {
         if (inFlightRef.current?.token === token) inFlightRef.current = null;
       }
     },
-    [post],
+    [post, streamOnce],
   );
 
   /** 追问：只发 char + question + conversationId，历史由平台注入 */
@@ -277,13 +364,27 @@ export function useWubiExplainChat(): UseWubiExplainChatResult {
       const { token, signal } = beginRequest(char);
 
       try {
-        const res = await post('/api/wubi/ai/followup', { char, question, conversationId }, signal);
+        const body = { char, question, conversationId };
+        const streamed = await streamOnce(
+          '/api/wubi/ai/followup/stream',
+          body,
+          char,
+          signal,
+        );
         if (token !== tokenRef.current) return null;
 
-        const data = unwrapApiData(res.data);
+        const data = streamed?.output
+          ?? unwrapApiData((await post('/api/wubi/ai/followup', body, signal)).data);
+        if (token !== tokenRef.current) return null;
+
         // 带上当前位置：模型路径的改位只能靠「上一轮 vs 本轮」的差异比出来
         const payload = parseFollowupTurn(data, params, thread.positions);
-        dispatch({ type: 'ANSWER_OK', char, payload, turn: readNumber(data, 'turn') });
+        dispatch({
+          type: 'ANSWER_OK',
+          char,
+          payload,
+          turn: streamed?.turn ?? readNumber(data, 'turn'),
+        });
         setAiUnavailable(null);
         return null;
       } catch (err: unknown) {
@@ -295,7 +396,7 @@ export function useWubiExplainChat(): UseWubiExplainChatResult {
         if (inFlightRef.current?.token === token) inFlightRef.current = null;
       }
     },
-    [post],
+    [post, streamOnce],
   );
 
   /**
@@ -440,6 +541,7 @@ export function useWubiExplainChat(): UseWubiExplainChatResult {
     busy: isBusy(thread),
     hasAnswer: hasAnchorAnswer(thread),
     turnCount: answeredTurnCount(thread),
+    exec: thread?.exec ?? EMPTY_EXEC_TRACE,
     followupEnabled: Boolean(thread?.conversationId),
   };
 }
@@ -473,8 +575,19 @@ function readNumber(data: Record<string, unknown> | null, key: string): number |
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-/** 从 axios 错误里取统一响应体的 code / message；没有响应体时翻译成中文 */
+/**
+ * 从错误里取 `code` / `message`；没有结构化响应体时翻译成中文。
+ *
+ * 三条来源都要认：
+ * - **StreamFailure**：流式路径自己抛的（`event: error` 或传输层），码已在里面；
+ * - **axios 统一错误壳**：同步回退路径的 `{code, message}`；
+ * - **原生网络错误**：超时 / 断网，axios 的消息是英文的，必须翻译。
+ */
 function readError(err: unknown): ApiError {
+  if (err instanceof StreamFailure) {
+    return { code: err.code, message: err.message };
+  }
+
   const response = (err as { response?: { data?: { code?: unknown; message?: unknown } } })?.response;
   const code = typeof response?.data?.code === 'string' ? response.data.code : '';
 
@@ -491,7 +604,11 @@ function readError(err: unknown): ApiError {
    * 这一层必须翻译：axios 的原生消息是英文的（"timeout of 240000ms exceeded"、
    * "Network Error"），直接弹给用户既看不懂，也给不出下一步动作。
    */
-  const raw = err as { code?: string; message?: string };
+  const raw = err as { code?: string; message?: string; name?: string };
+  // 主动中止（用户点取消 / 换字抢占）：不是故障，令牌机制会丢弃这次结果
+  if (raw?.name === 'AbortError' || raw?.name === 'CanceledError') {
+    return { code: '', message: '已取消本次回答。' };
+  }
   if (raw?.code === 'ECONNABORTED' || /timeout/i.test(raw?.message ?? '')) {
     return { code: '', message: 'AI 讲解超时了（可稍后重试，或先换个字看讲解）' };
   }

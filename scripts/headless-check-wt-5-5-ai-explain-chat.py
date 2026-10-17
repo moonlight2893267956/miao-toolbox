@@ -83,6 +83,39 @@ def wait_for_anchor_outcome(page, timeout_ms):
     return "timeout"
 
 
+def probe_exec_trace(page, timeout_ms=30000):
+    """
+    看等待期有没有过程轨（Story wt-5-6）。
+
+    为什么要**在等待中就探**而不是等答案出来再看：过程轨的价值正是
+    「工具调用开始的那一刻就可见」。等答案出来再查，即使事件是最后一次性到的
+    也会通过，那就把本 Story 的核心价值验丢了。
+
+    @returns (是否出现过程轨, 是否观察到「进行中」状态, 详情文案)
+    """
+    deadline = time.time() + timeout_ms / 1000.0
+    saw_trace = False
+    saw_running = False
+    detail = ""
+    while time.time() < deadline:
+        trace = page.query_selector(".wt-exec")
+        if trace:
+            saw_trace = True
+            text = (trace.inner_text() or "").replace("\n", " / ")[:120]
+            detail = text
+            if "进行中" in text:
+                saw_running = True
+            # 出现过程轨就够了；「进行中」能抓到最好，抓不到不算失败
+            # （工具可能很快就完成了，轮询来不及看到）
+            if saw_running:
+                break
+        # 结果已经出来就不用再等（说明本轮没有 exec 事件，属降级路径）
+        if page.query_selector(".wt-chat__turn--answer:not(.wt-chat__turn--retry)") and not saw_trace:
+            break
+        page.wait_for_timeout(120)
+    return saw_trace, saw_running, detail
+
+
 def run_first_explain(page, rounds=3):
     """
     跑首轮讲解，最多重试若干次。
@@ -135,6 +168,10 @@ def main():
         anchor = page.inner_text(".wt-chat__anchor")
         check("AC-2 点字锚定到讲解台（锚点显示该字）", anchor.strip() == "照", f"锚点 {anchor.strip()!r}")
 
+        # ── AC-EXEC（Story wt-5-6）：等待期就应看到执行过程 ──
+        # 注意顺序：必须在等首轮结果**之前**探，否则「最后一次性到齐」也会通过
+        saw_trace, saw_running, trace_detail = probe_exec_trace(page)
+
         state, attempts = run_first_explain(page)
         # 「自动跑首轮」验的是**接线**：只要页面给出了明确收场（正文或带原因的拒绝），
         # 就说明点字确实触发了请求、且结果被如实呈现。模型偶尔给出候选集外的字根
@@ -145,6 +182,21 @@ def main():
         if state == "refused":
             notice = (page.inner_text(".wt-chat__turn--notice") or "").strip()[:80]
             check("AC-3 拒绝候选集外的断言并说明原因", bool(notice), notice)
+
+        # ── AC-EXEC 断言 ──
+        # AI 配置性关闭时不会有执行事件（同步路径也没有），此时跳过而不是判失败
+        if not AI_ENABLED:
+            check("AC-EXEC 等待期展示执行过程轨", False,
+                  "AI 未配置，跳过（过程轨依赖 miao-ai 执行事件）", skipped=True)
+        elif state == "timeout":
+            check("AC-EXEC 等待期展示执行过程轨", False, "首轮超时，无从判断", skipped=True)
+        else:
+            check("AC-EXEC 等待期展示执行过程轨（工具调用可见）", saw_trace,
+                  trace_detail or "等待期未出现 .wt-exec（可能是老版本 agent 未上报 exec 事件）")
+            if saw_trace:
+                # 「进行中」抓到最好；工具很快完成时轮询可能错过，不算失败
+                check("AC-EXEC2 过程轨标出「进行中」状态", saw_running,
+                      trace_detail, skipped=not saw_running)
 
         has_content = state == "answer"
         if has_content:

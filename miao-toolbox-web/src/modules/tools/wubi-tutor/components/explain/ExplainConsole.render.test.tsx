@@ -76,6 +76,7 @@ function thread(overrides: Partial<ExplainThread> = {}): ExplainThread {
     turns: [],
     asked: [],
     anchorAttempts: 0,
+    exec: { entries: [], notes: [] },
     ...overrides,
   };
 }
@@ -115,6 +116,7 @@ function chat(t: ExplainThread | null, overrides: Partial<UseWubiExplainChatResu
     busy: t?.status === 'loading' || t?.status === 'asking',
     hasAnswer: Boolean(t?.turns.some((x) => x.kind === 'anchor')),
     turnCount: t?.turns.filter((x) => x.role === 'assistant').length ?? 0,
+    exec: t?.exec ?? { entries: [], notes: [] },
     followupEnabled: Boolean(t?.conversationId),
     ...overrides,
   };
@@ -525,5 +527,159 @@ describe('ExplainConsole — 失败与降级', () => {
     const html = render(chat(t));
     expect(html).toContain('选中即讲解');
     expect(html).toContain('checked=""');
+  });
+});
+
+/**
+ * 执行过程轨（Story wt-5-6）。
+ *
+ * 结构级断言能锁住最容易回归的几件事：过程轨是否出现、running 是否被标成
+ * 「进行中」、失败是否带原因、空轨是否**不占版面**（老版本 agent 的情况）。
+ * 时序（事件是否真的在等待期到达）由后端测试与验收脚本覆盖。
+ */
+describe('执行过程轨', () => {
+  const execTrace = (
+    entries: { callId: string; name: string; status: 'running' | 'ok' | 'failed'; ms?: number; error?: string }[],
+    notes: { kind: string; text: string; level?: string }[] = [],
+  ) => ({ entries, notes });
+
+  it('等待中且有过程事件 → 渲染执行过程，进行中的工具可见', () => {
+    const t = thread({
+      status: 'loading',
+      turns: [],
+      exec: execTrace([
+        { callId: 'c1', name: 'tables.lookup', status: 'ok', ms: 13 },
+        { callId: 'c2', name: 'tavily.search', status: 'running' },
+      ]),
+    });
+    const html = render(chat(t));
+
+    expect(html).toContain('执行过程');
+    expect(html).toContain('查内置码表');
+    expect(html).toContain('联网检索');
+    // 进行中一行要有文字状态（不只靠颜色，NFR-7）
+    expect(html).toContain('进行中');
+    // 完成的要显示耗时
+    expect(html).toContain('13ms');
+    // 汇总文案要指出当前在做什么
+    expect(html).toContain('正在联网检索');
+  });
+
+  it('工具失败 → 如实显示「失败」与原因，不伪装成完成', () => {
+    const t = thread({
+      status: 'loading',
+      turns: [],
+      exec: execTrace([
+        { callId: 'c1', name: 'tavily.search', status: 'failed', error: 'OSError: 断网' },
+      ]),
+    });
+    const html = render(chat(t));
+
+    expect(html).toContain('失败');
+    expect(html).toContain('OSError: 断网');
+  });
+
+  it('说明条目（log/warn）单独成块，不混进工具行', () => {
+    const t = thread({
+      status: 'loading',
+      turns: [],
+      exec: execTrace(
+        [{ callId: 'c1', name: 'tables.lookup', status: 'ok', ms: 6 }],
+        [{ kind: 'log', text: '未配置 TAVILY_API_KEY，跳过联网', level: 'warn' }],
+      ),
+    });
+    const html = render(chat(t));
+
+    expect(html).toContain('未配置 TAVILY_API_KEY，跳过联网');
+    expect(html).toContain('wt-exec__note--warn');
+  });
+
+  it('未知工具名原样显示（不猜中文名）', () => {
+    const t = thread({
+      status: 'loading',
+      turns: [],
+      exec: execTrace([{ callId: 'c1', name: 'other.tool', status: 'running' }]),
+    });
+    const html = render(chat(t));
+    expect(html).toContain('other.tool');
+  });
+
+  it('空过程轨不渲染这一块（老版本 agent / 未上报时零噪音）', () => {
+    const t = thread({ status: 'loading', turns: [] });
+    const html = render(chat(t));
+    expect(html).not.toContain('执行过程');
+    // 但骨架兜底仍在：不能因为缺过程事件就空等
+    expect(html).toContain('wt-chat__skeleton');
+  });
+
+  it('等待结束（busy=false）后即使有过程轨也不再显示（它属于当轮等待）', () => {
+    const t = thread({
+      status: 'ready',
+      turns: [
+        {
+          id: 'a1', turn: 1, role: 'assistant', text: '正文', kind: 'anchor',
+          citations: [], newClaims: [], verification: 'ok',
+        },
+      ],
+      exec: execTrace([{ callId: 'c1', name: 'tables.lookup', status: 'ok', ms: 6 }]),
+    });
+    const html = render(chat(t));
+    expect(html).not.toContain('执行过程');
+  });
+});
+
+/**
+ * 失败态也要保留过程轨 —— 那是用户唯一能看出「卡在哪一步」的线索。
+ * 只在成功收场后收回（结论已完整，过程不再需要）。
+ */
+describe('执行过程轨在失败态保留', () => {
+  const trace = (status: 'running' | 'ok' | 'failed') => ({
+    entries: [{ callId: 'c1', name: 'tavily.search', status, ms: 4206, error: status === 'failed' ? 'OSError: 断网' : undefined }],
+    notes: [],
+  });
+
+  it('失败态（status=error）仍显示过程轨', () => {
+    const t = thread({
+      status: 'error',
+      turns: [
+        {
+          id: 'n1', turn: 0, role: 'notice', text: '这次没能生成讲解：…', kind: 'notice',
+          noticeKind: 'anchor-fail', citations: [], newClaims: [],
+        },
+      ],
+      exec: trace('failed'),
+    });
+    const html = render(chat(t));
+    expect(html).toContain('执行过程');
+    expect(html).toContain('OSError: 断网');
+  });
+
+  it('过程轨停在「进行中」（流中断）时也保留', () => {
+    const t = thread({ status: 'error', turns: [], exec: trace('running') });
+    const html = render(chat(t));
+    expect(html).toContain('执行过程');
+    expect(html).toContain('进行中');
+  });
+
+  it('成功收场后过程轨收回（结论已完整）', () => {
+    const t = thread({
+      status: 'ready',
+      turns: [
+        {
+          id: 'a1', turn: 1, role: 'assistant', text: '正文', kind: 'anchor',
+          citations: [], newClaims: [], verification: 'ok',
+        },
+      ],
+      exec: trace('ok'),
+    });
+    const html = render(chat(t));
+    expect(html).not.toContain('执行过程');
+  });
+
+  it('骨架兜底仍在（无 exec 事件时）', () => {
+    const t = thread({ status: 'loading', turns: [] });
+    const html = render(chat(t));
+    expect(html).toContain('wt-chat__skeleton');
+    expect(html).not.toContain('执行过程');
   });
 });

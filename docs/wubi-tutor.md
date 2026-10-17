@@ -383,12 +383,56 @@ node scripts/build-wubi-tables.mjs --sample
 > 现在由 `catch (HttpStatusCodeException)` 显式接住（必须排在 `RestClientException` 之前），
 > 并由 `MiaoAiClientTest` 起本机 HttpServer 做真实往返验证。
 
-### 为什么不做流式
+### 流式端点：过程可见（Story wt-5-6）
 
-agent 的 `config["stream"]` 只是把**已经算好的**正文分块吐出来（见 miao-ai `agent.py` 的
-`_stream_result`）——真实等待发生在事实采集、决策与校验那一步，流式不能把它变快；
-而首轮要给出结构化断言交给前端逐条核对，先看到半截 JSON 反而更糟。
-所以改用「骨架占位 + 分阶段文案（8s 说明预热、28s 提示可取消）+ 取消按钮」。
+讲解台现在**同时有同步与流式两套端点**：
+
+```
+POST /api/wubi/ai/explain/stream    （SSE，优先）
+POST /api/wubi/ai/followup/stream   （SSE，优先）
+POST /api/wubi/ai/explain           （同步，流式失败时回退）
+POST /api/wubi/ai/followup
+```
+
+流式端点只做管道：逐个 SSE 事件透传，**不设事件名白名单**（miao-ai 承诺
+「`kind` 不设白名单、事件名只增不改」，加白名单会让平台新增事件时静默断裂）。
+事件语义见 miao-ai 的 `docs/integration-guide-exec-events.md`。
+
+| 事件 | 本项目的处置 |
+|---|---|
+| `exec` | **消费** → 过程轨（`tool_call`/`tool_result` 按 `call_id` 折叠，`log` 单独成块） |
+| `token` | **丢弃**（正文不做打字机，保持「校验后一次性展示」） |
+| `done` | **唯一可信结果** → `output` 走现有候选集核对链路 |
+| `error` | 归一成 `StreamFailure`；可回退的错误自动回退同步端点 |
+| `conversation` | 取会话 id / 轮次号（与同步路径同语义） |
+| 未知事件名 | **丢弃**（不得拼进正文） |
+
+工具名到中文的映射固定在 `utils/wubi/execStream.ts` 的 `TOOL_LABELS`：
+`tables.lookup` → 查内置码表、`tavily.search` → 联网检索、`llm.decide` → 模型判断拆分。
+**未知工具名原样显示**，不猜中文名。
+
+> ⚠️ 流式失败回退同步时**看不到过程轨**（同步端点不返回执行事件）。
+> 这是刻意取舍：AI 是可选增强，宁可没有过程，也不能没有结果。
+
+### 为什么正文仍然不流式
+
+流式通道已经接了（`event: exec`），但**正文依然是「等 `done.output`、校验后一次性展示」**，
+`event: token` 一律丢弃。理由没变：
+
+- 首轮要给出结构化断言交前端逐条核对，先让用户看到半截未校验的 JSON / 散文，
+  等于把「可能是错的」内容当成事实呈现；
+- 打字机也不能把等待变短，它只是让等待「看起来有事发生」——而这件事
+  `exec` 事件已经做得更诚实（它给的是**执行事实**，不是模型叙述）。
+
+所以本模块的流式只服务一件事：**过程可见**。结论永远一次性、校验后给出。
+
+### 等待期的两层兜底
+
+1. **有 `exec` 事件** → 过程轨（工具名 + 耗时 + 成败 + 说明）；
+2. **没有事件**（老版本 agent / 流式失败回退同步）→ 骨架 + 分阶段文案
+   （8s 说明预热、28s 提示可取消）+ 取消按钮。
+
+两者互斥：有过程轨时不再画骨架（两条「正在加载」并列是冗余，且过程轨信息严格更强）。
 
 ### 可信度分层（本模块纪律的延续）
 

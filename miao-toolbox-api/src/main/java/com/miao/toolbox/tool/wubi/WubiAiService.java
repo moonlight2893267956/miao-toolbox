@@ -149,7 +149,7 @@ public class WubiAiService {
      *
      * <p>建会话失败**不阻断主流程** —— 降级为单轮，用户照样能看到解释，只是不能追问。
      */
-    private String ensureConversation(Map<String, Object> body) {
+    String ensureConversation(Map<String, Object> body) {
         Object existing = body.get("conversationId");
         if (existing instanceof String s && !s.isBlank()) {
             return s;
@@ -161,6 +161,11 @@ public class WubiAiService {
             log.warn("建会话失败，本轮降级为单轮：{}", e.getMessage());
             return null;
         }
+    }
+
+    /** 工具标识（写入 metadata 供 ai_invocations / Langfuse 归类），供流式路径复用 */
+    String toolName() {
+        return TOOL_NAME;
     }
 
     /**
@@ -206,8 +211,11 @@ public class WubiAiService {
      *
      * <p>只映射已知的上游语义，其余（含本地校验、结构异常等）**原样抛出**，
      * 避免把不相干的错误伪装成会话问题。
+     *
+     * <p>包级可见：流式路径（{@link WubiAiStreamService}）必须与同步路径给出**同一套**
+     * 错误码，否则前端无法复用「410 自动开新会话」那条链路。
      */
-    private BusinessException mapUpstream(BusinessException e) {
+    BusinessException mapUpstream(BusinessException e) {
         String errorCode = e.getErrorCode();
         if (errorCode == null) {
             return e;

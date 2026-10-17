@@ -286,3 +286,91 @@ describe('选择器与文本切分', () => {
     expect(activeThread(INITIAL_EXPLAIN_CHAT_STATE)).toBeNull();
   });
 });
+
+/**
+ * 执行过程轨的状态（Story wt-5-6）。
+ *
+ * 关键约定是**每轮清空**：过程轨是「我正在等什么」的实时说明，不是历史记录。
+ * 上一轮的工具调用如果留下来，用户会以为还在跑 —— 这也是最容易被写漏的一处。
+ */
+describe('执行过程轨', () => {
+  const trace = (name: string) => ({
+    entries: [{ callId: 'c1', name, status: 'running' as const }],
+    notes: [],
+  });
+
+  const withSelected = (): ExplainChatState =>
+    explainChatReducer(INITIAL_EXPLAIN_CHAT_STATE, {
+      type: 'SELECT_CHAR',
+      char: '照',
+      code: 'jvko',
+      params: PARAMS,
+    });
+
+  it('新建线程的过程轨为空', () => {
+    expect(threadFor(withSelected(), '照')?.exec.entries).toHaveLength(0);
+  });
+
+  it('EXEC 写入当前线程的过程轨', () => {
+    let state = withSelected();
+    state = explainChatReducer(state, { type: 'EXEC', char: '照', trace: trace('tavily.search') });
+    expect(threadFor(state, '照')?.exec.entries[0].name).toBe('tavily.search');
+  });
+
+  it('后续 EXEC 整轨替换（折叠已在纯函数里做过，reducer 不重复追加）', () => {
+    let state = withSelected();
+    state = explainChatReducer(state, { type: 'EXEC', char: '照', trace: trace('tavily.search') });
+    state = explainChatReducer(state, {
+      type: 'EXEC',
+      char: '照',
+      trace: {
+        entries: [
+          { callId: 'c1', name: 'tavily.search', status: 'ok', ms: 4968 },
+          { callId: 'c2', name: 'llm.decide', status: 'running' },
+        ],
+        notes: [],
+      },
+    });
+    const entries = threadFor(state, '照')?.exec.entries ?? [];
+    expect(entries).toHaveLength(2);
+    expect(entries[0].status).toBe('ok');
+  });
+
+  it('EXEC 只作用于已存在的线程（陈旧响应不会凭空造线程）', () => {
+    const state = explainChatReducer(INITIAL_EXPLAIN_CHAT_STATE, {
+      type: 'EXEC',
+      char: '未选中的字',
+      trace: trace('tavily.search'),
+    });
+    expect(state.threads['未选中的字']).toBeUndefined();
+  });
+
+  it('首轮开始时清空上一轮的过程轨（重试不残留旧工具调用）', () => {
+    let state = withSelected();
+    state = explainChatReducer(state, { type: 'EXEC', char: '照', trace: trace('tavily.search') });
+    state = explainChatReducer(state, { type: 'ANCHOR_START', char: '照' });
+    expect(threadFor(state, '照')?.exec.entries).toHaveLength(0);
+  });
+
+  it('追问开始时清空过程轨（新一轮有新工具调用）', () => {
+    let state = explainChatReducer(withSelected(), {
+      type: 'ANCHOR_OK',
+      char: '照',
+      text: '正文',
+      verification: 'ok',
+      positions: ['日'],
+      conversationId: 'conv_1',
+      turn: 1,
+    });
+    state = explainChatReducer(state, { type: 'EXEC', char: '照', trace: trace('tavily.search') });
+    state = explainChatReducer(state, { type: 'ASK', char: '照', question: '为什么？' });
+    expect(threadFor(state, '照')?.exec.entries).toHaveLength(0);
+  });
+
+  it('RESTART 清空过程轨', () => {
+    let state = withSelected();
+    state = explainChatReducer(state, { type: 'EXEC', char: '照', trace: trace('tavily.search') });
+    state = explainChatReducer(state, { type: 'RESTART', char: '照' });
+    expect(threadFor(state, '照')?.exec.entries).toHaveLength(0);
+  });
+});
