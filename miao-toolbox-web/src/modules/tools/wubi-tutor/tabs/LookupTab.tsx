@@ -160,6 +160,24 @@ const LookupTab: React.FC<LookupTabProps> = ({
     return lookup(input, state.chars, phraseData.map);
   }, [input, state.chars, phraseData.map]);
 
+  /*
+   * 反查结果的字 / 词构成。
+   *
+   * 结论行原来只读 `candidates[0].kind` 决定说「字」还是「词」，
+   * 于是 vvvv 这种混合重码（女 + 妇女）会被说成「命中 2 个字」——
+   * 而列表里第二个候选明明标着「词组」。
+   */
+  const hitKinds = useMemo(() => {
+    const candidates = result?.kind === 'code' ? result.candidates : [];
+    let chars = 0;
+    let phrases = 0;
+    for (const c of candidates) {
+      if (c.kind === 'phrase') phrases += 1;
+      else chars += 1;
+    }
+    return { chars, phrases };
+  }, [result]);
+
   const handleCopy = useCallback(async (text: string, code: string) => {
     try {
       await navigator.clipboard.writeText(code);
@@ -339,7 +357,11 @@ const LookupTab: React.FC<LookupTabProps> = ({
                 <div className="wt-lookup__summary">
                   编码 <code>{input.trim().toLowerCase()}</code> 命中
                   <strong> {result.candidates[0].duplicates} </strong>
-                  个{result.candidates[0].kind === 'phrase' ? '词' : '字'}
+                  {hitKinds.phrases === 0
+                    ? '个字'
+                    : hitKinds.chars === 0
+                      ? '个词'
+                      : '个结果'}
                   {result.candidates[0].duplicates > 1 && <span className="wt-lookup__dup">重码</span>}
                 </div>
                 <div className="wt-lookup__candidates">
@@ -347,22 +369,43 @@ const LookupTab: React.FC<LookupTabProps> = ({
                     <button
                       key={`${c.kind}-${c.text}`}
                       className="wt-lookup__candidate"
-                      onClick={() => c.kind === 'char' && selectChar(c.text)}
-                      title={c.kind === 'char' ? '点击看 AI 讲解' : undefined}
+                      /*
+                        词组候选此前点了没反应：原写法 `c.kind === 'char' && selectChar(...)`
+                        把词组分支整个吞掉，标题也只在单字时给 —— 用户连「能不能点」都看不出。
+                        词组走 selectPhrase（与正查的词组行同一语义：讲取码规则，不拆字）。
+                      */
+                      onClick={() => (
+                        c.kind === 'phrase' ? selectPhrase(c.text, c.code) : selectChar(c.text)
+                      )}
+                      title={c.kind === 'phrase' ? '点击看这个词组的取码讲解' : '点击看 AI 讲解'}
+                      aria-label={c.kind === 'phrase' ? `查看词组 ${c.text} 的取码讲解` : undefined}
                     >
                       <span className="wt-lookup__candidate-text">{c.text}</span>
                       {/*
                         简码命中必须标出来，并附上全码。
                         输入 g 会出现「一」，但「一」的全码是 ggll ——
                         不标注的话，学员会以为「一」的编码就是 g。
+
+                        词组候选也要标：它和单字候选并排显示时（如 vvvv → 女 / 妇女），
+                        不标就分不清哪个是字、点了会得到哪种讲解。
+
+                        两者互斥（词组表只收全码，不会有简码命中），共用一个标注行；
+                        徽标与全码还要注意包在同一个行容器里 —— 卡片是 flex 列，
+                        拆成两个子项会各占一行、把卡片撑成三行。
                       */}
-                      {c.match === 'simplified' && (
-                        <>
-                          <span className="wt-lookup__badge wt-lookup__badge--inline">
-                            {c.simplifiedLevel ? SIMPLIFIED_LABELS[c.simplifiedLevel] : '简码'}
-                          </span>
-                          <code className="wt-lookup__candidate-code">{c.code}</code>
-                        </>
+                      {(c.match === 'simplified' || c.kind === 'phrase') && (
+                        <span className="wt-lookup__candidate-meta">
+                          {c.match === 'simplified' ? (
+                            <>
+                              <span className="wt-lookup__badge wt-lookup__badge--inline">
+                                {c.simplifiedLevel ? SIMPLIFIED_LABELS[c.simplifiedLevel] : '简码'}
+                              </span>
+                              <code className="wt-lookup__candidate-code">{c.code}</code>
+                            </>
+                          ) : (
+                            <span className="wt-lookup__badge wt-lookup__badge--phrase">词组</span>
+                          )}
+                        </span>
                       )}
                       {c.duplicates > 1 && (
                         <span className="wt-lookup__candidate-rank">{c.rank}</span>

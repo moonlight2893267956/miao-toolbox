@@ -75,6 +75,16 @@
   --wt-radius: 10px;
   --wt-radius-sm: 6px;
 
+  /*
+   * 汉字字面。
+   *
+   * 全站 UI 是黑体（--miao-font-body），但五笔练习室的主角是**汉字本身**：
+   * 查码的候选字、正查行的字，换成衬线（Noto Serif SC 已在 index.html 加载）
+   * 后笔画有书写感，字也从界面里站出来。做成令牌是为了「候选字块」与
+   * 「正查行」共用一套字面，不各写各的。
+   */
+  --wt-han-font: 'Noto Serif SC', var(--miao-font-display), serif;
+
   /* ── 动效令牌 ──
    *
    * 原本只定义了 --wt-transition，而实测 35 处写的是 `transition: all 0.15s`
@@ -6243,43 +6253,186 @@
 .wt-lookup__candidates {
   display: flex;
   flex-wrap: wrap;
+  /*
+   * 顶部对齐，不用默认的 stretch：只有简码命中与词组才带下沿铭牌，
+   * 拉伸会把同一行的纯字块一起撑高，字下面空出一截。
+   */
+  align-items: flex-start;
   gap: 8px;
 }
 
+/*
+ * 候选字块 —— 查码页的「活字」。
+ *
+ * 一枚字块 = 键帽：字面是候选字，下沿是丝印铭牌（简码等级 + 全码 / 词组），
+ * 右上角是重码槽位号。材质沿用字根图的键帽令牌（--wt-key-face /
+ * --wt-inset-hi / --wt-key-drop），所以它与字根图、练习台是同一套物理感，
+ * 而不是又一个「卡片」。
+ *
+ * ── 布局上有两个硬约束（都踩过）──
+ * 1. 高度必须由内容决定。原先写死 `height: 52px`，而按钮会继承 AntD body 的
+ *    `line-height: 1.5715`：铭牌那一行的行盒高 24px × 1.5715 ≈ 37.7px，
+ *    两行内容 61.7px > 内容盒 50px —— 徽标被挤到卡片外、压在边框上。
+ * 2. 铭牌必须是整行（width: 100%），且「等级 + 全码」要包在同一个
+ *    `.wt-lookup__candidate-meta` 里；否则 flex 列会把它们拆成两行。
+ */
 .wt-lookup__candidate {
   position: relative;
-  min-width: 52px;
-  height: 52px;
-  padding: 0 10px;
-  border-radius: 11px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  min-width: 54px;
+  min-height: 54px;
+  padding: 0;
+  overflow: hidden;                 /* 铭牌底边跟着圆角裁切 */
   border: 1px solid var(--wt-border);
-  background: var(--wt-bg-secondary);
+  border-radius: 12px;
+  background-color: var(--wt-bg-elevated);
+  background-image: var(--wt-key-face);
+  box-shadow: inset 0 1px 0 var(--wt-inset-hi), var(--wt-key-drop);
   color: var(--wt-text);
-  font-size: 24px;
+  line-height: 1;
   cursor: pointer;
   transition: var(--wt-transition-props-base);
 }
 
-.wt-lookup__candidate:hover {
-  border-color: var(--wt-accent);
-  background: color-mix(in srgb, var(--wt-accent) 8%, var(--wt-bg-secondary));
-  transform: translateY(-2px);
+/*
+ * 悬浮时的「受光面」。
+ *
+ * 键帽面的明暗是两套渐变令牌，直接切 background-image 无法过渡（渐变不插值），
+ * 会硬跳一下。所以把它放在覆盖层里淡入 —— opacity 才在过渡白名单里。
+ * 覆盖层绝对定位不吃事件，字与铭牌提一层保证压在它上面。
+ */
+.wt-lookup__candidate::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: var(--wt-key-face-lit);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--wt-dur-base) var(--wt-ease);
 }
 
+.wt-lookup__candidate-text,
+.wt-lookup__candidate-meta {
+  position: relative;
+  z-index: 1;
+}
+
+/* 字面：整块居中，并在受光处留一点压印感 */
 .wt-lookup__candidate-text {
-  display: block;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 13px 8px;
+  font-family: var(--wt-han-font);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1;
+  text-shadow: 0 1px 0 var(--wt-inset-hi);
+}
+
+.wt-lookup__candidate:hover {
+  transform: translateY(-2px);      /* 抬起：像从字盘里被拿起来 */
+  border-color: var(--wt-accent);
+  box-shadow: inset 0 1px 0 var(--wt-inset-hi), var(--wt-key-drop-hover);
+  color: var(--wt-accent);
+}
+
+.wt-lookup__candidate:hover::before {
+  opacity: 1;
+}
+
+.wt-lookup__candidate:active {
+  transform: translateY(0);         /* 按下：键帽沉回槽里 */
+  box-shadow: inset 0 1px 0 var(--wt-inset-hi), 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.wt-lookup__candidate:focus-visible {
+  outline: none;
+  border-color: var(--wt-accent);
+  box-shadow:
+    inset 0 1px 0 var(--wt-inset-hi),
+    0 0 0 3px var(--wt-accent-glow),
+    var(--wt-key-drop);
+}
+
+/* 铭牌：键帽下沿的丝印（简码等级 + 全码 / 词组） */
+.wt-lookup__candidate-meta {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 3px 8px 4px;
+  border-top: 1px solid color-mix(in srgb, var(--wt-accent) 16%, transparent);
+  background: color-mix(in srgb, var(--wt-accent) 6%, transparent);
   line-height: 1;
 }
 
-/* 重码序号：让「第几个候选」一目了然 */
+/*
+ * 铭牌里不用胶囊徽标，回归丝印文字。
+ * 选择器带 `.wt-lookup__candidate` 前缀，正查行与词组讲解里的徽标不受影响。
+ */
+.wt-lookup__candidate .wt-lookup__badge {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--wt-text-secondary);
+}
+
+.wt-lookup__candidate .wt-lookup__badge--phrase {
+  border: 0;
+  background: transparent;
+  color: var(--wt-accent);
+}
+
+.wt-lookup__candidate .wt-lookup__candidate-code {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--wt-text-tertiary);
+}
+
+/*
+ * 槽位号：重码时标「第几个候选」。
+ * 做成字盘格子号（小圆角块）而不是上标数字 —— 上标在 54px 的方块里
+ * 会被当成杂点，而且和字面笔画打架。
+ */
 .wt-lookup__candidate-rank {
   position: absolute;
-  top: 2px;
+  top: 3px;
   right: 4px;
-  font-size: 9.5px;
+  z-index: 1;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--wt-accent) 12%, transparent);
+  color: var(--wt-accent);
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 9px;
   font-weight: 700;
-  color: var(--wt-text-secondary);
+  line-height: 1;
   font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wt-lookup__candidate,
+  .wt-lookup__candidate:hover,
+  .wt-lookup__candidate:active {
+    transform: none;
+  }
 }
 
 /* ── 正查结果表 ── */
@@ -6420,7 +6573,10 @@
   border-radius: 9px;
   background: var(--wt-bg);
   color: var(--wt-text);
+  /* 与反查候选共用汉字字面：同一页上「字」不该有两种风貌 */
+  font-family: var(--wt-han-font);
   font-size: 26px;
+  font-weight: 600;
   line-height: 1.15;
   cursor: pointer;
   transition: var(--wt-transition-props-base);
@@ -7271,6 +7427,145 @@
   font-size: 11.5px;
   line-height: 1.7;
   color: var(--wt-text-secondary);
+}
+
+/* ── 执行过程轨（工具调用可见） ── */
+
+/*
+ * 结构：标题行（执行过程 + 当前在做什么）+ 工具行 + 说明条目。
+ * 视觉上刻意「轻」：它是等待期的辅助信息，不该抢走讲解正文的注意力，
+ * 但要让「现在这一步在进行中」看得见 —— 所以只有 running 行有强调色与呼吸。
+ */
+
+.wt-exec {
+  margin: 2px 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--wt-border);
+  border-radius: 9px;
+  background-color: var(--wt-bg-secondary);
+}
+
+.wt-exec__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.wt-exec__title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-exec__summary {
+  font-size: 11.5px;
+  color: var(--wt-text-secondary);
+}
+
+.wt-exec__list,
+.wt-exec__notes {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wt-exec__row {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--wt-text-secondary);
+}
+
+/* 状态点：进行中是转圈图标，结束是不占位的圆点 */
+.wt-exec__dot {
+  flex: 0 0 12px;
+  width: 12px;
+  font-size: 10px;
+  text-align: center;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-exec__row--running .wt-exec__dot {
+  color: var(--wt-accent);
+}
+
+.wt-exec__row--failed .wt-exec__dot {
+  color: var(--wt-warning);
+}
+
+.wt-exec__name {
+  font-weight: 600;
+  color: var(--wt-text);
+}
+
+.wt-exec__row--running .wt-exec__name {
+  color: var(--wt-accent);
+}
+
+.wt-exec__status {
+  font-size: 10.5px;
+  color: var(--wt-text-tertiary);
+}
+
+/* 进行中的状态用文字 + 呼吸双重表达，不依赖颜色（NFR-7） */
+.wt-exec__row--pulse .wt-exec__status {
+  animation: wt-exec-breathe var(--wt-dur-pulse) ease-in-out infinite;
+}
+
+.wt-exec__ms {
+  font-family: var(--miao-font-mono, monospace);
+  font-size: 10.5px;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-exec__error {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--wt-warning);
+}
+
+.wt-exec__truncated {
+  font-size: 10.5px;
+  color: var(--wt-text-tertiary);
+}
+
+.wt-exec__notes {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px dashed var(--wt-border);
+}
+
+.wt-exec__note {
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--wt-text-secondary);
+}
+
+.wt-exec__note--warn,
+.wt-exec__note--error {
+  color: var(--wt-warning);
+}
+
+@keyframes wt-exec-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wt-exec__row--pulse .wt-exec__status {
+    animation: none;
+  }
 }
 
 /* ── 空态与手动开始 ── */
