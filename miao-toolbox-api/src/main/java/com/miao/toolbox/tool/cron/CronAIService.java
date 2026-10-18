@@ -173,6 +173,12 @@ public class CronAIService {
                         .withTimeout(180_000L),
                 new AiStreamProxy.Observer() {
                     @Override
+                    public String serviceLabel() {
+                        // 与同步路径、未启用提示保持同一自称（见 CronAIController）
+                        return "Cron AI 助手";
+                    }
+
+                    @Override
                     public void onEvent(String name, String data, SseEmitter emitter) {
                         if (!"token".equals(name)) {
                             return;

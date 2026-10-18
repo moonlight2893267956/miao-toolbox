@@ -9,6 +9,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpHeaders;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -135,10 +136,13 @@ class AiStreamProxyTest {
                         if (failAfter >= 0 && n >= failAfter) {
                             throw new IOException("模拟客户端断开");
                         }
-                        // 不去解析 builder（其字段是 Spring 私有实现，反射不可靠且跨版本易碎），
-                        // 改为记录「发了几条事件」；事件名/载荷由 onEvent 回调观测 ——
-                        // 代理层转发与回调是同一处代码，两者对照即可证明转发行为。
-                        forwarded.add("#" + n);
+                        // 用 SseEventBuilder 的**公开** build() 拿真实下发内容。
+                        // 不反射私有字段（跨版本易碎），也不依赖 toString（实现类没重写）。
+                        StringBuilder sb = new StringBuilder();
+                        for (ResponseBodyEmitter.DataWithMediaType part : builder.build()) {
+                            sb.append(part.getData());
+                        }
+                        forwarded.add(sb.toString());
                     }
                 };
             }
@@ -510,6 +514,41 @@ class AiStreamProxyTest {
                 .as("状态码必须保留（排查靠它定位），错误体按 AiUpstreamErrors 截断")
                 .contains("500")
                 .hasSizeLessThan(1024);
+    }
+
+    // ─────────────────── AC10 错误文案随工具自称变化 ───────────────────
+
+    @Test
+    @org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
+    void defaultServiceLabelIsNeutral() {
+        AiStreamProxy.Observer plain = new AiStreamProxy.Observer() {
+        };
+        assertThat(plain.serviceLabel())
+                .as("共享层不该替工具决定它叫什么；忘了覆写时至少不能说成别人的名字")
+                .isEqualTo("AI 服务");
+    }
+
+    @Test
+    void upstreamBreakMessageUsesToolOwnLabel() {
+        // 上游正常 EOF 但不发 done = 断流，会给客户端下发一条 error 事件。
+        // 文案必须用该工具的自称，而不是共享层的默认值 ——
+        // 此前 Cron 里会弹「AI 讲解连接中断」，用户根本不知道这是哪个功能。
+        upstreamBody = "event:token\ndata:{\"token\":\"半截\"}\n\n";
+
+        run(new AiStreamProxy.Observer() {
+            @Override
+            public String serviceLabel() {
+                return "Cron AI 助手";
+            }
+        });
+
+        verify(miaoAiClient, timeout(5000).times(1))
+                .recordStreamFailure(any(), anyString(), anyString());
+
+        assertThat(String.join("\n", forwarded))
+                .as("断流提示必须带上本工具的自称，不能沿用共享层的默认文案")
+                .contains("Cron AI 助手")
+                .doesNotContain("AI 讲解");
     }
 
     // ─────────────────── AC9 suppress() 默认空集 ───────────────────

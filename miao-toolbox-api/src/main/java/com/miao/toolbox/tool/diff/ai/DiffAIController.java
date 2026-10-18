@@ -63,6 +63,12 @@ public class DiffAIController {
                         .withTimeout(180_000L),
                 new AiStreamProxy.Observer() {
                     @Override
+                    public String serviceLabel() {
+                        // 与 AIAnalysisService 的「AI 分析功能未启用」保持一致
+                        return "AI 分析";
+                    }
+
+                    @Override
                     public void recordSuccess(AiStreamProxy.StreamStats stats,
                                               AiInvocationRecorder.InvocationHandle handle) {
                         recordDoneEvent(handle, stats.doneData());

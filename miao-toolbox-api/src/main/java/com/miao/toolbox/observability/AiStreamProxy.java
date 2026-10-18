@@ -333,6 +333,19 @@ public class AiStreamProxy {
         }
 
         /**
+         * 本工具对用户的自称，用于拼错误提示（如「AI 讲解」「AI 助手」「AI 分析」）。
+         *
+         * <p><b>必须由工具覆写。</b>共享层不应该替工具决定它叫什么 ——
+         * 此前默认值沿用了五笔的「AI 讲解」，结果在 Cron 编辑器和正则测试器里
+         * 也会弹出「AI 讲解连接中断」，用户根本不知道自己用的是哪个功能。
+         *
+         * <p>默认值退化为中性说法，保证忘了覆写时至少不会说错别人的名字。
+         */
+        public String serviceLabel() {
+            return "AI 服务";
+        }
+
+        /**
          * 把上游错误码映射为<b>面向前端</b>的业务码（决定下发 {@code event: error} 的 code）。
          *
          * <p>默认不映射，原样下发上游码。工具覆写它时必须与自己的<b>同步</b>路径
@@ -510,7 +523,7 @@ public class AiStreamProxy {
                         request.action(), stats.execCount(), stats.tokenCount());
                 accounting.markFailure("AI_UPSTREAM_BROKEN", "上游流未以 done 事件结束");
                 sendError(emitter, "AI_SERVICE_UNAVAILABLE",
-                        "AI 讲解连接中断了，请重试（上游未正常结束）");
+                        observer.serviceLabel() + "连接中断了，请重试（上游未正常结束）");
                 emitter.complete();
                 return;
             }
@@ -530,7 +543,7 @@ public class AiStreamProxy {
             accounting.markFailure("AI_UPSTREAM_BROKEN",
                     truncate(upstreamGone.getMessage(), 512));
             sendError(emitter, "AI_SERVICE_UNAVAILABLE",
-                    "AI 讲解连接中断了，请重试（上游断流）");
+                    observer.serviceLabel() + "连接中断了，请重试（上游断流）");
             safeComplete(emitter);
 
         } catch (ClientGoneException gone) {
@@ -547,7 +560,8 @@ public class AiStreamProxy {
         } catch (Exception e) {
             log.error("AI SSE proxy error: action={}, {}", request.action(), e.getMessage(), e);
             accounting.markFailure("SSE_PROXY_ERROR", truncate(e.getMessage(), 512));
-            sendError(emitter, "AI_SERVICE_UNAVAILABLE", "AI 讲解服务异常：" + e.getMessage());
+            sendError(emitter, "AI_SERVICE_UNAVAILABLE",
+                    observer.serviceLabel() + "服务异常：" + e.getMessage());
             safeComplete(emitter);
 
         } finally {

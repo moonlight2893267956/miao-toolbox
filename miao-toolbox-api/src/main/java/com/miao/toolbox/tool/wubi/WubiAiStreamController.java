@@ -144,6 +144,12 @@ public class WubiAiStreamController {
                         WubiAiStreamService.AGENT_KEY, request.body(), action, EMITTER_TIMEOUT_MS),
                 new AiStreamProxy.Observer() {
                     @Override
+                    public String serviceLabel() {
+                        // 五笔这边确实叫「讲解」：右侧面板就叫 AI 讲解台
+                        return "AI 讲解";
+                    }
+
+                    @Override
                     public void recordSuccess(AiStreamProxy.StreamStats stats,
                                               AiInvocationRecorder.InvocationHandle handle) {
                         // 显式限定：同名方法在匿名类里会解析到自身，漏掉这点会无限递归
