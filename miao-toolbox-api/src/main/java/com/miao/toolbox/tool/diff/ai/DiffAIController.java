@@ -4,27 +4,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miao.toolbox.auth.annotation.RequireRoute;
 import com.miao.toolbox.common.response.ApiResponse;
 import com.miao.toolbox.observability.AiInvocationRecorder;
+import com.miao.toolbox.observability.AiStreamProxy;
 import com.miao.toolbox.observability.MiaoAiClient;
 import com.miao.toolbox.observability.MiaoAiProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * AI 差异分析 Controller — 提供全局摘要和选中解释两个端点。
@@ -41,53 +31,43 @@ public class DiffAIController {
     private final AIAnalysisService aiAnalysisService;
     private final MiaoAiProperties miaoAiProperties;
     private final MiaoAiClient miaoAiClient;
+    /** 流式转发唯一实现：连接建立、事件解析、失败归因、记账幂等都在它那里 */
+    private final AiStreamProxy aiStreamProxy;
 
-    private final ExecutorService sseExecutor = Executors.newCachedThreadPool();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    /**
+     * POST /api/diff/ai/summary —— SSE 流式全局摘要。
+     *
+     * <p>此前本方法自带线程池、记账、超时回调与 fail-fast，与另三个 AI 工具
+     * 逐行重复。现全部委托 {@link AiStreamProxy}（全仓库唯一实现），
+     * 这里只保留 HTTP 端点职责与 diff 特有的记账（它记 token 用量）。
+     *
+     * <p>收敛后顺带修掉两处原有缺陷：上游断流曾被记成「用户自己断开」（归因反了），
+     * 缺 {@code done} 的半截流曾被当成成功。
+     */
     @PostMapping(value = "/summary", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter summary(@RequestBody AIAnalysisRequest request) {
         MiaoAiProperties.AgentConfig agent = miaoAiProperties.getAgent(AGENT_KEY);
         if (!agent.isEnabled()) {
-            SseEmitter emitter = new SseEmitter(0L);
-            try {
-                emitter.send(SseEmitter.event()
-                        .name("error")
-                        .data("{\"message\":\"AI 分析功能未启用\"}"));
-                emitter.complete();
-            } catch (Exception ignored) {}
-            return emitter;
+            // agent 未启用：立刻回错误事件并结束，不让浏览器对着一个空流干等
+            return aiStreamProxy.failFast("AI_AGENT_DISABLED", "AI 分析功能未启用", 503);
         }
 
         request.setMode("summary");
-        SecurityContext securityContext = SecurityContextHolder.getContext();
-        SseEmitter emitter = new SseEmitter(180_000L);
 
-        Map<String, Object> input = aiAnalysisService.buildInput(request);
-        String requestSummary = safeToJson(input);
-        String effectiveAgentName = miaoAiProperties.getEffectiveAgentName(AGENT_KEY);
-        AiInvocationRecorder.InvocationHandle handle =
-                miaoAiClient.recordStreamStart(effectiveAgentName, requestSummary);
-
-        sseExecutor.execute(() -> {
-            SecurityContextHolder.setContext(securityContext);
-            try {
-                doProxyStream(request, emitter, handle);
-            } finally {
-                SecurityContextHolder.clearContext();
-            }
-        });
-
-        emitter.onTimeout(() -> {
-            log.warn("SSE emitter timeout for summary");
-            miaoAiClient.recordStreamFailure(handle, "SSE_TIMEOUT", "SSE 连接超时");
-        });
-        emitter.onError(ex -> {
-            log.warn("SSE emitter error: {}", ex.getMessage());
-            miaoAiClient.recordStreamFailure(handle, "SSE_ERROR", ex.getMessage());
-        });
-
-        return emitter;
+        return aiStreamProxy.proxy(
+                AiStreamProxy.Request.of(AGENT_KEY,
+                                aiAnalysisService.buildInput(request), Map.of(), "diff-summary")
+                        // 保留原 180s，不动既有行为
+                        .withTimeout(180_000L),
+                new AiStreamProxy.Observer() {
+                    @Override
+                    public void recordSuccess(AiStreamProxy.StreamStats stats,
+                                              AiInvocationRecorder.InvocationHandle handle) {
+                        recordDoneEvent(handle, stats.doneData());
+                    }
+                });
     }
 
     @PostMapping("/explain")
@@ -97,108 +77,6 @@ public class DiffAIController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    private void doProxyStream(AIAnalysisRequest request, SseEmitter emitter,
-                                AiInvocationRecorder.InvocationHandle handle) {
-        HttpURLConnection conn = null;
-        try {
-            MiaoAiProperties.AgentConfig agent = miaoAiProperties.getAgent(AGENT_KEY);
-            String streamUrl = aiAnalysisService.getStreamUrl();
-            HttpHeaders headers = aiAnalysisService.getStreamHeaders();
-            Map<String, Object> body = aiAnalysisService.buildInvokeBody(request);
-
-            log.info("SSE proxy: connecting to miao-ai at {}", streamUrl);
-
-            URI uri = URI.create(streamUrl);
-            conn = (HttpURLConnection) uri.toURL().openConnection();
-            conn.setRequestMethod("POST");
-            conn.setDoOutput(true);
-            conn.setConnectTimeout(agent.getConnectTimeout());
-            conn.setReadTimeout(0);
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("Authorization", headers.getFirst("Authorization"));
-            conn.setRequestProperty("Accept", "text/event-stream");
-
-            try (OutputStream os = conn.getOutputStream()) {
-                String jsonBody = objectMapper.writeValueAsString(body);
-                os.write(jsonBody.getBytes(StandardCharsets.UTF_8));
-                os.flush();
-            }
-
-            int responseCode = conn.getResponseCode();
-            log.info("SSE proxy: miao-ai responded HTTP {}", responseCode);
-
-            if (responseCode != 200) {
-                String errorBody = readErrorBody(conn);
-                log.error("SSE proxy: miao-ai error (HTTP {}): {}", responseCode, errorBody);
-                miaoAiClient.recordStreamFailure(handle, "AI_HTTP_" + responseCode,
-                        "miao-ai 返回错误: " + responseCode);
-                emitter.send(SseEmitter.event()
-                        .name("error")
-                        .data("{\"message\":\"miao-ai 返回错误: " + responseCode + "\"}"));
-                emitter.complete();
-                return;
-            }
-
-            int tokenCount = 0;
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
-
-                String line;
-                String currentEvent = "message";
-                StringBuilder currentData = new StringBuilder();
-
-                while ((line = reader.readLine()) != null) {
-                    if (line.startsWith("event:")) {
-                        currentEvent = line.substring(6).trim();
-                    } else if (line.startsWith("data:")) {
-                        currentData.append(line.substring(5).trim());
-                    } else if (line.isEmpty()) {
-                        if (currentData.length() > 0) {
-                            try {
-                                emitter.send(SseEmitter.event()
-                                        .name(currentEvent)
-                                        .data(currentData.toString()));
-
-                                if ("done".equals(currentEvent)) {
-                                    recordDoneEvent(handle, currentData.toString());
-                                }
-                                if ("token".equals(currentEvent)) {
-                                    tokenCount++;
-                                }
-                            } catch (Exception sendEx) {
-                                log.warn("SSE proxy: failed to send event to client: {}", sendEx.getMessage());
-                                miaoAiClient.recordStreamFailure(handle, "SSE_CLIENT_DISCONNECTED",
-                                        "客户端断开连接");
-                                break;
-                            }
-                        }
-                        currentEvent = "message";
-                        currentData.setLength(0);
-                    }
-                }
-            }
-
-            log.info("SSE proxy: stream completed, forwarded {} token events", tokenCount);
-            emitter.complete();
-
-        } catch (Exception e) {
-            log.error("SSE proxy error: {}", e.getMessage(), e);
-            miaoAiClient.recordStreamFailure(handle, "SSE_PROXY_ERROR",
-                    truncate(e.getMessage(), 512));
-            try {
-                emitter.send(SseEmitter.event()
-                        .name("error")
-                        .data("{\"message\":\"AI 分析服务异常: " + e.getMessage() + "\"}"));
-            } catch (Exception ignored) {}
-            try {
-                emitter.completeWithError(e);
-            } catch (Exception ignored) {}
-        } finally {
-            if (conn != null) {
-                try { conn.disconnect(); } catch (Exception ignored) {}
-            }
-        }
-    }
 
     private void recordDoneEvent(AiInvocationRecorder.InvocationHandle handle, String dataJson) {
         try {
@@ -231,17 +109,6 @@ public class DiffAIController {
         }
     }
 
-    private String readErrorBody(HttpURLConnection conn) {
-        try (BufferedReader errReader = new BufferedReader(
-                new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = errReader.readLine()) != null) sb.append(line);
-            return sb.toString();
-        } catch (Exception e) {
-            return "unable to read error body";
-        }
-    }
 
     private String truncate(String text, int maxLength) {
         if (text == null) return null;

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miao.toolbox.auth.annotation.RequireRoute;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.common.response.ApiResponse;
-import com.miao.toolbox.observability.AiInvocationRecorder;
+import com.miao.toolbox.observability.AiStreamProxy;
 import com.miao.toolbox.observability.MiaoAiClient;
 import com.miao.toolbox.observability.MiaoAiProperties;
 import com.miao.toolbox.tool.cron.dto.CronAIRequest;
@@ -14,13 +14,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * Cron AI Controller — 提供自然语言生成 Cron、详解、优化、排错、方言转换五个能力。
@@ -45,7 +41,8 @@ public class CronAIController {
     private final MiaoAiClient miaoAiClient;
     private final MiaoAiProperties miaoAiProperties;
     private final ObjectMapper objectMapper;
-    private final ExecutorService sseExecutor = Executors.newCachedThreadPool();
+    /** 流式转发唯一实现：连接、解析、失败归因、记账幂等都在它那里 */
+    private final AiStreamProxy aiStreamProxy;
 
     @PostMapping
     public ResponseEntity<ApiResponse<CronAIResponse>> aiInvoke(
@@ -57,50 +54,31 @@ public class CronAIController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /**
+     * POST /api/cron/ai/stream —— SSE 流式调用 cron-assistant。
+     *
+     * <p>此前本方法自带线程池、记账、超时回调与 fail-fast，与另三个 AI 工具
+     * 逐行重复。现在全部委托 {@link AiStreamProxy}（全仓库唯一实现），
+     * 这里只保留 HTTP 端点职责：权限、参数校验、把请求交给 service。
+     *
+     * <p>收敛后顺带修掉两处原有缺陷：
+     * <ul>
+     *   <li>上游断流曾被记成 {@code SSE_CLIENT_DISCONNECTED}（用户自己断开），
+     *       归因反了，{@code AI_UPSTREAM_BROKEN} 永不出现；</li>
+     *   <li>缺 {@code done} 的半截流曾被当成成功记账。</li>
+     * </ul>
+     */
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream(@Valid @RequestBody CronAIRequest request) {
         MiaoAiProperties.AgentConfig agent = miaoAiProperties.getAgent(AGENT_KEY);
         if (!agent.isEnabled()) {
-            SseEmitter emitter = new SseEmitter(0L);
-            try {
-                emitter.send(SseEmitter.event()
-                        .name("error")
-                        .data("{\"message\":\"Cron AI 助手未启用\"}"));
-                emitter.complete();
-            } catch (Exception ignored) {
-            }
-            return emitter;
+            // agent 未启用：立刻回错误事件并结束，不让浏览器对着一个空流干等
+            return aiStreamProxy.failFast("AI_AGENT_DISABLED", "Cron AI 助手未启用", 503);
         }
 
         validateRequest(request);
 
-        SecurityContext securityContext = SecurityContextHolder.getContext();
-        SseEmitter emitter = new SseEmitter(180_000L);
-
-        String requestSummary = safeToJson(request);
-        String effectiveAgentName = miaoAiProperties.getEffectiveAgentName(AGENT_KEY);
-        AiInvocationRecorder.InvocationHandle handle =
-                miaoAiClient.recordStreamStart(effectiveAgentName, requestSummary);
-
-        sseExecutor.execute(() -> {
-            SecurityContextHolder.setContext(securityContext);
-            try {
-                cronAIService.stream(request, emitter, handle);
-            } finally {
-                SecurityContextHolder.clearContext();
-            }
-        });
-
-        emitter.onTimeout(() -> {
-            log.warn("SSE emitter timeout for cron stream");
-            miaoAiClient.recordStreamFailure(handle, "SSE_TIMEOUT", "SSE 连接超时");
-        });
-        emitter.onError(ex -> {
-            log.warn("SSE emitter error: {}", ex.getMessage());
-            miaoAiClient.recordStreamFailure(handle, "SSE_ERROR", ex.getMessage());
-        });
-
-        return emitter;
+        return cronAIService.stream(request);
     }
 
     private void validateRequest(CronAIRequest request) {

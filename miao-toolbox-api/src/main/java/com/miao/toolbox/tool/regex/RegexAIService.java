@@ -2,6 +2,7 @@ package com.miao.toolbox.tool.regex;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miao.toolbox.observability.AiInvocationRecorder;
+import com.miao.toolbox.observability.AiStreamProxy;
 import com.miao.toolbox.observability.MiaoAiClient;
 import com.miao.toolbox.observability.MiaoAiProperties;
 import com.miao.toolbox.observability.dto.MiaoAiInvokeResponse;
@@ -9,16 +10,9 @@ import com.miao.toolbox.tool.regex.dto.RegexAIRequest;
 import com.miao.toolbox.tool.regex.dto.RegexAIResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -46,6 +40,8 @@ public class RegexAIService {
     private final MiaoAiClient miaoAiClient;
     private final MiaoAiProperties miaoAiProperties;
     private final ObjectMapper objectMapper;
+    /** 流式转发唯一实现：连接建立、事件解析、失败归因、记账幂等都在它那里 */
+    private final AiStreamProxy aiStreamProxy;
 
     /**
      * 调用 regex-assistant Agent。
@@ -191,119 +187,56 @@ public class RegexAIService {
      * 因此这里把每个 token 片段拼回完整 output JSON，原样转发给前端；在 done 时解析出
      * pattern/explanation/suggestions 用于调用日志记录。
      */
-    public void stream(RegexAIRequest request, SseEmitter emitter,
-                       AiInvocationRecorder.InvocationHandle handle) {
-        HttpURLConnection conn = null;
-        try {
-            MiaoAiProperties.AgentConfig agent = miaoAiProperties.getAgent(AGENT_KEY);
-            String streamUrl = miaoAiClient.getStreamUrl(AGENT_KEY);
-            HttpHeaders headers = miaoAiClient.getStreamHeaders(AGENT_KEY);
-            Map<String, Object> body = miaoAiClient.buildStreamBody(buildInput(request), buildMetadata(request));
+    /**
+     * SSE 流式调用 regex-assistant Agent。
+     *
+     * <p>转发委托 {@link AiStreamProxy}（全仓库唯一实现）；此处只保留 regex 特有的
+     * 部分：逐 token 累加输出、收尾时按 regex 的字段记账。
+     *
+     * <p>收敛后顺带修掉两处原有缺陷：上游断流曾被记成「用户自己断开」（归因反了），
+     * 缺 {@code done} 的半截流曾被当成成功。
+     */
+    public SseEmitter stream(RegexAIRequest request) {
+        Map<String, Object> input = buildInput(request);
+        Map<String, Object> metadata = buildMetadata(request);
 
-            URI uri = URI.create(streamUrl);
-            conn = (HttpURLConnection) uri.toURL().openConnection();
-            conn.setRequestMethod("POST");
-            conn.setDoOutput(true);
-            conn.setConnectTimeout(agent.getConnectTimeout());
-            conn.setReadTimeout(0);
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("Authorization", headers.getFirst("Authorization"));
-            conn.setRequestProperty("Accept", "text/event-stream");
+        // 逐 token 累加：done 事件只给最终输出，中间结果要自己攒
+        StringBuilder fullOutput = new StringBuilder();
 
-            try (OutputStream os = conn.getOutputStream()) {
-                os.write(objectMapper.writeValueAsString(body).getBytes(StandardCharsets.UTF_8));
-                os.flush();
-            }
-
-            int responseCode = conn.getResponseCode();
-            if (responseCode != 200) {
-                String errorBody = readErrorBody(conn);
-                log.error("SSE proxy(regex): miao-ai error HTTP {}: {}", responseCode, errorBody);
-                miaoAiClient.recordStreamFailure(handle, "AI_HTTP_" + responseCode,
-                        "miao-ai 返回错误: " + responseCode);
-                emitter.send(SseEmitter.event()
-                        .name("error")
-                        .data("{\"message\":\"miao-ai 返回错误: " + responseCode + "\"}"));
-                emitter.complete();
-                return;
-            }
-
-            StringBuilder fullOutput = new StringBuilder();
-            int tokenCount = 0;
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
-
-                String line;
-                String currentEvent = "message";
-                StringBuilder currentData = new StringBuilder();
-
-                while ((line = reader.readLine()) != null) {
-                    if (line.startsWith("event:")) {
-                        currentEvent = line.substring(6).trim();
-                    } else if (line.startsWith("data:")) {
-                        currentData.append(line.substring(5).trim());
-                    } else if (line.isEmpty()) {
-                        if (currentData.length() > 0) {
-                            String dataStr = currentData.toString();
-                            String event = currentEvent;
-                            try {
-                                emitter.send(SseEmitter.event().name(event).data(dataStr));
-
-                                if ("token".equals(event)) {
-                                    try {
-                                        @SuppressWarnings("unchecked")
-                                        Map<String, Object> tok = objectMapper.readValue(dataStr, Map.class);
-                                        Object t = tok.get("token");
-                                        if (t != null) {
-                                            fullOutput.append(t);
-                                            tokenCount++;
-                                        }
-                                    } catch (Exception ignored) {
-                                        // 单 token 解析失败不阻断流
-                                    }
-                                } else if ("done".equals(event)) {
-                                    recordStreamDone(handle, fullOutput.toString(), dataStr);
-                                } else if ("error".equals(event)) {
-                                    miaoAiClient.recordStreamFailure(handle, "AI_STREAM_ERROR",
-                                            truncate(dataStr, 512));
-                                }
-                            } catch (Exception sendEx) {
-                                log.warn("SSE proxy(regex): failed to send event: {}", sendEx.getMessage());
-                                miaoAiClient.recordStreamFailure(handle, "SSE_CLIENT_DISCONNECTED",
-                                        "客户端断开连接");
-                                break;
-                            }
+        return aiStreamProxy.proxy(
+                AiStreamProxy.Request.of(AGENT_KEY, input, metadata, "regex-assistant")
+                        // 保留原 180s，不动既有行为
+                        .withTimeout(180_000L),
+                new AiStreamProxy.Observer() {
+                    @Override
+                    public void onEvent(String name, String data, SseEmitter emitter) {
+                        if (!"token".equals(name)) {
+                            return;
                         }
-                        currentEvent = "message";
-                        currentData.setLength(0);
+                        try {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> tok = objectMapper.readValue(data, Map.class);
+                            Object t = tok.get("token");
+                            if (t != null) {
+                                synchronized (fullOutput) {
+                                    fullOutput.append(t);
+                                }
+                            }
+                        } catch (Exception ignored) {
+                            // 单个 token 解析失败不该中断整条流
+                        }
                     }
-                }
-            }
 
-            log.info("SSE proxy(regex): stream completed, forwarded {} token events", tokenCount);
-            emitter.complete();
-
-        } catch (Exception e) {
-            log.error("SSE proxy(regex) error: {}", e.getMessage(), e);
-            miaoAiClient.recordStreamFailure(handle, "SSE_PROXY_ERROR", truncate(e.getMessage(), 512));
-            try {
-                emitter.send(SseEmitter.event()
-                        .name("error")
-                        .data("{\"message\":\"AI 助手服务异常: " + e.getMessage() + "\"}"));
-            } catch (Exception ignored) {
-            }
-            try {
-                emitter.completeWithError(e);
-            } catch (Exception ignored) {
-            }
-        } finally {
-            if (conn != null) {
-                try {
-                    conn.disconnect();
-                } catch (Exception ignored) {
-                }
-            }
-        }
+                    @Override
+                    public void recordSuccess(AiStreamProxy.StreamStats stats,
+                                              AiInvocationRecorder.InvocationHandle handle) {
+                        String output;
+                        synchronized (fullOutput) {
+                            output = fullOutput.toString();
+                        }
+                        recordStreamDone(handle, output, stats.doneData());
+                    }
+                });
     }
 
     private void recordStreamDone(AiInvocationRecorder.InvocationHandle handle,
@@ -328,17 +261,6 @@ public class RegexAIService {
                 null, null, null, truncate(fullOutput, 512));
     }
 
-    private String readErrorBody(HttpURLConnection conn) {
-        try (BufferedReader errReader = new BufferedReader(
-                new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = errReader.readLine()) != null) sb.append(line);
-            return sb.toString();
-        } catch (Exception e) {
-            return "unable to read error body";
-        }
-    }
 
     private String truncate(String text, int maxLength) {
         if (text == null) return null;

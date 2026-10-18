@@ -3,6 +3,7 @@ package com.miao.toolbox.tool.cron;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.observability.AiInvocationRecorder;
+import com.miao.toolbox.observability.AiStreamProxy;
 import com.miao.toolbox.observability.MiaoAiClient;
 import com.miao.toolbox.observability.MiaoAiProperties;
 import com.miao.toolbox.observability.dto.MiaoAiInvokeResponse;
@@ -10,16 +11,9 @@ import com.miao.toolbox.tool.cron.dto.CronAIRequest;
 import com.miao.toolbox.tool.cron.dto.CronAIResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -51,6 +45,8 @@ public class CronAIService {
     private final MiaoAiClient miaoAiClient;
     private final MiaoAiProperties miaoAiProperties;
     private final ObjectMapper objectMapper;
+    /** 流式转发的唯一实现：连接建立、事件解析、失败归因、记账幂等都在它那里 */
+    private final AiStreamProxy aiStreamProxy;
 
     /**
      * 同步调用 cron-assistant Agent。
@@ -157,121 +153,57 @@ public class CronAIService {
 
     /**
      * SSE 流式调用 cron-assistant Agent。
+     *
+     * <p>转发本身委托 {@link AiStreamProxy}（全仓库唯一实现）；这里只保留
+     * cron 特有的部分：逐 token 累加输出、收尾时按 cron 的字段记账。
+     *
+     * <p>收敛后顺带修掉两处原有缺陷：上游非 2xx / 上游断流不再与「用户关页面」
+     * 记成同一个码，缺 {@code done} 的半截流也不再被当成成功。
      */
-    public void stream(CronAIRequest request, SseEmitter emitter,
-                       AiInvocationRecorder.InvocationHandle handle) {
-        HttpURLConnection conn = null;
-        try {
-            MiaoAiProperties.AgentConfig agent = miaoAiProperties.getAgent(AGENT_KEY);
-            String streamUrl = miaoAiClient.getStreamUrl(AGENT_KEY);
-            HttpHeaders headers = miaoAiClient.getStreamHeaders(AGENT_KEY);
-            Map<String, Object> body = miaoAiClient.buildStreamBody(buildInput(request), buildMetadata(request));
+    public SseEmitter stream(CronAIRequest request) {
+        Map<String, Object> input = buildInput(request);
+        Map<String, Object> metadata = buildMetadata(request);
 
-            URI uri = URI.create(streamUrl);
-            conn = (HttpURLConnection) uri.toURL().openConnection();
-            conn.setRequestMethod("POST");
-            conn.setDoOutput(true);
-            conn.setConnectTimeout(agent.getConnectTimeout());
-            conn.setReadTimeout(0);
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("Authorization", headers.getFirst("Authorization"));
-            conn.setRequestProperty("Accept", "text/event-stream");
+        // 逐 token 累加：cron 的 done 事件只给最终输出，中间结果要自己攒
+        StringBuilder fullOutput = new StringBuilder();
 
-            try (OutputStream os = conn.getOutputStream()) {
-                os.write(objectMapper.writeValueAsString(body).getBytes(StandardCharsets.UTF_8));
-                os.flush();
-            }
-
-            int responseCode = conn.getResponseCode();
-            if (responseCode != 200) {
-                String errorBody = readErrorBody(conn);
-                log.error("SSE proxy(cron): miao-ai error HTTP {}: {}", responseCode, errorBody);
-                miaoAiClient.recordStreamFailure(handle, "AI_HTTP_" + responseCode,
-                        "miao-ai 返回错误: " + responseCode);
-                emitter.send(SseEmitter.event()
-                        .name("error")
-                        .data("{\"message\":\"miao-ai 返回错误: " + responseCode + "\"}"));
-                emitter.complete();
-                return;
-            }
-
-            StringBuilder fullOutput = new StringBuilder();
-            int tokenCount = 0;
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
-
-                String line;
-                String currentEvent = "message";
-                StringBuilder currentData = new StringBuilder();
-
-                while ((line = reader.readLine()) != null) {
-                    if (line.startsWith("event:")) {
-                        currentEvent = line.substring(6).trim();
-                    } else if (line.startsWith("data:")) {
-                        currentData.append(line.substring(5).trim());
-                    } else if (line.isEmpty()) {
-                        if (currentData.length() > 0) {
-                            String dataStr = currentData.toString();
-                            String event = currentEvent;
-                            try {
-                                emitter.send(SseEmitter.event().name(event).data(dataStr));
-
-                                if ("token".equals(event)) {
-                                    try {
-                                        @SuppressWarnings("unchecked")
-                                        Map<String, Object> tok = objectMapper.readValue(dataStr, Map.class);
-                                        Object t = tok.get("token");
-                                        if (t != null) {
-                                            fullOutput.append(t);
-                                            tokenCount++;
-                                        }
-                                    } catch (Exception ignored) {
-                                        // 单 token 解析失败不阻断流
-                                    }
-                                } else if ("done".equals(event)) {
-                                    recordStreamDone(handle, fullOutput.toString(), dataStr);
-                                } else if ("error".equals(event)) {
-                                    miaoAiClient.recordStreamFailure(handle, "AI_STREAM_ERROR",
-                                            truncate(dataStr, 512));
-                                }
-                            } catch (Exception sendEx) {
-                                log.warn("SSE proxy(cron): failed to send event: {}", sendEx.getMessage());
-                                miaoAiClient.recordStreamFailure(handle, "SSE_CLIENT_DISCONNECTED",
-                                        "客户端断开连接");
-                                break;
-                            }
+        return aiStreamProxy.proxy(
+                AiStreamProxy.Request.of(AGENT_KEY, input, metadata, "cron-assistant")
+                        // 保留原 180s：cron 表达式生成通常远快于讲解，不动既有行为
+                        .withTimeout(180_000L),
+                new AiStreamProxy.Observer() {
+                    @Override
+                    public void onEvent(String name, String data, SseEmitter emitter) {
+                        if (!"token".equals(name)) {
+                            return;
                         }
-                        currentEvent = "message";
-                        currentData.setLength(0);
+                        try {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> tok = objectMapper.readValue(data, Map.class);
+                            Object t = tok.get("token");
+                            if (t != null) {
+                                synchronized (fullOutput) {
+                                    fullOutput.append(t);
+                                }
+                            }
+                        } catch (Exception ignored) {
+                            // 单个 token 解析失败不该中断整条流
+                        }
                     }
-                }
-            }
 
-            log.info("SSE proxy(cron): stream completed, forwarded {} token events", tokenCount);
-            emitter.complete();
 
-        } catch (Exception e) {
-            log.error("SSE proxy(cron) error: {}", e.getMessage(), e);
-            miaoAiClient.recordStreamFailure(handle, "SSE_PROXY_ERROR", truncate(e.getMessage(), 512));
-            try {
-                emitter.send(SseEmitter.event()
-                        .name("error")
-                        .data("{\"message\":\"AI 助手服务异常: " + e.getMessage() + "\"}"));
-            } catch (Exception ignored) {
-            }
-            try {
-                emitter.completeWithError(e);
-            } catch (Exception ignored) {
-            }
-        } finally {
-            if (conn != null) {
-                try {
-                    conn.disconnect();
-                } catch (Exception ignored) {
-                }
-            }
-        }
+                    @Override
+                    public void recordSuccess(AiStreamProxy.StreamStats stats,
+                                              AiInvocationRecorder.InvocationHandle handle) {
+                        String output;
+                        synchronized (fullOutput) {
+                            output = fullOutput.toString();
+                        }
+                        recordStreamDone(handle, output, stats.doneData());
+                    }
+                });
     }
+
 
     private void recordStreamDone(AiInvocationRecorder.InvocationHandle handle,
                                   String fullOutput, String doneData) {
@@ -295,17 +227,6 @@ public class CronAIService {
                 null, null, null, truncate(fullOutput, 512));
     }
 
-    private String readErrorBody(HttpURLConnection conn) {
-        try (BufferedReader errReader = new BufferedReader(
-                new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = errReader.readLine()) != null) sb.append(line);
-            return sb.toString();
-        } catch (Exception e) {
-            return "unable to read error body";
-        }
-    }
 
     private String truncate(String text, int maxLength) {
         if (text == null) return null;

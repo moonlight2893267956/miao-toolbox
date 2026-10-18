@@ -2,6 +2,7 @@ package com.miao.toolbox.tool.wubi;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miao.toolbox.observability.AiInvocationRecorder;
+import com.miao.toolbox.observability.AiStreamProxy;
 import com.miao.toolbox.observability.MiaoAiClient;
 import com.miao.toolbox.observability.MiaoAiProperties;
 import com.sun.net.httpserver.HttpExchange;
@@ -142,7 +143,9 @@ class WubiAiStreamControllerTest {
         WubiAiStreamService streamService =
                 new WubiAiStreamService(miaoAiClient, properties, syncService);
         WubiAiStreamController controller =
-                new WubiAiStreamController(streamService, syncService, miaoAiClient, properties);
+                // AiStreamProxy 接受同一个 mock 的 MiaoAiClient，转发与记账仍走真实实现
+                new WubiAiStreamController(streamService, syncService, miaoAiClient, properties,
+                        new AiStreamProxy(miaoAiClient, properties));
         mvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
@@ -501,7 +504,8 @@ class WubiAiStreamControllerTest {
         WubiAiService sync = new WubiAiService(miaoAiClient);
         WubiAiStreamService svc = new WubiAiStreamService(miaoAiClient, properties, sync);
         mvc = MockMvcBuilders.standaloneSetup(
-                new WubiAiStreamController(svc, sync, miaoAiClient, properties)).build();
+                new WubiAiStreamController(svc, sync, miaoAiClient, properties,
+                        new AiStreamProxy(miaoAiClient, properties))).build();
 
         stream("/api/wubi/ai/explain/stream", explainBody());
 

@@ -4,34 +4,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miao.toolbox.auth.annotation.RequireRoute;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.observability.AiInvocationRecorder;
+import com.miao.toolbox.observability.AiStreamProxy;
 import com.miao.toolbox.observability.AiUpstreamErrors;
 import com.miao.toolbox.observability.MiaoAiClient;
 import com.miao.toolbox.observability.MiaoAiProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import jakarta.annotation.PreDestroy;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 讲解台的**流式**入口：把 miao-ai 的 `/invoke/stream` 原样转给浏览器。
@@ -74,6 +61,8 @@ public class WubiAiStreamController {
     private final WubiAiService wubiAiService;
     private final MiaoAiClient miaoAiClient;
     private final MiaoAiProperties miaoAiProperties;
+    /** 流式转发唯一实现：连接建立、事件解析、失败归因、记账幂等都在它那里 */
+    private final AiStreamProxy aiStreamProxy;
 
     /**
      * SSE 转发线程池。
@@ -86,18 +75,9 @@ public class WubiAiStreamController {
      * <p>容器关闭时显式 `shutdownNow()`：否则这些 daemon=false 的 worker 会拖住 JVM 退出
      * （`Executors.defaultThreadFactory()` 造的是非 daemon 线程）。
      */
-    private final ExecutorService sseExecutor = new ThreadPoolExecutor(
-            4, 16, 60L, TimeUnit.SECONDS,
-            new LinkedBlockingQueue<>(64),
-            new ThreadPoolExecutor.CallerRunsPolicy());
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    /** 容器关闭：不要再让转发线程拖住 JVM 退出 */
-    @PreDestroy
-    public void shutdown() {
-        sseExecutor.shutdownNow();
-    }
 
     /**
      * POST /api/wubi/ai/explain/stream —— 首轮讲解（SSE）。
@@ -144,272 +124,59 @@ public class WubiAiStreamController {
      * <p>必须切线程：SSE 的读取是阻塞的（`BufferedReader.readLine`），
      * 在请求线程里读会把 Tomcat 的工作线程占满整个讲解时长。
      */
-    private SseEmitter proxy(WubiAiStreamService.StreamRequest request, String action) {
-        SecurityContext securityContext = SecurityContextHolder.getContext();
-        SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
-
-        AiInvocationRecorder.InvocationHandle handle = miaoAiClient.recordStreamStart(
-                effectiveAgentName(), truncate(String.valueOf(request.body()), 512));
-
-        /*
-         * !! 一次调用只记一次账 !!
-         *
-         * `AiInvocationRecorder` 没有幂等保护：`recordSuccess` / `recordFailure`
-         * 每次都 `repository.save` 一条新记录。而 SSE 的失败路径天然会重叠 ——
-         * 上游非 2xx 时先 `recordStreamFailure`，随后 `sendError` 抛异常又进 catch
-         * 再记一次；`emitter.onTimeout` / `onError` 也会与 doProxy 的异常路径叠加。
-         * 结果同一次调用在 `ai_invocations` 里出现两条（甚至三条）记录，
-         * 失败率与耗时分母全部虚高。用 CAS 守卫兜住。
-         */
-        AtomicBoolean accounted = new AtomicBoolean(false);
-
-        sseExecutor.execute(() -> {
-            SecurityContextHolder.setContext(securityContext);
-            try {
-                doProxy(request, action, emitter, handle, accounted);
-            } finally {
-                SecurityContextHolder.clearContext();
-            }
-        });
-
-        emitter.onTimeout(() -> {
-            log.warn("wubi SSE emitter timeout: action={}", action);
-            if (accounted.compareAndSet(false, true)) {
-                miaoAiClient.recordStreamFailure(handle, "SSE_TIMEOUT", "SSE 连接超时");
-            }
-        });
-        emitter.onError(ex -> {
-            log.warn("wubi SSE emitter error: action={}, {}", action, ex.getMessage());
-            if (accounted.compareAndSet(false, true)) {
-                miaoAiClient.recordStreamFailure(handle, "SSE_ERROR", ex.getMessage());
-            }
-        });
-
-        return emitter;
-    }
-
     /**
-     * 真正的转发循环：按 SSE 规范（`event:` / `data:` / 空行分隔）逐事件转发。
+     * 转发请求：交给 {@link AiStreamProxy}（全仓库唯一实现）。
      *
-     * <p>未知事件名照样转发 —— 这是与 miao-ai 契约对齐的关键（见类注释）。
+     * <p>本方法此前自带线程池、记账、超时回调与 SSE 解析循环，与 cron / regex /
+     * diff 三个工具逐行重复。现只保留五笔特有的部分：错误码映射（要与同步路径
+     * 同一份，否则会出现「同步返 410、流式返别的码」这种前端无法统一分支的裂缝）
+     * 与收尾时的结构化 output 记账。
+     *
+     * <p>事件名<b>不设白名单</b>：miao-ai 的执行事件契约明确承诺「事件名只增不改」，
+     * 一旦加白名单，平台新增事件类型时会被静默丢弃，线上只表现为「过程轨少了几步」。
+     * 该契约由 miao-ai 侧 {@code backend/tests/test_invoke_exec_passthrough.py} 钉死。
      */
-    private void doProxy(WubiAiStreamService.StreamRequest request, String action,
-                         SseEmitter emitter, AiInvocationRecorder.InvocationHandle handle,
-                         AtomicBoolean accounted) {
-        HttpURLConnection conn = null;
-        try {
-            MiaoAiProperties.AgentConfig agent = miaoAiProperties.getAgent(
-                    WubiAiStreamService.AGENT_KEY);
+    private SseEmitter proxy(WubiAiStreamService.StreamRequest request, String action) {
+        return aiStreamProxy.proxy(
+                // body 已由 WubiAiStreamService 组装完整（含 input 与 metadata），
+                // 且首轮要先建会话才能定稿 —— 不能让代理层再拼一次
+                AiStreamProxy.Request.ofPrebuilt(
+                        WubiAiStreamService.AGENT_KEY, request.body(), action, EMITTER_TIMEOUT_MS),
+                new AiStreamProxy.Observer() {
+                    @Override
+                    public void recordSuccess(AiStreamProxy.StreamStats stats,
+                                              AiInvocationRecorder.InvocationHandle handle) {
+                        // 显式限定：同名方法在匿名类里会解析到自身，漏掉这点会无限递归
+                        WubiAiStreamController.this.recordSuccess(handle, stats);
+                    }
 
-            log.info("wubi SSE proxy: connecting, action={}", action);
-            conn = (HttpURLConnection) URI.create(request.streamUrl()).toURL().openConnection();
-            conn.setRequestMethod("POST");
-            conn.setDoOutput(true);
-            conn.setConnectTimeout(agent.getConnectTimeout());
-            // 流式读取不设短超时：单次模型调用可阻塞 70s，期间流上可能没有任何事件
-            conn.setReadTimeout(0);
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("Accept", MediaType.TEXT_EVENT_STREAM_VALUE);
-            conn.setRequestProperty("Authorization", request.headers().getFirst("Authorization"));
-
-            try (OutputStream os = conn.getOutputStream()) {
-                os.write(objectMapper.writeValueAsString(request.body())
-                        .getBytes(StandardCharsets.UTF_8));
-                os.flush();
-            }
-
-            int responseCode = conn.getResponseCode();
-            if (responseCode != 200) {
-                String errorBody = readErrorBody(conn);
-                int status = responseCode;
-                String code = AiUpstreamErrors.codeForStatus(status);
-                String message = AiUpstreamErrors.messageForStatus(status, errorBody);
-                log.error("wubi SSE proxy: upstream {} ({})", status, errorBody);
-                if (accounted.compareAndSet(false, true)) {
-                    miaoAiClient.recordStreamFailure(handle, code, truncate(message, 512));
-                }
-                sendError(emitter, mapUpstreamCode(code), message);
-                emitter.complete();
-                return;
-            }
-
-            EventCounter counter = forwardEvents(conn, emitter);
-
-            /*
-             * !! 没收到 done 就是上游断流，不是正常完成 !!
-             *
-             * 上游写出半个事件就断开时，`readLine()` 返回的是**正常 EOF**（不抛
-             * IOException），`forwardEvents` 会安静地返回 —— 于是一次失败的调用
-             * 看起来像成功，浏览器只收到一个空流，用户看到的是「什么都没发生」。
-             * miao-ai 的契约明确：`done` 是唯一收尾事件，缺了它结果不可信。
-             */
-            if (!counter.sawDone()) {
-                log.error("wubi SSE upstream ended without done: action={}, exec={}, token={}",
-                        action, counter.execCount(), counter.tokenCount());
-                if (accounted.compareAndSet(false, true)) {
-                    miaoAiClient.recordStreamFailure(handle, "AI_UPSTREAM_BROKEN",
-                            "上游流未以 done 事件结束");
-                }
-                sendError(emitter, "AI_SERVICE_UNAVAILABLE",
-                        "AI 讲解连接中断了，请重试（上游未正常结束）");
-                emitter.complete();
-                return;
-            }
-
-            log.info("wubi SSE proxy done: action={}, exec={}, token={}",
-                    action, counter.execCount(), counter.tokenCount());
-            if (accounted.compareAndSet(false, true)) {
-                recordSuccess(handle, counter);
-            }
-            emitter.complete();
-
-        } catch (UpstreamGoneException upstreamGone) {
-            /*
-             * 上游断流：miao-ai 侧的问题。要**如实告知用户**并记故障 ——
-             * 静默收尾会让用户以为「AI 讲完了但什么都没说」。
-             */
-            log.error("wubi SSE upstream stream broke: action={}, {}",
-                    action, upstreamGone.getMessage());
-            if (accounted.compareAndSet(false, true)) {
-                miaoAiClient.recordStreamFailure(handle, "AI_UPSTREAM_BROKEN",
-                        truncate(upstreamGone.getMessage(), 512));
-            }
-            sendError(emitter, "AI_SERVICE_UNAVAILABLE",
-                    "AI 讲解连接中断了，请重试（上游断流）");
-            try {
-                emitter.complete();
-            } catch (Exception ignored) {
-                // 客户端可能也已断开
-            }
-        } catch (ClientGoneException gone) {
-            /*
-             * 客户端自己断开（关页面 / 取消请求）：**不是故障**。
-             *
-             * 两个不能省的理由：
-             * 1. 记成 SSE_PROXY_ERROR 会让观测面板的失败率虚高 —— 用户关页面是高频操作；
-             * 2. 再 sendError 是往已断开的连接写数据，必然 IOException，纯属浪费。
-             * 这里只记 info 并正常收尾（转发已停止，剩下的只是记账与关闭）。
-             */
-            log.info("wubi SSE client gone: action={}", action);
-            if (accounted.compareAndSet(false, true)) {
-                miaoAiClient.recordStreamFailure(handle, "SSE_CLIENT_DISCONNECTED",
-                        "客户端断开连接");
-            }
-            try {
-                emitter.complete();
-            } catch (Exception ignored) {
-                // 客户端已断开，complete 失败无可补救
-            }
-        } catch (Exception e) {
-            log.error("wubi SSE proxy error: action={}, {}", action, e.getMessage(), e);
-            if (accounted.compareAndSet(false, true)) {
-                miaoAiClient.recordStreamFailure(handle, "SSE_PROXY_ERROR",
-                        truncate(e.getMessage(), 512));
-            }
-            sendError(emitter, "AI_SERVICE_UNAVAILABLE", "AI 讲解服务异常：" + e.getMessage());
-            try {
-                emitter.complete();
-            } catch (Exception ignored) {
-                // 客户端可能已断开，这里没有可做的补救
-            }
-        } finally {
-            if (conn != null) {
-                try {
-                    conn.disconnect();
-                } catch (Exception ignored) {
-                    // disconnect 失败不影响已转发的数据
-                }
-            }
-        }
+                    /**
+                     * 上游状态码 → 面向前端的业务码。
+                     *
+                     * <p>刻意复用 {@link WubiAiService#mapUpstream}：两条路径若各写一份映射，
+                     * 迟早出现「同步返回 410、流式返回别的码」这种前端无法统一分支的裂缝
+                     * —— 前端正是按 code 分支做 410 自动重开会话的。
+                     */
+                    @Override
+                    public String mapClientErrorCode(String upstreamCode) {
+                        return wubiAiService.mapUpstream(
+                                new BusinessException(upstreamCode, "", 502)).getErrorCode();
+                    }
+                });
     }
 
     /** 事件计数与 done 载荷，用于可观测性记录 */
     private record EventCounter(String traceId, String doneOutput, int execCount,
                                int tokenCount, boolean sawDone) {
-    }
-
-    /**
-     * 逐事件转发，并顺手统计 `exec` / `token` 数量与 `done` 载荷。
-     *
-     * @throws ClientGoneException 客户端断开（用于提前结束循环，不再空读上游）
-     */
-    private EventCounter forwardEvents(HttpURLConnection conn, SseEmitter emitter)
-            throws ClientGoneException, UpstreamGoneException {
-        String currentEvent = "";
-        StringBuilder currentData = new StringBuilder();
-        int execCount = 0;
-        int tokenCount = 0;
-        String traceId = null;
-        String doneOutput = null;
-        boolean sawDone = false;
-
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.startsWith("event:")) {
-                    currentEvent = line.substring(6).trim();
-                } else if (line.startsWith("data:")) {
-                    currentData.append(line.substring(5).trim());
-                } else if (line.isEmpty()) {
-                    if (currentData.length() > 0) {
-                        String data = currentData.toString();
-                        // 不设白名单：未知事件名照样转发（miao-ai 承诺只增不改）
-                        try {
-                            emitter.send(SseEmitter.event().name(currentEvent).data(data));
-                        } catch (Exception sendEx) {
-                            throw new ClientGoneException(sendEx);
-                        }
-                        if ("exec".equals(currentEvent)) {
-                            execCount++;
-                        } else if ("token".equals(currentEvent)) {
-                            tokenCount++;
-                        } else if ("done".equals(currentEvent)) {
-                            sawDone = true;
-                            traceId = readTraceId(data);
-                            doneOutput = readDoneOutput(data);
-                        }
-                    }
-                    currentEvent = "";
-                    currentData.setLength(0);
-                }
-            }
-        } catch (java.io.IOException io) {
-            // 读上游失败：与「客户端断开」区分开（见 UpstreamGoneException 注释）
-            throw new UpstreamGoneException(io);
         }
-        return new EventCounter(traceId, doneOutput, execCount, tokenCount, sawDone);
-    }
-
-    /**
-     * 往客户端写失败 = **客户端已断开**（关页面 / 取消请求）。
-     *
-     * 这不是故障：记成失败会让观测面板的失败率虚高，再 sendError 也是白写。
-     */
-    private static class ClientGoneException extends Exception {
-        ClientGoneException(Throwable cause) {
-            super(cause);
-        }
-    }
-
-    /**
-     * 读上游失败 = **上游断流**（agent 崩了 / 连接被掐）。
-     *
-     * 与「客户端断开」必须分开：前者是 miao-ai 侧的问题，要记故障并告知用户；
-     * 后者是用户的正常操作，什么都不该做。初版把两者都塞进
-     * `ClientGoneException`，导致上游断流会被静默吞掉、用户看不到任何提示。
-     */
-    private static class UpstreamGoneException extends Exception {
-        UpstreamGoneException(Throwable cause) {
-            super(cause);
-        }
-    }
 
     /** 记录本次流式调用成功（有模型名/耗时则带上，取不到不影响主流程） */
-    private void recordSuccess(AiInvocationRecorder.InvocationHandle handle, EventCounter counter) {
+    private void recordSuccess(AiInvocationRecorder.InvocationHandle handle,
+                               AiStreamProxy.StreamStats stats) {
         try {
-            miaoAiClient.recordStreamSuccess(handle, null, null, counter.traceId(),
-                    null, null, null, truncate(counter.doneOutput(), 512));
+            miaoAiClient.recordStreamSuccess(handle, null, null,
+                    readTraceId(stats.doneData()),
+                    null, null, null, readDoneOutput(stats.doneData()));
         } catch (Exception e) {
             log.warn("记录流式调用失败: {}", e.getMessage());
         }
@@ -497,19 +264,6 @@ public class WubiAiStreamController {
         }
     }
 
-    private String readErrorBody(HttpURLConnection conn) {
-        try (BufferedReader errReader = new BufferedReader(
-                new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = errReader.readLine()) != null) {
-                sb.append(line);
-            }
-            return sb.toString();
-        } catch (Exception e) {
-            return "unable to read error body";
-        }
-    }
 
     private String truncate(String text, int maxLength) {
         if (text == null) {

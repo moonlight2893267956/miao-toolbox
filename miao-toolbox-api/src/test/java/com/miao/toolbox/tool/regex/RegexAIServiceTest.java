@@ -1,6 +1,7 @@
 package com.miao.toolbox.tool.regex;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.miao.toolbox.observability.AiStreamProxy;
 import com.miao.toolbox.observability.MiaoAiClient;
 import com.miao.toolbox.observability.MiaoAiProperties;
 import com.miao.toolbox.observability.dto.MiaoAiInvokeResponse;
@@ -56,7 +57,9 @@ class RegexAIServiceTest {
         MiaoAiProperties.AgentConfig agentConfig = new MiaoAiProperties.AgentConfig();
         agentConfig.setEnabled(true);
         when(miaoAiProperties.getAgent("regex-assistant")).thenReturn(agentConfig);
-        service = new RegexAIService(miaoAiClient, miaoAiProperties, new ObjectMapper());
+        ObjectMapper mapper = new ObjectMapper();
+        service = new RegexAIService(miaoAiClient, miaoAiProperties, mapper,
+                new AiStreamProxy(miaoAiClient, miaoAiProperties));
     }
 
     /** 构造一个 Agent 返回结果 */

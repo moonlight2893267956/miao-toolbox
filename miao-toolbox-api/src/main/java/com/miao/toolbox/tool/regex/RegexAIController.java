@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miao.toolbox.auth.annotation.RequireRoute;
 import com.miao.toolbox.common.exception.BusinessException;
 import com.miao.toolbox.common.response.ApiResponse;
-import com.miao.toolbox.observability.AiInvocationRecorder;
+import com.miao.toolbox.observability.AiStreamProxy;
 import com.miao.toolbox.observability.MiaoAiClient;
 import com.miao.toolbox.observability.MiaoAiProperties;
 import com.miao.toolbox.tool.regex.dto.RegexAIRequest;
@@ -14,13 +14,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * 正则 AI Controller — 提供自然语言生成正则、正则解释、优化建议、匹配诊断、方言转换五个能力。
@@ -45,7 +41,8 @@ public class RegexAIController {
     private final MiaoAiClient miaoAiClient;
     private final MiaoAiProperties miaoAiProperties;
     private final ObjectMapper objectMapper;
-    private final ExecutorService sseExecutor = Executors.newCachedThreadPool();
+    /** 流式转发唯一实现：连接、解析、失败归因、记账幂等都在它那里 */
+    private final AiStreamProxy aiStreamProxy;
 
     @PostMapping
     public ResponseEntity<ApiResponse<RegexAIResponse>> aiInvoke(
@@ -57,50 +54,25 @@ public class RegexAIController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /**
+     * POST /api/regex/ai/stream —— SSE 流式调用 regex-assistant。
+     *
+     * <p>此前自带线程池、记账、超时回调与 fail-fast，与另三个 AI 工具逐行重复。
+     * 现全部委托 {@link AiStreamProxy}，此处只保留 HTTP 端点职责。
+     *
+     * <p>收敛后顺带修掉：上游断流曾被记成「用户自己断开」（归因反了），
+     * 缺 {@code done} 的半截流曾被当成成功。
+     */
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream(@Valid @RequestBody RegexAIRequest request) {
         MiaoAiProperties.AgentConfig agent = miaoAiProperties.getAgent(AGENT_KEY);
         if (!agent.isEnabled()) {
-            SseEmitter emitter = new SseEmitter(0L);
-            try {
-                emitter.send(SseEmitter.event()
-                        .name("error")
-                        .data("{\"message\":\"正则 AI 助手未启用\"}"));
-                emitter.complete();
-            } catch (Exception ignored) {
-            }
-            return emitter;
+            return aiStreamProxy.failFast("AI_AGENT_DISABLED", "正则 AI 助手未启用", 503);
         }
 
         validateRequest(request);
 
-        SecurityContext securityContext = SecurityContextHolder.getContext();
-        SseEmitter emitter = new SseEmitter(180_000L);
-
-        String requestSummary = safeToJson(request);
-        String effectiveAgentName = miaoAiProperties.getEffectiveAgentName(AGENT_KEY);
-        AiInvocationRecorder.InvocationHandle handle =
-                miaoAiClient.recordStreamStart(effectiveAgentName, requestSummary);
-
-        sseExecutor.execute(() -> {
-            SecurityContextHolder.setContext(securityContext);
-            try {
-                regexAIService.stream(request, emitter, handle);
-            } finally {
-                SecurityContextHolder.clearContext();
-            }
-        });
-
-        emitter.onTimeout(() -> {
-            log.warn("SSE emitter timeout for regex stream");
-            miaoAiClient.recordStreamFailure(handle, "SSE_TIMEOUT", "SSE 连接超时");
-        });
-        emitter.onError(ex -> {
-            log.warn("SSE emitter error: {}", ex.getMessage());
-            miaoAiClient.recordStreamFailure(handle, "SSE_ERROR", ex.getMessage());
-        });
-
-        return emitter;
+        return regexAIService.stream(request);
     }
 
     private void validateRequest(RegexAIRequest request) {
