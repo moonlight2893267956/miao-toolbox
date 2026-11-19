@@ -20,10 +20,22 @@ services:
     # IMAGE_TAG 默认 latest；回滚时由部署脚本/CI 传入旧 sha 标签
     image: ghcr.io/moonlight2893267956/miao-toolbox-api:${IMAGE_TAG:-latest}
     restart: unless-stopped
+    # ===== 僵尸进程防护（2026-11-19 线上事故的根本修复）=====
+    # 事故：容器 PID 1 是 `sh -c exec java ...`，sh 不是真正的 init，不回收孤儿进程。
+    # healthcheck 用 `wget ... | grep -q` 管道，grep 匹配到即退出、wget 变成孤儿，
+    # 每 30s 泄漏 2 个僵尸，4 周累积 4237 个打满 pids.max=4320，
+    # 之后 pthread_create 全部 EAGAIN → SSL 握手/HikariCP 建连失败 → 整站 API 不可用。
+    # init: true 让 Docker 注入 tini 作 PID 1，自动 wait() 回收僵尸进程。
+    init: true
     # 不再 depends_on mysql/redis(跨 compose 不支持)
     # 启动期间允许 unhealthy,等 miao-infra 就绪 + Spring Boot/HikariCP 重试兜底
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health 2>/dev/null | grep -q '\"status\":\"UP\"' || exit 1"]
+      # 必须用 CMD（非 CMD-SHELL）且不带管道：
+      #   - 管道中 grep 提前退出会让 wget 变孤儿（事故根因之一）
+      #   - --spider 只校验 HTTP 状态码，不读 body，Spring 在 status!=UP 时返回 503，
+      #     wget 对 4xx/5xx 返回非 0，健康语义与原 grep 判断等价
+      #   - 数组形式不经过 shell，只产生 1 个进程
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -71,7 +83,7 @@ services:
     networks:
       - miao-net
       - miao-infra-net
-    # 资源限制(防 OOM)
+    # 资源限制(防 OOM + 防 pids 泄漏)
     # 注意: 512M 偏紧,堆外(Metaspace/线程栈/G1 原生内存/Lettuce-NIO 等)
     # 约需 110MB,叠加 -Xmx384m 稳态即逼近上限,易触发 cgroup OOM-kill。
     # 已提至 1G 给堆外留足余量(2026-07-07 线上因 OOM 反复重启的修复)。
@@ -79,6 +91,12 @@ services:
       resources:
         limits:
           memory: 1G
+          # pids 上限：正常情况下 JVM 稳态约 80 线程，
+          # 峰值（Tomcat + AI 池 8 + 调度 12 + SSE 16 + Nacos/gRPC/GC 等）约 350。
+          # 设 512 留足余量；若再次泄漏会迅速触发告警而非静默打满后整站不可用。
+          # 必须写在这里而非顶层 pids_limit —— 两者同时存在会报
+          # "can't set distinct values on 'pids_limit' and 'deploy.resources.limits.pids'"。
+          pids: 512
 
   web:
     # 镜像由 CI 构建推送至 GHCR，服务器纯拉取（不再本地 build）
